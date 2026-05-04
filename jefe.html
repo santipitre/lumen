@@ -1,0 +1,1957 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>SP Control Data · Jefatura de Servicio</title>
+  <meta name="theme-color" content="#0F172A"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy:    #0F172A;
+      --navy-2:  #0B1220;
+      --blue-d:  #1E3A8A;
+      --blue:    #3B82F6;
+      --cyan:    #22DBAE;
+      --green:   #55e78B;
+      --red:     #F87171;
+      --amber:   #FBBF24;
+      --purple:  #A78BFA;
+      --pink:    #F472B6;
+      --glass:   rgba(30,58,138,.22);
+      --glass-2: rgba(30,58,138,.34);
+      --border:  rgba(59,130,246,.22);
+      --border-g:rgba(85,231,139,.28);
+      --border-r:rgba(248,113,113,.35);
+      --border-a:rgba(251,191,36,.35);
+      --text:    #E2E8F0;
+      --muted:   #94A3B8;
+      --surface: #111827;
+    }
+    html, body {
+      height: 100%; min-height: 100vh; background: radial-gradient(ellipse at top, #14213d 0%, var(--navy) 60%, var(--navy-2) 100%);
+      color: var(--text); font-family: 'Inter', sans-serif;
+      font-size: 14px; line-height: 1.45; overflow: hidden;
+    }
+    body { display: flex; flex-direction: column; }
+
+    /* ───────── LOGIN OVERLAY ───────── */
+    #login-overlay {
+      position: fixed; inset: 0; z-index: 100;
+      background: radial-gradient(ellipse at center, rgba(30,58,138,.4) 0%, var(--navy) 75%);
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(6px);
+    }
+    #login-overlay.hidden { display: none; }
+    .login-card {
+      width: 380px; max-width: 92vw;
+      background: rgba(15,23,42,.85);
+      border: 1px solid var(--border-g);
+      border-radius: 14px; padding: 36px 32px;
+      box-shadow: 0 30px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(85,231,139,.08) inset;
+    }
+    .login-logo {
+      font-family: 'Rajdhani', sans-serif; font-size: 22px; font-weight: 700;
+      letter-spacing: 3px; color: var(--green); text-align: center;
+    }
+    .login-sub {
+      font-size: 11px; letter-spacing: 3px; color: var(--muted);
+      text-align: center; text-transform: uppercase; margin-top: 4px;
+    }
+    .login-title {
+      font-family: 'Rajdhani', sans-serif; font-size: 18px;
+      letter-spacing: 2px; color: var(--text); text-align: center;
+      margin-top: 26px; text-transform: uppercase;
+    }
+    .login-input {
+      width: 100%; margin-top: 18px; padding: 14px 16px;
+      background: var(--glass); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 16px;
+      font-family: 'Rajdhani', sans-serif; letter-spacing: 8px;
+      text-align: center; outline: none;
+      transition: border-color .2s;
+    }
+    .login-input:focus { border-color: var(--green); }
+    .login-btn {
+      width: 100%; margin-top: 14px; padding: 13px;
+      border: none; border-radius: 8px;
+      background: linear-gradient(135deg, #166534, var(--green));
+      color: var(--navy); font-weight: 700; font-size: 12px;
+      letter-spacing: 3px; text-transform: uppercase;
+      cursor: pointer; font-family: 'Inter', sans-serif;
+    }
+    .login-btn:hover { opacity: .9; }
+    .login-error {
+      margin-top: 12px; font-size: 11px; color: var(--red);
+      text-align: center; letter-spacing: 1px; min-height: 14px;
+    }
+
+    /* ───────── TOPBAR ───────── */
+    .topbar {
+      flex-shrink: 0; height: 54px;
+      background: rgba(11,18,32,.85); backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; padding: 0 22px; gap: 18px;
+    }
+    .top-logo {
+      font-family: 'Rajdhani', sans-serif; font-size: 18px; font-weight: 700;
+      letter-spacing: 3px; color: var(--green); white-space: nowrap;
+    }
+    .top-sep { width: 1px; height: 22px; background: var(--border); }
+    .top-panel-name {
+      font-family: 'Rajdhani', sans-serif; font-size: 14px;
+      letter-spacing: 4px; color: var(--cyan); text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .top-dots {
+      display: flex; gap: 8px; margin-left: 12px;
+    }
+    .top-dot {
+      width: 36px; height: 4px; border-radius: 2px;
+      background: rgba(255,255,255,.08); transition: all .3s;
+      cursor: pointer; position: relative; overflow: hidden;
+    }
+    .top-dot.active { background: var(--green); box-shadow: 0 0 12px rgba(85,231,139,.6); }
+    .top-dot.active::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(90deg, rgba(255,255,255,.6), transparent);
+      animation: dotShine 30s linear infinite;
+    }
+    @keyframes dotShine { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+
+    .top-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+    .top-clock {
+      font-family: 'Rajdhani', sans-serif; font-size: 18px; font-weight: 700;
+      color: var(--text); letter-spacing: 2px; min-width: 76px; text-align: right;
+    }
+    .top-date { font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
+    .top-btn {
+      padding: 7px 12px; border-radius: 6px;
+      background: transparent; border: 1px solid var(--border);
+      color: var(--muted); font-size: 11px; letter-spacing: 1.5px;
+      cursor: pointer; transition: all .2s; text-transform: uppercase;
+      font-family: 'Inter', sans-serif;
+    }
+    .top-btn:hover { border-color: var(--green); color: var(--green); }
+    .top-btn.danger:hover { border-color: var(--red); color: var(--red); }
+    .live-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green); box-shadow: 0 0 8px var(--green);
+      animation: pulse 1.6s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .55; transform: scale(.85); }
+    }
+    .live-chip {
+      display: flex; align-items: center; gap: 6px;
+      padding: 4px 10px; border-radius: 4px;
+      background: rgba(85,231,139,.1); border: 1px solid var(--border-g);
+      font-size: 10px; color: var(--green); letter-spacing: 2px; text-transform: uppercase;
+    }
+
+    /* ───────── ALERT BAR ───────── */
+    .alert-bar {
+      flex-shrink: 0; padding: 10px 22px;
+      background: linear-gradient(90deg, rgba(248,113,113,.18), rgba(248,113,113,.05));
+      border-bottom: 1px solid var(--border-r);
+      display: none; align-items: center; gap: 12px;
+      animation: alertFlash 2.4s ease-in-out infinite;
+    }
+    .alert-bar.show { display: flex; }
+    @keyframes alertFlash {
+      0%, 100% { background: linear-gradient(90deg, rgba(248,113,113,.18), rgba(248,113,113,.05)); }
+      50% { background: linear-gradient(90deg, rgba(248,113,113,.32), rgba(248,113,113,.08)); }
+    }
+    .alert-bar-icon { font-size: 18px; }
+    .alert-bar-text {
+      flex: 1; font-size: 12px; color: var(--text);
+      font-family: 'Rajdhani', sans-serif; letter-spacing: 1px;
+      font-weight: 600;
+    }
+    .alert-bar-text strong { color: var(--red); margin-right: 6px; }
+
+    /* ───────── PANEL CONTAINER ───────── */
+    .stage {
+      flex: 1; position: relative; overflow: hidden;
+    }
+    .panel {
+      position: absolute; inset: 0;
+      padding: 22px 26px 18px;
+      overflow-y: auto; overflow-x: hidden;
+      opacity: 0; pointer-events: none;
+      transition: opacity .55s ease;
+    }
+    .panel.active { opacity: 1; pointer-events: auto; }
+    .panel::-webkit-scrollbar { width: 6px; }
+    .panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ───────── COMUNES ───────── */
+    .card {
+      background: var(--glass); border: 1px solid var(--border);
+      border-radius: 12px; padding: 18px;
+      transition: border-color .25s;
+    }
+    .card-title {
+      font-family: 'Rajdhani', sans-serif; font-size: 12px;
+      letter-spacing: 2.5px; color: var(--green); text-transform: uppercase;
+      margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+    }
+    .card-title::before {
+      content: ''; width: 3px; height: 12px;
+      background: var(--green); border-radius: 2px;
+    }
+    .card-title .hint {
+      margin-left: auto; font-size: 9px; color: var(--muted); letter-spacing: 1px;
+    }
+
+    /* ───────── PANEL 1 - COMANDO ───────── */
+    .grid-cmd {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px; margin-bottom: 16px;
+    }
+    .kpi-hero {
+      background: var(--glass); border: 1px solid var(--border);
+      border-radius: 12px; padding: 18px 20px;
+      position: relative; overflow: hidden;
+    }
+    .kpi-hero::after {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    }
+    .kpi-hero.green::after { background: linear-gradient(90deg, var(--green), transparent); }
+    .kpi-hero.cyan::after  { background: linear-gradient(90deg, var(--cyan), transparent); }
+    .kpi-hero.amber::after { background: linear-gradient(90deg, var(--amber), transparent); }
+    .kpi-hero.blue::after  { background: linear-gradient(90deg, var(--blue), transparent); }
+    .kpi-hero .label {
+      font-size: 10px; letter-spacing: 2.5px; color: var(--muted);
+      text-transform: uppercase; margin-bottom: 8px;
+    }
+    .kpi-hero .value {
+      font-family: 'Rajdhani', sans-serif; font-size: 44px;
+      font-weight: 700; line-height: 1;
+    }
+    .kpi-hero.green .value { color: var(--green); }
+    .kpi-hero.cyan .value  { color: var(--cyan); }
+    .kpi-hero.amber .value { color: var(--amber); }
+    .kpi-hero.blue .value  { color: var(--blue); }
+    .kpi-hero .sub {
+      font-size: 11px; color: var(--muted); margin-top: 6px;
+    }
+    .progress-wrap {
+      margin-top: 10px; height: 6px; background: rgba(30,58,138,.4);
+      border-radius: 3px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; border-radius: 3px;
+      transition: width .9s cubic-bezier(.16,1,.3,1);
+    }
+
+    /* Modalidades (5 cards) */
+    .grid-modas {
+      display: grid; grid-template-columns: repeat(5, 1fr);
+      gap: 12px; margin-bottom: 16px;
+    }
+    .moda-card {
+      background: var(--glass); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px;
+      position: relative; transition: transform .2s, border-color .2s;
+    }
+    .moda-card:hover { transform: translateY(-2px); border-color: var(--border-g); }
+    .moda-icon { font-size: 22px; }
+    .moda-name {
+      font-family: 'Rajdhani', sans-serif; font-size: 11px;
+      letter-spacing: 2px; color: var(--cyan); text-transform: uppercase;
+      margin-top: 6px;
+    }
+    .moda-stat-row {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-top: 10px;
+    }
+    .moda-stat-label { font-size: 9px; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; }
+    .moda-stat-val { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 18px; color: var(--text); }
+    .moda-equip-bar { display: flex; gap: 3px; margin-top: 10px; }
+    .moda-equip-pill {
+      flex: 1; height: 4px; border-radius: 2px;
+      background: var(--green);
+    }
+    .moda-equip-pill.oos { background: var(--red); }
+
+    .row-2col {
+      display: grid; grid-template-columns: 2fr 1fr;
+      gap: 14px;
+    }
+    .equipos-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 8px;
+    }
+    .equipo-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 10px; border-radius: 6px;
+      background: rgba(15,23,42,.4); border: 1px solid var(--border);
+    }
+    .equipo-row.oos { border-color: var(--border-r); background: rgba(248,113,113,.06); }
+    .equipo-status {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+      background: var(--green); box-shadow: 0 0 6px var(--green);
+    }
+    .equipo-row.oos .equipo-status { background: var(--red); box-shadow: 0 0 6px var(--red); }
+    .equipo-name {
+      font-size: 10px; letter-spacing: 1px; color: var(--text);
+      flex: 1; min-width: 0; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap;
+      font-family: 'Rajdhani', sans-serif; font-weight: 600;
+    }
+    .equipo-row.oos .equipo-name { color: var(--red); }
+
+    .alerts-list { display: flex; flex-direction: column; gap: 8px; }
+    .alert-item {
+      padding: 10px 12px; border-radius: 6px;
+      border-left: 3px solid var(--red);
+      background: rgba(248,113,113,.05);
+      font-size: 12px; color: var(--text);
+    }
+    .alert-item.warn { border-color: var(--amber); background: rgba(251,191,36,.05); }
+    .alert-item .a-time { font-size: 9px; color: var(--muted); letter-spacing: 1px; margin-bottom: 3px; }
+
+    /* ───────── PANEL 2 - FLUJO ───────── */
+    .funnel-box {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+      margin-bottom: 16px;
+    }
+    .funnel-step {
+      background: var(--glass); border: 1px solid var(--border);
+      border-radius: 12px; padding: 18px;
+      position: relative; transition: all .25s;
+    }
+    .funnel-step::after {
+      content: '▸'; position: absolute;
+      right: -16px; top: 50%; transform: translateY(-50%);
+      font-size: 22px; color: var(--border); z-index: 1;
+    }
+    .funnel-step:last-child::after { display: none; }
+    .funnel-step.bottleneck {
+      border-color: var(--border-r); background: rgba(248,113,113,.06);
+      box-shadow: 0 0 0 1px rgba(248,113,113,.1);
+    }
+    .funnel-icon { font-size: 22px; margin-bottom: 6px; }
+    .funnel-stage-name {
+      font-family: 'Rajdhani', sans-serif; font-size: 11px;
+      letter-spacing: 2px; color: var(--cyan); text-transform: uppercase;
+    }
+    .funnel-stage-time {
+      font-family: 'Rajdhani', sans-serif; font-size: 32px;
+      font-weight: 700; color: var(--text); line-height: 1;
+      margin-top: 6px;
+    }
+    .funnel-step.bottleneck .funnel-stage-time { color: var(--red); }
+    .funnel-stage-unit { font-size: 11px; color: var(--muted); }
+    .funnel-stage-trend {
+      font-size: 10px; margin-top: 4px;
+      font-family: 'Rajdhani', sans-serif; letter-spacing: 1px;
+    }
+    .funnel-stage-trend.up { color: var(--red); }
+    .funnel-stage-trend.down { color: var(--green); }
+
+    .insight-box {
+      margin-bottom: 16px; padding: 14px 18px;
+      background: linear-gradient(90deg, rgba(34,219,174,.08), rgba(85,231,139,.02));
+      border: 1px solid var(--border-g); border-left: 4px solid var(--green);
+      border-radius: 8px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .insight-icon { font-size: 26px; }
+    .insight-text {
+      font-family: 'Rajdhani', sans-serif; font-size: 15px;
+      letter-spacing: .5px; color: var(--text); flex: 1;
+    }
+    .insight-text strong { color: var(--cyan); }
+    .insight-text em { color: var(--amber); font-style: normal; font-weight: 700; }
+
+    .heat-table {
+      width: 100%; border-collapse: separate; border-spacing: 2px;
+    }
+    .heat-table th, .heat-table td {
+      padding: 6px 4px; text-align: center;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 11px; font-weight: 600;
+    }
+    .heat-table th { color: var(--muted); letter-spacing: 1.5px; font-weight: 600; }
+    .heat-cell {
+      border-radius: 4px; min-width: 28px;
+      transition: transform .2s;
+    }
+    .heat-cell:hover { transform: scale(1.15); }
+
+    .demorados-list { display: flex; flex-direction: column; gap: 6px; }
+    .demorado-row {
+      display: grid; grid-template-columns: 1fr auto auto;
+      gap: 10px; align-items: center;
+      padding: 8px 12px; border-radius: 6px;
+      background: rgba(248,113,113,.05); border: 1px solid var(--border-r);
+      font-size: 12px;
+    }
+    .demorado-paciente { color: var(--text); font-weight: 600; }
+    .demorado-etapa { font-size: 10px; color: var(--amber); letter-spacing: 1px; text-transform: uppercase; }
+    .demorado-time {
+      font-family: 'Rajdhani', sans-serif; font-size: 16px;
+      font-weight: 700; color: var(--red);
+    }
+
+    /* ───────── PANEL 3 - BENCHMARK ───────── */
+    .bench-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px;
+      margin-bottom: 14px;
+    }
+    .vs-table { width: 100%; border-collapse: collapse; }
+    .vs-table th {
+      text-align: left; padding: 8px 10px; font-size: 10px;
+      letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+    }
+    .vs-table td {
+      padding: 9px 10px; font-size: 13px;
+      border-bottom: 1px solid rgba(30,58,138,.18);
+    }
+    .vs-mod {
+      font-family: 'Rajdhani', sans-serif; font-weight: 700;
+      color: var(--cyan); letter-spacing: 1px;
+    }
+    .vs-num { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 15px; }
+    .delta {
+      font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 13px;
+      padding: 2px 8px; border-radius: 4px; letter-spacing: 1px;
+    }
+    .delta.up   { background: rgba(85,231,139,.12); color: var(--green); }
+    .delta.down { background: rgba(248,113,113,.12); color: var(--red); }
+    .delta.flat { background: rgba(148,163,184,.12); color: var(--muted); }
+
+    .spark-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 8px 0; border-bottom: 1px solid rgba(30,58,138,.18);
+    }
+    .spark-row:last-child { border-bottom: none; }
+    .spark-label {
+      width: 110px; font-family: 'Rajdhani', sans-serif;
+      font-size: 12px; color: var(--cyan); letter-spacing: 1.5px; font-weight: 600;
+    }
+    .spark-svg { flex: 1; }
+    .spark-val {
+      width: 56px; text-align: right;
+      font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 700;
+      color: var(--text);
+    }
+
+    /* ───────── PANEL 4 - SIMULACIÓN ───────── */
+    .sim-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr);
+      gap: 14px; margin-bottom: 14px;
+    }
+    .sim-card {
+      background: var(--glass); border: 1px solid var(--border);
+      border-radius: 12px; padding: 18px 20px;
+      position: relative; overflow: hidden;
+    }
+    .sim-card::after {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--purple), transparent);
+    }
+    .sim-title {
+      font-family: 'Rajdhani', sans-serif; font-size: 13px;
+      letter-spacing: 2.5px; color: var(--purple); text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .sim-desc { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+    .sim-controls {
+      display: flex; align-items: center; gap: 14px; margin-bottom: 14px;
+    }
+    .sim-slider {
+      flex: 1;
+      -webkit-appearance: none; appearance: none;
+      height: 6px; border-radius: 3px;
+      background: rgba(167,139,250,.18); outline: none;
+    }
+    .sim-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: var(--purple); cursor: pointer;
+      box-shadow: 0 0 10px rgba(167,139,250,.6);
+    }
+    .sim-slider::-moz-range-thumb {
+      width: 18px; height: 18px; border-radius: 50%;
+      background: var(--purple); cursor: pointer; border: none;
+      box-shadow: 0 0 10px rgba(167,139,250,.6);
+    }
+    .sim-val {
+      font-family: 'Rajdhani', sans-serif; font-size: 22px;
+      font-weight: 700; color: var(--purple); min-width: 64px; text-align: right;
+    }
+    .sim-impact {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 10px; padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+    .sim-impact-item {}
+    .sim-impact-lbl {
+      font-size: 9px; letter-spacing: 1.5px; color: var(--muted);
+      text-transform: uppercase; margin-bottom: 4px;
+    }
+    .sim-impact-val {
+      font-family: 'Rajdhani', sans-serif; font-size: 22px;
+      font-weight: 700; color: var(--cyan); line-height: 1;
+    }
+    .sim-impact-val.money { color: var(--green); }
+
+    /* ───────── PANEL 5 - RESUMEN ───────── */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      grid-auto-rows: minmax(80px, auto);
+      gap: 10px;
+    }
+    .sm-tile {
+      background: var(--glass); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 14px;
+      display: flex; flex-direction: column; justify-content: space-between;
+      position: relative; overflow: hidden;
+    }
+    .sm-tile.span-2 { grid-column: span 2; }
+    .sm-tile.span-3 { grid-column: span 3; }
+    .sm-lbl {
+      font-size: 9px; letter-spacing: 2px; color: var(--muted);
+      text-transform: uppercase;
+    }
+    .sm-val {
+      font-family: 'Rajdhani', sans-serif; font-weight: 700;
+      font-size: 26px; color: var(--text); line-height: 1;
+    }
+    .sm-sub { font-size: 10px; color: var(--muted); }
+    .sm-tile.green .sm-val { color: var(--green); }
+    .sm-tile.cyan  .sm-val { color: var(--cyan); }
+    .sm-tile.amber .sm-val { color: var(--amber); }
+    .sm-tile.red   .sm-val { color: var(--red); }
+    .sm-tile.purple .sm-val { color: var(--purple); }
+
+    /* ───────── EMPTY STATE ───────── */
+    .empty {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; height: 100%; gap: 10px;
+      color: var(--muted);
+    }
+    .empty-icon { font-size: 60px; opacity: .55; }
+    .empty-text { font-family: 'Rajdhani', sans-serif; font-size: 16px; letter-spacing: 2px; text-transform: uppercase; }
+    .empty-sub { font-size: 12px; }
+
+    /* ───────── RESPONSIVE ───────── */
+    @media (max-width: 1280px) {
+      .grid-cmd { grid-template-columns: repeat(2, 1fr); }
+      .grid-modas { grid-template-columns: repeat(3, 1fr); }
+      .funnel-box { grid-template-columns: repeat(2, 1fr); }
+      .funnel-step::after { display: none; }
+      .summary-grid { grid-template-columns: repeat(4, 1fr); }
+      .sim-grid, .bench-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 720px) {
+      .grid-cmd { grid-template-columns: 1fr; }
+      .grid-modas { grid-template-columns: repeat(2, 1fr); }
+      .funnel-box { grid-template-columns: 1fr; }
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
+      .row-2col { grid-template-columns: 1fr; }
+      .top-panel-name { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═════════ LOGIN ═════════ -->
+  <div id="login-overlay">
+    <div class="login-card">
+      <div class="login-logo">SP CONTROL DATA</div>
+      <div class="login-sub">Jefatura de Servicio</div>
+      <div class="login-title">Acceso Restringido</div>
+      <input id="login-pin" class="login-input" type="password" maxlength="6" placeholder="••••" autocomplete="off"/>
+      <button id="login-btn" class="login-btn">Ingresar</button>
+      <div id="login-error" class="login-error"></div>
+    </div>
+  </div>
+
+  <!-- ═════════ TOPBAR ═════════ -->
+  <div class="topbar">
+    <div class="top-logo">SPCD · JEFATURA</div>
+    <div class="top-sep"></div>
+    <div class="top-panel-name" id="panel-name">Vista Comando</div>
+    <div class="top-dots" id="top-dots">
+      <div class="top-dot active" data-idx="0" title="Vista Comando"></div>
+      <div class="top-dot" data-idx="1" title="Flujo del Paciente"></div>
+      <div class="top-dot" data-idx="2" title="Benchmark y Tendencias"></div>
+      <div class="top-dot" data-idx="3" title="Simulación Estratégica"></div>
+      <div class="top-dot" data-idx="4" title="Resumen Ejecutivo"></div>
+    </div>
+    <div class="top-right">
+      <div class="live-chip" style="background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.4);color:var(--purple)" title="Mes que está mostrando el dashboard (último mes con datos en el Excel)"><span style="font-size:11px">📅</span><span id="top-ctx">—</span></div>
+      <div class="live-chip"><div class="live-dot"></div><span id="live-status">EN VIVO</span></div>
+      <div style="text-align:right">
+        <div class="top-clock" id="top-clock">--:--</div>
+        <div class="top-date" id="top-date">—</div>
+      </div>
+      <label class="top-btn" id="btn-upload-lbl" for="top-file-input" title="Cargar / actualizar Excel" style="cursor:pointer">📥 EXCEL</label>
+      <input type="file" id="top-file-input" accept=".xlsx,.xls" style="display:none"/>
+      <button class="top-btn" id="btn-pause" title="Pausar / reanudar ciclado">⏸ PAUSA</button>
+      <button class="top-btn" id="btn-fs" title="Pantalla completa">⛶ FULL</button>
+      <a class="top-btn danger" href="index.html">SALIR</a>
+    </div>
+  </div>
+
+  <!-- ═════════ ALERT BAR ═════════ -->
+  <div class="alert-bar" id="alert-bar">
+    <div class="alert-bar-icon">⚠️</div>
+    <div class="alert-bar-text" id="alert-bar-text"></div>
+  </div>
+
+  <!-- ═════════ STAGE ═════════ -->
+  <div class="stage">
+
+    <!-- PANEL 1: COMANDO -->
+    <div class="panel active" id="panel-0">
+      <div class="grid-cmd">
+        <div class="kpi-hero green">
+          <div class="label">Producción · Hoy</div>
+          <div class="value" id="kpi-prod-hoy">—</div>
+          <div class="sub" id="kpi-prod-hoy-sub">estudios realizados</div>
+        </div>
+        <div class="kpi-hero cyan">
+          <div class="label">Producción · Mes</div>
+          <div class="value" id="kpi-prod-mes">—</div>
+          <div class="sub" id="kpi-prod-mes-sub">vs. objetivo</div>
+          <div class="progress-wrap"><div class="progress-fill" id="kpi-prod-mes-bar" style="width:0%;background:var(--cyan)"></div></div>
+        </div>
+        <div class="kpi-hero blue">
+          <div class="label">Ocupación promedio</div>
+          <div class="value" id="kpi-ocup">—</div>
+          <div class="sub" id="kpi-ocup-sub">de la capacidad instalada</div>
+          <div class="progress-wrap"><div class="progress-fill" id="kpi-ocup-bar" style="width:0%;background:var(--blue)"></div></div>
+        </div>
+        <div class="kpi-hero amber">
+          <div class="label">TAT global</div>
+          <div class="value" id="kpi-tat">—</div>
+          <div class="sub" id="kpi-tat-sub">tiempo informe (días)</div>
+        </div>
+      </div>
+
+      <div class="grid-modas" id="grid-modas"></div>
+
+      <div class="row-2col">
+        <div class="card">
+          <div class="card-title">Estado de Equipos <span class="hint" id="equipos-hint"></span></div>
+          <div class="equipos-grid" id="equipos-grid"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Alertas Críticas</div>
+          <div class="alerts-list" id="alerts-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 2: FLUJO PACIENTE -->
+    <div class="panel" id="panel-1">
+      <div class="insight-box" id="insight-box">
+        <div class="insight-icon">🔍</div>
+        <div class="insight-text" id="insight-text">Analizando flujo del paciente…</div>
+      </div>
+
+      <div class="funnel-box" id="funnel-box"></div>
+
+      <div class="row-2col">
+        <div class="card">
+          <div class="card-title">Heatmap de Espera por Hora del Día <span class="hint">minutos promedio</span></div>
+          <div id="heat-wrap"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Top Demorados <span class="hint">mayor permanencia</span></div>
+          <div class="demorados-list" id="demorados-list"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="card-title">Distribución de Tiempos por Etapa</div>
+        <canvas id="chart-etapas" style="max-height:200px"></canvas>
+      </div>
+    </div>
+
+    <!-- PANEL 3: BENCHMARK -->
+    <div class="panel" id="panel-2">
+      <div class="bench-grid">
+        <div class="card">
+          <div class="card-title">Mes Actual vs. Mes Anterior <span class="hint">por modalidad</span></div>
+          <table class="vs-table" id="vs-table"></table>
+        </div>
+        <div class="card">
+          <div class="card-title">Comparación entre Equipos <span class="hint">misma modalidad</span></div>
+          <canvas id="chart-equipos" style="max-height:240px"></canvas>
+        </div>
+      </div>
+
+      <div class="bench-grid">
+        <div class="card">
+          <div class="card-title">Tendencias · Últimos 6 Meses</div>
+          <div id="sparks-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Ranking de Médicos · TAT más bajo</div>
+          <div id="ranking-medicos"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 4: SIMULACIÓN ESTRATÉGICA -->
+    <div class="panel" id="panel-3">
+      <div class="insight-box" style="background:linear-gradient(90deg,rgba(167,139,250,.1),rgba(167,139,250,.02));border-color:rgba(167,139,250,.35);border-left-color:var(--purple)">
+        <div class="insight-icon">🚀</div>
+        <div class="insight-text">Capa estratégica · <strong>Mové los sliders</strong> para ver el impacto en producción y facturación. Cifras basadas en nomenclador real y promedios históricos del servicio.</div>
+      </div>
+
+      <div class="sim-grid">
+        <div class="sim-card">
+          <div class="sim-title">+ Equipos de Resonancia Magnética</div>
+          <div class="sim-desc">¿Qué pasa si sumamos más equipos de RM al servicio?</div>
+          <div class="sim-controls">
+            <input class="sim-slider" id="sim-rm" type="range" min="0" max="3" step="1" value="0"/>
+            <div class="sim-val"><span id="sim-rm-val">+0</span></div>
+          </div>
+          <div class="sim-impact">
+            <div class="sim-impact-item">
+              <div class="sim-impact-lbl">Estudios extra / mes</div>
+              <div class="sim-impact-val" id="sim-rm-prod">—</div>
+            </div>
+            <div class="sim-impact-item">
+              <div class="sim-impact-lbl">Facturación extra / mes</div>
+              <div class="sim-impact-val money" id="sim-rm-money">—</div>
+            </div>
+            <div class="sim-impact-item">
+              <div class="sim-impact-lbl">Anual proyectado</div>
+              <div class="sim-impact-val money" id="sim-rm-year">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sim-card">
+          <div class="sim-title">+ Horas de Turno por Día</div>
+          <div class="sim-desc">¿Cuánto facturo más extendiendo el horario operativo?</div>
+          <div class="sim-controls">
+            <input class="sim-slider" id="sim-h" type="range" min="0" max="6" step="1" value="0"/>
+            <div class="sim-val"><span id="sim-h-val">+0h</span></div>
+          </div>
+          <div class="sim-impact">
+            <div class="sim-impact-item">
+              <div class="sim-impact-lbl">Estudios extra / mes</div>
+              <div class="sim-impact-val" id="sim-h-prod">—</div>
+            </div>
+            <div class="sim-impact-item">
+              <div class="sim-impact-lbl">Facturación extra / mes</div>
+              <div class="sim-impact-val money" id="sim-h-money">—</div>
+            </div>
+            <div class="sim-impact-item">
+              <div class="sim-impact-lbl">Anual proyectado</div>
+              <div class="sim-impact-val money" id="sim-h-year">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bench-grid">
+        <div class="card">
+          <div class="card-title">Proyección de Demanda <span class="hint">próximos 3 meses · regresión lineal</span></div>
+          <canvas id="chart-proy" style="max-height:230px"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-title">Saturación de Capacidad <span class="hint">cuándo llegamos al 100%</span></div>
+          <div id="saturation-box"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 5: RESUMEN EJECUTIVO -->
+    <div class="panel" id="panel-4">
+      <div class="summary-grid" id="summary-grid"></div>
+      <div class="card" style="margin-top:14px">
+        <div class="card-title">Producción Acumulada del Mes · Por Modalidad</div>
+        <canvas id="chart-resumen" style="max-height:220px"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   SP CONTROL DATA · JEFATURA
+   Dashboard ejecutivo full-screen para IBORONI
+═══════════════════════════════════════════════════════════ */
+
+/* ─────────── CONFIG ─────────── */
+const PANELS_TOTAL = 5;
+const CYCLE_MS = 30000;       // 30s ciclo paneles
+const REFRESH_MS = 5*60*1000; // 5min refresh datos
+const HORAS_TURNO_BASE = 10;  // 8 a 18hs por defecto
+const PIN_JEFE = '1505';      // PIN de IBORONI · cambiable luego
+
+/* Equipos/modalidades · alineado con medico.html */
+const EQUIPO_GROUPS = [
+  { key:'RM',  label:'Resonancia Magnética',  icon:'🧲',
+    equipos:['RMN -H ITALIA-GE SIGNA HORIZON','RMN-H ITALIA-SIEMENS FLOW'] },
+  { key:'TC',  label:'Tomografía',  icon:'🌀',
+    equipos:['TCMC PHIL.-BRILLANCE 64 HITALI'] },
+  { key:'RX',  label:'Rayos X',     icon:'🩻',
+    equipos:['RX-H.ITALIANO-GBA','RX-H.ITALIANO-MERATE'] },
+  { key:'ECO', label:'Ecografía',   icon:'🫀',
+    equipos:['ECOG-DOPP H.ITALIANO RESIDENTE','ECOG-DOPP H.ITALIANO SHERRERA',
+             'ECOG-DOPP H.ITALIAN CHAVEZ MA','ECOG-DOPP H.ITALIANO CCUESTA',
+             'ECOG-DOPP H.ITALIANO AAGUADO','ECOG-DOPP H.ITALIAN CHAVEZ ME',
+             'ECOG-DOPP H.ITALIANO MSZWALBER','ECOG-H.ITALIANO DIMARCO'] },
+  { key:'CG',  label:'Cámara Gamma',    icon:'☢️',
+    equipos:['CGAM- H.ITALIANO GENERALES','CGAM- H.ITALIANO CARDIOLOGICOS'] }
+];
+const EQUIPO_TO_MOD = new Map();
+EQUIPO_GROUPS.forEach(g => g.equipos.forEach(e => EQUIPO_TO_MOD.set(e.toUpperCase(), g.key)));
+function modalidadDe(equipo) { return EQUIPO_TO_MOD.get((equipo||'').trim().toUpperCase()) || 'OTRO'; }
+
+const MEDICOS_EXCLUIDOS = new Set(['ADMINVM','DALONSO']);
+
+/* Valores por modalidad fallback (si no hay match en nomenclador) */
+const FALLBACK_VAL = { RM: 95000, TC: 60000, RX: 18000, ECO: 22000, CG: 75000, OTRO: 30000 };
+
+/* ─────────── STORAGE (IndexedDB) ─────────── */
+const SPCD_DB = 'spcd_storage';
+const SPCD_STORE = 'data';
+function openDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(SPCD_DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(SPCD_STORE);
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+function dbLoad(key) {
+  return openDB().then(db => new Promise((res, rej) => {
+    const tx = db.transaction(SPCD_STORE, 'readonly');
+    const r = tx.objectStore(SPCD_STORE).get(key);
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  }));
+}
+function dbSave(key, value) {
+  return openDB().then(db => new Promise((res, rej) => {
+    const tx = db.transaction(SPCD_STORE, 'readwrite');
+    const r = tx.objectStore(SPCD_STORE).put(value, key);
+    r.onsuccess = () => res(true);
+    r.onerror = () => rej(r.error);
+  }));
+}
+
+/* ─── Upload Excel desde la propia pantalla del jefe ─── */
+function handleExcelUpload(ev, statusElId) {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const status = statusElId ? document.getElementById(statusElId) : null;
+  if (status) status.innerHTML = '<span style="color:var(--cyan)">⏳ Procesando archivo…</span>';
+  showToast('⏳ Procesando ' + file.name + '…', 'cyan');
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      let data;
+      try {
+        const wb = XLSX.read(e.target.result, { type:'binary', cellDates:true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        data = XLSX.utils.sheet_to_json(ws, { defval:'' });
+      } catch (errBin) {
+        // fallback array buffer
+        const ab = new Uint8Array(e.target.result instanceof ArrayBuffer ? e.target.result : new TextEncoder().encode(e.target.result));
+        const wb = XLSX.read(ab, { type:'array', cellDates:true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        data = XLSX.utils.sheet_to_json(ws, { defval:'' });
+      }
+      console.log('[jefe.html] Excel parseado:', data.length, 'filas');
+      console.log('[jefe.html] Columnas detectadas:', Object.keys(data[0]||{}));
+      console.log('[jefe.html] Primera fila ejemplo:', data[0]);
+
+      await dbSave('spcd_data_full', data);
+      try { localStorage.setItem('spcd_upload_date', new Date().toLocaleString('es-AR',{hour12:false})); } catch(e){}
+
+      RAW = data;
+      // Detectar contexto temporal del Excel
+      detectarContextoTemporal();
+
+      const info = describirCarga(data);
+      if (status) status.innerHTML = `<span style="color:var(--green)">✓ ${info}</span>`;
+      showToast('✓ ' + info, 'green', 6000);
+      setTimeout(() => renderAll(), 250);
+    } catch (err) {
+      console.error('[jefe.html] Error parseando Excel:', err);
+      if (status) status.innerHTML = '<span style="color:var(--red)">✗ Error: ' + err.message + '</span>';
+      showToast('✗ Error al procesar Excel: ' + err.message, 'red', 8000);
+    }
+    // Limpiar input para permitir re-subir el mismo archivo
+    ev.target.value = '';
+  };
+  reader.readAsBinaryString(file);
+}
+
+/* Toast feedback visible */
+function showToast(text, color, duration=4000) {
+  let t = document.getElementById('jef-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'jef-toast';
+    t.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:200;padding:14px 20px;border-radius:10px;font-family:Inter,sans-serif;font-size:13px;letter-spacing:.5px;background:rgba(15,23,42,.95);border:1px solid var(--border-g);color:var(--text);box-shadow:0 12px 32px rgba(0,0,0,.5);max-width:480px;backdrop-filter:blur(10px);transition:opacity .3s,transform .3s;opacity:0;transform:translateY(20px)';
+    document.body.appendChild(t);
+  }
+  const colorMap = { green:'var(--green)', red:'var(--red)', cyan:'var(--cyan)', amber:'var(--amber)' };
+  t.style.borderColor = colorMap[color] || 'var(--border-g)';
+  t.style.borderLeftWidth = '4px';
+  t.style.borderLeftStyle = 'solid';
+  t.innerHTML = text;
+  requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = 'translateY(0)'; });
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateY(20px)'; }, duration);
+}
+
+function describirCarga(data) {
+  if (!data.length) return '0 registros (Excel vacío)';
+  const fechas = data.map(r => parseDate(r['Turno Fecha'])).filter(Boolean);
+  if (!fechas.length) return `${data.length.toLocaleString('es-AR')} registros (sin columna de fecha reconocible)`;
+  const min = new Date(Math.min(...fechas));
+  const max = new Date(Math.max(...fechas));
+  const fmt = (d) => d.toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'});
+  const rea = data.filter(r => r['Estado']==='REA').length;
+  return `${data.length.toLocaleString('es-AR')} registros (${rea.toLocaleString('es-AR')} REA) · ${fmt(min)} → ${fmt(max)}`;
+}
+
+/* ─────────── ESTADO ─────────── */
+let RAW = [];                 // datos Excel
+let NOMENCL = [];             // nomenclador [{prestacion, codigo, valor}]
+let SERVICIO = defaultServicioState();
+let charts = {};              // instancias Chart.js
+let currentPanel = 0;
+let cycling = true;
+let cycleTimer = null;
+let refreshTimer = null;
+
+function defaultServicioState() {
+  return {
+    objetivoMensual: 18000000,             // $ ARS
+    equiposOOS: [],                        // ['RMN-H ITALIA-SIEMENS FLOW']
+    alertas: [],                           // [{nivel:'crit', text:'...', time:'10:42'}]
+    parametros: {
+      tiempoEstudioMin: { RM:35, TC:18, RX:10, ECO:25, CG:30 },
+      diasHabilesMes: 22,
+      capacidadHora: 1
+    }
+  };
+}
+
+/* ─────────── UTILS ─────────── */
+function parseDate(v) {
+  if (!v) return null;
+  if (v instanceof Date) return isNaN(v) ? null : v;
+  // Excel serial (number)
+  if (typeof v === 'number' && v > 25569 && v < 100000) {
+    const d = new Date((v - 25569) * 86400 * 1000);
+    return isNaN(d) ? null : d;
+  }
+  const d = new Date(v);
+  return isNaN(d) ? null : d;
+}
+/* Parse de hora "HH:MM" o "HH:MM:SS" o número de Excel (fracción de día) → minutos desde 00:00 */
+function parseTimeMin(v) {
+  if (v === null || v === undefined || v === '') return null;
+  if (v instanceof Date) {
+    return isNaN(v) ? null : (v.getHours()*60 + v.getMinutes());
+  }
+  if (typeof v === 'number') {
+    // Excel: fracción de día (0.5 = 12:00) o serial completo
+    let frac = v;
+    if (v > 1) frac = v - Math.floor(v);
+    const totalMin = Math.round(frac * 24 * 60);
+    if (totalMin >= 0 && totalMin < 24*60) return totalMin;
+    return null;
+  }
+  const s = String(v).trim();
+  const m = s.match(/(\d{1,2}):(\d{1,2})/);
+  if (m) {
+    const h = parseInt(m[1],10), mm = parseInt(m[2],10);
+    if (h<24 && mm<60) return h*60 + mm;
+  }
+  // ISO timestamp
+  const d = new Date(s);
+  if (!isNaN(d)) return d.getHours()*60 + d.getMinutes();
+  return null;
+}
+function tieneInformeIF(r) { return String(r['Informe']||'').trim() !== ''; }
+function medicoValido(med) { return med && !MEDICOS_EXCLUIDOS.has(med.trim().toUpperCase()); }
+function fmtNum(n) { return (n||0).toLocaleString('es-AR'); }
+function fmtMoney(n) {
+  if (!n || isNaN(n)) return '$ 0';
+  if (Math.abs(n) >= 1_000_000) return '$ ' + (n/1_000_000).toFixed(1) + 'M';
+  if (Math.abs(n) >= 1_000) return '$ ' + (n/1_000).toFixed(0) + 'k';
+  return '$ ' + Math.round(n).toLocaleString('es-AR');
+}
+function pct(x, total) { return total>0 ? Math.round((x/total)*100) : 0; }
+function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
+
+/* Detección flexible de columnas de tiempo (case-insensitive) */
+function getTime(r, kind) {
+  // kind: 'arribo' | 'in' | 'out' | 'fin'
+  const keys = Object.keys(r);
+  let candidates = [];
+  if (kind==='arribo') candidates = ['F/ Arribo','F/Arribo','F. Arribo','Arribo','Hora Arribo'];
+  if (kind==='in')     candidates = ['F/ IN','F/IN','F. IN','Hora IN','Hora Ingreso','In'];
+  if (kind==='out')    candidates = ['F/ OUT','F/OUT','F. OUT','Hora OUT','Hora Salida','Out'];
+  if (kind==='fin')    candidates = ['Fin Estudio','Fin estudio','Fin','F. Fin Estudio','Hora Fin Estudio'];
+  for (const c of candidates) {
+    if (r[c] !== undefined && r[c] !== '' && r[c] !== null) return r[c];
+  }
+  // Búsqueda por substring
+  for (const k of keys) {
+    const ku = k.toLowerCase();
+    if (kind==='arribo' && ku.includes('arribo')) return r[k];
+    if (kind==='in' && (ku.endsWith(' in') || ku === 'in' || ku.includes('ingreso'))) return r[k];
+    if (kind==='out' && (ku.endsWith(' out') || ku === 'out' || ku.includes('salida'))) return r[k];
+    if (kind==='fin' && ku.includes('fin') && ku.includes('estudio')) return r[k];
+  }
+  return null;
+}
+
+/* Diferencia en minutos entre dos valores time. Maneja cruce medianoche. */
+function diffMin(a, b) {
+  const ma = parseTimeMin(a), mb = parseTimeMin(b);
+  if (ma === null || mb === null) return null;
+  let d = mb - ma;
+  if (d < 0) d += 24*60; // cruce de medianoche
+  if (d > 12*60) return null; // outlier — probablemente dato malo
+  return d;
+}
+
+/* ─────────── ETAPAS DEL PACIENTE ─────────── */
+function calcEtapas(r) {
+  const arribo = getTime(r, 'arribo');
+  const ingreso = getTime(r, 'in');
+  const fin = getTime(r, 'fin');
+  const salida = getTime(r, 'out');
+  return {
+    espera:   diffMin(arribo, ingreso),     // arribo → ingreso a sala
+    estudio:  diffMin(ingreso, fin) ?? diffMin(ingreso, salida),  // ingreso → fin estudio
+    recovery: diffMin(fin, salida)          // fin estudio → salida (recovery/reposo)
+  };
+}
+
+/* ─────────── INGRESO POR ESTUDIO ───────────
+   PRIORIDAD:
+   1. Neto Unitario del propio Excel (dato facturado real) + Coseguro
+   2. Match por Código en nomenclador
+   3. Match por Prestación en nomenclador
+   4. Fallback por modalidad
+─────────────────────────────────────────── */
+function ingresoDe(r) {
+  // 1) Si el Excel trae el valor real, usarlo (es lo más exacto)
+  const neto = parseFloat(String(r['Neto Unitario']||r['Neto']||r['Importe']||'').toString().replace(/[^0-9.,-]/g,'').replace(',','.')) || 0;
+  const coseg = parseFloat(String(r['Coseguro']||'').toString().replace(/[^0-9.,-]/g,'').replace(',','.')) || 0;
+  if (neto > 0) return neto + coseg;
+
+  // 2) Match exacto por código en nomenclador
+  const cod = (r['Código']||r['Codigo']||r['Cod']||'').toString().trim();
+  if (cod && NOMENCL.length) {
+    const x = NOMENCL.find(n => String(n.codigo||'').trim() === cod);
+    if (x) return Number(x.valor)||0;
+  }
+  // 3) Match por prestación en nomenclador
+  const prest = (r['Prestación']||r['Prestacion']||'').toString().trim().toUpperCase();
+  if (prest && NOMENCL.length) {
+    const x = NOMENCL.find(n => (n.prestacion||'').toUpperCase() === prest);
+    if (x) return Number(x.valor)||0;
+    const x2 = NOMENCL.find(n => prest.includes((n.prestacion||'').toUpperCase()) ||
+                                  (n.prestacion||'').toUpperCase().includes(prest));
+    if (x2) return Number(x2.valor)||0;
+  }
+  // 4) Fallback por modalidad
+  const mod = modalidadDe(r['Equipo']);
+  return FALLBACK_VAL[mod] || FALLBACK_VAL.OTRO;
+}
+
+/* ─────────── CARGA INICIAL ─────────── */
+async function loadAll() {
+  try {
+    const [d, n, s] = await Promise.all([
+      dbLoad('spcd_data_full'),
+      dbLoad('spcd_nomenclador').catch(() => null),
+      Promise.resolve(localStorage.getItem('spcd_servicio_state'))
+    ]);
+    RAW = Array.isArray(d) ? d : [];
+    NOMENCL = Array.isArray(n) ? n : [];
+    if (s) {
+      try { SERVICIO = Object.assign(defaultServicioState(), JSON.parse(s)); } catch(e) {}
+    }
+    if (RAW.length) detectarContextoTemporal();
+    console.log('[jefe.html] loadAll: RAW='+RAW.length+' filas, NOMENCL='+NOMENCL.length+', CTX=', CTX.label);
+  } catch (e) {
+    console.error('[jefe.html] Error cargando datos:', e);
+  }
+  renderAll();
+}
+
+/* ─────────── CONTEXTO TEMPORAL ───────────
+   El dashboard se posiciona en el último mes con datos del Excel,
+   no en el mes calendario actual. Esto permite trabajar con
+   exports históricos o desfasados sin que aparezcan ceros falsos.
+─────────────────────────────────────────── */
+let CTX = { hoy: null, mesY: null, mesM: null, label: '' };
+
+function detectarContextoTemporal() {
+  const fechas = RAW.map(r => parseDate(r['Turno Fecha'])).filter(Boolean);
+  if (!fechas.length) {
+    const t = new Date();
+    CTX = { hoy: t, mesY: t.getFullYear(), mesM: t.getMonth(), label: 'sin datos' };
+    return;
+  }
+  const max = new Date(Math.max(...fechas));
+  CTX = {
+    hoy: max,
+    mesY: max.getFullYear(),
+    mesM: max.getMonth(),
+    label: max.toLocaleDateString('es-AR',{month:'long', year:'numeric'})
+  };
+  console.log('[jefe.html] Contexto temporal detectado:', CTX);
+  // Refrescar info en topbar
+  const ctxEl = document.getElementById('top-ctx');
+  if (ctxEl) ctxEl.textContent = CTX.label.toUpperCase();
+}
+
+/* ─────────── FILTROS BÁSICOS ─────────── */
+function rowsRea() { return RAW.filter(r => r['Estado']==='REA'); }
+function isHoy(d) {
+  const t = CTX.hoy || new Date();
+  return d && d.getFullYear()===t.getFullYear() && d.getMonth()===t.getMonth() && d.getDate()===t.getDate();
+}
+function isMesActual(d) {
+  return d && d.getFullYear()===CTX.mesY && d.getMonth()===CTX.mesM;
+}
+function rowsHoy() {
+  return rowsRea().filter(r => isHoy(parseDate(r['Turno Fecha'])));
+}
+function rowsMes() {
+  return rowsRea().filter(r => isMesActual(parseDate(r['Turno Fecha'])));
+}
+function rowsMesAnterior() {
+  const y = CTX.mesM===0 ? CTX.mesY-1 : CTX.mesY;
+  const m = CTX.mesM===0 ? 11 : CTX.mesM-1;
+  return rowsRea().filter(r => {
+    const d = parseDate(r['Turno Fecha']);
+    return d && d.getFullYear()===y && d.getMonth()===m;
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PANEL 1 · COMANDO
+═══════════════════════════════════════════════════════════ */
+function renderComando() {
+  const hoy = rowsHoy();
+  const mes = rowsMes();
+  const mesAnt = rowsMesAnterior();
+
+  /* KPIs hero */
+  const prodHoy = hoy.length;
+  const prodHoyAnt = (() => {
+    // mismo día número del mes anterior
+    const t = new Date(); const dia = t.getDate();
+    return rowsMesAnterior().filter(r => {
+      const d = parseDate(r['Turno Fecha']);
+      return d && d.getDate() === dia;
+    }).length;
+  })();
+  document.getElementById('kpi-prod-hoy').textContent = fmtNum(prodHoy);
+  const deltaHoy = prodHoyAnt ? Math.round(((prodHoy-prodHoyAnt)/prodHoyAnt)*100) : 0;
+  document.getElementById('kpi-prod-hoy-sub').innerHTML =
+    `${fmtNum(prodHoy)} estudios · ${deltaHoy>=0?'<span style="color:var(--green)">+':'<span style="color:var(--red)">'}${deltaHoy}%</span> vs mismo día mes ant.`;
+
+  const ingresosMes = mes.reduce((s,r)=> s + ingresoDe(r), 0);
+  const objetivo = SERVICIO.objetivoMensual || 1;
+  const cumplimiento = pct(ingresosMes, objetivo);
+  document.getElementById('kpi-prod-mes').textContent = fmtNum(mes.length);
+  document.getElementById('kpi-prod-mes-sub').innerHTML =
+    `${fmtMoney(ingresosMes)} de ${fmtMoney(objetivo)} · <strong style="color:var(--cyan)">${cumplimiento}%</strong> cumplimiento`;
+  document.getElementById('kpi-prod-mes-bar').style.width = clamp(cumplimiento,0,100) + '%';
+  document.getElementById('kpi-prod-mes-bar').style.background =
+    cumplimiento>=100 ? 'var(--green)' : cumplimiento>=70 ? 'var(--cyan)' : 'var(--amber)';
+
+  /* Ocupación: estudios del mes × tiempo medio / capacidad disponible */
+  const tiempos = SERVICIO.parametros.tiempoEstudioMin;
+  const minUsadosMes = mes.reduce((s,r)=> s + (tiempos[modalidadDe(r['Equipo'])] || 25), 0);
+  const equiposActivos = EQUIPO_GROUPS.reduce((s,g)=>{
+    return s + g.equipos.filter(e => !SERVICIO.equiposOOS.includes(e)).length;
+  }, 0);
+  const minDisponiblesMes = equiposActivos * HORAS_TURNO_BASE * 60 * SERVICIO.parametros.diasHabilesMes;
+  const ocup = pct(minUsadosMes, minDisponiblesMes);
+  document.getElementById('kpi-ocup').textContent = ocup + '%';
+  document.getElementById('kpi-ocup-sub').textContent = `${equiposActivos} equipos activos · ${HORAS_TURNO_BASE}h/día`;
+  document.getElementById('kpi-ocup-bar').style.width = clamp(ocup,0,100)+'%';
+  document.getElementById('kpi-ocup-bar').style.background =
+    ocup>=85 ? 'var(--red)' : ocup>=70 ? 'var(--amber)' : 'var(--blue)';
+
+  /* TAT global */
+  const conInf = mes.filter(r => tieneInformeIF(r));
+  const tats = conInf.map(r => {
+    const fe = parseDate(r['Turno Fecha']);
+    const fi = parseDate(r['Fecha Informe']);
+    if (!fe || !fi) return null;
+    const d = (fi-fe)/86400000;
+    return (d>=0 && d<60) ? d : null;
+  }).filter(t=>t!==null);
+  const tatProm = tats.length ? (tats.reduce((a,b)=>a+b,0)/tats.length) : 0;
+  document.getElementById('kpi-tat').textContent = tatProm.toFixed(1);
+  document.getElementById('kpi-tat-sub').textContent =
+    `${tats.length} informes · ${tatProm<=2?'excelente':tatProm<=4?'bueno':'a mejorar'}`;
+
+  /* Modalidades */
+  const grid = document.getElementById('grid-modas');
+  grid.innerHTML = EQUIPO_GROUPS.map(g => {
+    const enMod = mes.filter(r => modalidadDe(r['Equipo'])===g.key);
+    const ingMod = enMod.reduce((s,r)=>s+ingresoDe(r),0);
+    const equipos = g.equipos;
+    const oosCount = equipos.filter(e => SERVICIO.equiposOOS.includes(e)).length;
+    return `<div class="moda-card">
+      <div class="moda-icon">${g.icon}</div>
+      <div class="moda-name">${g.label}</div>
+      <div class="moda-stat-row">
+        <div>
+          <div class="moda-stat-label">Estudios mes</div>
+          <div class="moda-stat-val">${fmtNum(enMod.length)}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="moda-stat-label">Facturado</div>
+          <div class="moda-stat-val" style="color:var(--green)">${fmtMoney(ingMod)}</div>
+        </div>
+      </div>
+      <div class="moda-equip-bar">
+        ${equipos.map(e => `<div class="moda-equip-pill ${SERVICIO.equiposOOS.includes(e)?'oos':''}" title="${e}"></div>`).join('')}
+      </div>
+      <div style="font-size:9px;letter-spacing:1.5px;color:var(--muted);margin-top:6px">
+        ${equipos.length-oosCount}/${equipos.length} OPERATIVOS
+      </div>
+    </div>`;
+  }).join('');
+
+  /* Equipos detalle */
+  const todos = EQUIPO_GROUPS.flatMap(g => g.equipos.map(e => ({ name:e, mod:g.key, lbl:g.label })));
+  const eg = document.getElementById('equipos-grid');
+  eg.innerHTML = todos.map(e => {
+    const oos = SERVICIO.equiposOOS.includes(e.name);
+    return `<div class="equipo-row ${oos?'oos':''}">
+      <div class="equipo-status"></div>
+      <div class="equipo-name" title="${e.name}">${e.name.replace(/^[A-Z]+-?\s*/,'').slice(0,28)}</div>
+      <span style="font-size:9px;color:${oos?'var(--red)':'var(--green)'};letter-spacing:1.5px;font-weight:700">${oos?'OOS':'OK'}</span>
+    </div>`;
+  }).join('');
+  const oosTotal = SERVICIO.equiposOOS.length;
+  document.getElementById('equipos-hint').textContent = `${todos.length-oosTotal}/${todos.length} OPERATIVOS`;
+
+  /* Alertas críticas (las cargadas + las auto-detectadas) */
+  const auto = [];
+  if (tatProm > 5) auto.push({nivel:'crit', text:`TAT global ${tatProm.toFixed(1)} días (umbral 5)`, time:''});
+  if (ocup > 90) auto.push({nivel:'crit', text:`Ocupación ${ocup}% — capacidad al límite`, time:''});
+  if (cumplimiento < 50 && new Date().getDate() > 15) auto.push({nivel:'crit', text:`Cumplimiento ${cumplimiento}% pasada la mitad del mes`, time:''});
+  if (oosTotal > 0) auto.push({nivel:'warn', text:`${oosTotal} equipo(s) fuera de servicio: ${SERVICIO.equiposOOS.join(', ')}`, time:''});
+
+  const allAlerts = [...(SERVICIO.alertas||[]), ...auto];
+  const al = document.getElementById('alerts-list');
+  if (!allAlerts.length) {
+    al.innerHTML = `<div style="text-align:center;padding:20px;color:var(--muted);font-size:11px;letter-spacing:1px">SIN ALERTAS · TODO EN ORDEN ✓</div>`;
+  } else {
+    al.innerHTML = allAlerts.map(a => `<div class="alert-item ${a.nivel==='warn'?'warn':''}">
+      ${a.time ? `<div class="a-time">${a.time}</div>` : ''}${a.text}
+    </div>`).join('');
+  }
+
+  /* Banner alerta arriba si hay críticas */
+  const crit = allAlerts.filter(a => a.nivel!=='warn');
+  if (crit.length) {
+    document.getElementById('alert-bar').classList.add('show');
+    document.getElementById('alert-bar-text').innerHTML =
+      `<strong>${crit.length} ALERTA${crit.length>1?'S':''} CRÍTICA${crit.length>1?'S':''}</strong>${crit[0].text}${crit.length>1?` · y ${crit.length-1} más`:''}`;
+  } else {
+    document.getElementById('alert-bar').classList.remove('show');
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PANEL 2 · FLUJO PACIENTE
+═══════════════════════════════════════════════════════════ */
+function renderFlujo() {
+  const mes = rowsMes();
+
+  /* Cálculo etapas promedio */
+  const acums = { espera:[], estudio:[], recovery:[], informe:[] };
+  mes.forEach(r => {
+    const e = calcEtapas(r);
+    if (e.espera !== null) acums.espera.push(e.espera);
+    if (e.estudio !== null) acums.estudio.push(e.estudio);
+    if (e.recovery !== null) acums.recovery.push(e.recovery);
+    if (tieneInformeIF(r)) {
+      const fe = parseDate(r['Turno Fecha']);
+      const fi = parseDate(r['Fecha Informe']);
+      if (fe && fi) {
+        const d = (fi-fe)/86400000;
+        if (d>=0 && d<60) acums.informe.push(d * 24 * 60); // a minutos
+      }
+    }
+  });
+
+  const avgs = {
+    espera: acums.espera.length ? acums.espera.reduce((a,b)=>a+b,0)/acums.espera.length : null,
+    estudio: acums.estudio.length ? acums.estudio.reduce((a,b)=>a+b,0)/acums.estudio.length : null,
+    recovery: acums.recovery.length ? acums.recovery.reduce((a,b)=>a+b,0)/acums.recovery.length : null,
+    informe: acums.informe.length ? acums.informe.reduce((a,b)=>a+b,0)/acums.informe.length : null
+  };
+
+  /* Detección cuello de botella */
+  const stages = [
+    { key:'espera', label:'Espera', icon:'⏳', val:avgs.espera, unit:'min', desc:'Arribo → Sala' },
+    { key:'estudio', label:'Estudio', icon:'🔬', val:avgs.estudio, unit:'min', desc:'Sala → Fin' },
+    { key:'recovery', label:'Recovery', icon:'🛏️', val:avgs.recovery, unit:'min', desc:'Fin → Salida' },
+    { key:'informe', label:'Informe', icon:'📝',
+      val:avgs.informe ? avgs.informe/(60*24) : null, unit:'días', desc:'Estudio → Firma' }
+  ];
+
+  // Cuello: la etapa con mayor desvío relativo respecto del esperado
+  const baseline = { espera:15, estudio:25, recovery:5, informe:1*24*60 }; // minutos esperados
+  let bottleneck = null, maxRatio = 0;
+  stages.forEach(s => {
+    if (s.val === null) return;
+    const cmp = s.key==='informe' ? (s.val) : (s.val); // ya viene en minutos para los 3 primeros, días para informe
+    const expected = s.key==='informe' ? 1 : baseline[s.key]; // días o min
+    const ratio = (s.key==='informe' ? s.val : s.val) / expected;
+    if (ratio > maxRatio) { maxRatio = ratio; bottleneck = s.key; }
+  });
+
+  const fb = document.getElementById('funnel-box');
+  fb.innerHTML = stages.map(s => {
+    const isBottle = s.key === bottleneck;
+    const display = s.val === null ? '—' :
+      s.key === 'informe' ? s.val.toFixed(1) :
+      Math.round(s.val);
+    return `<div class="funnel-step ${isBottle?'bottleneck':''}">
+      <div class="funnel-icon">${s.icon}</div>
+      <div class="funnel-stage-name">${s.label}</div>
+      <div class="funnel-stage-time">${display}<span class="funnel-stage-unit"> ${s.unit}</span></div>
+      <div class="funnel-stage-trend">${s.desc}</div>
+    </div>`;
+  }).join('');
+
+  /* Insight texto */
+  const tot = (avgs.espera||0) + (avgs.estudio||0) + (avgs.recovery||0);
+  let txt;
+  if (!bottleneck) {
+    txt = `No hay datos suficientes de tiempos por etapa este mes.`;
+  } else {
+    const map = { espera:'la espera previa al estudio', estudio:'el tiempo de estudio en sala', recovery:'el recovery post-estudio', informe:'la firma del informe' };
+    const totMin = Math.round(tot);
+    txt = `<strong>El cuello de botella</strong> está en <em>${map[bottleneck]}</em>. Tiempo total promedio en servicio: <strong>${totMin} minutos</strong> · ${conRecomendacion(bottleneck)}.`;
+  }
+  document.getElementById('insight-text').innerHTML = txt;
+
+  /* Heatmap por hora */
+  renderHeatmap(mes);
+
+  /* Top demorados (mayor permanencia hoy) */
+  renderDemorados();
+
+  /* Chart distribución etapas */
+  renderEtapasChart(stages);
+}
+
+function conRecomendacion(b) {
+  const recs = {
+    espera: 'optimizar admisión o ajustar agenda en franjas pico',
+    estudio: 'revisar protocolos de adquisición o capacitación técnica',
+    recovery: 'evaluar manejo post-procedimiento y disponibilidad de salas',
+    informe: 'reasignar carga de informes entre médicos'
+  };
+  return recs[b] || 'revisar workflow';
+}
+
+function renderHeatmap(mesData) {
+  const wrap = document.getElementById('heat-wrap');
+  // Filas: días de semana (L-D), cols: horas 8-19
+  const horas = [];
+  for (let h = 7; h <= 19; h++) horas.push(h);
+  const dias = ['L','M','X','J','V','S','D'];
+  // Promedio espera por (dia, hora)
+  const grid = Array.from({length:7}, () => Array(horas.length).fill(null).map(() => []));
+  mesData.forEach(r => {
+    const fe = parseDate(r['Turno Fecha']); if (!fe) return;
+    const arr = parseTimeMin(getTime(r,'arribo'));
+    if (arr === null) return;
+    const e = calcEtapas(r);
+    if (e.espera === null) return;
+    const dow = (fe.getDay() + 6) % 7; // L=0
+    const hour = Math.floor(arr/60);
+    const idx = horas.indexOf(hour);
+    if (idx >= 0) grid[dow][idx].push(e.espera);
+  });
+  const allVals = grid.flat(2).filter(v=>v!==undefined);
+  const max = allVals.length ? Math.max(...allVals.flat()) : 1;
+
+  let html = '<table class="heat-table"><thead><tr><th></th>';
+  horas.forEach(h => html += `<th>${h}h</th>`);
+  html += '</tr></thead><tbody>';
+  dias.forEach((d, di) => {
+    html += `<tr><th>${d}</th>`;
+    horas.forEach((h, hi) => {
+      const arr = grid[di][hi];
+      if (!arr.length) {
+        html += `<td><div class="heat-cell" style="background:rgba(30,58,138,.15);height:18px"></div></td>`;
+      } else {
+        const avg = arr.reduce((a,b)=>a+b,0)/arr.length;
+        const intensity = clamp(avg / 60, 0, 1); // 60 min = max
+        const r = Math.round(34 + (248-34)*intensity);
+        const g = Math.round(219 - (219-113)*intensity);
+        const b = Math.round(174 - (174-113)*intensity);
+        html += `<td title="${d} ${h}h · ${Math.round(avg)} min · n=${arr.length}">
+          <div class="heat-cell" style="background:rgb(${r},${g},${b});height:18px;color:#0F172A;font-size:10px;line-height:18px">${Math.round(avg)}</div></td>`;
+      }
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+function renderDemorados() {
+  const lista = document.getElementById('demorados-list');
+  // Pacientes con mayor tiempo total hoy
+  const hoy = rowsHoy();
+  const ranks = hoy.map(r => {
+    const e = calcEtapas(r);
+    const total = (e.espera||0) + (e.estudio||0) + (e.recovery||0);
+    let etapa = 'Total';
+    if (e.espera && e.espera > (e.estudio||0) && e.espera > (e.recovery||0)) etapa = 'Espera';
+    else if (e.estudio && e.estudio > (e.recovery||0)) etapa = 'Estudio';
+    else if (e.recovery) etapa = 'Recovery';
+    return { paciente: (r['Paciente']||'').slice(0,28), total, etapa, prest:(r['Prestación']||'').slice(0,30) };
+  }).filter(x => x.total > 0).sort((a,b)=>b.total-a.total).slice(0,5);
+
+  if (!ranks.length) {
+    lista.innerHTML = `<div style="padding:14px;text-align:center;color:var(--muted);font-size:11px;letter-spacing:1px">SIN DATOS DE HOY</div>`;
+    return;
+  }
+  lista.innerHTML = ranks.map(r => `<div class="demorado-row">
+    <div>
+      <div class="demorado-paciente">${r.paciente||'—'}</div>
+      <div class="demorado-etapa">${r.etapa} · ${r.prest}</div>
+    </div>
+    <div class="demorado-time">${Math.round(r.total)}<span style="font-size:11px;color:var(--muted)"> min</span></div>
+  </div>`).join('');
+}
+
+function renderEtapasChart(stages) {
+  if (charts.etapas) { charts.etapas.destroy(); charts.etapas = null; }
+  const ctx = document.getElementById('chart-etapas');
+  if (!ctx) return;
+  charts.etapas = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: stages.map(s => s.label),
+      datasets: [{
+        label: 'Minutos promedio',
+        data: stages.map(s => {
+          if (s.val === null) return 0;
+          return s.key==='informe' ? s.val*24*60 : s.val;
+        }),
+        backgroundColor: stages.map(s => {
+          const colors = { espera:'#FBBF24', estudio:'#22DBAE', recovery:'#A78BFA', informe:'#F472B6' };
+          return colors[s.key];
+        }),
+        borderRadius: 6
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (c) => {
+          const s = stages[c.dataIndex];
+          if (s.key === 'informe') return `${s.val.toFixed(1)} días`;
+          return `${Math.round(s.val||0)} min`;
+        }}}
+      },
+      scales: {
+        x: { ticks: { color: '#94A3B8', font:{family:'Rajdhani'} }, grid: { color: 'rgba(59,130,246,.1)' } },
+        y: { ticks: { color: '#22DBAE', font:{family:'Rajdhani', weight:'700'} }, grid: { display:false } }
+      }
+    }
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PANEL 3 · BENCHMARK
+═══════════════════════════════════════════════════════════ */
+function renderBenchmark() {
+  const mes = rowsMes(), ant = rowsMesAnterior();
+
+  /* Tabla mes vs mes */
+  const t = document.getElementById('vs-table');
+  t.innerHTML = `<thead><tr><th>Modalidad</th><th>Mes actual</th><th>Mes anterior</th><th>Δ %</th><th>Facturación</th></tr></thead><tbody>${
+    EQUIPO_GROUPS.map(g => {
+      const a = mes.filter(r=>modalidadDe(r['Equipo'])===g.key).length;
+      const b = ant.filter(r=>modalidadDe(r['Equipo'])===g.key).length;
+      const del = b ? Math.round(((a-b)/b)*100) : (a?100:0);
+      const ing = mes.filter(r=>modalidadDe(r['Equipo'])===g.key).reduce((s,r)=>s+ingresoDe(r),0);
+      const cls = del>5?'up':del<-5?'down':'flat';
+      const arrow = del>5?'▲':del<-5?'▼':'─';
+      return `<tr>
+        <td class="vs-mod">${g.icon} ${g.label}</td>
+        <td class="vs-num">${fmtNum(a)}</td>
+        <td class="vs-num" style="color:var(--muted)">${fmtNum(b)}</td>
+        <td><span class="delta ${cls}">${arrow} ${Math.abs(del)}%</span></td>
+        <td class="vs-num" style="color:var(--green)">${fmtMoney(ing)}</td>
+      </tr>`;
+    }).join('')
+  }</tbody>`;
+
+  /* Chart equipos misma modalidad */
+  if (charts.equipos) { charts.equipos.destroy(); charts.equipos = null; }
+  // Comparar equipos individuales del mes
+  const eqCounts = {};
+  mes.forEach(r => {
+    const e = (r['Equipo']||'').trim().toUpperCase();
+    if (!e) return;
+    eqCounts[e] = (eqCounts[e]||0) + 1;
+  });
+  const labels = Object.keys(eqCounts).sort((a,b)=>eqCounts[b]-eqCounts[a]).slice(0,8);
+  const colorsBar = labels.map(l => {
+    const m = modalidadDe(l);
+    return ({RM:'#A78BFA',TC:'#22DBAE',RX:'#FBBF24',ECO:'#3B82F6',CG:'#F472B6'})[m] || '#94A3B8';
+  });
+  charts.equipos = new Chart(document.getElementById('chart-equipos'), {
+    type: 'bar',
+    data: { labels: labels.map(l => l.length>20?l.slice(0,20)+'…':l),
+      datasets: [{ data: labels.map(l => eqCounts[l]), backgroundColor: colorsBar, borderRadius: 4 }]},
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: { legend: { display: false }, tooltip:{callbacks:{title:c=>labels[c[0].dataIndex]}}},
+      scales: {
+        x: { ticks: { color: '#94A3B8' }, grid: { color: 'rgba(59,130,246,.1)' } },
+        y: { ticks: { color: '#E2E8F0', font:{size:10} }, grid: { display:false } }
+      }
+    }
+  });
+
+  /* Sparklines últimos 6 meses */
+  const sparks = document.getElementById('sparks-list');
+  const months6 = lastNMonths(6);
+  sparks.innerHTML = EQUIPO_GROUPS.map(g => {
+    const series = months6.map(({y,m}) =>
+      RAW.filter(r => r['Estado']==='REA' && modalidadDe(r['Equipo'])===g.key)
+         .filter(r => { const d = parseDate(r['Turno Fecha']); return d && d.getFullYear()===y && d.getMonth()===m; })
+         .length
+    );
+    return `<div class="spark-row">
+      <div class="spark-label">${g.icon} ${g.label}</div>
+      <div class="spark-svg">${sparkSVG(series)}</div>
+      <div class="spark-val">${fmtNum(series[series.length-1])}</div>
+    </div>`;
+  }).join('');
+
+  /* Ranking médicos por TAT */
+  const conInf = mes.filter(r => tieneInformeIF(r) && medicoValido(r['Médico Informante']));
+  const byMed = {};
+  conInf.forEach(r => {
+    const med = r['Médico Informante'];
+    const fe = parseDate(r['Turno Fecha']); const fi = parseDate(r['Fecha Informe']);
+    if (!fe || !fi) return;
+    const d = (fi-fe)/86400000;
+    if (d<0||d>60) return;
+    (byMed[med] = byMed[med]||[]).push(d);
+  });
+  const ranks = Object.entries(byMed)
+    .map(([m, arr]) => ({ m, n: arr.length, avg: arr.reduce((a,b)=>a+b,0)/arr.length }))
+    .filter(x => x.n >= 3)
+    .sort((a,b) => a.avg - b.avg)
+    .slice(0, 8);
+  const rm = document.getElementById('ranking-medicos');
+  if (!ranks.length) {
+    rm.innerHTML = `<div style="text-align:center;padding:20px;color:var(--muted);font-size:11px">SIN DATOS</div>`;
+  } else {
+    const max = ranks[ranks.length-1].avg || 1;
+    rm.innerHTML = ranks.map((x,i)=>{
+      const w = pct(x.avg, max);
+      const color = i<3 ? 'var(--green)' : i>=ranks.length-2 ? 'var(--red)' : 'var(--cyan)';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(30,58,138,.18)">
+        <span style="width:18px;text-align:right;font-family:'Rajdhani';font-weight:700;color:var(--muted);font-size:13px">${i+1}</span>
+        <span style="flex:1;font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.m}</span>
+        <span style="font-family:'Rajdhani';font-weight:700;font-size:14px;color:${color};width:60px;text-align:right">${x.avg.toFixed(1)}d</span>
+        <span style="font-size:10px;color:var(--muted);width:40px;text-align:right">n=${x.n}</span>
+      </div>`;
+    }).join('');
+  }
+}
+
+function lastNMonths(n) {
+  const out = [];
+  // Anclado al contexto del Excel (último mes con datos), no al calendario
+  const baseY = CTX.mesY ?? new Date().getFullYear();
+  const baseM = CTX.mesM ?? new Date().getMonth();
+  for (let i=n-1; i>=0; i--) {
+    const d = new Date(baseY, baseM-i, 1);
+    out.push({ y: d.getFullYear(), m: d.getMonth(), label: d.toLocaleDateString('es-AR',{month:'short'}) });
+  }
+  return out;
+}
+
+function sparkSVG(series) {
+  if (!series.length) return '';
+  const w = 220, h = 32, pad = 2;
+  const max = Math.max(...series, 1);
+  const min = Math.min(...series, 0);
+  const range = max - min || 1;
+  const dx = (w - pad*2) / (series.length-1 || 1);
+  const pts = series.map((v,i) => {
+    const x = pad + i*dx;
+    const y = pad + (1 - (v-min)/range) * (h - pad*2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  const last = series[series.length-1];
+  const trend = last >= series[0] ? '#55e78B' : '#F87171';
+  return `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <polyline points="${pts.join(' ')}" fill="none" stroke="${trend}" stroke-width="1.8" stroke-linejoin="round"/>
+    ${pts.map(p => { const [x,y] = p.split(','); return `<circle cx="${x}" cy="${y}" r="1.6" fill="${trend}"/>`;}).join('')}
+  </svg>`;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PANEL 4 · SIMULACIÓN ESTRATÉGICA
+═══════════════════════════════════════════════════════════ */
+function renderSimulacion() {
+  // Capacidad y producción real RM por equipo
+  const mes = rowsMes();
+  const rmRows = mes.filter(r => modalidadDe(r['Equipo'])==='RM');
+  const equiposRM = EQUIPO_GROUPS.find(g=>g.key==='RM').equipos.length;
+  const prodRMporEq = equiposRM ? rmRows.length / equiposRM : 0; // estudios/mes/equipo
+  const valRM = rmRows.length ? rmRows.reduce((s,r)=>s+ingresoDe(r),0)/rmRows.length : FALLBACK_VAL.RM;
+
+  document.getElementById('sim-rm').oninput = (e) => {
+    const v = parseInt(e.target.value,10);
+    document.getElementById('sim-rm-val').textContent = '+' + v;
+    const extra = Math.round(prodRMporEq * v);
+    const ing = extra * valRM;
+    document.getElementById('sim-rm-prod').textContent = fmtNum(extra);
+    document.getElementById('sim-rm-money').textContent = fmtMoney(ing);
+    document.getElementById('sim-rm-year').textContent = fmtMoney(ing*12);
+  };
+  document.getElementById('sim-rm').dispatchEvent(new Event('input'));
+
+  // Horas extra
+  const totalEqActivos = EQUIPO_GROUPS.reduce((s,g)=>s + g.equipos.filter(e=>!SERVICIO.equiposOOS.includes(e)).length, 0);
+  const tiempos = SERVICIO.parametros.tiempoEstudioMin;
+  const tiempoMedio = (tiempos.RM+tiempos.TC+tiempos.RX+tiempos.ECO+tiempos.CG)/5;
+  const valMedio = mes.length ? mes.reduce((s,r)=>s+ingresoDe(r),0)/mes.length : 40000;
+
+  document.getElementById('sim-h').oninput = (e) => {
+    const v = parseInt(e.target.value,10);
+    document.getElementById('sim-h-val').textContent = '+' + v + 'h';
+    const minutosExtraDia = totalEqActivos * v * 60;
+    const estudiosDia = Math.floor(minutosExtraDia / tiempoMedio);
+    const estudiosMes = estudiosDia * SERVICIO.parametros.diasHabilesMes;
+    const ing = estudiosMes * valMedio;
+    document.getElementById('sim-h-prod').textContent = fmtNum(estudiosMes);
+    document.getElementById('sim-h-money').textContent = fmtMoney(ing);
+    document.getElementById('sim-h-year').textContent = fmtMoney(ing*12);
+  };
+  document.getElementById('sim-h').dispatchEvent(new Event('input'));
+
+  /* Proyección de demanda · regresión lineal sobre 6 meses */
+  const hist = lastNMonths(6).map(({y,m}) =>
+    RAW.filter(r => r['Estado']==='REA').filter(r => {
+      const d = parseDate(r['Turno Fecha']);
+      return d && d.getFullYear()===y && d.getMonth()===m;
+    }).length
+  );
+  const proy = linearProject(hist, 3);
+  if (charts.proy) { charts.proy.destroy(); charts.proy = null; }
+  const labelsP = lastNMonths(6).map(x=>x.label);
+  const futuros = ['+1m','+2m','+3m'];
+  charts.proy = new Chart(document.getElementById('chart-proy'), {
+    type: 'line',
+    data: {
+      labels: [...labelsP, ...futuros],
+      datasets: [
+        { label: 'Real', data: [...hist, null, null, null], borderColor:'#22DBAE', backgroundColor:'rgba(34,219,174,.15)',
+          fill:true, tension:.35, pointRadius:4, pointBackgroundColor:'#22DBAE' },
+        { label: 'Proyección', data: [...hist.map(()=>null).slice(0,5), hist[hist.length-1], ...proy],
+          borderColor:'#A78BFA', borderDash:[6,4], tension:.35, pointRadius:4, pointBackgroundColor:'#A78BFA', fill:false }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ color:'#94A3B8', font:{family:'Rajdhani', size:11}}}},
+      scales:{
+        x:{ ticks:{color:'#94A3B8'}, grid:{color:'rgba(59,130,246,.1)'}},
+        y:{ ticks:{color:'#94A3B8'}, grid:{color:'rgba(59,130,246,.1)'}, beginAtZero:true}
+      }
+    }
+  });
+
+  /* Saturación */
+  const ocupActual = (() => {
+    const minUsados = mes.reduce((s,r)=> s + (tiempos[modalidadDe(r['Equipo'])] || 25), 0);
+    const minDisp = totalEqActivos * HORAS_TURNO_BASE * 60 * SERVICIO.parametros.diasHabilesMes;
+    return pct(minUsados, minDisp);
+  })();
+  // Crecimiento mensual promedio
+  let growth = 0;
+  if (hist.length >= 2 && hist[0]) {
+    const deltas = [];
+    for (let i=1;i<hist.length;i++) if (hist[i-1]) deltas.push((hist[i]-hist[i-1])/hist[i-1]);
+    if (deltas.length) growth = deltas.reduce((a,b)=>a+b,0)/deltas.length;
+  }
+  // Meses hasta saturación al 100%
+  let mesesSat = '∞';
+  if (growth > 0.005 && ocupActual > 0 && ocupActual < 100) {
+    mesesSat = Math.ceil(Math.log(100/ocupActual) / Math.log(1+growth));
+    if (!isFinite(mesesSat) || mesesSat > 60) mesesSat = '> 5 años';
+  }
+  const fechaSat = (() => {
+    if (typeof mesesSat !== 'number') return mesesSat;
+    const d = new Date(); d.setMonth(d.getMonth()+mesesSat);
+    return d.toLocaleDateString('es-AR',{month:'long', year:'numeric'});
+  })();
+
+  document.getElementById('saturation-box').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div>
+        <div style="font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px">Ocupación actual</div>
+        <div style="font-family:'Rajdhani';font-size:42px;font-weight:700;color:${ocupActual>=85?'var(--red)':ocupActual>=70?'var(--amber)':'var(--cyan)'};line-height:1">${ocupActual}<span style="font-size:18px">%</span></div>
+      </div>
+      <div>
+        <div style="font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px">Crecimiento mensual</div>
+        <div style="font-family:'Rajdhani';font-size:42px;font-weight:700;color:${growth>0?'var(--green)':'var(--muted)'};line-height:1">${growth>=0?'+':''}${(growth*100).toFixed(1)}<span style="font-size:18px">%</span></div>
+      </div>
+    </div>
+    <div style="padding:14px;border-radius:8px;background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.3);border-left:3px solid var(--purple)">
+      <div style="font-size:11px;letter-spacing:2px;color:var(--purple);text-transform:uppercase;margin-bottom:6px">Saturación al 100% estimada</div>
+      <div style="font-family:'Rajdhani';font-size:24px;font-weight:700;color:var(--text)">${fechaSat}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">${typeof mesesSat==='number'?'Quedan ~'+mesesSat+' meses al ritmo actual':'Sin saturación proyectada en horizonte'}</div>
+    </div>
+  `;
+}
+
+function linearProject(series, n) {
+  // Regresión simple: y = a + b·x
+  const k = series.length;
+  const xs = series.map((_,i)=>i);
+  const meanX = xs.reduce((a,b)=>a+b,0)/k;
+  const meanY = series.reduce((a,b)=>a+b,0)/k;
+  let num=0, den=0;
+  for (let i=0;i<k;i++){ num += (xs[i]-meanX)*(series[i]-meanY); den += Math.pow(xs[i]-meanX,2); }
+  const b = den ? num/den : 0;
+  const a = meanY - b*meanX;
+  const out = [];
+  for (let i=0;i<n;i++) out.push(Math.max(0, Math.round(a + b*(k+i))));
+  return out;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PANEL 5 · RESUMEN EJECUTIVO
+═══════════════════════════════════════════════════════════ */
+function renderResumen() {
+  const hoy = rowsHoy(), mes = rowsMes(), ant = rowsMesAnterior();
+  const ingMes = mes.reduce((s,r)=>s+ingresoDe(r),0);
+  const conInf = mes.filter(r=>tieneInformeIF(r));
+  const tats = conInf.map(r => {
+    const fe = parseDate(r['Turno Fecha']); const fi = parseDate(r['Fecha Informe']);
+    if (!fe || !fi) return null;
+    const d = (fi-fe)/86400000;
+    return (d>=0&&d<60)?d:null;
+  }).filter(t=>t!==null);
+  const tatProm = tats.length ? tats.reduce((a,b)=>a+b,0)/tats.length : 0;
+  const equiposActivos = EQUIPO_GROUPS.reduce((s,g)=>s+g.equipos.filter(e=>!SERVICIO.equiposOOS.includes(e)).length,0);
+  const equiposTotal = EQUIPO_GROUPS.reduce((s,g)=>s+g.equipos.length,0);
+  const cumplimiento = pct(ingMes, SERVICIO.objetivoMensual);
+  const delta = ant.length ? Math.round(((mes.length-ant.length)/ant.length)*100) : 0;
+
+  // Lucro cesante por OOS: estudios perdidos × valor medio
+  const valMedio = mes.length ? ingMes/mes.length : 30000;
+  const oosCount = SERVICIO.equiposOOS.length;
+  const dXmes = SERVICIO.parametros.diasHabilesMes;
+  const lucro = oosCount * (mes.length / Math.max(equiposTotal,1)) * valMedio;
+
+  const tiles = [
+    { lbl:'Producción HOY', val: fmtNum(hoy.length), sub:'estudios', cls:'green', span:1 },
+    { lbl:'Producción MES', val: fmtNum(mes.length), sub:`Δ ${delta>=0?'+':''}${delta}% vs mes anterior`, cls:'cyan', span:1 },
+    { lbl:'Facturación MES', val: fmtMoney(ingMes), sub:`${cumplimiento}% del objetivo`, cls:'green', span:1 },
+    { lbl:'Objetivo mensual', val: fmtMoney(SERVICIO.objetivoMensual), sub:`${fmtMoney(SERVICIO.objetivoMensual-ingMes)} restante`, cls:'amber', span:1 },
+    { lbl:'TAT global', val: tatProm.toFixed(1)+'d', sub:`${fmtNum(conInf.length)} informes firmados`, cls: tatProm<=2?'green':tatProm<=4?'cyan':'red', span:1 },
+    { lbl:'Equipos OK', val: `${equiposActivos}/${equiposTotal}`, sub: oosCount?`${oosCount} fuera de servicio`:'todos operativos', cls: oosCount?'red':'green', span:1 },
+    { lbl:'Alertas activas', val: fmtNum((SERVICIO.alertas||[]).length), sub:'cargadas por admin', cls: (SERVICIO.alertas||[]).length?'red':'green', span:1 },
+    { lbl:'Lucro cesante estimado', val: fmtMoney(lucro), sub:'por equipos fuera de servicio', cls:'red', span:1 },
+  ];
+  const grid = document.getElementById('summary-grid');
+  grid.innerHTML = tiles.map(t => `<div class="sm-tile ${t.cls}${t.span>1?' span-'+t.span:''}">
+    <div>
+      <div class="sm-lbl">${t.lbl}</div>
+      <div class="sm-val">${t.val}</div>
+    </div>
+    <div class="sm-sub">${t.sub}</div>
+  </div>`).join('');
+
+  /* Chart resumen producción modalidad mes */
+  if (charts.resumen) { charts.resumen.destroy(); charts.resumen = null; }
+  const dataMod = EQUIPO_GROUPS.map(g => mes.filter(r=>modalidadDe(r['Equipo'])===g.key).length);
+  charts.resumen = new Chart(document.getElementById('chart-resumen'), {
+    type: 'doughnut',
+    data: {
+      labels: EQUIPO_GROUPS.map(g => g.label),
+      datasets: [{ data: dataMod, backgroundColor: ['#A78BFA','#22DBAE','#FBBF24','#3B82F6','#F472B6'], borderColor:'#0F172A', borderWidth:3 }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'right', labels:{ color:'#E2E8F0', font:{family:'Rajdhani',size:12,weight:'600'}, padding:14}}}
+    }
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RENDER + CICLADO
+═══════════════════════════════════════════════════════════ */
+function renderAll() {
+  if (!RAW.length) {
+    const onlyFirst = document.getElementById('panel-0');
+    document.querySelectorAll('.panel').forEach(p => {
+      if (p !== onlyFirst) {
+        p.innerHTML = `<div class="empty">
+          <div class="empty-icon">📁</div>
+          <div class="empty-text">Sin datos cargados</div>
+          <div class="empty-sub">Cargá el Excel desde el botón "EXCEL" arriba a la derecha.</div>
+        </div>`;
+      }
+    });
+    onlyFirst.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:18px;padding:20px">
+      <div style="font-size:64px;opacity:.7">📊</div>
+      <div style="font-family:'Rajdhani';font-size:22px;letter-spacing:3px;color:var(--green);text-transform:uppercase;text-align:center">No hay datos cargados</div>
+      <div style="font-size:13px;color:var(--muted);text-align:center;max-width:540px;line-height:1.6">Para que el dashboard muestre producción, ocupación, TAT y simulaciones, primero hace falta cargar el Excel mensual de Visual Medica.</div>
+      <label for="empty-file-input" style="margin-top:10px;padding:14px 36px;border-radius:10px;background:linear-gradient(135deg,#166534,var(--green));color:var(--navy);font-weight:700;font-size:13px;letter-spacing:3px;text-transform:uppercase;cursor:pointer;font-family:'Inter';box-shadow:0 8px 24px rgba(85,231,139,.25)">📥 Cargar Excel ahora</label>
+      <input type="file" id="empty-file-input" accept=".xlsx,.xls" style="display:none"/>
+      <div id="empty-status" style="font-size:12px;color:var(--muted);letter-spacing:1px;min-height:18px;margin-top:4px"></div>
+      <div style="margin-top:18px;font-size:11px;color:var(--muted);letter-spacing:1px;text-align:center">
+        ¿Ya cargaste el Excel desde otra pantalla?<br/>
+        <button onclick="loadAll()" style="margin-top:8px;padding:8px 18px;border-radius:6px;background:transparent;border:1px solid var(--border);color:var(--cyan);font-size:11px;letter-spacing:2px;cursor:pointer;font-family:'Inter';text-transform:uppercase">Recargar datos</button>
+      </div>
+    </div>`;
+    // Bind del input del empty state
+    const ef = document.getElementById('empty-file-input');
+    if (ef) ef.addEventListener('change', e => handleExcelUpload(e, 'empty-status'));
+    return;
+  }
+  try { renderComando(); } catch(e) { console.error('Comando:', e); }
+  try { renderFlujo(); } catch(e) { console.error('Flujo:', e); }
+  try { renderBenchmark(); } catch(e) { console.error('Benchmark:', e); }
+  try { renderSimulacion(); } catch(e) { console.error('Simulacion:', e); }
+  try { renderResumen(); } catch(e) { console.error('Resumen:', e); }
+}
+
+const PANEL_NAMES = ['Vista Comando','Flujo del Paciente','Benchmark y Tendencias','Simulación Estratégica','Resumen Ejecutivo'];
+function gotoPanel(idx) {
+  currentPanel = (idx + PANELS_TOTAL) % PANELS_TOTAL;
+  document.querySelectorAll('.panel').forEach((p,i) => p.classList.toggle('active', i===currentPanel));
+  document.querySelectorAll('.top-dot').forEach((d,i) => d.classList.toggle('active', i===currentPanel));
+  document.getElementById('panel-name').textContent = PANEL_NAMES[currentPanel];
+}
+function startCycle() {
+  cycling = true;
+  document.getElementById('btn-pause').innerHTML = '⏸ PAUSA';
+  if (cycleTimer) clearInterval(cycleTimer);
+  cycleTimer = setInterval(() => gotoPanel(currentPanel+1), CYCLE_MS);
+}
+function stopCycle() {
+  cycling = false;
+  document.getElementById('btn-pause').innerHTML = '▶ CICLAR';
+  if (cycleTimer) { clearInterval(cycleTimer); cycleTimer = null; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════ */
+function setClock() {
+  const t = new Date();
+  document.getElementById('top-clock').textContent =
+    String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
+  document.getElementById('top-date').textContent = t.toLocaleDateString('es-AR',{weekday:'short',day:'2-digit',month:'short'}).toUpperCase();
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  setClock();
+  setInterval(setClock, 30000);
+
+  /* Login */
+  const tryLogin = () => {
+    const pin = document.getElementById('login-pin').value.trim();
+    const session = sessionStorage.getItem('spcd_jefe_auth');
+    if (pin === PIN_JEFE || session === 'ok') {
+      sessionStorage.setItem('spcd_jefe_auth','ok');
+      document.getElementById('login-overlay').classList.add('hidden');
+      loadAll().then(() => {
+        startCycle();
+        if (refreshTimer) clearInterval(refreshTimer);
+        refreshTimer = setInterval(loadAll, REFRESH_MS);
+      });
+    } else {
+      document.getElementById('login-error').textContent = 'PIN incorrecto';
+      document.getElementById('login-pin').value = '';
+    }
+  };
+  document.getElementById('login-btn').onclick = tryLogin;
+  document.getElementById('login-pin').addEventListener('keydown', e => { if (e.key==='Enter') tryLogin(); });
+
+  // Auto-login si ya hay sesión
+  if (sessionStorage.getItem('spcd_jefe_auth') === 'ok') tryLogin();
+  setTimeout(() => document.getElementById('login-pin').focus(), 200);
+
+  /* Dots clickeables */
+  document.querySelectorAll('.top-dot').forEach(d => {
+    d.onclick = () => {
+      gotoPanel(parseInt(d.dataset.idx,10));
+      stopCycle(); // pausa al hacer manual
+    };
+  });
+
+  /* Pausa */
+  document.getElementById('btn-pause').onclick = () => {
+    if (cycling) stopCycle(); else startCycle();
+  };
+
+  /* Fullscreen */
+  document.getElementById('btn-fs').onclick = () => {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  };
+
+  /* Upload desde topbar */
+  const tfi = document.getElementById('top-file-input');
+  if (tfi) tfi.addEventListener('change', e => handleExcelUpload(e, null));
+
+  /* Atajos teclado */
+  document.addEventListener('keydown', e => {
+    if (document.getElementById('login-overlay').classList.contains('hidden')) {
+      if (e.key === 'ArrowRight') { gotoPanel(currentPanel+1); stopCycle(); }
+      if (e.key === 'ArrowLeft')  { gotoPanel(currentPanel-1); stopCycle(); }
+      if (e.key === ' ') { e.preventDefault(); cycling?stopCycle():startCycle(); }
+      if (e.key >= '1' && e.key <= '5') { gotoPanel(parseInt(e.key,10)-1); stopCycle(); }
+      if (e.key.toLowerCase() === 'f') document.getElementById('btn-fs').click();
+      if (e.key.toLowerCase() === 'r') loadAll();
+    }
+  });
+});
+</script>
+</body>
+</html>
