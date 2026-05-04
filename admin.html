@@ -822,7 +822,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }, 500);
 
-  console.log('%c[SP·CD ADMIN] versión fix-modal-2026-04-27', 'color:#22DBAE;font-weight:700');
+  console.log('%c[SP·CD ADMIN] versión fix-kpi-dedup-turno-2026-05-04', 'color:#22DBAE;font-weight:700');
 
   const sede = localStorage.getItem('spcd_sede') || '';
   document.getElementById('bc-sede').textContent  = sede || 'Sede';
@@ -938,15 +938,19 @@ function calcSummaryBar(data) {
   const aseg  = new Set(reaData.map(r=>r['Aseguradora']).filter(Boolean)).size;
   const deriv = new Set(reaData.map(r=>r['Derivante']).filter(Boolean)).size;
 
-  // Cantidad de Errores: suma de todos los KPI de error
-  const errInstDeriv = reaData.filter(r => esErrorInstDerivante(r)).length;
-  const errSinDeriv  = reaData.filter(r => { const d=(r['Derivante']||'').trim().toUpperCase(); return !d || d==='A CONFIRMAR'; }).length;
-  const errCoseg     = reaData.filter(r => { const id=String(r['ID Aseguradora']||'').trim(); const cu=(r['Cuenta']||'').trim().toUpperCase(); const pr=(r['Prestación']||r['Prestacion']||'').trim().toUpperCase(); const ne=parseFloat(r['Neto Unitario']||0); return id==='1665'&&cu.includes('OSEP')&&pr==='COSEGURO'&&ne===0; }).length;
-  const errSinRef    = reaData.filter(r => esErrorReferencia(r)).length;
-  const errCob       = reaData.filter(r => esErrorCobertura(r)).length;
-  const errFuera     = reaData.filter(r => esErrorFueraFechaFact(r)).length;
-  const errTramites  = reaData.filter(r => esErrorTramiteIncompleto(r)).length;
-  const totalErrores = errInstDeriv + errSinDeriv + errCoseg + errSinRef + errCob + errFuera + errTramites;
+  // Cantidad de Errores: turnos únicos con AL MENOS UN error (no doble-cuenta
+  // turnos con varios errores ni líneas múltiples del mismo turno). Coincide
+  // con el modal "Total Errores" que se abre al hacer click en esta tarjeta.
+  const reaUniq = dedupByTurno(reaData);
+  const totalErrores = reaUniq.filter(r =>
+    esErrorInstDerivante(r) ||
+    (()=>{ const d=(r['Derivante']||'').trim().toUpperCase(); return !d || d==='A CONFIRMAR'; })() ||
+    (()=>{ const id=String(r['ID Aseguradora']||'').trim(); const cu=(r['Cuenta']||'').trim().toUpperCase(); const pr=(r['Prestación']||r['Prestacion']||'').trim().toUpperCase(); const ne=parseFloat(r['Neto Unitario']||0); return id==='1665'&&cu.includes('OSEP')&&pr==='COSEGURO'&&ne===0; })() ||
+    esErrorReferencia(r) ||
+    esErrorCobertura(r) ||
+    esErrorFueraFechaFact(r) ||
+    esErrorTramiteIncompleto(r)
+  ).length;
 
   document.getElementById('sum-total').textContent  = turnosUnicos.toLocaleString();
   document.getElementById('sum-rea').textContent    = practicas.length.toLocaleString();
@@ -1039,7 +1043,10 @@ function esErrorTramiteIncompleto(r) {
 ══════════════════════════════════ */
 function calcKPIs(data) {
   // Solo considerar registros con Estado = REA (excluye AUS y otros)
-  const rea = data.filter(r => r['Estado'] === 'REA');
+  // y deduplicar por Turno N° → cada turno cuenta una sola vez aunque tenga
+  // múltiples líneas (prestación + materiales + contraste + coseguro). Esto
+  // mantiene el KPI alineado con lo que se ve al abrir el detalle / Excel.
+  const rea = dedupByTurno(data.filter(r => r['Estado'] === 'REA'));
 
   // Institución Derivante: error si Inst Derivante = FUESMEN y Operador está en la lista
   const instDerivErr = rea.filter(r => esErrorInstDerivante(r));
@@ -2352,6 +2359,19 @@ const MODAL_LABELS = {
 
 // Helper: convierte cualquier valor (string, número, Date, null, undefined) a string seguro
 function _safe(v) { return String(v == null ? '' : v).trim(); }
+
+// Helper: deduplica registros por Turno N° (un turno = una unidad, aunque tenga varias líneas)
+// Las filas sin Turno N° se conservan todas (no se pueden agrupar).
+function dedupByTurno(rows) {
+  const vistos = new Set();
+  return rows.filter(r => {
+    const tn = _safe(r['Turno N°'] ?? r['Turno N'] ?? r['Turno No']);
+    if (!tn) return true;
+    if (vistos.has(tn)) return false;
+    vistos.add(tn);
+    return true;
+  });
+}
 
 function openModal(tipo) {
   if (!filtered.length) {
