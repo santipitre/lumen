@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>SPCD · Preview Excel Ejecutivo</title>
+<style>
+  :root {
+    --ink:       #05070D;
+    --carbon:    #0A0E1A;
+    --steel:     #11182B;
+    --graphite:  #1A2438;
+    --slate:     #243049;
+    --cyan:      #00D9FF;
+    --cyan-deep: #0891B2;
+    --neon:      #00FFC2;
+    --ice:       #E6F7FF;
+    --silver:    #B7C2D6;
+    --muted:     #5A6378;
+    --rose:      #FF3D71;
+    --amber:     #FFB020;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: radial-gradient(ellipse at top, #0F1626 0%, #05070D 70%);
+    color: var(--ice);
+    font-family: 'Rajdhani','Calibri',Arial,sans-serif;
+    min-height: 100vh;
+    padding: 60px 24px;
+    line-height: 1.5;
+  }
+  .wrap {
+    max-width: 920px;
+    margin: 0 auto;
+  }
+  .top-line {
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    margin-bottom: 28px;
+    box-shadow: 0 0 12px var(--cyan);
+  }
+  h1 {
+    font-size: 36px;
+    margin: 0 0 8px;
+    letter-spacing: 1.5px;
+    font-weight: 700;
+    background: linear-gradient(90deg, var(--ice), var(--cyan));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .sub {
+    color: var(--cyan);
+    font-family: 'Consolas',monospace;
+    font-size: 13px;
+    letter-spacing: 2px;
+    margin-bottom: 36px;
+    font-weight: 600;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+  .card {
+    background: linear-gradient(135deg, var(--steel) 0%, var(--carbon) 100%);
+    border: 1px solid var(--graphite);
+    border-top: 2px solid var(--cyan);
+    padding: 18px 20px;
+    border-radius: 4px;
+  }
+  .card .label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    font-weight: 700;
+  }
+  .card .value {
+    font-family: 'Consolas',monospace;
+    font-size: 28px;
+    color: var(--cyan);
+    font-weight: 700;
+    margin-top: 6px;
+  }
+  .card .hint {
+    font-size: 11px;
+    color: var(--silver);
+    margin-top: 4px;
+  }
+  .panel {
+    background: var(--steel);
+    border: 1px solid var(--graphite);
+    border-radius: 4px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  .panel h2 {
+    color: var(--cyan);
+    font-size: 14px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-family: 'Consolas',monospace;
+    margin: 0 0 16px;
+    border-bottom: 1px solid var(--graphite);
+    padding-bottom: 12px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    background: linear-gradient(135deg, var(--cyan-deep), var(--cyan));
+    color: var(--ink);
+    border: none;
+    padding: 16px 32px;
+    font-family: 'Rajdhani',Arial,sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    box-shadow: 0 0 0 var(--cyan);
+  }
+  .btn:hover {
+    box-shadow: 0 0 24px var(--cyan), 0 4px 12px rgba(0,217,255,.4);
+    transform: translateY(-2px);
+  }
+  .btn + .btn { margin-left: 12px; }
+  .btn-ghost {
+    background: transparent;
+    color: var(--cyan);
+    border: 1px solid var(--cyan-deep);
+  }
+  .btn-ghost:hover {
+    background: rgba(0,217,255,.08);
+    box-shadow: 0 0 18px rgba(0,217,255,.4);
+  }
+  pre {
+    background: var(--ink);
+    color: var(--silver);
+    padding: 16px 20px;
+    border-radius: 4px;
+    font-family: 'Consolas',monospace;
+    font-size: 12px;
+    overflow-x: auto;
+    border-left: 2px solid var(--cyan);
+    margin: 0;
+  }
+  .status {
+    margin-top: 16px;
+    padding: 12px 16px;
+    border-radius: 4px;
+    font-family: 'Consolas',monospace;
+    font-size: 12px;
+    border: 1px solid var(--graphite);
+    background: var(--carbon);
+    color: var(--silver);
+    min-height: 16px;
+  }
+  .status.ok    { color: var(--neon);  border-color: var(--neon);  }
+  .status.err   { color: var(--rose);  border-color: var(--rose); }
+  .palette {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .swatch {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: var(--carbon);
+    border: 1px solid var(--graphite);
+    border-radius: 3px;
+    font-family: 'Consolas',monospace;
+    font-size: 11px;
+  }
+  .swatch i {
+    width: 14px;
+    height: 14px;
+    border-radius: 2px;
+    display: inline-block;
+    border: 1px solid rgba(255,255,255,.1);
+  }
+  small { color: var(--muted); }
+  .footer {
+    margin-top: 50px;
+    padding-top: 20px;
+    border-top: 1px solid var(--graphite);
+    color: var(--muted);
+    font-size: 11px;
+    font-family: 'Consolas',monospace;
+    letter-spacing: 1px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top-line"></div>
+    <h1>SP CONTROL DATA</h1>
+    <div class="sub">▸ EXCEL TEMPLATE PREVIEW · ENTERPRISE INTELLIGENCE</div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="label">Paleta</div>
+        <div class="value">TECH</div>
+        <div class="hint">Negro + Cian neón</div>
+      </div>
+      <div class="card">
+        <div class="label">Estilo</div>
+        <div class="value">EXEC</div>
+        <div class="hint">Bloomberg / Fintech</div>
+      </div>
+      <div class="card">
+        <div class="label">Módulos</div>
+        <div class="value">06</div>
+        <div class="hint">Admin · Op · Téc · Méd · Jefe · Bot</div>
+      </div>
+      <div class="card">
+        <div class="label">Hash</div>
+        <div class="value" id="hash">———</div>
+        <div class="hint">Audit ID</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>◤  Paleta Ejecutiva</h2>
+      <div class="palette" id="palette"></div>
+    </div>
+
+    <div class="panel">
+      <h2>◤  Generar reportes de muestra</h2>
+      <p style="color:var(--silver);font-size:13px;margin-top:0">
+        Generá un .xlsx con datos sintéticos para verificar el look ejecutivo / tecnológico
+        antes de aplicar el template a los módulos productivos.
+      </p>
+      <button class="btn"        id="btn-admin">⬇  Reporte Administrativo</button>
+      <button class="btn btn-ghost" id="btn-pedido">⬇  Remito de Pedido</button>
+      <button class="btn btn-ghost" id="btn-medico">⬇  Tiempo Médico</button>
+      <div class="status" id="status">Esperando comando…</div>
+    </div>
+
+    <div class="panel">
+      <h2>◤  API rápida</h2>
+<pre>await SpcdExcel.ready();
+const { wb, ws } = SpcdExcel.createBook({ subtitle:'INFORME', sheetName:'Detalle' });
+SpcdExcel.buildHeader(ws, { subtitle, totalCols, meta:{...} });
+SpcdExcel.buildKPIs (ws, kpis,        { startRow, totalCols });
+SpcdExcel.buildSection(ws,            { startRow, totalCols, title:'DETALLE' });
+SpcdExcel.buildTable(ws, { columns, widths, rows, startRow, formatter });
+SpcdExcel.buildTotals(ws,             { startRow, totalCols, items:[...] });
+SpcdExcel.buildFooter(ws,             { startRow, totalCols });
+await SpcdExcel.exportAndShare(wb, fileName, shareOpts);</pre>
+    </div>
+
+    <div class="footer">
+      SP CONTROL DATA · ENTERPRISE INTELLIGENCE · HEALTHCARE
+      &nbsp;·&nbsp; CONFIDENCIAL · USO INTERNO HOSPITAL ITALIANO
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+  <script src="spcd-excel-template.js"></script>
+  <script>
+    /* Render paleta */
+    (function() {
+      const p = SpcdExcel.PALETTE;
+      const order = ['ink','carbon','steel','graphite','slate','cyan','cyanDeep','neon','ice','white','silver','muted','amber','rose','emerald'];
+      const cont = document.getElementById('palette');
+      order.forEach(k => {
+        const argb = p[k];
+        const hex = '#' + argb.slice(2);
+        const el = document.createElement('div');
+        el.className = 'swatch';
+        el.innerHTML = `<i style="background:${hex}"></i>${k.toUpperCase()} ${hex}`;
+        cont.appendChild(el);
+      });
+      document.getElementById('hash').textContent = SpcdExcel.makeReportHash();
+    })();
+
+    function setStatus(msg, kind) {
+      const s = document.getElementById('status');
+      s.textContent = msg;
+      s.className = 'status' + (kind ? ' ' + kind : '');
+    }
+
+    /* Reporte 1 — Administrativo (admin) */
+    document.getElementById('btn-admin').onclick = async () => {
+      try {
+        setStatus('▸ Cargando ExcelJS y generando reporte...');
+        await SpcdExcel.ready();
+        const { wb, ws } = SpcdExcel.createBook({ subtitle:'INFORME ADMINISTRATIVO', sheetName:'Detalle' });
+        const cols = ['Fecha','Turno N°','Paciente','DNI','Aseguradora','Cobertura','Derivante','Operador','Prestación','Neto','Estado'];
+        const widths = [11, 8, 24, 11, 18, 14, 18, 14, 28, 12, 8];
+        const rows = [];
+        const asegs = ['OSDE 410','SWISS MEDICAL','GALENO 440','MEDIFE','PARTICULAR','OSPRERA','OSECAC'];
+        const ops   = ['CASTELLI M.','PEREYRA L.','SOSA F.','GIMENEZ R.','LOPEZ A.'];
+        const presas = ['RM CEREBRO C/CONTRASTE','TC TORAX S/CONTRASTE','RX TORAX FRENTE','ECO ABDOMINAL COMPLETO','RM RODILLA','TC ABDOMEN','RX COLUMNA LUMBAR','ECO MAMARIA'];
+        for (let i = 0; i < 18; i++) {
+          rows.push([
+            new Date(2026, 3, 1 + i).toLocaleDateString('es-AR'),
+            (12500 + i*7).toString(),
+            ['GONZALEZ MARTA','PEREZ JUAN','RODRIGUEZ ANA','LOPEZ CARLOS','MARTINEZ SOFIA','FERNANDEZ DIEGO','GOMEZ LUCIA','DIAZ PABLO','RUIZ MARIA','SUAREZ ROBERTO'][i % 10],
+            (28000000 + i*13379).toString(),
+            asegs[i % asegs.length],
+            ['Plan 410','Plan 510','Plan 210','SMG 200','Sin convenio','Cobertura A'][i%6],
+            i%5===0 ? '' : 'DR. ' + ['SOLANO','RIVAS','GIORDANO','MOLINARI','BENITEZ'][i%5],
+            ops[i % ops.length],
+            presas[i % presas.length],
+            (i%4===0 ? 0 : 18500 + i*1234),
+            i%6===0 ? 'SUS' : 'OK'
+          ]);
+        }
+
+        const headerInfo = SpcdExcel.buildHeader(ws, {
+          subtitle:'INFORME ADMINISTRATIVO',
+          totalCols: cols.length,
+          meta:{
+            modulo:'ADMIN',
+            sede:'Garibaldi',
+            fecha: SpcdExcel.dateAr(),
+            usuario:'spitrella',
+            registros: rows.length,
+            extra:'CICLO 04-2026'
+          }
+        });
+
+        const kpisInfo = SpcdExcel.buildKPIs(ws, [
+          { label:'Estudios totales',  value: rows.length, hint:'registros únicos', tone:'cyan' },
+          { label:'Aseguradoras',      value: 7,           hint:'distintos planes', tone:'silver' },
+          { label:'Neto facturado',    value: '$ 421.940', hint:'período activo',   tone:'emerald' },
+          { label:'Errores detect.',   value: 4,           hint:'requieren revisión',tone:'rose' }
+        ], { startRow: headerInfo.nextRow, totalCols: cols.length });
+
+        const secInfo = SpcdExcel.buildSection(ws, { startRow:kpisInfo.nextRow, totalCols:cols.length, title:'DETALLE DE TURNOS · ABRIL 2026' });
+
+        const tInfo = SpcdExcel.buildTable(ws, {
+          columns: cols, widths, rows,
+          startRow: secInfo.nextRow,
+          totalCols: cols.length,
+          formatter: (cell, val, rowData, idx, ci, cName) => {
+            if (cName === 'Neto')      SpcdExcel.Fmt.money(cell);
+            if (cName === 'Estado')    {
+              SpcdExcel.Fmt.center(cell);
+              if (val === 'SUS') SpcdExcel.Fmt.error(cell); else SpcdExcel.Fmt.success(cell);
+            }
+            if (cName === 'Derivante' && (!val || val === '')) {
+              cell.value = '— A CONFIRMAR —';
+              SpcdExcel.Fmt.error(cell);
+            }
+            if (cName === 'Neto' && val === 0) SpcdExcel.Fmt.error(cell);
+          }
+        });
+
+        const totInfo = SpcdExcel.buildTotals(ws, {
+          startRow: tInfo.nextRow,
+          totalCols: cols.length,
+          items: [
+            { label:'Total registros', value: rows.length },
+            { label:'Neto acumulado',  value: '$ 421.940' },
+            { label:'Tasa error',      value: '22.2%' }
+          ]
+        });
+
+        SpcdExcel.buildFooter(ws, { startRow: totInfo.nextRow, totalCols: cols.length, hash: headerInfo.hash });
+
+        await SpcdExcel.exportAndShare(wb, `SPCD_PREVIEW_Admin_${SpcdExcel.nowIsoDate()}.xlsx`);
+        setStatus('✓ Excel administrativo generado. Hash: ' + headerInfo.hash, 'ok');
+      } catch (err) {
+        console.error(err);
+        setStatus('✗ Error: ' + err.message, 'err');
+      }
+    };
+
+    /* Reporte 2 — Remito */
+    document.getElementById('btn-pedido').onclick = async () => {
+      try {
+        setStatus('▸ Generando remito de muestra…');
+        await SpcdExcel.ready();
+        const { wb, ws } = SpcdExcel.createBook({ subtitle:'REMITO DE SALIDA', sheetName:'Remito 8421' });
+        const cols = ['#','Producto','Tipo','Cantidad','Unidad','Total Unid.','Lotes Asignados (FEFO)','Observación'];
+        const widths = [4, 36, 8, 10, 18, 12, 42, 22];
+        const rows = [
+          [1,'GADOLINIO 10ML INYECTABLE','INS', 10,'Ampolla', 10, 'L-2024-A012 ×6 (vence 14/09/2026) | L-2024-B007 ×4 (vence 30/11/2026)', '—'],
+          [2,'GASA ESTERIL 10x10 cm','INS', 30,'Caja x100 de Unidad', 3000, '—', 'urgente'],
+          [3,'JERINGA 5ML','INS', 100,'Unidad', 100, 'Sin lote (INS)', ''],
+          [4,'CONTRASTE IODADO 100ML','INS', 8,'Frasco', 8, 'L-2024-C019 ×8 (vence 02/08/2026)', 'lote nuevo'],
+          [5,'GUANTES NITRILO L','INS', 12,'Caja x100 de Unidad', 1200, '—', '']
+        ];
+
+        const h = SpcdExcel.buildHeader(ws, {
+          subtitle:'REMITO DE SALIDA · PEDIDO #8421',
+          totalCols: cols.length,
+          meta:{
+            modulo:'OPERATIVO',
+            sede:'Garibaldi',
+            usuario:'sergio.r',
+            registros: rows.length,
+            extra:'URGENCIA: ALTA  ◆  ESTADO: ENTREGADO'
+          }
+        });
+        const k = SpcdExcel.buildKPIs(ws, [
+          { label:'Productos',          value: rows.length, tone:'cyan' },
+          { label:'Unidades totales',   value: '4.318',     tone:'silver' },
+          { label:'Lotes asignados',    value: 4,           tone:'emerald' },
+          { label:'Con vencimiento',    value: 3,           tone:'amber' }
+        ], { startRow: h.nextRow, totalCols: cols.length });
+
+        const s = SpcdExcel.buildSection(ws, { startRow:k.nextRow, totalCols:cols.length, title:'ÍTEMS DEL PEDIDO · FEFO' });
+        const t = SpcdExcel.buildTable(ws, {
+          columns: cols, widths, rows,
+          startRow: s.nextRow, totalCols: cols.length,
+          formatter:(cell,v,rd,idx,ci,c) => {
+            if (c==='#' || c==='Tipo') SpcdExcel.Fmt.center(cell);
+            if (c==='Cantidad' || c==='Total Unid.') SpcdExcel.Fmt.int(cell);
+          }
+        });
+        const tot = SpcdExcel.buildTotals(ws, {
+          startRow: t.nextRow, totalCols: cols.length,
+          items:[
+            { label:'Items', value: rows.length },
+            { label:'Unidades base', value: '4.318' },
+            { label:'Aprobado por', value:'maxi.l (26/04/2026 14:32)' }
+          ]
+        });
+        SpcdExcel.buildFooter(ws, { startRow: tot.nextRow, totalCols: cols.length, hash:h.hash });
+
+        await SpcdExcel.exportAndShare(wb, `SPCD_PREVIEW_Remito_8421_${SpcdExcel.nowIsoDate()}.xlsx`);
+        setStatus('✓ Remito generado. Hash: ' + h.hash, 'ok');
+      } catch (err) {
+        console.error(err);
+        setStatus('✗ Error: ' + err.message, 'err');
+      }
+    };
+
+    /* Reporte 3 — Tiempo médico */
+    document.getElementById('btn-medico').onclick = async () => {
+      try {
+        setStatus('▸ Generando reporte de tiempos…');
+        await SpcdExcel.ready();
+        const { wb, ws } = SpcdExcel.createBook({ subtitle:'TIEMPO PROMEDIO DE INFORMES', sheetName:'Tiempo' });
+        const cols = ['#','Médico Informante','Especialidad','Tiempo Prom. (días)','Informes','SLA'];
+        const widths = [4, 28, 18, 18, 12, 8];
+        const rows = [
+          [1,'SOLANO PEDRO','Neurorradiología', 1.4, 124, 'OK'],
+          [2,'RIVAS LUCIA','Tórax y abdomen',  2.1, 98,  'OK'],
+          [3,'GIORDANO ANA','Musculoesquelético', 3.6, 142, 'WARN'],
+          [4,'MOLINARI JUAN','Mama',           1.8, 67,  'OK'],
+          [5,'BENITEZ MARIA','General',        4.9, 33,  'CRIT'],
+          [6,'AGUADO CARLOS','Pediátrico',     2.3, 51,  'OK'],
+          [7,'CHAVEZ DIEGO','Cardiovascular',  3.1, 89,  'WARN']
+        ];
+
+        const h = SpcdExcel.buildHeader(ws, {
+          subtitle:'TIEMPO PROMEDIO DE INFORMES',
+          totalCols: cols.length,
+          meta:{ modulo:'MEDICO', sede:'Garibaldi', usuario:'spitrella', registros: rows.length, periodo:'01-04-2026 a 27-04-2026' }
+        });
+        const k = SpcdExcel.buildKPIs(ws, [
+          { label:'Informantes',  value: rows.length, tone:'cyan' },
+          { label:'Informes tot.',value: '604',       tone:'silver' },
+          { label:'Tiempo prom.', value: '2.7 d',     tone:'emerald' },
+          { label:'Fuera de SLA', value: 3,           tone:'rose' }
+        ], { startRow: h.nextRow, totalCols: cols.length });
+        const s = SpcdExcel.buildSection(ws, { startRow:k.nextRow, totalCols:cols.length, title:'PERFORMANCE INDIVIDUAL' });
+        const t = SpcdExcel.buildTable(ws, {
+          columns: cols, widths, rows,
+          startRow: s.nextRow, totalCols: cols.length,
+          formatter:(cell,v,rd,idx,ci,c) => {
+            if (c==='#' || c==='SLA') SpcdExcel.Fmt.center(cell);
+            if (c==='Tiempo Prom. (días)') { cell.numFmt='0.0 "días"'; cell.alignment={ ...(cell.alignment||{}), horizontal:'right' }; }
+            if (c==='Informes') SpcdExcel.Fmt.int(cell);
+            if (c==='SLA') {
+              if (v==='CRIT') SpcdExcel.Fmt.error(cell);
+              else if (v==='WARN') SpcdExcel.Fmt.warn(cell);
+              else SpcdExcel.Fmt.success(cell);
+            }
+          }
+        });
+        const tot = SpcdExcel.buildTotals(ws, {
+          startRow: t.nextRow, totalCols: cols.length,
+          items:[
+            { label:'Informantes', value: rows.length },
+            { label:'Informes', value:'604' },
+            { label:'Tiempo prom. global', value:'2.7 días' }
+          ]
+        });
+        SpcdExcel.buildFooter(ws, { startRow: tot.nextRow, totalCols: cols.length, hash:h.hash });
+
+        await SpcdExcel.exportAndShare(wb, `SPCD_PREVIEW_Medico_${SpcdExcel.nowIsoDate()}.xlsx`);
+        setStatus('✓ Reporte médico generado. Hash: ' + h.hash, 'ok');
+      } catch (err) {
+        console.error(err);
+        setStatus('✗ Error: ' + err.message, 'err');
+      }
+    };
+  </script>
+</body>
+</html>
