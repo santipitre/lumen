@@ -2390,6 +2390,43 @@ async function runDiagnosticoStock() {
     });
     html += '</tbody></table>';
 
+    // Lotes del producto (clave para entender FEFO)
+    const lotesProd = await sbQuery('lotes',
+      `select=id,nro_lote,fecha_vencimiento,cantidad_actual,activo&producto_id=in.(${prodIds.join(',')})&order=fecha_vencimiento.asc`);
+    const hoyIsoDiag = new Date().toISOString().slice(0,10);
+    if (lotesProd.length > 0) {
+      html += `<div style="color:var(--cyan); font-weight:700; letter-spacing:1.5px; margin:18px 0 8px">LOTES DEL PRODUCTO (lo que ve el FEFO)</div>`;
+      html += `<table class="pedido-detail-table" style="width:100%; font-size:11px; margin-bottom:10px">
+        <thead><tr><th>ID</th><th>Producto ID</th><th>Nº lote</th><th>Vencimiento</th><th>Cant. actual</th><th>Activo</th><th>FEFO lo ve?</th></tr></thead><tbody>`;
+      lotesProd.forEach(l => {
+        const vencido = l.fecha_vencimiento && l.fecha_vencimiento < hoyIsoDiag;
+        const cantOk = Number(l.cantidad_actual) > 0;
+        const activoOk = l.activo !== false;
+        const visible = !vencido && cantOk;  // FEFO ignora activo, solo cantidad>0 y no vencido
+        let razon = '';
+        if (!visible) {
+          if (vencido) razon = 'VENCIDO';
+          else if (!cantOk) razon = 'cantidad=0';
+        }
+        html += `<tr>
+          <td style="color:var(--muted)">${l.id}</td>
+          <td>${l.producto_id || '—'}</td>
+          <td><strong>${esc(l.nro_lote)}</strong></td>
+          <td style="color:${vencido ? 'var(--red)' : 'var(--muted)'}">${esc(l.fecha_vencimiento)}${vencido ? ' ⚠ VENCIDO' : ''}</td>
+          <td style="color:${cantOk ? 'var(--green)' : 'var(--red)'}; font-weight:700">${l.cantidad_actual}</td>
+          <td style="color:${activoOk ? 'var(--green)' : 'var(--red)'}">${activoOk ? 'SÍ' : 'NO'}</td>
+          <td style="color:${visible ? 'var(--green)' : 'var(--red)'}; font-weight:700">${visible ? '✔ SÍ' : '✗ NO ('+razon+')'}</td>
+        </tr>`;
+      });
+      const totalDisponible = lotesProd.filter(l => (l.fecha_vencimiento >= hoyIsoDiag || !l.fecha_vencimiento) && Number(l.cantidad_actual) > 0).reduce((s,l) => s + Number(l.cantidad_actual), 0);
+      html += `</tbody></table>`;
+      html += `<div style="background:rgba(56,189,248,.05); padding:8px 12px; border-left:3px solid var(--cyan); margin-bottom:14px">
+        <strong>Total disponible para FEFO:</strong> <span style="color:${totalDisponible > 0 ? 'var(--green)' : 'var(--red)'}; font-weight:700">${totalDisponible}</span>
+      </div>`;
+    } else {
+      html += `<div style="color:var(--red); font-weight:700; margin:14px 0">⚠ El producto requiere lote pero no hay NINGÚN lote en la tabla. Por eso FEFO no encuentra stock.</div>`;
+    }
+
     // Movimientos recientes (últimos 15)
     if (allMov.length > 0) {
       html += `<div style="color:var(--cyan); font-weight:700; letter-spacing:1.5px; margin:18px 0 8px">ÚLTIMOS ${Math.min(15, allMov.length)} MOVIMIENTOS</div>`;
