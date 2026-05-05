@@ -838,7 +838,10 @@
   <div class="tab-panel" id="panel-movimientos">
     <div class="section-header">
       <h2>REGISTRO ENTRADA STOCK</h2>
-      <button class="btn-secondary" onclick="openDiagnosticoStock()" style="font-size:11px; letter-spacing:1px;">&#x1FA7A; DIAGN&Oacute;STICO</button>
+      <div style="display:flex; gap:8px;">
+        <button class="btn-secondary" onclick="openRepararLotes()" style="font-size:11px; letter-spacing:1px; border-color:var(--amber); color:var(--amber);">&#x1F527; REPARAR LOTES</button>
+        <button class="btn-secondary" onclick="openDiagnosticoStock()" style="font-size:11px; letter-spacing:1px;">&#x1FA7A; DIAGN&Oacute;STICO</button>
+      </div>
     </div>
 
     <!-- OCR REMITO UPLOAD -->
@@ -918,14 +921,28 @@
 
       <div class="form-row" id="mov-lote-row" style="display:none">
         <div class="form-group">
-          <label>Lote</label>
-          <select id="mov-lote">
-            <option value="">-- Sin lote --</option>
+          <label>Lote <span id="mov-lote-required" style="color:var(--red); display:none">*</span></label>
+          <select id="mov-lote" onchange="onMovLoteChange()">
+            <option value="">-- Seleccionar lote --</option>
           </select>
+          <div id="mov-lote-hint" style="font-size:10px; color:var(--amber); margin-top:4px; display:none">
+            &#x26A0; Producto con vencimiento: el ingreso debe ir a un lote (existente o nuevo) para que el FEFO funcione.
+          </div>
         </div>
         <div class="form-group" id="mov-servicio-group" style="display:none">
           <label>Servicio destino</label>
           <input type="text" id="mov-servicio" placeholder="Ej: Resonancia"/>
+        </div>
+      </div>
+
+      <div class="form-row" id="mov-lote-nuevo-row" style="display:none">
+        <div class="form-group">
+          <label>N&deg; de lote nuevo <span style="color:var(--red)">*</span></label>
+          <input type="text" id="mov-lote-nuevo-nro" placeholder="Ej: L-2026-A12"/>
+        </div>
+        <div class="form-group">
+          <label>Fecha de vencimiento <span style="color:var(--red)">*</span></label>
+          <input type="date" id="mov-lote-nuevo-venc"/>
         </div>
       </div>
 
@@ -1243,6 +1260,33 @@
       </button>
     </div>
     <div id="ingreso-detail-body"></div>
+  </div>
+</div>
+
+<!-- ==================== REPARAR LOTES MODAL ==================== -->
+<div class="detail-overlay" id="reparar-overlay" onclick="if(event.target===this)closeRepararLotes()">
+  <div class="detail-box" style="max-width:820px">
+    <div class="detail-header">
+      <h2 style="color:var(--amber); letter-spacing:2px">&#x1F527; REPARAR INGRESOS SIN LOTE</h2>
+      <button class="detail-close" onclick="closeRepararLotes()">&times;</button>
+    </div>
+
+    <p style="font-size:12px; color:var(--muted); margin:8px 0 14px">
+      Detecta ENTRADAS de productos que requieren lote y est&aacute;n grabadas sin lote (no las ve el FEFO).
+      Por cada producto afectado crea <strong>un lote de reparaci&oacute;n</strong> con la cantidad acumulada y vincula los movimientos.
+    </p>
+
+    <div style="display:flex; gap:12px; align-items:flex-end; margin-bottom:14px; flex-wrap:wrap">
+      <div class="form-group" style="flex:1; min-width:180px">
+        <label>Vencimiento por defecto</label>
+        <input type="date" id="rep-venc-default"/>
+        <div style="font-size:10px; color:var(--muted); margin-top:4px">Editable luego en cada lote individual.</div>
+      </div>
+      <button class="btn-secondary" onclick="scanIngresosSinLote()" style="border-color:var(--cyan); color:var(--cyan)">&#x1F50D; ESCANEAR</button>
+      <button class="btn-submit" id="rep-fix-btn" onclick="ejecutarReparacion()" style="display:none">&#x2705; CREAR LOTES Y VINCULAR</button>
+    </div>
+
+    <div id="rep-output" style="font-size:12px; line-height:1.55"></div>
   </div>
 </div>
 
@@ -2394,6 +2438,175 @@ async function runDiagnosticoStock() {
   }
 }
 
+// ============================================================
+// REPARAR INGRESOS SIN LOTE
+// Para movimientos ENTRADA con lote_id=null en productos con
+// requiere_lote=true: crea un lote de reparación por producto
+// y vincula los movimientos huérfanos.
+// ============================================================
+let _repararPendiente = null; // { porProducto: {prodId: {nombre, cantidad, movIds[]}}, defaults}
+
+function openRepararLotes() {
+  // default vencimiento: hoy + 12 meses
+  const d = new Date(); d.setMonth(d.getMonth() + 12);
+  const iso = d.toISOString().slice(0,10);
+  document.getElementById('rep-venc-default').value = iso;
+  document.getElementById('rep-output').innerHTML = '<div style="color:var(--muted)">Apretá "Escanear" para detectar ingresos sin lote.</div>';
+  document.getElementById('rep-fix-btn').style.display = 'none';
+  _repararPendiente = null;
+  document.getElementById('reparar-overlay').classList.add('active');
+}
+
+function closeRepararLotes() {
+  document.getElementById('reparar-overlay').classList.remove('active');
+}
+
+async function scanIngresosSinLote() {
+  const out = document.getElementById('rep-output');
+  out.innerHTML = '<div style="color:var(--muted)">Escaneando movimientos...</div>';
+
+  try {
+    // Productos con requiere_lote=true
+    const prodsLote = await sbQuery('productos', 'select=id,nombre,activo,factor_caja&requiere_lote=eq.true');
+    const prodMap = Object.fromEntries(prodsLote.map(p => [p.id, p]));
+    const prodIds = prodsLote.map(p => p.id);
+    if (prodIds.length === 0) {
+      out.innerHTML = '<div style="color:var(--green)">No hay productos con control de lote — nada para reparar.</div>';
+      return;
+    }
+
+    // Movimientos ENTRADA sin lote_id en esos productos
+    const movs = await sbQuery('movimientos',
+      `select=id,producto_id,cantidad,fecha,remito_nro,observacion&tipo=eq.ENTRADA&lote_id=is.null&producto_id=in.(${prodIds.join(',')})&order=fecha.asc`);
+
+    if (movs.length === 0) {
+      out.innerHTML = '<div style="color:var(--green); font-weight:700">✔ No hay ingresos huérfanos. Todo está vinculado a lotes.</div>';
+      document.getElementById('rep-fix-btn').style.display = 'none';
+      return;
+    }
+
+    // Agrupar por producto
+    const porProducto = {};
+    movs.forEach(m => {
+      const prod = prodMap[m.producto_id] || { nombre: 'Producto #' + m.producto_id };
+      if (!porProducto[m.producto_id]) porProducto[m.producto_id] = { nombre: prod.nombre, cantidad: 0, movIds: [], movs: [] };
+      porProducto[m.producto_id].cantidad += Number(m.cantidad);
+      porProducto[m.producto_id].movIds.push(m.id);
+      porProducto[m.producto_id].movs.push(m);
+    });
+
+    _repararPendiente = { porProducto, total: movs.length };
+
+    // Render tabla
+    let html = `<div style="color:var(--amber); font-weight:700; margin-bottom:8px">⚠ ${movs.length} movimiento(s) sin lote en ${Object.keys(porProducto).length} producto(s):</div>`;
+    html += `<table class="pedido-detail-table" style="width:100%; font-size:11px; margin-bottom:14px">
+      <thead><tr><th>Producto</th><th>Cantidad acumulada</th><th>Movs</th><th>IDs</th></tr></thead><tbody>`;
+    Object.entries(porProducto).forEach(([pid, info]) => {
+      html += `<tr>
+        <td><strong>${esc(info.nombre)}</strong></td>
+        <td style="color:var(--green); font-weight:700">+${info.cantidad}</td>
+        <td>${info.movs.length}</td>
+        <td style="font-size:10px; color:var(--muted)">${info.movIds.join(', ')}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    html += `<div style="background:rgba(56,189,248,.08); border:1px solid var(--cyan); padding:10px 12px; border-radius:8px; font-size:11px">
+      <strong>¿Qué va a hacer "Crear lotes y vincular"?</strong><br>
+      1. Crea <strong>un lote</strong> por producto, con nombre <code>REPARACION-YYYYMMDD-PROD#</code> y vencimiento por defecto.<br>
+      2. Suma toda la cantidad huérfana al <code>cantidad_actual</code> del lote nuevo.<br>
+      3. Hace UPDATE de los movimientos huérfanos con el <code>lote_id</code> del lote creado.<br>
+      Después podés editar el N° de lote y vencimiento desde el panel de Catálogo / lotes (próximo release).
+    </div>`;
+
+    out.innerHTML = html;
+    document.getElementById('rep-fix-btn').style.display = 'inline-flex';
+
+  } catch(e) {
+    console.error(e);
+    out.innerHTML = `<div style="color:var(--red)">Error escaneando: ${esc(e.message)}</div>`;
+  }
+}
+
+async function ejecutarReparacion() {
+  if (!_repararPendiente || !_repararPendiente.porProducto) {
+    showToast('Primero escaneá', 'error'); return;
+  }
+  const venc = document.getElementById('rep-venc-default').value;
+  if (!venc) { showToast('Elegí una fecha de vencimiento por defecto', 'error'); return; }
+
+  const totalProds = Object.keys(_repararPendiente.porProducto).length;
+  const totalMovs = _repararPendiente.total;
+
+  const ok = await spcdConfirm(
+    `Vas a crear ${totalProds} lote(s) de reparación y vincular ${totalMovs} movimiento(s).\n\n` +
+    `Vencimiento por defecto: ${venc}\n\n` +
+    `¿Confirmás?`,
+    { title:'Reparar ingresos sin lote', okText:'Sí, reparar', cancelText:'Cancelar', type:'confirm' }
+  );
+  if (!ok) return;
+
+  const out = document.getElementById('rep-output');
+  out.innerHTML = '<div style="color:var(--muted)">Reparando...</div>';
+
+  const yyyymmdd = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  let resumenHtml = '<table class="pedido-detail-table" style="width:100%; font-size:11px"><thead><tr><th>Producto</th><th>Lote nuevo</th><th>Cant.</th><th>Movs vinculados</th><th>Estado</th></tr></thead><tbody>';
+
+  let okCount = 0, errCount = 0;
+  for (const [prodId, info] of Object.entries(_repararPendiente.porProducto)) {
+    try {
+      const nroLote = `REPARACION-${yyyymmdd}-P${prodId}`;
+      // 1. Crear lote
+      const created = await sbInsert('lotes', {
+        producto_id: parseInt(prodId),
+        nro_lote: nroLote,
+        fecha_vencimiento: venc,
+        cantidad_actual: info.cantidad
+      });
+      const newRow = Array.isArray(created) ? created[0] : created;
+      const newLoteId = newRow && (newRow.id || newRow.lote_id);
+      if (!newLoteId) throw new Error('sin id de lote nuevo');
+
+      // 2. Update todos los movimientos huérfanos
+      for (const movId of info.movIds) {
+        await sbUpdate('movimientos', movId, { lote_id: newLoteId });
+      }
+
+      okCount++;
+      resumenHtml += `<tr>
+        <td>${esc(info.nombre)}</td>
+        <td style="font-size:10px">${esc(nroLote)}</td>
+        <td style="color:var(--green); font-weight:700">+${info.cantidad}</td>
+        <td style="font-size:10px">${info.movIds.length}</td>
+        <td style="color:var(--green)">✔ OK</td>
+      </tr>`;
+    } catch(e) {
+      errCount++;
+      resumenHtml += `<tr>
+        <td>${esc(info.nombre)}</td>
+        <td style="font-size:10px; color:var(--red)">—</td>
+        <td>—</td>
+        <td>${info.movIds.length}</td>
+        <td style="color:var(--red)">✗ ${esc(e.message)}</td>
+      </tr>`;
+    }
+  }
+
+  resumenHtml += '</tbody></table>';
+  resumenHtml += `<div style="margin-top:12px; padding:12px; background:rgba(15,23,42,.5); border-radius:8px; color:${errCount === 0 ? 'var(--green)' : 'var(--amber)'}">
+    ${errCount === 0 ? '✔' : '⚠'} ${okCount} producto(s) reparado(s).${errCount > 0 ? ' ' + errCount + ' con error.' : ''}
+  </div>`;
+
+  // Refrescar UI
+  await Promise.all([loadStock(), loadLotes(), loadMovimientos()]);
+  renderDashboard();
+
+  out.innerHTML = resumenHtml;
+  document.getElementById('rep-fix-btn').style.display = 'none';
+  _repararPendiente = null;
+
+  showToast(`${okCount} producto(s) reparados`, errCount === 0 ? 'success' : 'error');
+}
+
 async function downloadIngresoExcel() {
   if (!currentIngresoDetail || currentIngresoDetail.length === 0) return;
   try {
@@ -2492,34 +2705,86 @@ document.getElementById('mov-producto').addEventListener('change', function() {
   const opt = this.options[this.selectedIndex];
   const needsLote = opt && opt.dataset.lote === 'true';
   document.getElementById('mov-lote-row').style.display = needsLote ? 'grid' : 'none';
+  document.getElementById('mov-lote-required').style.display = needsLote ? 'inline' : 'none';
+  document.getElementById('mov-lote-hint').style.display = needsLote ? 'block' : 'none';
+  document.getElementById('mov-lote-nuevo-row').style.display = 'none';
 
   if (needsLote) {
     const prodId = this.value;
-    const lotes = lotesData.filter(l => String(l.producto_id) === prodId);
+    const lotes = lotesData.filter(l => String(l.producto_id) === prodId && Number(l.cantidad_actual) > 0);
     const sel = document.getElementById('mov-lote');
-    sel.innerHTML = '<option value="">-- Sin lote --</option>' +
-      lotes.map(l => `<option value="${l.lote_id}">Lote ${esc(l.nro_lote)} (vence ${fmtDate(l.fecha_vencimiento)}, cant: ${l.cantidad_actual})</option>`).join('');
+    sel.innerHTML =
+      '<option value="">-- Seleccionar lote --</option>' +
+      lotes.map(l => `<option value="${l.lote_id}">Lote ${esc(l.nro_lote)} (vence ${fmtDate(l.fecha_vencimiento)}, cant: ${l.cantidad_actual})</option>`).join('') +
+      '<option value="__NEW__" style="color:var(--green)">+ Crear lote nuevo</option>';
   }
 });
+
+function onMovLoteChange() {
+  const val = document.getElementById('mov-lote').value;
+  document.getElementById('mov-lote-nuevo-row').style.display = val === '__NEW__' ? 'grid' : 'none';
+}
 
 async function submitMovimiento() {
   const tipo = document.getElementById('mov-tipo').value;
   const productoId = document.getElementById('mov-producto').value;
   const cantidad = parseInt(document.getElementById('mov-cantidad').value);
   const remito = document.getElementById('mov-remito').value.trim();
-  const loteId = document.getElementById('mov-lote').value || null;
+  const loteSel = document.getElementById('mov-lote').value || '';
   const servicio = document.getElementById('mov-servicio').value.trim();
   const obs = document.getElementById('mov-obs').value.trim();
 
   if (!productoId) { showToast('Seleccion\u00e1 un producto', 'error'); return; }
   if (!cantidad || cantidad <= 0) { showToast('Ingres\u00e1 una cantidad v\u00e1lida', 'error'); return; }
 
+  // Detectar si requiere lote
+  const prodOpt = document.getElementById('mov-producto').options[document.getElementById('mov-producto').selectedIndex];
+  const needsLote = prodOpt && prodOpt.dataset.lote === 'true';
+
+  // Si requiere lote, debe haber selecci\u00f3n
+  if (needsLote && !loteSel) {
+    await spcdAlert(
+      'Este producto tiene control de vencimiento.\n\nEleg\u00ed un lote existente o cre\u00e1 uno nuevo. Sin lote, el ingreso suma a stock pero no puede asignarse a pedidos por FEFO.',
+      { type:'error', title:'Lote requerido' }
+    );
+    return;
+  }
+
+  let loteId = null;
+
+  // Crear lote nuevo si corresponde
+  if (loteSel === '__NEW__') {
+    const nro = document.getElementById('mov-lote-nuevo-nro').value.trim();
+    const venc = document.getElementById('mov-lote-nuevo-venc').value;
+    if (!nro) { showToast('Ingres\u00e1 el N\u00ba de lote nuevo', 'error'); return; }
+    if (!venc) { showToast('Ingres\u00e1 la fecha de vencimiento', 'error'); return; }
+    if (tipo === 'SALIDA') {
+      showToast('No se puede crear un lote nuevo en una SALIDA', 'error'); return;
+    }
+    try {
+      const created = await sbInsert('lotes', {
+        producto_id: parseInt(productoId),
+        nro_lote: nro,
+        fecha_vencimiento: venc,
+        cantidad_actual: 0   // se sumar\u00e1 al actualizar abajo
+      });
+      const newRow = Array.isArray(created) ? created[0] : created;
+      loteId = newRow && (newRow.id || newRow.lote_id);
+      if (!loteId) throw new Error('No se obtuvo el ID del lote creado');
+    } catch(e) {
+      showToast('Error creando lote: ' + e.message, 'error');
+      return;
+    }
+  } else if (loteSel) {
+    loteId = parseInt(loteSel);
+  }
+
   const data = {
     tipo: tipo,
     producto_id: parseInt(productoId),
     cantidad: tipo === 'SALIDA' ? -cantidad : cantidad,
     remito_nro: remito || null,
-    lote_id: loteId ? parseInt(loteId) : null,
+    lote_id: loteId,
     servicio_destino: servicio || null,
     usuario_id: currentUser.id,
     observacion: obs || null
@@ -2530,11 +2795,19 @@ async function submitMovimiento() {
 
     // If lote, update cantidad_actual
     if (loteId) {
-      const lote = lotesData.find(l => String(l.lote_id) === loteId);
+      // Buscar lote en cache o pedir el actual
+      let lote = lotesData.find(l => Number(l.lote_id) === Number(loteId));
+      let baseQty = 0;
       if (lote) {
-        const newQty = lote.cantidad_actual + (tipo === 'SALIDA' ? -cantidad : cantidad);
-        await sbUpdate('lotes', loteId, { cantidad_actual: Math.max(0, newQty) });
+        baseQty = Number(lote.cantidad_actual) || 0;
+      } else {
+        // reci\u00e9n creado o no en cache: leer de DB
+        const fresh = await sbQuery('lotes', `select=id,cantidad_actual&id=eq.${loteId}`);
+        baseQty = fresh && fresh[0] ? Number(fresh[0].cantidad_actual) || 0 : 0;
       }
+      const delta = tipo === 'SALIDA' ? -cantidad : cantidad;
+      const newQty = Math.max(0, baseQty + delta);
+      await sbUpdate('lotes', loteId, { cantidad_actual: newQty });
     }
 
     showToast('Movimiento registrado', 'success');
@@ -2554,6 +2827,11 @@ function clearMovForm() {
   document.getElementById('mov-lote').value = '';
   document.getElementById('mov-servicio').value = '';
   document.getElementById('mov-lote-row').style.display = 'none';
+  document.getElementById('mov-lote-nuevo-row').style.display = 'none';
+  document.getElementById('mov-lote-nuevo-nro').value = '';
+  document.getElementById('mov-lote-nuevo-venc').value = '';
+  document.getElementById('mov-lote-required').style.display = 'none';
+  document.getElementById('mov-lote-hint').style.display = 'none';
 }
 
 // ============================================================
