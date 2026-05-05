@@ -838,6 +838,7 @@
   <div class="tab-panel" id="panel-movimientos">
     <div class="section-header">
       <h2>REGISTRO ENTRADA STOCK</h2>
+      <button class="btn-secondary" onclick="openDiagnosticoStock()" style="font-size:11px; letter-spacing:1px;">&#x1FA7A; DIAGN&Oacute;STICO</button>
     </div>
 
     <!-- OCR REMITO UPLOAD -->
@@ -1242,6 +1243,34 @@
       </button>
     </div>
     <div id="ingreso-detail-body"></div>
+  </div>
+</div>
+
+<!-- ==================== DIAGN&Oacute;STICO STOCK MODAL ==================== -->
+<div class="detail-overlay" id="diagnostico-overlay" onclick="if(event.target===this)closeDiagnosticoStock()">
+  <div class="detail-box" style="max-width:780px">
+    <div class="detail-header">
+      <h2 style="color:var(--cyan); letter-spacing:2px">&#x1FA7A; DIAGN&Oacute;STICO DE STOCK</h2>
+      <button class="detail-close" onclick="closeDiagnosticoStock()">&times;</button>
+    </div>
+
+    <p style="font-size:12px; color:var(--muted); margin:8px 0 16px">
+      Buscar por nombre del producto o por ID de movimiento (ej: <strong>105</strong>).
+      Compara lo que dice <code>v_stock</code> contra la suma real de movimientos y detecta duplicados.
+    </p>
+
+    <div class="form-row" style="margin-bottom:16px">
+      <div class="form-group" style="flex:2">
+        <label>Producto (nombre o parte) o # de movimiento</label>
+        <input type="text" id="diag-input" placeholder="Ej: BUSCAPINA  o  105"
+          onkeydown="if(event.key==='Enter')runDiagnosticoStock()"/>
+      </div>
+      <div class="form-group" style="align-self:flex-end">
+        <button class="btn-submit" onclick="runDiagnosticoStock()">Diagnosticar</button>
+      </div>
+    </div>
+
+    <div id="diag-output" style="font-size:12px; line-height:1.55"></div>
   </div>
 </div>
 
@@ -2205,6 +2234,164 @@ async function showIngresoDetail(idsStr) {
 
 function closeIngresoDetail() {
   document.getElementById('ingreso-detail-overlay').classList.remove('active');
+}
+
+// ============================================================
+// DIAGNÓSTICO DE STOCK (admin)
+// Verifica si un producto / movimiento impactó v_stock correctamente
+// ============================================================
+function openDiagnosticoStock() {
+  document.getElementById('diag-output').innerHTML = '';
+  document.getElementById('diag-input').value = '';
+  document.getElementById('diagnostico-overlay').classList.add('active');
+  setTimeout(() => document.getElementById('diag-input').focus(), 80);
+}
+
+function closeDiagnosticoStock() {
+  document.getElementById('diagnostico-overlay').classList.remove('active');
+}
+
+async function runDiagnosticoStock() {
+  const out = document.getElementById('diag-output');
+  const raw = document.getElementById('diag-input').value.trim();
+  if (!raw) { out.innerHTML = '<div style="color:var(--amber)">Escribí un nombre de producto o un ID de movimiento.</div>'; return; }
+
+  out.innerHTML = '<div style="color:var(--muted)">Buscando...</div>';
+
+  try {
+    let prodIds = [];
+    let movInfo = null;
+
+    // Si es un número, lo tratamos como ID de movimiento
+    if (/^\d+$/.test(raw)) {
+      const movs = await sbQuery('movimientos',
+        `select=id,producto_id,cantidad,tipo,fecha,remito_nro,lote_id,observacion,productos(id,nombre,activo,factor_caja,requiere_lote)&id=eq.${raw}`);
+      if (movs.length === 0) {
+        out.innerHTML = `<div style="color:var(--red)">No existe movimiento #${esc(raw)}.</div>`;
+        return;
+      }
+      movInfo = movs[0];
+      prodIds.push(movInfo.producto_id);
+    } else {
+      // Buscar productos por nombre (parcial, case-insensitive)
+      const dupes = await sbQuery('productos',
+        `select=id,nombre,activo,factor_caja,requiere_lote&nombre=ilike.*${encodeURIComponent(raw)}*&order=nombre`);
+      if (dupes.length === 0) {
+        out.innerHTML = `<div style="color:var(--red)">No se encontró ningún producto con "${esc(raw)}".</div>`;
+        return;
+      }
+      prodIds = dupes.map(p => p.id);
+    }
+
+    // Traer v_stock de todos los productos involucrados
+    const stkAll = await sbQuery('v_stock', `select=id,nombre,stock_actual,semaforo,factor_caja&id=in.(${prodIds.join(',')})`);
+
+    // Traer todos los movimientos de esos productos (suma real)
+    const allMov = await sbQuery('movimientos',
+      `select=id,producto_id,tipo,cantidad,fecha,remito_nro,lote_id&producto_id=in.(${prodIds.join(',')})&order=fecha.desc`);
+
+    // Resumen por producto
+    const sumPorProd = {};
+    allMov.forEach(m => {
+      sumPorProd[m.producto_id] = (sumPorProd[m.producto_id] || 0) + Number(m.cantidad);
+    });
+
+    // También traer productos en bruto (para activo flag)
+    const prodsRaw = await sbQuery('productos',
+      `select=id,nombre,activo,factor_caja,requiere_lote&id=in.(${prodIds.join(',')})&order=nombre`);
+
+    let html = '';
+
+    // Bloque movimiento puntual si fue búsqueda por ID
+    if (movInfo) {
+      const p = movInfo.productos || {};
+      html += `
+        <div style="background:rgba(56,189,248,.08); border:1px solid var(--cyan); padding:12px; border-radius:8px; margin-bottom:14px">
+          <div style="color:var(--cyan); font-weight:700; letter-spacing:1.5px; margin-bottom:6px">MOVIMIENTO #${movInfo.id}</div>
+          <div>Producto: <strong>${esc(p.nombre || 'ID '+movInfo.producto_id)}</strong> &middot; Tipo: <strong>${esc(movInfo.tipo)}</strong> &middot; Cantidad: <strong style="color:${movInfo.cantidad >= 0 ? 'var(--green)' : 'var(--red)'}">${movInfo.cantidad >= 0 ? '+' : ''}${movInfo.cantidad}</strong></div>
+          <div style="color:var(--muted); font-size:11px; margin-top:4px">Fecha: ${fmtDateTime(movInfo.fecha)}${movInfo.remito_nro ? ' &middot; Remito: '+esc(movInfo.remito_nro) : ''}${movInfo.lote_id ? ' &middot; Lote ID: '+movInfo.lote_id : ' &middot; sin lote'}</div>
+          ${p.activo === false ? '<div style="color:var(--red); margin-top:6px">⚠ Producto INACTIVO — no aparece en v_stock</div>' : ''}
+        </div>
+      `;
+    }
+
+    // Tabla de productos: v_stock vs suma real, duplicados
+    const dup = prodsRaw.length > 1;
+    if (dup) {
+      html += `<div style="background:rgba(245,158,11,.1); border:1px solid var(--amber); padding:10px 12px; border-radius:8px; margin-bottom:14px; color:var(--amber)">
+        ⚠ <strong>${prodsRaw.length} productos</strong> coinciden con tu búsqueda. Si registraste un ingreso, asegurate de que sea al producto correcto.
+      </div>`;
+    }
+
+    html += `<table class="pedido-detail-table" style="width:100%; font-size:11px; margin-bottom:14px">
+      <thead><tr>
+        <th>ID</th><th>Producto</th><th>Activo</th><th>Suma movs</th><th>v_stock.stock_actual</th><th>¿Coincide?</th><th>Semáforo</th>
+      </tr></thead><tbody>`;
+
+    prodsRaw.forEach(p => {
+      const stk = stkAll.find(s => s.id === p.id);
+      const suma = sumPorProd[p.id] || 0;
+      const stockVal = stk ? stk.stock_actual : null;
+      const match = stk && stockVal === suma;
+      const sem = stk ? stk.semaforo : '—';
+      html += `<tr>
+        <td style="color:var(--muted)">${p.id}</td>
+        <td><strong>${esc(p.nombre)}</strong>${p.requiere_lote ? ' <span style="color:var(--cyan); font-size:10px">(con lote)</span>' : ''}</td>
+        <td style="color:${p.activo ? 'var(--green)' : 'var(--red)'}">${p.activo ? 'SÍ' : 'NO'}</td>
+        <td style="color:var(--sky); font-weight:700">${suma}</td>
+        <td style="color:${stk ? 'var(--green)' : 'var(--red)'}; font-weight:700">${stk ? stockVal : 'NO ESTÁ EN v_stock'}</td>
+        <td style="color:${match ? 'var(--green)' : 'var(--red)'}; font-weight:700">${stk ? (match ? '✔ OK' : '✗ MISMATCH') : '—'}</td>
+        <td style="font-size:10px; letter-spacing:1px">${esc(sem)}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+
+    // Movimientos recientes (últimos 15)
+    if (allMov.length > 0) {
+      html += `<div style="color:var(--cyan); font-weight:700; letter-spacing:1.5px; margin:18px 0 8px">ÚLTIMOS ${Math.min(15, allMov.length)} MOVIMIENTOS</div>`;
+      html += `<table class="pedido-detail-table" style="width:100%; font-size:11px">
+        <thead><tr><th>ID</th><th>Producto ID</th><th>Tipo</th><th>Cant.</th><th>Fecha</th><th>Remito</th><th>Lote</th></tr></thead><tbody>`;
+      allMov.slice(0, 15).forEach(m => {
+        html += `<tr>
+          <td style="color:var(--muted)">${m.id}</td>
+          <td>${m.producto_id}</td>
+          <td>${esc(m.tipo)}</td>
+          <td style="color:${m.cantidad >= 0 ? 'var(--green)' : 'var(--red)'}; font-weight:700">${m.cantidad >= 0 ? '+' : ''}${m.cantidad}</td>
+          <td style="font-size:10px">${fmtDateTime(m.fecha)}</td>
+          <td style="font-size:10px; color:var(--muted)">${esc(m.remito_nro || '')}</td>
+          <td style="font-size:10px; color:var(--muted)">${m.lote_id || ''}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+    } else {
+      html += '<div style="color:var(--muted); font-style:italic">Sin movimientos registrados para este producto.</div>';
+    }
+
+    // Diagnóstico final
+    const allMatch = prodsRaw.every(p => {
+      const stk = stkAll.find(s => s.id === p.id);
+      const suma = sumPorProd[p.id] || 0;
+      return stk && stk.stock_actual === suma;
+    });
+    const someInactivo = prodsRaw.some(p => !p.activo);
+
+    let veredicto = '';
+    if (someInactivo) {
+      veredicto = `<div style="color:var(--red); font-weight:700">⚠ Hay producto(s) INACTIVOS: la suma de movimientos existe pero v_stock los excluye (filtra activo=true). Reactivar o mergear.</div>`;
+    } else if (!allMatch) {
+      veredicto = `<div style="color:var(--red); font-weight:700">✗ Mismatch entre suma de movimientos y v_stock. Pegame este resultado para investigar la vista en Supabase.</div>`;
+    } else if (dup) {
+      veredicto = `<div style="color:var(--amber); font-weight:700">⚠ La suma cuadra, pero hay productos duplicados con nombre similar. Si el stock que esperabas no subíó, probablemente registraste el ingreso al duplicado equivocado.</div>`;
+    } else {
+      veredicto = `<div style="color:var(--green); font-weight:700">✔ v_stock cuadra con la suma de movimientos. Si la pantalla no actualizó, hacé hard reload (Ctrl+Shift+R) o cambiá de tab y volvé.</div>`;
+    }
+
+    out.innerHTML = html + '<div style="margin-top:14px; padding:12px; background:rgba(15,23,42,.5); border-radius:8px">' + veredicto + '</div>';
+
+  } catch(e) {
+    console.error('diagnostico error:', e);
+    out.innerHTML = `<div style="color:var(--red)">Error: ${esc(e.message)}</div>`;
+  }
 }
 
 async function downloadIngresoExcel() {
