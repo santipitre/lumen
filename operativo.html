@@ -3468,6 +3468,7 @@ async function approvePedido(id) {
         movimientos.push({
           tipo: 'SALIDA',
           producto_id: p.item.producto_id,
+          lote_id: null,
           cantidad: -(p.item.cantidad_solicitada),
           pedido_id: id,
           servicio_destino: ped.servicio,
