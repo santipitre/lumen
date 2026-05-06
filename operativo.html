@@ -1267,13 +1267,14 @@
 <div class="detail-overlay" id="reparar-overlay" onclick="if(event.target===this)closeRepararLotes()">
   <div class="detail-box" style="max-width:820px">
     <div class="detail-header">
-      <h2 style="color:var(--amber); letter-spacing:2px">&#x1F527; REPARAR INGRESOS SIN LOTE</h2>
+      <h2 style="color:var(--amber); letter-spacing:2px">&#x1F527; REPARAR DISPONIBILIDAD FEFO</h2>
       <button class="detail-close" onclick="closeRepararLotes()">&times;</button>
     </div>
 
     <p style="font-size:12px; color:var(--muted); margin:8px 0 14px">
-      Detecta ENTRADAS de productos que requieren lote y est&aacute;n grabadas sin lote (no las ve el FEFO).
-      Por cada producto afectado crea <strong>un lote de reparaci&oacute;n</strong> con la cantidad acumulada y vincula los movimientos.
+      Compara el stock real (<code>v_stock</code>) contra la cantidad visible al FEFO (lotes con vencimiento futuro y cantidad &gt; 0).
+      Para cada producto donde haya gap, crea un lote nuevo con la cantidad faltante y vincula los movimientos hu&eacute;rfanos.
+      Esto soluciona los dos casos t&iacute;picos: <strong>ingresos sin lote</strong> y <strong>lotes vencidos</strong> que esconden stock.
     </p>
 
     <div style="display:flex; gap:12px; align-items:flex-end; margin-bottom:14px; flex-wrap:wrap">
@@ -2500,59 +2501,99 @@ function closeRepararLotes() {
 
 async function scanIngresosSinLote() {
   const out = document.getElementById('rep-output');
-  out.innerHTML = '<div style="color:var(--muted)">Escaneando movimientos...</div>';
+  out.innerHTML = '<div style="color:var(--muted)">Escaneando productos con control de lote...</div>';
 
   try {
-    // Productos con requiere_lote=true
-    const prodsLote = await sbQuery('productos', 'select=id,nombre,activo,factor_caja&requiere_lote=eq.true');
-    const prodMap = Object.fromEntries(prodsLote.map(p => [p.id, p]));
+    // 1. Productos con requiere_lote=true
+    const prodsLote = await sbQuery('productos', 'select=id,nombre,activo,factor_caja&requiere_lote=eq.true&activo=eq.true');
     const prodIds = prodsLote.map(p => p.id);
     if (prodIds.length === 0) {
       out.innerHTML = '<div style="color:var(--green)">No hay productos con control de lote — nada para reparar.</div>';
       return;
     }
 
-    // Movimientos ENTRADA sin lote_id en esos productos
-    const movs = await sbQuery('movimientos',
-      `select=id,producto_id,cantidad,fecha,remito_nro,observacion&tipo=eq.ENTRADA&lote_id=is.null&producto_id=in.(${prodIds.join(',')})&order=fecha.asc`);
+    // 2. v_stock para cada uno (lo que muestra la app)
+    const stockRows = await sbQuery('v_stock', `select=id,stock_actual&id=in.(${prodIds.join(',')})`);
+    const stockMap = Object.fromEntries(stockRows.map(s => [s.id, Number(s.stock_actual) || 0]));
 
-    if (movs.length === 0) {
-      out.innerHTML = '<div style="color:var(--green); font-weight:700">✔ No hay ingresos huérfanos. Todo está vinculado a lotes.</div>';
+    // 3. Lotes: sumar cantidad_actual SOLO de los que el FEFO ve
+    //    (vencimiento >= hoy AND cantidad_actual > 0)
+    const hoyIso = new Date().toISOString().slice(0,10);
+    const lotesAll = await sbQuery('lotes',
+      `select=id,producto_id,nro_lote,fecha_vencimiento,cantidad_actual,activo&producto_id=in.(${prodIds.join(',')})&order=producto_id.asc`);
+
+    const fefoMap = {};      // prodId -> suma cantidad_actual visible al FEFO
+    const lotesPorProd = {}; // prodId -> [lotes…]
+    lotesAll.forEach(l => {
+      if (!lotesPorProd[l.producto_id]) lotesPorProd[l.producto_id] = [];
+      lotesPorProd[l.producto_id].push(l);
+      const vigente = (!l.fecha_vencimiento || l.fecha_vencimiento >= hoyIso);
+      const cantOk = Number(l.cantidad_actual) > 0;
+      if (vigente && cantOk) {
+        fefoMap[l.producto_id] = (fefoMap[l.producto_id] || 0) + Number(l.cantidad_actual);
+      }
+    });
+
+    // 4. Movimientos ENTRADA sin lote_id (orphans) — útil para registrarlo
+    const movsHuerfanos = await sbQuery('movimientos',
+      `select=id,producto_id,cantidad&tipo=eq.ENTRADA&lote_id=is.null&producto_id=in.(${prodIds.join(',')})`);
+    const huerfanosPorProd = {};
+    movsHuerfanos.forEach(m => {
+      if (!huerfanosPorProd[m.producto_id]) huerfanosPorProd[m.producto_id] = [];
+      huerfanosPorProd[m.producto_id].push(m);
+    });
+
+    // 5. Calcular gap por producto: stock real - fefo disponible
+    const aFijar = {};  // prodId -> { nombre, gap, fefo, stock, lotes, huerfanos }
+    prodsLote.forEach(p => {
+      const stock = stockMap[p.id] || 0;
+      const fefo = fefoMap[p.id] || 0;
+      const gap = stock - fefo;
+      if (gap > 0) {
+        aFijar[p.id] = {
+          nombre: p.nombre,
+          gap, fefo, stock,
+          lotes: lotesPorProd[p.id] || [],
+          huerfanos: huerfanosPorProd[p.id] || []
+        };
+      }
+    });
+
+    if (Object.keys(aFijar).length === 0) {
+      out.innerHTML = `<div style="color:var(--green); font-weight:700">✔ Todos los productos con lote tienen cantidad disponible al FEFO igual al stock real.</div>
+        <div style="color:var(--muted); margin-top:8px">Si seguís sin poder aprobar, el problema es otro. Corré el diagnóstico (🩺) sobre el producto y mandame screenshot.</div>`;
       document.getElementById('rep-fix-btn').style.display = 'none';
       return;
     }
 
-    // Agrupar por producto
-    const porProducto = {};
-    movs.forEach(m => {
-      const prod = prodMap[m.producto_id] || { nombre: 'Producto #' + m.producto_id };
-      if (!porProducto[m.producto_id]) porProducto[m.producto_id] = { nombre: prod.nombre, cantidad: 0, movIds: [], movs: [] };
-      porProducto[m.producto_id].cantidad += Number(m.cantidad);
-      porProducto[m.producto_id].movIds.push(m.id);
-      porProducto[m.producto_id].movs.push(m);
-    });
+    _repararPendiente = { aFijar };
 
-    _repararPendiente = { porProducto, total: movs.length };
-
-    // Render tabla
-    let html = `<div style="color:var(--amber); font-weight:700; margin-bottom:8px">⚠ ${movs.length} movimiento(s) sin lote en ${Object.keys(porProducto).length} producto(s):</div>`;
+    // Render
+    let html = `<div style="color:var(--amber); font-weight:700; margin-bottom:8px">⚠ ${Object.keys(aFijar).length} producto(s) con stock pero sin disponibilidad al FEFO:</div>`;
     html += `<table class="pedido-detail-table" style="width:100%; font-size:11px; margin-bottom:14px">
-      <thead><tr><th>Producto</th><th>Cantidad acumulada</th><th>Movs</th><th>IDs</th></tr></thead><tbody>`;
-    Object.entries(porProducto).forEach(([pid, info]) => {
+      <thead><tr><th>Producto</th><th>Stock real (v_stock)</th><th>Disponible FEFO</th><th>Gap a crear</th><th>Lotes existentes</th><th>Movs sin lote</th></tr></thead><tbody>`;
+    Object.entries(aFijar).forEach(([pid, info]) => {
+      const lotesDesc = info.lotes.length === 0 ? '<span style="color:var(--red)">ninguno</span>' :
+        info.lotes.map(l => {
+          const venc = l.fecha_vencimiento;
+          const isVencido = venc && venc < hoyIso;
+          return `<div style="font-size:10px; color:${isVencido ? 'var(--red)' : 'var(--muted)'}">${esc(l.nro_lote)} · vence ${venc}${isVencido ? ' ⚠' : ''} · cant=${l.cantidad_actual}</div>`;
+        }).join('');
       html += `<tr>
         <td><strong>${esc(info.nombre)}</strong></td>
-        <td style="color:var(--green); font-weight:700">+${info.cantidad}</td>
-        <td>${info.movs.length}</td>
-        <td style="font-size:10px; color:var(--muted)">${info.movIds.join(', ')}</td>
+        <td style="color:var(--sky)">${info.stock}</td>
+        <td style="color:${info.fefo > 0 ? 'var(--amber)' : 'var(--red)'}">${info.fefo}</td>
+        <td style="color:var(--green); font-weight:700">+${info.gap}</td>
+        <td>${lotesDesc}</td>
+        <td style="font-size:10px">${info.huerfanos.length} mov(s)${info.huerfanos.length ? ' (ids: ' + info.huerfanos.map(m => m.id).join(', ') + ')' : ''}</td>
       </tr>`;
     });
     html += '</tbody></table>';
     html += `<div style="background:rgba(56,189,248,.08); border:1px solid var(--cyan); padding:10px 12px; border-radius:8px; font-size:11px">
-      <strong>¿Qué va a hacer "Crear lotes y vincular"?</strong><br>
-      1. Crea <strong>un lote</strong> por producto, con nombre <code>REPARACION-YYYYMMDD-PROD#</code> y vencimiento por defecto.<br>
-      2. Suma toda la cantidad huérfana al <code>cantidad_actual</code> del lote nuevo.<br>
-      3. Hace UPDATE de los movimientos huérfanos con el <code>lote_id</code> del lote creado.<br>
-      Después podés editar el N° de lote y vencimiento desde el panel de Catálogo / lotes (próximo release).
+      <strong>¿Qué hace "Crear lotes y vincular"?</strong><br>
+      Por cada producto crea un lote nuevo <code>REPARACION-YYYYMMDD-P&lt;id&gt;</code> con <code>cantidad_actual = gap</code> y el vencimiento por defecto.
+      Si hay movimientos ENTRADA sin lote, los vincula al lote nuevo.
+      No toca los lotes existentes (los vencidos quedan vencidos para el registro histórico).
     </div>`;
 
     out.innerHTML = html;
@@ -2565,20 +2606,23 @@ async function scanIngresosSinLote() {
 }
 
 async function ejecutarReparacion() {
-  if (!_repararPendiente || !_repararPendiente.porProducto) {
+  if (!_repararPendiente || !_repararPendiente.aFijar) {
     showToast('Primero escaneá', 'error'); return;
   }
   const venc = document.getElementById('rep-venc-default').value;
   if (!venc) { showToast('Elegí una fecha de vencimiento por defecto', 'error'); return; }
 
-  const totalProds = Object.keys(_repararPendiente.porProducto).length;
-  const totalMovs = _repararPendiente.total;
+  const aFijar = _repararPendiente.aFijar;
+  const totalProds = Object.keys(aFijar).length;
+  const totalGap = Object.values(aFijar).reduce((s,i) => s + i.gap, 0);
+  const totalMovs = Object.values(aFijar).reduce((s,i) => s + i.huerfanos.length, 0);
 
   const ok = await spcdConfirm(
-    `Vas a crear ${totalProds} lote(s) de reparación y vincular ${totalMovs} movimiento(s).\n\n` +
+    `Vas a crear ${totalProds} lote(s) de reparación con un total de +${totalGap} unidades.\n\n` +
+    (totalMovs > 0 ? `Adicionalmente vas a vincular ${totalMovs} movimiento(s) sin lote al lote nuevo.\n\n` : '') +
     `Vencimiento por defecto: ${venc}\n\n` +
     `¿Confirmás?`,
-    { title:'Reparar ingresos sin lote', okText:'Sí, reparar', cancelText:'Cancelar', type:'confirm' }
+    { title:'Reparar disponibilidad FEFO', okText:'Sí, reparar', cancelText:'Cancelar', type:'confirm' }
   );
   if (!ok) return;
 
@@ -2589,31 +2633,36 @@ async function ejecutarReparacion() {
   let resumenHtml = '<table class="pedido-detail-table" style="width:100%; font-size:11px"><thead><tr><th>Producto</th><th>Lote nuevo</th><th>Cant.</th><th>Movs vinculados</th><th>Estado</th></tr></thead><tbody>';
 
   let okCount = 0, errCount = 0;
-  for (const [prodId, info] of Object.entries(_repararPendiente.porProducto)) {
+  for (const [prodId, info] of Object.entries(aFijar)) {
     try {
       const nroLote = `REPARACION-${yyyymmdd}-P${prodId}`;
-      // 1. Crear lote
+      // 1. Crear lote con la cantidad faltante
       const created = await sbInsert('lotes', {
         producto_id: parseInt(prodId),
         nro_lote: nroLote,
         fecha_vencimiento: venc,
-        cantidad_actual: info.cantidad
+        cantidad_actual: info.gap,
+        activo: true
       });
       const newRow = Array.isArray(created) ? created[0] : created;
       const newLoteId = newRow && (newRow.id || newRow.lote_id);
       if (!newLoteId) throw new Error('sin id de lote nuevo');
 
-      // 2. Update todos los movimientos huérfanos
-      for (const movId of info.movIds) {
-        await sbUpdate('movimientos', movId, { lote_id: newLoteId });
+      // 2. Si hay movimientos huérfanos, vincularlos al lote nuevo
+      let vinculados = 0;
+      for (const m of info.huerfanos) {
+        try {
+          await sbUpdate('movimientos', m.id, { lote_id: newLoteId });
+          vinculados++;
+        } catch(_) { /* sigue con el siguiente */ }
       }
 
       okCount++;
       resumenHtml += `<tr>
         <td>${esc(info.nombre)}</td>
-        <td style="font-size:10px">${esc(nroLote)}</td>
-        <td style="color:var(--green); font-weight:700">+${info.cantidad}</td>
-        <td style="font-size:10px">${info.movIds.length}</td>
+        <td style="font-size:10px">${esc(nroLote)} (id ${newLoteId})</td>
+        <td style="color:var(--green); font-weight:700">+${info.gap}</td>
+        <td style="font-size:10px">${vinculados}</td>
         <td style="color:var(--green)">✔ OK</td>
       </tr>`;
     } catch(e) {
@@ -2622,7 +2671,7 @@ async function ejecutarReparacion() {
         <td>${esc(info.nombre)}</td>
         <td style="font-size:10px; color:var(--red)">—</td>
         <td>—</td>
-        <td>${info.movIds.length}</td>
+        <td>${info.huerfanos.length}</td>
         <td style="color:var(--red)">✗ ${esc(e.message)}</td>
       </tr>`;
     }
@@ -2631,6 +2680,7 @@ async function ejecutarReparacion() {
   resumenHtml += '</tbody></table>';
   resumenHtml += `<div style="margin-top:12px; padding:12px; background:rgba(15,23,42,.5); border-radius:8px; color:${errCount === 0 ? 'var(--green)' : 'var(--amber)'}">
     ${errCount === 0 ? '✔' : '⚠'} ${okCount} producto(s) reparado(s).${errCount > 0 ? ' ' + errCount + ' con error.' : ''}
+    ${okCount > 0 ? '<br><strong>Probá aprobar el pedido ahora.</strong>' : ''}
   </div>`;
 
   // Refrescar UI
