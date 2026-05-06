@@ -868,6 +868,24 @@
           </div>
         </div>
 
+        <!-- Defaults para productos con vencimiento (se aplican al inicio, editables por fila) -->
+        <div id="ocr-lote-defaults" style="display:none; background:rgba(245,158,11,.07); border:1px solid rgba(245,158,11,.3); border-radius:8px; padding:10px 14px; margin-bottom:12px;">
+          <div style="font-size:11px; letter-spacing:1px; color:var(--amber); margin-bottom:8px; text-transform:uppercase;">&#x26A0; Productos con control de lote — defaults del remito</div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+            <div class="form-group" style="flex:1; min-width:140px; margin:0;">
+              <label style="font-size:10px;">N&deg; lote por defecto</label>
+              <input type="text" id="ocr-default-nro-lote" placeholder="Ej: L-2026-A12" oninput="ocrAplicarDefaultsLote()"/>
+            </div>
+            <div class="form-group" style="flex:1; min-width:140px; margin:0;">
+              <label style="font-size:10px;">Vencimiento por defecto</label>
+              <input type="date" id="ocr-default-fecha-venc" oninput="ocrAplicarDefaultsLote()"/>
+            </div>
+            <div style="font-size:10px; color:var(--muted); flex:2; min-width:180px;">
+              Se aplica solo a las filas vac&iacute;as. Pod&eacute;s editarlas por separado debajo.
+            </div>
+          </div>
+        </div>
+
         <div class="ocr-results" id="ocr-results">
           <table>
             <thead>
@@ -877,6 +895,7 @@
                 <th>Producto (detectado)</th>
                 <th>Producto (cat&aacute;logo)</th>
                 <th>Cantidad</th>
+                <th>Lote / Vencimiento</th>
               </tr>
             </thead>
             <tbody id="ocr-tbody"></tbody>
@@ -3103,14 +3122,30 @@ function renderOcrResults() {
   const summary = document.getElementById('ocr-summary');
 
   if (ocrParsedItems.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--muted);">No se detectaron productos en la imagen. Prob\u00e1 con una foto m\u00e1s n\u00edtida.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:var(--muted);">No se detectaron productos en la imagen. Prob\u00e1 con una foto m\u00e1s n\u00edtida.</td></tr>';
     summary.innerHTML = '';
+    document.getElementById('ocr-lote-defaults').style.display = 'none';
     document.getElementById('ocr-confirm-btn').disabled = true;
     return;
   }
 
   const matched = ocrParsedItems.filter(i => i.matched).length;
   const unmatched = ocrParsedItems.length - matched;
+
+  // Detectar requiere_lote por item (lookup en productosAll)
+  ocrParsedItems.forEach(it => {
+    if (it.matched && it.productoId != null) {
+      const prod = productosAll.find(p => Number(p.id) === Number(it.productoId));
+      it.requiereLote = !!(prod && prod.requiere_lote);
+    } else {
+      it.requiereLote = false;
+    }
+    if (it.nroLote === undefined) it.nroLote = '';
+    if (it.fechaVenc === undefined) it.fechaVenc = '';
+  });
+
+  const algunoRequiereLote = ocrParsedItems.some(i => i.requiereLote);
+  document.getElementById('ocr-lote-defaults').style.display = algunoRequiereLote ? 'block' : 'none';
 
   const prodOptions = productosAll.map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
 
@@ -3119,6 +3154,7 @@ function renderOcrResults() {
     let catCell;
     if (item.matched) {
       catCell = `<span class="match-ok">${esc(item.productoNombre)}</span>
+        ${item.requiereLote ? '<span style="color:var(--amber); font-size:10px; margin-left:4px;">[c/lote]</span>' : ''}
         <select style="display:none; margin-top:4px; font-size:11px; width:100%;" id="ocr-sel-${idx}" onchange="ocrFixMatch(${idx}, this.value)">
           <option value="">-- Cambiar --</option>${prodOptions}
         </select>
@@ -3128,14 +3164,34 @@ function renderOcrResults() {
           <option value="">-- Seleccionar producto --</option>${prodOptions}
         </select>`;
     }
+
+    let loteCell;
+    if (item.requiereLote) {
+      const nroLote = esc(item.nroLote || '');
+      const fechaVenc = esc(item.fechaVenc || '');
+      const filled = nroLote && fechaVenc;
+      loteCell = `<div style="display:flex; flex-direction:column; gap:4px; min-width:160px;">
+        <input type="text" placeholder="N\u00b0 lote" value="${nroLote}" style="font-size:11px; padding:4px 6px; border:1px solid ${filled ? 'var(--border)' : 'var(--amber)'};" onchange="ocrParsedItems[${idx}].nroLote=this.value.trim()"/>
+        <input type="date" value="${fechaVenc}" style="font-size:11px; padding:4px 6px; border:1px solid ${filled ? 'var(--border)' : 'var(--amber)'};" onchange="ocrParsedItems[${idx}].fechaVenc=this.value"/>
+      </div>`;
+    } else if (item.matched) {
+      loteCell = '<span style="color:var(--muted); font-size:11px;">\u2014 sin lote</span>';
+    } else {
+      loteCell = '<span style="color:var(--muted); font-size:11px;">\u2014</span>';
+    }
+
     return `<tr>
       <td>${statusIcon}</td>
       <td><strong>${item.stockId}</strong></td>
       <td style="font-size:12px; color:var(--muted); max-width:160px; overflow:hidden; text-overflow:ellipsis;">${esc(item.ocrName)}</td>
       <td>${catCell}</td>
       <td><input type="number" value="${item.cantidad}" min="0" style="width:70px" onchange="ocrParsedItems[${idx}].cantidad=parseInt(this.value)||0"/></td>
+      <td>${loteCell}</td>
     </tr>`;
   }).join('');
+
+  // Validar si todos los items con lote tienen nro+venc
+  const incompletos = ocrParsedItems.filter(i => i.matched && i.requiereLote && (!i.nroLote || !i.fechaVenc)).length;
 
   summary.innerHTML = `
     <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
@@ -3143,12 +3199,26 @@ function renderOcrResults() {
         <span>Detectados: <strong>${ocrParsedItems.length}</strong></span>
         <span style="color:var(--green)">Encontrados: <strong>${matched}</strong></span>
         ${unmatched > 0 ? `<span style="color:var(--red)">Sin match: <strong>${unmatched}</strong></span>` : ''}
+        ${incompletos > 0 ? `<span style="color:var(--amber)">Falta lote/vencimiento: <strong>${incompletos}</strong></span>` : ''}
       </div>
       <button class="btn-secondary" onclick="ocrAgregarFilaManual()" style="padding:6px 12px; font-size:11px; border-color:rgba(34,219,174,.4); color:var(--cyan);">&#x2B; Agregar producto manualmente</button>
     </div>
   `;
 
-  document.getElementById('ocr-confirm-btn').disabled = matched === 0;
+  document.getElementById('ocr-confirm-btn').disabled = matched === 0 || incompletos > 0;
+}
+
+// Aplica los defaults a las filas con requiere_lote=true que est\u00e9n vac\u00edas
+function ocrAplicarDefaultsLote() {
+  const nroDefault = document.getElementById('ocr-default-nro-lote').value.trim();
+  const vencDefault = document.getElementById('ocr-default-fecha-venc').value;
+  ocrParsedItems.forEach(it => {
+    if (it.matched && it.requiereLote) {
+      if (!it.nroLote && nroDefault) it.nroLote = nroDefault;
+      if (!it.fechaVenc && vencDefault) it.fechaVenc = vencDefault;
+    }
+  });
+  renderOcrResults();
 }
 
 // Agregar una fila manual a la tabla de OCR (productos que el OCR no detect\u00f3)
@@ -3159,7 +3229,10 @@ function ocrAgregarFilaManual() {
     cantidad: 1,
     productoId: null,
     productoNombre: null,
-    matched: false
+    matched: false,
+    requiereLote: false,
+    nroLote: '',
+    fechaVenc: ''
   });
   renderOcrResults();
 }
@@ -3171,6 +3244,14 @@ function ocrFixMatch(idx, prodId) {
     ocrParsedItems[idx].productoId = prod.id;
     ocrParsedItems[idx].productoNombre = prod.nombre;
     ocrParsedItems[idx].matched = true;
+    ocrParsedItems[idx].requiereLote = !!prod.requiere_lote;
+    // Pre-rellenar con defaults si est\u00e1n y el campo est\u00e1 vac\u00edo
+    if (prod.requiere_lote) {
+      const nroDef = document.getElementById('ocr-default-nro-lote');
+      const vencDef = document.getElementById('ocr-default-fecha-venc');
+      if (nroDef && nroDef.value && !ocrParsedItems[idx].nroLote) ocrParsedItems[idx].nroLote = nroDef.value.trim();
+      if (vencDef && vencDef.value && !ocrParsedItems[idx].fechaVenc) ocrParsedItems[idx].fechaVenc = vencDef.value;
+    }
     renderOcrResults();
   }
 }
@@ -3202,6 +3283,17 @@ async function confirmOcrRemito() {
   });
   if (!ok) return;
 
+  // Validar lote/vencimiento en items que lo requieren
+  const incompletosLote = validItems.filter(i => i.requiereLote && (!i.nroLote || !i.fechaVenc));
+  if (incompletosLote.length > 0) {
+    await spcdAlert(
+      `Faltan datos de lote o vencimiento en ${incompletosLote.length} producto(s) con control de vencimiento.\n\n` +
+      incompletosLote.map(i => '• ' + (i.productoNombre || i.stockId)).join('\n'),
+      { type:'error', title:'Datos incompletos' }
+    );
+    return;
+  }
+
   const btn = document.getElementById('ocr-confirm-btn');
   btn.disabled = true;
   btn.textContent = 'Registrando...';
@@ -3210,9 +3302,37 @@ async function confirmOcrRemito() {
     let ok = 0, errors = [];
     for (const item of validItems) {
       try {
+        let loteId = null;
+
+        // Si requiere lote, ver si ya existe un lote vigente con el mismo nro_lote
+        // (idempotencia básica: si volvés a cargar el mismo remito, no duplica lote)
+        if (item.requiereLote) {
+          const existentes = await sbQuery('lotes',
+            `select=id,cantidad_actual&producto_id=eq.${item.productoId}&nro_lote=eq.${encodeURIComponent(item.nroLote)}&fecha_vencimiento=eq.${item.fechaVenc}`);
+          if (existentes && existentes.length > 0) {
+            // Sumar al lote existente
+            loteId = existentes[0].id;
+            const nuevaCant = (Number(existentes[0].cantidad_actual) || 0) + Number(item.cantidad);
+            await sbUpdate('lotes', loteId, { cantidad_actual: nuevaCant });
+          } else {
+            // Crear lote nuevo con la cantidad del ingreso
+            const created = await sbInsert('lotes', {
+              producto_id: item.productoId,
+              nro_lote: item.nroLote,
+              fecha_vencimiento: item.fechaVenc,
+              cantidad_actual: item.cantidad,
+              activo: true
+            });
+            const newRow = Array.isArray(created) ? created[0] : created;
+            loteId = newRow && (newRow.id || newRow.lote_id);
+            if (!loteId) throw new Error('no se obtuvo el id del lote creado');
+          }
+        }
+
         await sbInsert('movimientos', {
           tipo: 'ENTRADA',
           producto_id: item.productoId,
+          lote_id: loteId,
           cantidad: item.cantidad,
           remito_nro: remitoNro || null,
           usuario_id: currentUser.id,
@@ -3253,6 +3373,13 @@ function cancelOcr() {
   document.getElementById('ocr-progress').style.display = 'none';
   document.getElementById('ocr-input').value = '';
   ocrParsedItems = [];
+  // Limpiar defaults de lote
+  const ndl = document.getElementById('ocr-default-nro-lote');
+  const dfv = document.getElementById('ocr-default-fecha-venc');
+  if (ndl) ndl.value = '';
+  if (dfv) dfv.value = '';
+  const oldp = document.getElementById('ocr-lote-defaults');
+  if (oldp) oldp.style.display = 'none';
   // Mostrar de nuevo el separador manual
   document.getElementById('manual-separator').style.display = 'block';
 }
