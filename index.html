@@ -12,23 +12,30 @@
   <meta name="theme-color" content="#0F172A"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <link rel="manifest" href="manifest.json"/>
-  <link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png"/>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg"/>
-  <link rel="shortcut icon" href="favicon.ico"/>
-  <link rel="apple-touch-icon" id="apple-icon" sizes="180x180" href="apple-touch-icon.png"/>
+  <link rel="apple-touch-icon" id="apple-icon" href="icon-180.png"/>
 
-  <link rel="stylesheet" href="spcd-theme.css"/>
-  <link rel="stylesheet" href="spcd-components.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet"/>
   <style>
-    /* Variables especificas del modulo index / landing (las comunes vienen de spcd-theme.css) */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     :root {
+      --navy:    #0F172A;
+      --blue-d:  #1E3A8A;
+      --blue:    #3B82F6;
+      --cyan:    #22DBAE;
+      --green:   #55e78B;
       --slate:   #64748B;
       --glass:   rgba(30, 58, 138, 0.25);
       --border:  rgba(34, 219, 174, 0.2);
+      --text:    #E2E8F0;
+      --muted:   #94A3B8;
     }
 
     html, body {
       height: 100%;
+      background: var(--navy);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
       overflow: hidden;
     }
 
@@ -230,6 +237,10 @@
     .role-card.tecnico:hover   { border-color: var(--blue);  box-shadow: 0 8px 40px rgba(59,130,246,.2); }
     .role-card.medico:hover    { border-color: var(--green); box-shadow: 0 8px 40px rgba(85,231,139,.2); }
     .role-card.operativo:hover { border-color: #38BDF8;      box-shadow: 0 8px 40px rgba(56,189,248,.25); }
+    .role-card.jefatura:hover  { border-color: #A78BFA;      box-shadow: 0 8px 40px rgba(167,139,250,.28); }
+    .role-card.jefatura::before{ background: linear-gradient(90deg,transparent,#A78BFA,transparent); }
+    .role-card.jefatura .role-icon-wrap   { background: rgba(167,139,250,.15); }
+    .role-card.jefatura:hover .role-icon-wrap { transform: scale(1.06); background: rgba(167,139,250,.25); }
     .role-card.tecnico::before  { background: linear-gradient(90deg,transparent,var(--blue),transparent); }
     .role-card.medico::before   { background: linear-gradient(90deg,transparent,var(--green),transparent); }
     .role-card.operativo::before{ background: linear-gradient(90deg,transparent,#38BDF8,transparent); }
@@ -449,10 +460,28 @@
       font-size: 11px; letter-spacing: 2px; color: var(--muted);
       text-transform: uppercase; margin-top: 2px;
     }
-    /* .form-group y .btn-login: base en spcd-components.css */
+    .form-group { margin-bottom: 18px; }
+    .form-group label {
+      display: block; font-size: 11px; letter-spacing: 2px;
+      color: var(--muted); text-transform: uppercase; margin-bottom: 6px;
+    }
+    .form-group input {
+      width: 100%; padding: 12px 14px; border-radius: 8px;
+      background: rgba(15,23,42,.6); border: 1px solid var(--border);
+      color: var(--text); font-size: 14px; font-family: 'Inter', sans-serif;
+      outline: none; transition: border-color .2s;
+    }
     .form-group input:focus { border-color: #38BDF8; }
     .form-group input::placeholder { color: var(--slate); }
-    .btn-login { margin-top: 6px; }
+    .btn-login {
+      width: 100%; padding: 14px; border: none; border-radius: 8px;
+      background: linear-gradient(135deg, var(--blue), #38BDF8);
+      color: white; font-family: 'Rajdhani', sans-serif;
+      font-size: 16px; font-weight: 700; letter-spacing: 3px;
+      text-transform: uppercase; cursor: pointer;
+      transition: all .2s; margin-top: 6px;
+    }
+    .btn-login:hover { box-shadow: 0 4px 20px rgba(56,189,248,.4); transform: translateY(-1px); }
     .btn-login:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
     .login-error {
       margin-top: 12px; padding: 10px 14px; border-radius: 6px;
@@ -574,16 +603,20 @@
     <div class="upload-zone" id="upload-zone" onclick="document.getElementById('excel-input').click()">
       <div class="upload-icon" id="upload-icon">&#128196;</div>
       <div class="upload-info">
-        <div class="upload-title" id="upload-title">CARGAR ARCHIVO EXCEL</div>
-        <div class="upload-sub" id="upload-sub">Arrastra o hace click para subir el archivo .xls / .xlsx de Visual Medica</div>
+        <div class="upload-title" id="upload-title">CARGAR ARCHIVOS EXCEL</div>
+        <div class="upload-sub" id="upload-sub">Arrastrá o hace click. Pod&eacute;s subir Estad&iacute;stica + Nomenclador juntos &mdash; el sistema detecta cada uno autom&aacute;ticamente.</div>
       </div>
       <span class="upload-badge" id="upload-badge">.XLS</span>
       <div class="upload-progress" id="upload-progress"></div>
     </div>
-    <input type="file" id="excel-input" class="upload-input" accept=".xls,.xlsx,.csv" onchange="handleExcelUpload(event)"/>
+    <input type="file" id="excel-input" class="upload-input" accept=".xls,.xlsx,.csv" multiple onchange="handleExcelUpload(event)"/>
+
+    <!-- Estado por tipo -->
+    <div id="upload-results" style="display:none; margin-top:14px; display:flex; flex-direction:column; gap:8px"></div>
+
     <label class="btn-reload" id="btn-reload" style="display:none">
-      🔄 Recargar datos
-      <input type="file" accept=".xls,.xlsx,.csv" style="display:none" onchange="handleExcelUpload(event)"/>
+      🔄 Recargar archivos
+      <input type="file" accept=".xls,.xlsx,.csv" multiple style="display:none" onchange="handleExcelUpload(event)"/>
     </label>
   </div>
 </div>
@@ -607,8 +640,8 @@
   <div class="login-box">
     <div class="login-logo">
       <div class="ll-icon">SP</div>
-      <h2>INGRESO AL SISTEMA</h2>
-      <p>Sistema de Control Interno</p>
+      <h2>M&Oacute;DULO OPERATIVO</h2>
+      <p>Control de Stock &middot; Insumos &middot; Pedidos</p>
     </div>
     <form id="login-form" onsubmit="doLoginOperativo(event)">
       <div class="form-group">
@@ -627,14 +660,41 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="spcd-utils.js"></script>
-<script src="spcd-supabase.js"></script>
 <script>
 /* -- STORAGE (IndexedDB) -- */
-/* SPCD_DB, SPCD_STORE, openDB, dbLoad, dbSave viven ahora en spcd-utils.js */
+const SPCD_DB = 'spcd_storage';
+const SPCD_STORE = 'data';
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(SPCD_DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(SPCD_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbSave(key, value) {
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(SPCD_STORE, 'readwrite');
+    tx.objectStore(SPCD_STORE).put(value, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  }));
+}
+
+function dbLoad(key) {
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(SPCD_STORE, 'readonly');
+    const req = tx.objectStore(SPCD_STORE).get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  }));
+}
 
 /* -- SUPABASE CONFIG -- */
-/* SUPABASE_URL, SUPABASE_KEY y SB_HEADERS viven ahora en spcd-supabase.js */
+const SUPABASE_URL = 'https://erjdncsnomwymjiaslpx.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_5qeVvqQO26a70lAj8dMXhw_fL_Cdu-2';
 const SESSION_KEY = 'spcd_session';
 const SESSION_TIMEOUT = 8 * 60 * 60 * 1000; // 8 horas
 
@@ -647,7 +707,7 @@ let currentUser  = null; // { id, username, nombre, rol, permisos }
 
 /* -- OVERRIDE DURO DE ROL: estos usuarios SOLO pueden solicitar pedidos
      (se fuerza rol='solicitante' sin importar lo que diga Supabase) -- */
-const SOLICITANTES_FORZADOS = ['TRUMBO', 'VFORNI', 'ISKAMLEC', 'MWSANCHEZ', 'JAVILA', 'LBASTIAS'];
+const SOLICITANTES_FORZADOS = ['TRUMBO', 'VFORNI', 'ISKAMLEC', 'MWSANCHEZ'];
 function enforceRoleOverride(user) {
   if (!user || !user.username) return user;
   if (SOLICITANTES_FORZADOS.includes(user.username.toUpperCase())) {
@@ -692,12 +752,15 @@ const MODULE_CARDS = {
     desc: 'Stock medicación &middot; Insumos &middot; Pedidos',
     svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gearGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#38BDF8"/><stop offset="100%" stop-color="#22D3EE"/></linearGradient></defs><rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/><g transform="translate(100 90)" fill="none" stroke="url(#gearGrad)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"><path d="M -8 -58 L 8 -58 L 10 -46 Q 18 -43 25 -38 L 37 -43 L 46 -34 L 41 -22 Q 46 -15 49 -7 L 61 -5 L 61 7 L 49 9 Q 46 17 41 24 L 46 36 L 37 45 L 25 40 Q 18 45 10 48 L 8 60 L -8 60 L -10 48 Q -18 45 -25 40 L -37 45 L -46 36 L -41 24 Q -46 17 -49 9 L -61 7 L -61 -5 L -49 -7 Q -46 -15 -41 -22 L -46 -34 L -37 -43 L -25 -38 Q -18 -43 -10 -46 Z"/><circle cx="0" cy="0" r="18"/></g><text x="100" y="200" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">MÓDULO</text><text x="100" y="222" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">OPERATIVO</text></svg>`
   },
-  personal: {
-    clase: 'personal', nombre: 'Personal', key: 'personal',
-    desc: 'Licencias &middot; Cambios de turno &middot; Horarios',
-    svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/><rect x="45" y="38" width="110" height="90" rx="10" fill="none" stroke="#A78BFA" stroke-width="3.5"/><line x1="45" y1="60" x2="155" y2="60" stroke="#A78BFA" stroke-width="2.5"/><circle cx="70" cy="48" r="2.5" fill="#A78BFA"/><circle cx="130" cy="48" r="2.5" fill="#A78BFA"/><line x1="70" y1="40" x2="70" y2="54" stroke="#A78BFA" stroke-width="2.5" stroke-linecap="round"/><line x1="130" y1="40" x2="130" y2="54" stroke="#A78BFA" stroke-width="2.5" stroke-linecap="round"/><rect x="60" y="72" width="14" height="12" rx="2" fill="#A78BFA" fill-opacity="0.3" stroke="#A78BFA" stroke-width="1.5"/><rect x="80" y="72" width="14" height="12" rx="2" fill="none" stroke="#A78BFA" stroke-width="1.5"/><rect x="100" y="72" width="14" height="12" rx="2" fill="#22DBAE" fill-opacity="0.5" stroke="#22DBAE" stroke-width="1.5"/><rect x="120" y="72" width="14" height="12" rx="2" fill="none" stroke="#A78BFA" stroke-width="1.5"/><rect x="60" y="90" width="14" height="12" rx="2" fill="none" stroke="#A78BFA" stroke-width="1.5"/><rect x="80" y="90" width="14" height="12" rx="2" fill="#A78BFA" fill-opacity="0.3" stroke="#A78BFA" stroke-width="1.5"/><rect x="100" y="90" width="14" height="12" rx="2" fill="none" stroke="#A78BFA" stroke-width="1.5"/><rect x="120" y="90" width="14" height="12" rx="2" fill="none" stroke="#A78BFA" stroke-width="1.5"/><rect x="60" y="108" width="14" height="12" rx="2" fill="none" stroke="#A78BFA" stroke-width="1.5"/><rect x="80" y="108" width="14" height="12" rx="2" fill="none" stroke="#A78BFA" stroke-width="1.5"/><rect x="100" y="108" width="14" height="12" rx="2" fill="none" stroke="#A78BFA" stroke-width="1.5"/><rect x="120" y="108" width="14" height="12" rx="2" fill="#22DBAE" fill-opacity="0.5" stroke="#22DBAE" stroke-width="1.5"/><text x="100" y="200" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">MÓDULO</text><text x="100" y="222" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="1">PERSONAL</text></svg>`
+  jefatura: {
+    clase: 'jefatura', nombre: 'Jefatura', key: 'jefatura',
+    desc: 'Vista ejecutiva &middot; Producción &middot; Simulación &middot; ROI',
+    svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="jefGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#A78BFA"/><stop offset="100%" stop-color="#F472B6"/></linearGradient></defs><rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/><g transform="translate(100 95)" fill="none" stroke="url(#jefGrad)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="0,-50 14,-15 50,-15 22,8 32,42 0,22 -32,42 -22,8 -50,-15 -14,-15" fill="rgba(167,139,250,.18)"/><circle cx="0" cy="0" r="10" fill="rgba(244,114,182,.25)"/></g><text x="100" y="200" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">VISTA</text><text x="100" y="222" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">JEFATURA</text></svg>`
   }
 };
+
+/* Usuarios autorizados a ver el módulo Jefatura */
+const JEFATURA_USERS = ['IBORONI', 'SPITRELLA'];
 
 /* -- SESSION -- */
 function getSession() {
@@ -813,12 +876,10 @@ async function doLoginOperativo(e) {
 /* -- AFTER LOGIN: filtrar sedes y módulos -- */
 // Defaults por rol (si permisos JSONB aún no existe en DB)
 const ROLE_DEFAULTS = {
-  admin:       { sedes: ['*'], modulos: { admin:'edit', tecnico:'edit', medico:'edit', operativo:'admin', personal:'admin' } },
-  consultor:   { sedes: ['*'], modulos: { admin:'view', tecnico:'view', medico:'view', operativo:'view', personal:'view' } },
-  mixto:       { sedes: ['Sede Hospital Italiano'], modulos: { medico:'edit', operativo:'admin', personal:'user' } },
-  solicitante: { sedes: ['Sede Hospital Italiano'], modulos: { operativo:'pedidos', personal:'user' } },
-  // Rol con acceso EXCLUSIVO al módulo Personal (solicitudes de licencia)
-  licencias:   { sedes: ['Sede Hospital Italiano'], modulos: { personal:'user' } }
+  admin:       { sedes: ['*'], modulos: { admin:'edit', tecnico:'edit', medico:'edit', operativo:'admin' } },
+  consultor:   { sedes: ['*'], modulos: { admin:'view', tecnico:'view', medico:'view', operativo:'view' } },
+  mixto:       { sedes: ['Sede Hospital Italiano'], modulos: { medico:'edit', operativo:'admin' } },
+  solicitante: { sedes: ['Sede Hospital Italiano'], modulos: { operativo:'pedidos' } }
 };
 
 function getPermisos() {
@@ -881,19 +942,6 @@ async function renderModules() {
   const modulos = permisos.modulos || {};
   const grid = document.getElementById('roles-grid');
 
-  // Atajo: si el usuario tiene acceso a UN SOLO m\u00f3dulo, lo mandamos directo ah\u00ed
-  // (no tiene sentido mostrarle la pantalla de selecci\u00f3n con una sola card).
-  // Si tiene 2 o m\u00e1s (ej: operativo + personal para solicitantes), mostramos la pantalla.
-  const modulosConPermiso = ['admin', 'tecnico', 'medico', 'operativo', 'personal']
-    .filter(key => modulos[key]);
-  if (modulosConPermiso.length === 1) {
-    const key = modulosConPermiso[0];
-    const destinos = { admin:'admin.html', tecnico:'tecnico.html', medico:'medico.html', operativo:'operativo.html?modo=pedidos', personal:'personal.html' };
-    localStorage.setItem('spcd_rol', key);
-    window.location.replace(destinos[key] || 'index.html');
-    return;
-  }
-
   // Greeting
   document.getElementById('user-greeting').textContent = currentUser.nombre;
 
@@ -909,9 +957,13 @@ async function renderModules() {
   }
 
   // Solo mostrar módulos que el usuario tiene permiso
-  const order = ['admin', 'tecnico', 'medico', 'operativo', 'personal'];
+  const order = ['admin', 'tecnico', 'medico', 'operativo'];
+  // Jefatura: solo para usuarios autorizados (IBORONI, SPITRELLA)
+  const userKey = (currentUser?.username || '').toUpperCase();
+  if (JEFATURA_USERS.includes(userKey)) order.push('jefatura');
+
   const cards = order
-    .filter(key => modulos[key]) // solo los que tiene algún permiso
+    .filter(key => key === 'jefatura' || modulos[key]) // jefatura no necesita permiso por sede
     .map((key, i) => {
       const m = MODULE_CARDS[key];
       const perm = modulos[key];
@@ -932,55 +984,259 @@ async function renderModules() {
 function selectRol(nombre, clase) {
   selectedRol = nombre;
   localStorage.setItem('spcd_rol', nombre);
-  const destinos = { admin:'admin.html', tecnico:'tecnico.html', medico:'medico.html', operativo:'operativo.html', personal:'personal.html' };
+  const destinos = { admin:'admin.html', tecnico:'tecnico.html', medico:'medico.html', operativo:'operativo.html', jefatura:'jefe.html' };
   window.location.href = destinos[clase] || 'index.html';
 }
 
-/* -- EXCEL UPLOAD -- */
+/* -- EXCEL UPLOAD (MULTI-ARCHIVO con detección automática) --
+   El usuario puede subir 1 o más archivos. El sistema detecta:
+   - Estadística (Visual Medica) → IndexedDB key 'spcd_data_full'
+   - Nomenclador → IndexedDB key 'spcd_nomenclador'
+   La detección es por las columnas presentes en la primera fila.
+*/
 function handleExcelUpload(evt) {
-  const file = evt.target.files[0];
-  if (!file) return;
+  const files = Array.from(evt.target.files || []);
+  if (!files.length) return;
   const zone = document.getElementById('upload-zone');
   const progress = document.getElementById('upload-progress');
   const sub = document.getElementById('upload-sub');
   const title = document.getElementById('upload-title');
   const icon = document.getElementById('upload-icon');
   const badge = document.getElementById('upload-badge');
+  const resultsBox = document.getElementById('upload-results');
 
-  sub.textContent = 'Procesando...';
+  resultsBox.innerHTML = '';
+  resultsBox.style.display = 'flex';
+  sub.textContent = 'Procesando ' + files.length + ' archivo' + (files.length>1?'s':'') + '…';
   sub.className = 'upload-sub';
-  progress.style.width = '60%';
+  progress.style.width = '20%';
 
-  const reader = new FileReader();
-  reader.onload = e => {
-    try {
-      const wb = XLSX.read(e.target.result, { type: 'binary', cellDates: true });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const data = XLSX.utils.sheet_to_json(ws, { defval: '' });
+  const totals = { estadistica: 0, nomenclador: 0, errores: 0, names: [] };
+  let processed = 0;
 
-      dbSave('spcd_data_full', data).catch(err => console.warn('IndexedDB error:', err));
-      localStorage.setItem('spcd_upload_date', new Date().toLocaleString('es-AR', {hour12:false}));
-      try { localStorage.removeItem('spcd_data_full'); } catch(e) {} // limpiar viejo storage
+  files.forEach((file, idx) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      let parsed = null;
+      let tipo = null;
+      let info = '';
+      let cols = [];
+      try {
+        // Parse robusto con doble fallback (binary / array)
+        let wb;
+        try {
+          wb = XLSX.read(e.target.result, { type:'binary', cellDates:true });
+        } catch (errBin) {
+          const ab = e.target.result instanceof ArrayBuffer ? new Uint8Array(e.target.result) : null;
+          if (ab) wb = XLSX.read(ab, { type:'array', cellDates:true });
+          else throw errBin;
+        }
 
-      progress.style.width = '100%';
-      setTimeout(() => {
-        zone.classList.add('has-data');
-        icon.innerHTML = '&#9989;';
-        title.textContent = file.name;
-        sub.textContent = data.length.toLocaleString() + ' registros cargados';
-        sub.className = 'upload-sub loaded';
-        badge.textContent = 'OK';
-        document.getElementById('btn-reload').style.display = 'inline-block';
-        setTimeout(() => { progress.style.width = '0'; }, 600);
-      }, 400);
-    } catch(err) {
-      progress.style.width = '0';
-      sub.textContent = 'Error al leer el archivo. Verifica el formato.';
-      sub.className = 'upload-sub';
-      console.error('Error parsing Excel:', err);
+        // Probar TODAS las hojas y quedarse con la que tenga más datos útiles
+        parsed = elegirMejorHoja(wb);
+        cols = parsed.length ? Object.keys(parsed[0]) : [];
+        console.log('[upload]', file.name, '· hojas:', wb.SheetNames, '· filas:', parsed.length, '· columnas:', cols);
+
+        tipo = detectarTipoExcel(parsed);
+        if (tipo === 'estadistica') {
+          await dbSave('spcd_data_full', parsed);
+          localStorage.setItem('spcd_upload_date', new Date().toLocaleString('es-AR', {hour12:false}));
+          totals.estadistica++;
+          info = parsed.length.toLocaleString('es-AR') + ' registros (' +
+            parsed.filter(r=>r['Estado']==='REA').length.toLocaleString('es-AR') + ' REA)';
+        } else if (tipo === 'nomenclador') {
+          const norm = normalizarNomenclador(parsed);
+          if (!norm.length) throw new Error('No se pudieron extraer prestaciones del archivo');
+          await dbSave('spcd_nomenclador', norm);
+          totals.nomenclador++;
+          info = norm.length.toLocaleString('es-AR') + ' prestaciones';
+        } else {
+          // NO se pudo detectar — guardamos los datos parseados temporalmente
+          // y ofrecemos botones de override manual
+          totals.errores++;
+          info = 'Tipo no detectado · ' + cols.length + ' columnas: ' + cols.slice(0,4).join(', ') + (cols.length>4?'…':'');
+          PENDING_OVERRIDES[file.name] = parsed;
+        }
+      } catch (err) {
+        console.error('Error procesando', file.name, err);
+        totals.errores++;
+        tipo = 'error';
+        info = 'Error: ' + err.message;
+      }
+
+      renderUploadRow(resultsBox, file.name, tipo, info, cols);
+      processed++;
+      progress.style.width = (20 + (80 * processed / files.length)) + '%';
+
+      if (processed === files.length) {
+        // Cierre de ciclo
+        setTimeout(() => {
+          zone.classList.add('has-data');
+          icon.innerHTML = totals.errores ? '&#9888;&#65039;' : '&#9989;';
+          const partes = [];
+          if (totals.estadistica) partes.push(totals.estadistica + ' Estadística');
+          if (totals.nomenclador) partes.push(totals.nomenclador + ' Nomenclador');
+          if (totals.errores) partes.push(totals.errores + ' con error');
+          title.textContent = 'CARGA COMPLETA · ' + partes.join(' · ');
+          sub.textContent = files.map(f=>f.name).join(' · ');
+          sub.className = totals.errores ? 'upload-sub' : 'upload-sub loaded';
+          badge.textContent = totals.errores ? 'PARCIAL' : 'OK';
+          document.getElementById('btn-reload').style.display = 'inline-block';
+          setTimeout(() => { progress.style.width = '0'; }, 700);
+        }, 300);
+      }
+    };
+    reader.readAsBinaryString(file);
+  });
+}
+
+/* Buffer para overrides manuales cuando la detección falla */
+const PENDING_OVERRIDES = {};
+
+/* Prueba todas las hojas del Excel y devuelve la que tenga más filas con datos */
+function elegirMejorHoja(wb) {
+  let mejor = [];
+  let mejorScore = -1;
+  for (const name of wb.SheetNames) {
+    const ws = wb.Sheets[name];
+    if (!ws) continue;
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+    // Score: cantidad de filas × cantidad de columnas (penaliza hojas vacías o de metadatos)
+    const score = rows.length * (rows.length ? Object.keys(rows[0]).length : 0);
+    if (score > mejorScore) { mejorScore = score; mejor = rows; }
+  }
+  return mejor;
+}
+
+/* Detección del tipo. Estrategia:
+   1. Si tiene 4+ señales fuertes de estadística → 'estadistica'
+   2. Si tiene al menos 1 columna que parece valor monetario y NO tiene flujo de paciente → 'nomenclador'
+   3. Si NO tiene flujo de paciente y tiene cualquier descripción + alguna columna numérica → 'nomenclador' permisivo
+   4. Si nada matchea → null (override manual)
+*/
+function detectarTipoExcel(rows) {
+  if (!rows || !rows.length) return null;
+  const cols = Object.keys(rows[0]).map(k => String(k).toLowerCase());
+  const has = (subs) => cols.some(c => subs.some(s => c.includes(s)));
+
+  // Estadística = características fuertes de Visual Medica
+  const estCount = [
+    has(['turno fecha','turno  fecha']),
+    has(['estado']),
+    has(['paciente']),
+    has(['equipo']),
+    has(['prestaci','prestación']),
+    has(['turno n']),
+    has(['arribo','f/ in','f/in','fin estudio']),
+    has(['neto unitario','aseguradora','derivante'])
+  ].filter(Boolean).length;
+  if (estCount >= 4) return 'estadistica';
+
+  // Si parece estadística pero corta (un export reducido), aceptar 3+
+  const tieneFlujoPaciente = has(['paciente','turno n']) && has(['estado','equipo']);
+  if (tieneFlujoPaciente) return 'estadistica';
+
+  // Nomenclador: cualquier cosa que tenga columna tipo valor/precio/arancel/importe/monto/honorario
+  const hasValor = has(['valor','precio','arancel','importe','monto','honorario','tarifa']);
+  const hasDesc  = has(['prestaci','descripcion','descripción','servicio','practica','práctica','concepto','nombre']);
+  const hasCod   = has(['codigo','código','cod']);
+
+  if (hasValor && (hasDesc || hasCod)) return 'nomenclador';
+  if (hasValor && cols.length <= 8) return 'nomenclador'; // tabla simple con valor → nomenclador
+
+  // Última heurística permisiva: si tiene columna con muchos números y una con texto largo,
+  // es candidato a nomenclador
+  if (rows.length >= 5) {
+    let colNumerica = false, colTexto = false;
+    for (const k of Object.keys(rows[0])) {
+      const muestra = rows.slice(0, Math.min(20, rows.length)).map(r => r[k]);
+      const numericos = muestra.filter(v => v !== '' && !isNaN(parseFloat(String(v).replace(/[^0-9.,-]/g,'').replace(',','.')))).length;
+      const textoLargo = muestra.filter(v => typeof v === 'string' && v.length >= 8).length;
+      if (numericos >= muestra.length * 0.6) colNumerica = true;
+      if (textoLargo >= muestra.length * 0.4) colTexto = true;
     }
+    if (colNumerica && colTexto) return 'nomenclador';
+  }
+
+  return null;
+}
+
+/* Asignación manual de tipo cuando la heurística falla */
+async function overrideTipo(fileName, tipo) {
+  const parsed = PENDING_OVERRIDES[fileName];
+  if (!parsed) { alert('Ya no hay datos pendientes de '+fileName+'. Volvé a subir el archivo.'); return; }
+  try {
+    if (tipo === 'estadistica') {
+      await dbSave('spcd_data_full', parsed);
+      localStorage.setItem('spcd_upload_date', new Date().toLocaleString('es-AR', {hour12:false}));
+      alert('✓ Guardado como Estadística (' + parsed.length.toLocaleString('es-AR') + ' registros)');
+    } else if (tipo === 'nomenclador') {
+      let norm = normalizarNomenclador(parsed);
+      // Si la normalización falló (no encontró columnas), tomar primera columna texto = prestación, primera numérica = valor
+      if (!norm.length && parsed.length) {
+        const cols = Object.keys(parsed[0]);
+        const colTexto = cols.find(k => parsed.slice(0,10).filter(r => typeof r[k]==='string' && r[k].length>=4).length >= 3) || cols[0];
+        const colVal = cols.find(k => parsed.slice(0,10).filter(r => !isNaN(parseFloat(String(r[k]).replace(/[^0-9.,-]/g,'').replace(',','.')))).length >= 3 && k !== colTexto);
+        const colCod = cols.find(k => k !== colTexto && k !== colVal);
+        norm = parsed.map(r => ({
+          prestacion: String(r[colTexto]||'').trim(),
+          codigo: colCod ? String(r[colCod]||'').trim() : '',
+          valor: parseFloat(String(r[colVal]||'').replace(/[^0-9.,-]/g,'').replace(',','.')) || 0
+        })).filter(x => x.prestacion || x.codigo);
+      }
+      if (!norm.length) { alert('No se pudo extraer ninguna prestación. Revisá el formato del archivo.'); return; }
+      await dbSave('spcd_nomenclador', norm);
+      alert('✓ Guardado como Nomenclador (' + norm.length.toLocaleString('es-AR') + ' prestaciones)');
+    }
+    delete PENDING_OVERRIDES[fileName];
+    location.reload();
+  } catch (e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+/* Normaliza filas del nomenclador a forma { prestacion, codigo, valor } */
+function normalizarNomenclador(rows) {
+  if (!rows.length) return [];
+  const keys = Object.keys(rows[0]);
+  const findKey = (cands) => keys.find(k => cands.some(c => k.toLowerCase().includes(c)));
+  const kPrest = findKey(['prestaci','descripcion','servicio']);
+  const kCod = findKey(['codigo','código','cod']);
+  const kVal = findKey(['valor','precio','arancel','importe','monto']);
+  return rows.map(r => ({
+    prestacion: kPrest ? String(r[kPrest]||'').trim() : '',
+    codigo: kCod ? String(r[kCod]||'').trim() : '',
+    valor: kVal ? (parseFloat(String(r[kVal]).replace(/[^0-9.,-]/g,'').replace(',','.')) || 0) : 0
+  })).filter(x => x.prestacion || x.codigo);
+}
+
+/* Render de una fila de resultado por archivo procesado */
+function renderUploadRow(box, fileName, tipo, info, cols) {
+  const colorMap = {
+    estadistica: { bg:'rgba(85,231,139,.08)', border:'rgba(85,231,139,.4)', color:'var(--green)', label:'📊 ESTADÍSTICA' },
+    nomenclador: { bg:'rgba(167,139,250,.08)', border:'rgba(167,139,250,.4)', color:'#A78BFA', label:'💰 NOMENCLADOR' },
+    error: { bg:'rgba(248,113,113,.08)', border:'rgba(248,113,113,.4)', color:'var(--red)', label:'⚠️ ERROR' }
   };
-  reader.readAsBinaryString(file);
+  const isError = !tipo || tipo === 'error' || tipo === null;
+  const c = isError ? colorMap.error : colorMap[tipo];
+  const row = document.createElement('div');
+  row.style.cssText = `padding:10px 14px;border-radius:8px;background:${c.bg};border:1px solid ${c.border};border-left:3px solid ${c.color};display:flex;flex-direction:column;gap:8px;font-size:12px`;
+  const safeName = String(fileName).replace(/'/g, "\\'");
+  const overrideHTML = isError && PENDING_OVERRIDES[fileName] ? `
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding-top:6px;border-top:1px dashed rgba(255,255,255,.08)">
+      <span style="color:var(--muted);font-size:11px;letter-spacing:1px">¿Qu&eacute; tipo es?</span>
+      <button type="button" onclick="overrideTipo('${safeName}','estadistica')" style="padding:5px 12px;border-radius:5px;background:rgba(85,231,139,.15);border:1px solid rgba(85,231,139,.4);color:var(--green);font-size:11px;letter-spacing:1px;font-weight:700;cursor:pointer;text-transform:uppercase;font-family:Inter,sans-serif">📊 Estad&iacute;stica</button>
+      <button type="button" onclick="overrideTipo('${safeName}','nomenclador')" style="padding:5px 12px;border-radius:5px;background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.4);color:#A78BFA;font-size:11px;letter-spacing:1px;font-weight:700;cursor:pointer;text-transform:uppercase;font-family:Inter,sans-serif">💰 Nomenclador</button>
+    </div>` : '';
+  row.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1.5px;color:${c.color};min-width:130px">${c.label}</span>
+      <span style="flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${fileName}">${fileName}</span>
+      <span style="color:var(--muted);font-size:11px;text-align:right">${info}</span>
+    </div>
+    ${overrideHTML}
+  `;
+  box.appendChild(row);
 }
 
 // Drag & drop
@@ -996,24 +1252,38 @@ function handleExcelUpload(evt) {
   zone.addEventListener('drop', e => {
     const files = e.dataTransfer.files;
     if (files.length) {
-      input.files = files;
+      // multi-archivo: pasar todos
       handleExcelUpload({ target: { files: files } });
     }
   });
 })();
 
 // Check if data already loaded from previous session (IndexedDB)
-dbLoad('spcd_data_full').then(data => {
-  if (data && data.length > 0) {
-    const zone = document.getElementById('upload-zone');
-    zone.classList.add('has-data');
-    document.getElementById('upload-icon').innerHTML = '&#9989;';
-    document.getElementById('upload-title').textContent = 'DATOS CARGADOS';
-    document.getElementById('upload-sub').textContent = data.length.toLocaleString() + ' registros (sesión anterior)';
-    document.getElementById('upload-sub').className = 'upload-sub loaded';
-    document.getElementById('upload-badge').textContent = 'OK';
-    document.getElementById('btn-reload').style.display = 'inline-block';
-  }
+Promise.all([
+  dbLoad('spcd_data_full').catch(()=>null),
+  dbLoad('spcd_nomenclador').catch(()=>null)
+]).then(([data, nom]) => {
+  const hasData = data && data.length > 0;
+  const hasNom  = nom && nom.length > 0;
+  if (!hasData && !hasNom) return;
+
+  const zone = document.getElementById('upload-zone');
+  zone.classList.add('has-data');
+  document.getElementById('upload-icon').innerHTML = '&#9989;';
+  const partes = [];
+  if (hasData) partes.push(data.length.toLocaleString('es-AR') + ' registros');
+  if (hasNom)  partes.push(nom.length.toLocaleString('es-AR') + ' prestaciones');
+  document.getElementById('upload-title').textContent = 'DATOS CARGADOS · sesión anterior';
+  document.getElementById('upload-sub').textContent = partes.join(' · ');
+  document.getElementById('upload-sub').className = 'upload-sub loaded';
+  document.getElementById('upload-badge').textContent = 'OK';
+  document.getElementById('btn-reload').style.display = 'inline-block';
+
+  // Render filitas indicando qué hay cargado
+  const box = document.getElementById('upload-results');
+  box.style.display = 'flex';
+  if (hasData) renderUploadRow(box, 'Estadística (sesión anterior)', 'estadistica', data.length.toLocaleString('es-AR') + ' registros');
+  if (hasNom)  renderUploadRow(box, 'Nomenclador (sesión anterior)', 'nomenclador', nom.length.toLocaleString('es-AR') + ' prestaciones');
 }).catch(e => console.warn('Error loading IndexedDB data:', e));
 
 // Si viene con ?screen=roles y tiene sesión, ir directo a Área de Trabajo
