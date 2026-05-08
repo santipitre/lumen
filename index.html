@@ -1304,6 +1304,11 @@ Promise.all([
       afterLogin();
     }
   }
+
+  if (params.get('screen') === 'login') {
+    showScreen('screen-login');
+    setTimeout(function(){ var el=document.getElementById('login-user'); if(el) el.focus(); }, 300);
+  }
 })();
 
 /* -- GENERAR ICONO PWA DINÁMICO -- */
