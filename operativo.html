@@ -1,6 +1,18 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+<script>
+/* SPCD Auth Gate · 2026-05-07 · si no hay sesión válida, redirect a login */
+(function(){
+  var KEY='spcd_session', TIMEOUT=8*60*60*1000, s=null;
+  try { s=JSON.parse(localStorage.getItem(KEY)); } catch(e){}
+  if (!s || !s.user || (Date.now()-s.ts) >= TIMEOUT) {
+    localStorage.removeItem(KEY);
+    localStorage.removeItem('spcd_operativo_session');
+    location.replace('index.html?screen=login');
+  }
+})();
+</script>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
   <title>Módulo Operativo &middot; SP Control Data</title>

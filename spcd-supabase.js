@@ -19,7 +19,7 @@
    ============================================================ */
 
 const SUPABASE_URL = 'https://erjdncsnomwymjiaslpx.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyamRuY3Nub213eW1qaWFzbHB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNTYyMjYsImV4cCI6MjA5MTkzMjIyNn0.Ve94iTefBgmFsU3lyzizOUohVxtuOOf1h2yMR6rJJg8';
+const SUPABASE_KEY = 'sb_publishable_5qeVvqQO26a70lAj8dMXhw_fL_Cdu-2';
 
 const SB_HEADERS = {
   'apikey':        SUPABASE_KEY,
