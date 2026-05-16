@@ -124,7 +124,7 @@ async function sbRpc(fn, args) {
         detectSessionInUrl: true, // captura el token del fragment cuando volvés del magic link
         storage: window.localStorage,
         storageKey: 'spcd_supabase_auth',
-        flowType: 'pkce'
+        flowType: 'implicit'
       }
     });
     window.sbAuth = client;
