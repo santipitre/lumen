@@ -29,6 +29,7 @@
 const SUPABASE_URL = 'https://erjdncsnomwymjiaslpx.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_5qeVvqQO26a70lAj8dMXhw_fL_Cdu-2';
 
+// SB_HEADERS estatico (compat): se sigue usando como FALLBACK si alguien lo importa directo.
 const SB_HEADERS = {
   'apikey':        SUPABASE_KEY,
   'Authorization': 'Bearer ' + SUPABASE_KEY,
@@ -36,10 +37,32 @@ const SB_HEADERS = {
   'Prefer':        'return=representation'
 };
 
+/*  Headers dinamicos (Fase 2.D.2): si hay sesion Supabase Auth (post login OTP),
+    usa el access_token del usuario en vez de la anon key. Eso habilita que las RLS
+    policies basadas en auth.uid() funcionen contra el usuario real.
+    Sigue mandando 'apikey' con la anon key porque Supabase la requiere para identificar el proyecto. */
+async function getSBHeaders() {
+  let token = SUPABASE_KEY;
+  try {
+    if (window.sbAuth && window.sbAuth.auth) {
+      const { data } = await window.sbAuth.auth.getSession();
+      if (data && data.session && data.session.access_token) {
+        token = data.session.access_token;
+      }
+    }
+  } catch (e) { /* sin sesion: fallback a anon */ }
+  return {
+    'apikey':        SUPABASE_KEY,
+    'Authorization': 'Bearer ' + token,
+    'Content-Type':  'application/json',
+    'Prefer':        'return=representation'
+  };
+}
+
 /* ── SELECT ──────────────────────────────────────────────── */
 async function sbQuery(table, params = '') {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, {
-    headers: SB_HEADERS
+    headers: await getSBHeaders()
   });
   if (!r.ok) throw new Error(`DB error: ${r.status}`);
   return r.json();
@@ -49,7 +72,7 @@ async function sbQuery(table, params = '') {
 async function sbInsert(table, data) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
     method: 'POST',
-    headers: SB_HEADERS,
+    headers: await getSBHeaders(),
     body: JSON.stringify(data)
   });
   if (!r.ok) {
@@ -63,7 +86,7 @@ async function sbInsert(table, data) {
 async function sbUpdate(table, id, data) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
     method: 'PATCH',
-    headers: SB_HEADERS,
+    headers: await getSBHeaders(),
     body: JSON.stringify(data)
   });
   if (!r.ok) {
@@ -77,7 +100,7 @@ async function sbUpdate(table, id, data) {
 async function sbDelete(table, id) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
     method: 'DELETE',
-    headers: SB_HEADERS
+    headers: await getSBHeaders()
   });
   if (!r.ok) {
     const e = await r.json().catch(() => ({}));
@@ -90,7 +113,7 @@ async function sbDelete(table, id) {
 async function sbRpc(fn, args) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
     method: 'POST',
-    headers: SB_HEADERS,
+    headers: await getSBHeaders(),
     body: JSON.stringify(args)
   });
   if (!r.ok) {
