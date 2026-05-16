@@ -1,7 +1,7 @@
 /* ════════════════════════════════════════════════════════════════════════════
    SPCD SHARE — Envío por email/WhatsApp post-exportación de Excel
    Fase 1: zero-cost · libreta de contactos · plantillas por rol · audit log
-   Autor: SP Control Data · Hospital Italiano de Mendoza
+   Autor: Lumen by Pyralis · Hospital Italiano de Mendoza
    ════════════════════════════════════════════════════════════════════════════ */
 (function() {
   if (window.SpcdShare) return; // idempotente

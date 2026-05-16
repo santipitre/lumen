@@ -989,7 +989,7 @@ function updateBandejaBadge(n) {
     b.textContent = n;
     tab.appendChild(b);
   }
-  document.title = (n > 0 ? `(${n}) ` : '') + 'M\u00f3dulo Personal \u00b7 SP Control Data';
+  document.title = (n > 0 ? `(${n}) ` : '') + 'M\u00f3dulo Personal \u00b7 Lumen by Pyralis';
 }
 
 /* ── Render helpers ──────────────────────────────────── */
@@ -1608,7 +1608,7 @@ async function exportLicenciasMes() {
     if (!licencias.length) { await spcdAlert('No hay solicitudes en el mes seleccionado.', { type:'alert' }); return; }
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'SP Control Data';
+    wb.creator = 'Lumen by Pyralis';
     const ws = wb.addWorksheet('Licencias');
 
     const NAVY='FF0F172A', BLUE='FF3B82F6', WHITE='FFE2E8F0', BLUED='FF1E3A8A', CYAN='FF22DBAE', SURF='FF111827';

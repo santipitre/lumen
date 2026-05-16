@@ -1692,7 +1692,7 @@ async function exportarHistorialCSV(share) {
     const fecha  = new Date().toLocaleDateString('es-AR');
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'SP Control Data';
+    wb.creator = 'Lumen by Pyralis';
     const ws = wb.addWorksheet('Historial Equipos');
 
     // ─── Logo fila 1 ───
@@ -1794,7 +1794,7 @@ async function exportarHistorialCSV(share) {
       fc.border = {top:{style:'thin', color:{argb:BLUE}}};
     }
     ws.mergeCells(6+hist.length, 1, 6+hist.length, cols.length);
-    lastRow.getCell(1).value = `SP Control Data — ${new Date().toLocaleString('es-AR')}`;
+    lastRow.getCell(1).value = `Lumen by Pyralis — ${new Date().toLocaleString('es-AR')}`;
     lastRow.getCell(1).font = {name:'Calibri', size:7, italic:true, color:{argb:MUTED}};
     lastRow.getCell(1).alignment = {horizontal:'right', vertical:'middle'};
     lastRow.height = 16;

@@ -1806,7 +1806,7 @@ function applyPermissions() {
   }
 }
 
-const PAGE_TITLE_BASE = 'M\u00f3dulo Operativo \u00b7 SP Control Data';
+const PAGE_TITLE_BASE = 'Operativo \u00b7 Lumen by Pyralis';
 
 function updateBandejaBadge(count) {
   const tab = document.querySelector('[data-tab="bandeja"]');
@@ -4634,7 +4634,7 @@ async function __spcd_unused_pedidoExcelLegacy() {
   }
   ws.mergeCells(closeR, 1, closeR, totalCols);
   const fR = ws.getCell(closeR, 1);
-  fR.value = `SP Control Data \u2014 ${now.toLocaleString('es-AR')}`;
+  fR.value = `Lumen by Pyralis \u2014 ${now.toLocaleString('es-AR')}`;
   fR.font = { name:'Calibri', size:8, italic:true, color:{ argb:MUTED } };
   fR.alignment = { horizontal:'right', vertical:'middle' };
   ws.getRow(closeR).height = 16;
@@ -4848,7 +4848,7 @@ function buildLinkPedidos() {
 async function mostrarLinkPedidos() {
   const link = buildLinkPedidos();
   const mensajeWa = encodeURIComponent(
-    `\u{1F4E6} *SP Control Data \u2014 Solicitud de insumos*\n\nIngres\u00e1 con tu usuario y PIN para crear un pedido:\n${link}\n\nSi es tu primer ingreso, el PIN inicial es 1234 y te lo va a pedir cambiar.`
+    `\u{1F4E6} *Lumen by Pyralis \u2014 Solicitud de insumos*\n\nIngres\u00e1 con tu usuario y PIN para crear un pedido:\n${link}\n\nSi es tu primer ingreso, el PIN inicial es 1234 y te lo va a pedir cambiar.`
   );
   const whatsappLink = `https://wa.me/?text=${mensajeWa}`;
 
@@ -5385,3 +5385,4 @@ function aplicarModoAccesoPostLogin() {
 <script src="chatbot.js?v=ai-2026-04-20-g"></script>
 </body>
 </html>
+         

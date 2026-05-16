@@ -1012,7 +1012,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }, 500);
 
-  console.log('%c[SP·CD ADMIN] versión fix-kpi-dedup-turno-2026-05-04', 'color:#22DBAE;font-weight:700');
+  console.log('%c[Lumen ADMIN] versión fix-kpi-dedup-turno-2026-05-04', 'color:#22DBAE;font-weight:700');
 
   const sede = localStorage.getItem('spcd_sede') || '';
   document.getElementById('bc-sede').textContent  = sede || 'Sede';
@@ -2182,7 +2182,7 @@ async function exportarInformeOperador(share) {
     const totalCols = 5; // A-E
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'SP Control Data';
+    wb.creator = 'Lumen by Pyralis';
     const ws = wb.addWorksheet('Informe');
 
     // Anchos de columna
@@ -2392,7 +2392,7 @@ async function exportarInformeOperador(share) {
     }
     ws.mergeCells(r,1,r,totalCols);
     const footer = ws.getCell(r,1);
-    footer.value = `SP Control Data — ${new Date().toLocaleString('es-AR')}`;
+    footer.value = `Lumen by Pyralis — ${new Date().toLocaleString('es-AR')}`;
     footer.font = { name:'Calibri', size:7, italic:true, color:{argb:MUTED} };
     footer.alignment = { horizontal:'right', vertical:'middle', indent:1 };
     ws.getRow(r).height = 16;

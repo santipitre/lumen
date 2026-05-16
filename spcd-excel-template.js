@@ -13,7 +13,7 @@
      SpcdExcel.buildFooter(ws, { startRow:r, totalCols, meta:{...} });
      await SpcdExcel.exportAndShare(wb, fileName, shareOpts);
 
-   Autor: SP Control Data — 2026
+   Autor: Lumen by Pyralis — 2026
 ═══════════════════════════════════════════════════════════════════ */
 (function (root) {
   'use strict';
@@ -188,8 +188,8 @@
   function createBook(opts = {}) {
     if (!root.ExcelJS) throw new Error('ExcelJS no está cargado. Llamá a SpcdExcel.ready() primero.');
     const wb = new root.ExcelJS.Workbook();
-    wb.creator = opts.author || 'SP Control Data';
-    wb.lastModifiedBy = opts.author || 'SP Control Data';
+    wb.creator = opts.author || 'Lumen by Pyralis';
+    wb.lastModifiedBy = opts.author || 'Lumen by Pyralis';
     wb.created = new Date();
     wb.title = opts.subtitle || 'SPCD Report';
     wb.company = 'Hospital Italiano · SPCD';
