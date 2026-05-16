@@ -1,55 +1,212 @@
-/* ============================================================
-   SPCD — TEMA COMPARTIDO (Fase 1 del refactor)
-   ------------------------------------------------------------
-   Variables de color, tipografía y animaciones usadas en los 5
-   módulos del proyecto (index, admin, tecnico, medico, operativo).
+/* ═══════════════════════════════════════════════════════════════
+   LUMEN by Pyralis · TEMA COMPARTIDO · v2.0 · 2026-05-16
+   ───────────────────────────────────────────────────────────────
+   Migración SPCD → Lumen. Variables mapeadas a tokens Pyralis.
+   Las variables viejas (--navy, --blue, --cyan, --green) se
+   mantienen como aliases para no romper código existente, pero
+   todas apuntan a la paleta luciérnaga de Pyralis.
 
-   Cómo usarlo: cada HTML importa este archivo con:
-       <link rel="stylesheet" href="spcd-theme.css">
+   Brand spec completa: ver PYRALIS_BRAND/BRAND_PYRALIS.md
+   ═══════════════════════════════════════════════════════════════ */
 
-   Editar este archivo actualiza el tema en los 5 módulos a la vez.
-   Las variables con variaciones por módulo (--red, --amber,
-   --border, --glass) siguen definiéndose en cada HTML para
-   respetar su identidad visual particular.
-   ============================================================ */
-
-/* ── Tipografía (reemplaza la importación duplicada) ──────── */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Rajdhani:wght@600;700&display=swap');
 
-/* ── Variables base compartidas ────────────────────────────── */
+/* ── TOKENS BASE PYRALIS ───────────────────────────────────── */
 :root {
-  --navy:     #0F172A;
-  --blue-d:   #1E3A8A;
-  --blue:     #3B82F6;
-  --cyan:     #22DBAE;
-  --green:    #55e78B;
-  --text:     #E2E8F0;
-  --muted:    #94A3B8;
-  --surface:  #111827;
+  /* === Pyralis tokens (canónicos) === */
+  --pyralis-bg:            #0A0F14;
+  --pyralis-bg-elevated:   #0E1521;
+  --pyralis-bg-input:      #1A2332;
+  --pyralis-bg-hover:      #1F2937;
+  --pyralis-border:        #1F2937;
+  --pyralis-border-strong: #2D3748;
+  --pyralis-firefly:       #F59E0B;
+  --pyralis-firefly-soft:  #FCD34D;
+  --pyralis-firefly-glow:  #FEF3C7;
+  --pyralis-firefly-dim:   rgba(245, 158, 11, 0.12);
+  --pyralis-firefly-ring:  rgba(245, 158, 11, 0.30);
+  --pyralis-text:          #F1F5F9;
+  --pyralis-text-muted:    #94A3B8;
+  --pyralis-text-dim:      #64748B;
+
+  /* === Accent secundario Lumen (cyan eléctrico) === */
+  --lumen-accent:          #06B6D4;
+  --lumen-accent-soft:     #67E8F9;
+  --lumen-accent-dim:      rgba(6, 182, 212, 0.12);
+
+  /* === Aliases compat con código legacy SPCD === */
+  /* (cambiar estos no requiere tocar los HTMLs) */
+  --navy:     var(--pyralis-bg);
+  --surface:  var(--pyralis-bg-elevated);
+  --blue-d:   var(--pyralis-firefly);          /* botones azul oscuro → ámbar */
+  --blue:     var(--pyralis-firefly);          /* azul medio → ámbar */
+  --cyan:     var(--lumen-accent);             /* cyan se mantiene como accent Lumen */
+  --green:    var(--pyralis-success, #10B981);
+  --text:     var(--pyralis-text);
+  --muted:    var(--pyralis-text-muted);
+
+  /* === Estados semánticos === */
+  --pyralis-success:       #10B981;
+  --pyralis-warning:       #FBBF24;
+  --pyralis-danger:        #F87171;
+  --pyralis-info:          #60A5FA;
 }
 
-/* ── Animaciones base ──────────────────────────────────────── */
+/* ── ANIMACIONES BASE ──────────────────────────────────────── */
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes fadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
 
-/* ── Reset mínimo (idéntico al de cada HTML) ──────────────── */
+/* ── ANIMACIÓN LUCIÉRNAGA · firefly pulse 2.8s ─────────────── */
+@keyframes pyralis-firefly-svg {
+  0%, 100% {
+    filter:
+      drop-shadow(0 0 6px rgba(245,158,11,0.85))
+      drop-shadow(0 0 16px rgba(245,158,11,0.45))
+      drop-shadow(0 0 28px rgba(245,158,11,0.20));
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 12px rgba(252,211,77,1))
+      drop-shadow(0 0 26px rgba(245,158,11,0.60))
+      drop-shadow(0 0 44px rgba(245,158,11,0.30));
+  }
+}
+.firefly-svg circle[fill="#F59E0B"] {
+  animation: pyralis-firefly-svg 2.8s ease-in-out infinite;
+  transform-origin: center;
+}
+@keyframes pyralis-firefly-core {
+  0%, 100% { transform: scale(1);    opacity: 0.95; }
+  50%      { transform: scale(1.15); opacity: 1; }
+}
+.firefly-svg circle[fill="#FEF3C7"] {
+  animation: pyralis-firefly-core 2.8s ease-in-out infinite;
+  transform-origin: center;
+}
+
+/* Vocal encendida del wordmark (la "u" de Lumen) */
+.firefly-o {
+  color: var(--pyralis-firefly-glow);
+  font-weight: 600;
+  position: relative;
+  display: inline-block;
+  margin: 0 0.02em;
+  animation: pyralis-firefly-text 2.8s ease-in-out infinite;
+  z-index: 1;
+}
+.firefly-o::before {
+  content: '';
+  position: absolute;
+  inset: -50% -25%;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(252,211,77,0.35) 0%,
+    rgba(245,158,11,0.22) 28%,
+    rgba(245,158,11,0.08) 55%,
+    transparent 75%);
+  z-index: -1;
+  animation: pyralis-firefly-halo 2.8s ease-in-out infinite;
+  pointer-events: none;
+  filter: blur(2px);
+}
+@keyframes pyralis-firefly-text {
+  0%, 100% {
+    text-shadow:
+      0 0 4px rgba(254,243,199,0.95),
+      0 0 9px rgba(252,211,77,0.85),
+      0 0 18px rgba(245,158,11,0.7),
+      0 0 32px rgba(245,158,11,0.4),
+      0 0 56px rgba(245,158,11,0.2);
+    transform: translateY(0);
+  }
+  50% {
+    text-shadow:
+      0 0 7px rgba(254,243,199,1),
+      0 0 14px rgba(252,211,77,1),
+      0 0 26px rgba(245,158,11,0.9),
+      0 0 44px rgba(245,158,11,0.55),
+      0 0 72px rgba(245,158,11,0.3);
+    transform: translateY(-0.5px);
+  }
+}
+@keyframes pyralis-firefly-halo {
+  0%, 100% { opacity: 0.7; transform: scale(0.92); }
+  50%      { opacity: 1;   transform: scale(1.18); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .firefly-svg circle[fill="#F59E0B"],
+  .firefly-svg circle[fill="#FEF3C7"],
+  .firefly-o,
+  .firefly-o::before {
+    animation: none !important;
+  }
+  .firefly-o {
+    text-shadow:
+      0 0 8px rgba(252,211,77,0.9),
+      0 0 18px rgba(245,158,11,0.6);
+  }
+}
+
+/* ── RESET MÍNIMO ──────────────────────────────────────────── */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-/* ── Body base ─────────────────────────────────────────────── */
+/* ── BODY BASE ─────────────────────────────────────────────── */
 html, body {
   min-height: 100%;
-  background: var(--navy);
-  color: var(--text);
+  background: var(--pyralis-bg);
+  color: var(--pyralis-text);
   font-family: 'Inter', sans-serif;
+}
+
+/* ── SCROLLBAR DARK ────────────────────────────────────────── */
+::-webkit-scrollbar         { width: 8px; height: 8px; }
+::-webkit-scrollbar-track   { background: var(--pyralis-bg); }
+::-webkit-scrollbar-thumb   { background: var(--pyralis-border-strong); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--pyralis-text-dim); }
+
+/* ── LOCKUP HELPERS (wordmark Lumen, byline) ───────────────── */
+.lumen-wordmark {
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.028em;
+  color: var(--pyralis-text);
+  line-height: 1;
+  font-size: 22px;
+  display: inline-flex;
+  align-items: baseline;
+}
+.lumen-byline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  margin-top: 2px;
+}
+.lumen-byline .by {
+  font-size: 8px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--pyralis-text-dim);
+}
+.lumen-byline .pyralis {
+  color: var(--pyralis-text-muted);
+  font-weight: 500;
+}
+.lumen-byline .dot {
+  color: var(--pyralis-border-strong);
+  margin: 0 2px;
+}
+.lumen-byline .desc {
+  color: var(--pyralis-text-muted);
 }
