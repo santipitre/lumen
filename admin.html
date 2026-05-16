@@ -49,7 +49,7 @@
     /* ── TOPBAR ── */
     .topbar {
       position: sticky; top: 0; z-index: 50;
-      background: rgba(15,23,42,.88); backdrop-filter: blur(12px);
+      background: rgba(10,15,20,.88); backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--border);
       padding: 0 24px;
       display: flex; align-items: center; gap: 16px; height: 56px;
@@ -286,7 +286,7 @@
     }
     .export-menu-sep {
       padding:6px 16px; font-size:9px; letter-spacing:2px; color:var(--muted);
-      text-transform:uppercase; background:rgba(15,23,42,.5); border-bottom:1px solid rgba(30,58,138,.3);
+      text-transform:uppercase; background:rgba(10,15,20,.5); border-bottom:1px solid rgba(30,58,138,.3);
     }
     .export-menu-row { display:flex; border-bottom:1px solid rgba(30,58,138,.2); }
     .export-menu-row:last-child { border-bottom:none; }
@@ -1519,7 +1519,7 @@ function renderChartErroresOperador(data) {
           labels: { color: '#94A3B8', font: { size: 11 }, padding: 14, boxWidth: 14, usePointStyle: true, pointStyle: 'circle' }
         },
         tooltip: {
-          backgroundColor: 'rgba(15,23,42,.95)',
+          backgroundColor: 'rgba(10,15,20,.95)',
           titleColor: '#e2e8f0',
           bodyColor: '#94a3b8',
           borderColor: 'rgba(30,58,138,.5)',
@@ -1707,7 +1707,7 @@ function renderComparativoMensual() {
         plugins:{
           legend:{ position:'bottom', labels:{ color:'#94A3B8', font:{size:11}, padding:14, boxWidth:14, usePointStyle:true, pointStyle:'circle' } },
           tooltip:{
-            backgroundColor:'rgba(15,23,42,.95)', titleColor:'#e2e8f0', bodyColor:'#94a3b8',
+            backgroundColor:'rgba(10,15,20,.95)', titleColor:'#e2e8f0', bodyColor:'#94a3b8',
             borderColor:'rgba(30,58,138,.5)', borderWidth:1, padding:12,
             callbacks:{ label: c => `${c.dataset.label}: ${c.parsed.y}${vista==='variacion'?'%':''}` }
           }
@@ -1733,7 +1733,7 @@ function renderComparativoMensual() {
         const arrow = diff>0?'▲':diff<0?'▼':'·';
         const color = diff>0?'#ef4444':diff<0?'#22DBAE':'#64748B';
         const isSel = cmpSelectedOp === op;
-        const bg = isSel ? `linear-gradient(135deg, ${CMP_OP_COLORS[op]}25, rgba(15,23,42,.8))` : 'rgba(15,23,42,.5)';
+        const bg = isSel ? `linear-gradient(135deg, ${CMP_OP_COLORS[op]}25, rgba(10,15,20,.8))` : 'rgba(10,15,20,.5)';
         const border = isSel ? `2px solid ${CMP_OP_COLORS[op]}` : '1px solid rgba(30,58,138,.3)';
         const shadow = isSel ? `0 0 0 1px ${CMP_OP_COLORS[op]}55, 0 4px 20px ${CMP_OP_COLORS[op]}30` : 'none';
         return `<div class="cmp-kpi-card" data-op="${op}" onclick="toggleOperadorSeleccionado('${op}')" style="cursor:pointer; background:${bg}; border:${border}; border-radius:8px; padding:10px 12px; box-shadow:${shadow}; transition:all .2s; position:relative;">
@@ -1791,7 +1791,7 @@ function renderComparativoMensual() {
           title:{ display:true, text: evolLabel + ' — total de errores por mes', color:'#94A3B8', font:{ size:13, weight:'600' } },
           legend:{ display:false },
           tooltip:{
-            backgroundColor:'rgba(15,23,42,.95)', titleColor:'#e2e8f0', bodyColor:'#94a3b8',
+            backgroundColor:'rgba(10,15,20,.95)', titleColor:'#e2e8f0', bodyColor:'#94a3b8',
             borderColor:'rgba(30,58,138,.5)', borderWidth:1, padding:12,
             callbacks:{ label: c => `${c.parsed.y.toLocaleString('es-AR')} errores` }
           }
@@ -2009,25 +2009,25 @@ function renderInformeRendimiento(months, byMonthOp) {
 
     <!-- Hero KPIs -->
     <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px,1fr)); gap:12px; margin-bottom:24px;">
-      <div style="background:rgba(15,23,42,.5); border:1px solid rgba(30,58,138,.3); border-radius:10px; padding:14px;">
+      <div style="background:rgba(10,15,20,.5); border:1px solid rgba(30,58,138,.3); border-radius:10px; padding:14px;">
         <div style="font-size:10px; letter-spacing:1.5px; color:#94A3B8;">TOTAL ERRORES</div>
         <div style="font-size:26px; font-weight:700; color:#e2e8f0; margin-top:4px;">${total.toLocaleString('es-AR')}</div>
       </div>
-      <div style="background:rgba(15,23,42,.5); border:1px solid rgba(30,58,138,.3); border-radius:10px; padding:14px;">
+      <div style="background:rgba(10,15,20,.5); border:1px solid rgba(30,58,138,.3); border-radius:10px; padding:14px;">
         <div style="font-size:10px; letter-spacing:1.5px; color:#94A3B8;">PROMEDIO MENSUAL</div>
         <div style="font-size:26px; font-weight:700; color:#e2e8f0; margin-top:4px;">${prom.toLocaleString('es-AR')}</div>
       </div>
-      <div style="background:rgba(15,23,42,.5); border:1px solid rgba(30,58,138,.3); border-radius:10px; padding:14px;">
+      <div style="background:rgba(10,15,20,.5); border:1px solid rgba(30,58,138,.3); border-radius:10px; padding:14px;">
         <div style="font-size:10px; letter-spacing:1.5px; color:#22DBAE;">MEJOR MES</div>
         <div style="font-size:22px; font-weight:700; color:#e2e8f0; margin-top:4px;">${monthLabel(months[minIdx])}</div>
         <div style="font-size:11px; color:#22DBAE; margin-top:2px;">${serie[minIdx].toLocaleString('es-AR')} errores</div>
       </div>
-      <div style="background:rgba(15,23,42,.5); border:1px solid rgba(30,58,138,.3); border-radius:10px; padding:14px;">
+      <div style="background:rgba(10,15,20,.5); border:1px solid rgba(30,58,138,.3); border-radius:10px; padding:14px;">
         <div style="font-size:10px; letter-spacing:1.5px; color:#ef4444;">PEOR MES</div>
         <div style="font-size:22px; font-weight:700; color:#e2e8f0; margin-top:4px;">${monthLabel(months[maxIdx])}</div>
         <div style="font-size:11px; color:#ef4444; margin-top:2px;">${serie[maxIdx].toLocaleString('es-AR')} errores</div>
       </div>
-      <div style="background:rgba(15,23,42,.5); border:2px solid ${tendenciaColor}; border-radius:10px; padding:14px;">
+      <div style="background:rgba(10,15,20,.5); border:2px solid ${tendenciaColor}; border-radius:10px; padding:14px;">
         <div style="font-size:10px; letter-spacing:1.5px; color:${tendenciaColor};">TENDENCIA</div>
         <div style="font-size:22px; font-weight:700; color:${tendenciaColor}; margin-top:4px;">${tendenciaLabel}</div>
         <div style="font-size:11px; color:#94A3B8; margin-top:2px;">${tendenciaDiff>=0?'+':''}${tendenciaDiff} (${tendenciaDiff>=0?'+':''}${tendenciaPct}%)</div>
@@ -2072,7 +2072,7 @@ function renderInformeRendimiento(months, byMonthOp) {
               <span style="color:${t.color}; font-weight:600;">${t.label}</span>
               <span style="color:#e2e8f0;"><b>${t.total.toLocaleString('es-AR')}</b> <span style="color:${c};">${arr} ${t.diff>=0?'+':''}${t.pct}%</span></span>
             </div>
-            <div style="background:rgba(15,23,42,.6); height:6px; border-radius:3px; overflow:hidden;">
+            <div style="background:rgba(10,15,20,.6); height:6px; border-radius:3px; overflow:hidden;">
               <div style="background:${t.color}; height:100%; width:${w}%;"></div>
             </div>
           </div>`;
@@ -2102,7 +2102,7 @@ function renderInformeRendimiento(months, byMonthOp) {
             <td style="padding:8px; text-align:right; color:#e2e8f0; font-weight:700;">${r.total.toLocaleString('es-AR')}</td>
             <td style="padding:8px; text-align:right; color:${r.color}; font-weight:600;">${r.share}%</td>
             <td style="padding:8px; min-width:180px;">
-              <div style="background:rgba(15,23,42,.6); height:8px; border-radius:4px; overflow:hidden;">
+              <div style="background:rgba(10,15,20,.6); height:8px; border-radius:4px; overflow:hidden;">
                 <div style="background:${r.color}; height:100%; width:${r.share}%;"></div>
               </div>
             </td>
@@ -2133,7 +2133,7 @@ function renderInformeRendimiento(months, byMonthOp) {
             <td style="padding:8px; text-align:right; color:#e2e8f0; font-weight:700;">${r.count.toLocaleString('es-AR')}</td>
             <td style="padding:8px; text-align:right; color:#64748B; font-weight:600;">${share}%</td>
             <td style="padding:8px; min-width:180px;">
-              <div style="background:rgba(15,23,42,.6); height:8px; border-radius:4px; overflow:hidden;">
+              <div style="background:rgba(10,15,20,.6); height:8px; border-radius:4px; overflow:hidden;">
                 <div style="background:#64748B; height:100%; width:${share}%;"></div>
               </div>
             </td>
@@ -2146,7 +2146,7 @@ function renderInformeRendimiento(months, byMonthOp) {
     <!-- Recomendaciones -->
     <div>
       <div style="font-size:12px; letter-spacing:2px; color:#94A3B8; margin-bottom:10px;">💡 ANÁLISIS Y RECOMENDACIONES</div>
-      <div style="background:rgba(15,23,42,.5); border-left:3px solid ${color}; border-radius:6px; padding:14px 18px;">
+      <div style="background:rgba(10,15,20,.5); border-left:3px solid ${color}; border-radius:6px; padding:14px 18px;">
         ${recomendaciones.map(r => `<div style="color:#cbd5e1; font-size:13px; line-height:1.7; margin-bottom:8px;">• ${r}</div>`).join('')}
       </div>
     </div>

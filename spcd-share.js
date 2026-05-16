@@ -216,14 +216,14 @@
 
   /* ───────── CSS INYECTADO ───────── */
   const CSS = `
-  .ss-overlay { position:fixed; inset:0; background:rgba(15,23,42,.8); backdrop-filter:blur(6px); z-index:10001; display:none; align-items:center; justify-content:center; padding:20px; font-family:'Inter',sans-serif; }
+  .ss-overlay { position:fixed; inset:0; background:rgba(10,15,20,.8); backdrop-filter:blur(6px); z-index:10001; display:none; align-items:center; justify-content:center; padding:20px; font-family:'Inter',sans-serif; }
   .ss-overlay.open { display:flex; }
   .ss-modal { background:#0F172A; border:1px solid rgba(34,219,174,.3); border-radius:14px; padding:22px; width:100%; max-width:560px; max-height:88vh; overflow:auto; color:#E2E8F0; box-shadow:0 30px 80px rgba(0,0,0,.6); }
   .ss-modal.large { max-width:780px; }
   .ss-h { margin:0 0 4px; font-family:'Rajdhani',sans-serif; font-size:18px; letter-spacing:2px; color:#22DBAE; }
   .ss-sub { font-size:12px; color:#94A3B8; margin-bottom:16px; word-break:break-all; }
   .ss-label { display:block; font-size:10px; letter-spacing:1.5px; color:#64748B; text-transform:uppercase; margin:14px 0 6px; font-weight:600; }
-  .ss-input, .ss-select, .ss-textarea { width:100%; box-sizing:border-box; background:rgba(15,23,42,.7); border:1px solid rgba(30,58,138,.5); border-radius:8px; padding:9px 11px; color:#E2E8F0; font-size:12.5px; font-family:inherit; }
+  .ss-input, .ss-select, .ss-textarea { width:100%; box-sizing:border-box; background:rgba(10,15,20,.7); border:1px solid rgba(30,58,138,.5); border-radius:8px; padding:9px 11px; color:#E2E8F0; font-size:12.5px; font-family:inherit; }
   .ss-textarea { min-height:80px; resize:vertical; font-family:'Roboto Mono',monospace; font-size:11px; }
   .ss-input:focus, .ss-select:focus, .ss-textarea:focus { outline:none; border-color:#22DBAE; }
 
@@ -292,7 +292,7 @@
   .ss-toast.warn    { border-color:#FBBF24; box-shadow:0 10px 30px rgba(251,191,36,.3); max-width:560px; }
   .ss-toast b { color:#22DBAE; }
   .ss-toast.warn b { color:#FBBF24; }
-  .ss-toast code { background:rgba(15,23,42,.8); padding:1px 6px; border-radius:4px; font-size:10px; color:#93C5FD; }
+  .ss-toast code { background:rgba(10,15,20,.8); padding:1px 6px; border-radius:4px; font-size:10px; color:#93C5FD; }
   `;
   const styleEl = document.createElement('style');
   styleEl.textContent = CSS;
@@ -394,7 +394,7 @@
       if (!currentContact) { detail.style.display = 'none'; return; }
       detail.style.display = 'block';
       const color = ROL_COLORS[currentContact.rol] || '#94A3B8';
-      detail.innerHTML = `<div style="background:rgba(15,23,42,.5); border-left:3px solid ${color}; border-radius:6px; padding:9px 12px; font-size:11px; color:#CBD5E1;">
+      detail.innerHTML = `<div style="background:rgba(10,15,20,.5); border-left:3px solid ${color}; border-radius:6px; padding:9px 12px; font-size:11px; color:#CBD5E1;">
         <b style="color:${color}; letter-spacing:1px;">${ROL_LABELS[currentContact.rol]||''}</b><br/>
         ${currentContact.email ? '📧 '+escapeHtml(currentContact.email)+'<br/>' : ''}
         ${currentContact.whatsapp ? '💬 '+escapeHtml(currentContact.whatsapp)+'<br/>' : ''}
@@ -507,7 +507,7 @@
       <div class="ss-modal large">
         <h3 class="ss-h">📇 LIBRETA DE CONTACTOS</h3>
         <div class="ss-sub">Gestioná destinatarios para distribución de informes por email o WhatsApp.</div>
-        <div style="background:rgba(15,23,42,.5); border:1px solid rgba(30,58,138,.3); border-radius:8px; max-height:360px; overflow:auto;">
+        <div style="background:rgba(10,15,20,.5); border:1px solid rgba(30,58,138,.3); border-radius:8px; max-height:360px; overflow:auto;">
           ${rowsHtml}
         </div>
         <div class="ss-actions">
@@ -639,7 +639,7 @@
       <div class="ss-modal large">
         <h3 class="ss-h">🔍 HISTORIAL DE ENVÍOS</h3>
         <div class="ss-sub">Últimos ${AUDIT_MAX} envíos. Guardado localmente — no viaja a ningún servidor.</div>
-        <div style="background:rgba(15,23,42,.5); border:1px solid rgba(30,58,138,.3); border-radius:8px; max-height:380px; overflow:auto; padding:4px 12px;">
+        <div style="background:rgba(10,15,20,.5); border:1px solid rgba(30,58,138,.3); border-radius:8px; max-height:380px; overflow:auto; padding:4px 12px;">
           ${rowsHtml}
         </div>
         <div class="ss-actions">

@@ -1253,7 +1253,7 @@ dbLoad('spcd_data_full').then(data => {
 
   // Glow
   const ig = ctx.createRadialGradient(256, 200, 0, 256, 256, 320);
-  ig.addColorStop(0, 'rgba(59,130,246,0.18)'); ig.addColorStop(1, 'rgba(15,23,42,0)');
+  ig.addColorStop(0, 'rgba(59,130,246,0.18)'); ig.addColorStop(1, 'rgba(10,15,20,0)');
   ctx.fillStyle = ig; ctx.fillRect(0, 0, 512, 512);
 
   // Shield
@@ -1335,7 +1335,7 @@ dbLoad('spcd_data_full').then(data => {
     // Gradient overlay
     const grad = ctx.createRadialGradient(W*.5, H*.5, 0, W*.5, H*.5, W*.7);
     grad.addColorStop(0, 'rgba(30,58,138,.15)');
-    grad.addColorStop(1, 'rgba(15,23,42,0)');
+    grad.addColorStop(1, 'rgba(10,15,20,0)');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
 

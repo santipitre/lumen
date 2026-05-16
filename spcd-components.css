@@ -96,7 +96,7 @@
   width: 100%;
   padding: 12px 14px;
   border-radius: 8px;
-  background: rgba(15,23,42,.6);
+  background: rgba(10,15,20,.6);
   border: 1px solid var(--border);
   color: var(--text);
   font-size: 14px;
@@ -195,7 +195,7 @@
    BARRA DE FILTROS (lista de pedidos, bandeja, etc.)
    ============================================================ */
 .pedidos-filtros {
-  background: rgba(15,23,42,.45);
+  background: rgba(10,15,20,.45);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px 14px;
@@ -220,7 +220,7 @@
 .ped-filtro-grp input {
   padding: 8px 10px;
   border-radius: 6px;
-  background: rgba(15,23,42,.6);
+  background: rgba(10,15,20,.6);
   border: 1px solid var(--border);
   color: var(--text);
   font-size: 12px;
@@ -265,7 +265,7 @@
    ============================================================ */
 .modal-overlay {
   position: fixed; inset: 0; z-index: 200;
-  background: rgba(15,23,42,.85);
+  background: rgba(10,15,20,.85);
   backdrop-filter: blur(6px);
   display: none;
   align-items: center;
@@ -317,7 +317,7 @@ body.spcd-rol-solicitante #spcd-cb-win {
    Separador visible entre contenido y botones de acción.
    ============================================================ */
 .licencia-card {
-  background: rgba(15,23,42,.55);
+  background: rgba(10,15,20,.55);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 14px 16px;

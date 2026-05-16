@@ -97,7 +97,7 @@
       // Gradient radial suave
       const grad = ctx.createRadialGradient(W*.5, H*.5, 0, W*.5, H*.5, W*.7);
       grad.addColorStop(0, 'rgba(30,58,138,.15)');
-      grad.addColorStop(1, 'rgba(15,23,42,0)');
+      grad.addColorStop(1, 'rgba(10,15,20,0)');
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, W, H);
 

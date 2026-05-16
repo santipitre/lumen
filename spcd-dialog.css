@@ -13,7 +13,7 @@
 /* ── Overlay (fondo oscuro) ───────────────────────────────── */
 .spcd-dialog-overlay {
   position: fixed; inset: 0; z-index: 500;
-  background: rgba(15,23,42,.85);
+  background: rgba(10,15,20,.85);
   backdrop-filter: blur(6px);
   display: none;
   align-items: center;
@@ -36,7 +36,7 @@
 /* ── Header ───────────────────────────────────────────────── */
 .spcd-dialog-header {
   padding: 16px 22px;
-  background: linear-gradient(135deg, rgba(30,58,138,.4), rgba(15,23,42,.6));
+  background: linear-gradient(135deg, rgba(30,58,138,.4), rgba(10,15,20,.6));
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
@@ -92,7 +92,7 @@
   width: 100%;
   margin-top: 14px;
   padding: 10px 12px;
-  background: rgba(15,23,42,.6);
+  background: rgba(10,15,20,.6);
   border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--text);
@@ -106,7 +106,7 @@
 /* ── Footer + botones ─────────────────────────────────────── */
 .spcd-dialog-footer {
   padding: 14px 22px;
-  background: rgba(15,23,42,.4);
+  background: rgba(10,15,20,.4);
   border-top: 1px solid var(--border);
   display: flex;
   justify-content: flex-end;

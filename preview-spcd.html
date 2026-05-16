@@ -239,7 +239,7 @@ function selectRol(nombre, clase) { alert('Navegaria a ' + clase + '.html\\n(En 
   function draw() {
     ctx.clearRect(0, 0, W, H);
     const grad = ctx.createRadialGradient(W*.5, H*.5, 0, W*.5, H*.5, W*.7);
-    grad.addColorStop(0, 'rgba(30,58,138,.15)'); grad.addColorStop(1, 'rgba(15,23,42,0)');
+    grad.addColorStop(0, 'rgba(30,58,138,.15)'); grad.addColorStop(1, 'rgba(10,15,20,0)');
     ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
     ctx.strokeStyle = 'rgba(30,58,138,.25)'; ctx.lineWidth = .5;
     for (let x = 0; x < W; x += 60) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }

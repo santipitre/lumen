@@ -27,7 +27,7 @@
 
   .topbar{
     position:sticky; top:0; z-index:100;
-    background:rgba(15,23,42,.85); backdrop-filter:blur(14px);
+    background:rgba(10,15,20,.85); backdrop-filter:blur(14px);
     border-bottom:1px solid var(--border);
     padding:0 24px; height:56px;
     display:flex; align-items:center; gap:16px;
@@ -85,7 +85,7 @@
   .filter-group{ display:flex; flex-direction:column; gap:4px; }
   .filter-group label{ font-size:10px; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase; }
   .filter-group input, .filter-group select{
-    background:rgba(15,23,42,.6); border:1px solid var(--border); border-radius:6px;
+    background:rgba(10,15,20,.6); border:1px solid var(--border); border-radius:6px;
     padding:8px 12px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;
     min-width:160px;
   }
@@ -99,7 +99,7 @@
   table.tbl{ width:100%; border-collapse:collapse; font-size:13px; }
   table.tbl th{
     position:sticky; top:0; z-index:1;
-    background:rgba(15,23,42,.95);
+    background:rgba(10,15,20,.95);
     text-align:left; padding:12px 14px; font-size:10px; letter-spacing:1.5px;
     color:var(--muted); font-weight:600; text-transform:uppercase;
     border-bottom:1px solid var(--border); white-space:nowrap;
@@ -146,7 +146,7 @@
   .form-field{ display:flex; flex-direction:column; gap:6px; }
   .form-field label{ font-size:10px; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase; }
   .form-field input, .form-field select, .form-field textarea{
-    background:rgba(15,23,42,.7); border:1px solid var(--border);
+    background:rgba(10,15,20,.7); border:1px solid var(--border);
     border-radius:8px; padding:10px 12px;
     color:var(--text); font-family:'Inter',sans-serif; font-size:13px;
   }
@@ -154,12 +154,12 @@
   .form-field textarea{ resize:vertical; min-height:60px; }
 
   .sobres-list{
-    background:rgba(15,23,42,.4); border:1px solid var(--border);
+    background:rgba(10,15,20,.4); border:1px solid var(--border);
     border-radius:10px; padding:12px; margin-bottom:14px;
   }
   .sobre-row{ display:flex; gap:8px; align-items:flex-end; margin-bottom:8px; }
   .sobre-row input{
-    background:rgba(15,23,42,.7); border:1px solid var(--border);
+    background:rgba(10,15,20,.7); border:1px solid var(--border);
     border-radius:6px; padding:8px 10px;
     color:var(--text); font-size:13px;
   }
@@ -223,7 +223,7 @@
   .asistida-block h4{ margin:0 0 8px; color:var(--sky); font-size:12px; letter-spacing:1.5px; text-transform:uppercase; }
   .asistida-block input{
     width:100%; padding:10px; border:1px solid rgba(56,189,248,.4);
-    background:rgba(15,23,42,.7); border-radius:6px; color:var(--text);
+    background:rgba(10,15,20,.7); border-radius:6px; color:var(--text);
     font-size:18px; letter-spacing:6px; text-align:center;
   }
 
@@ -234,7 +234,7 @@
 
   /* ─── Bloque "Info" para modal Detalle ─── */
   .info-block-msj{
-    background:rgba(15,23,42,.5);
+    background:rgba(10,15,20,.5);
     border:1px solid var(--border);
     border-radius:10px; padding:14px 16px;
     margin-bottom:8px;
@@ -1067,7 +1067,7 @@ async function verDetalle(retiroId){
 // ═════════════════ MENSAJEROS (gestión) ═════════════════
 function abrirGestionMensajeros(){
   const html = mensajeros.map(m => `
-    <div style="background:rgba(15,23,42,.5); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:10px;">
+    <div style="background:rgba(10,15,20,.5); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:10px;">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
         <div>
           <div style="font-family:'Rajdhani',sans-serif; font-size:16px; font-weight:700; color:var(--text);">${m.nombre}</div>

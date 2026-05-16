@@ -72,7 +72,7 @@
 
     .cb-header {
       padding: 14px 16px;
-      background: linear-gradient(135deg, rgba(30,58,138,.6), rgba(15,23,42,.9));
+      background: linear-gradient(135deg, rgba(30,58,138,.6), rgba(10,15,20,.9));
       border-bottom: 1px solid rgba(34,219,174,.2);
       display: flex; align-items: center; justify-content: space-between;
       flex-shrink: 0;
@@ -247,7 +247,7 @@
       border-top: 1px solid rgba(34,219,174,.15);
       display: flex; gap: 8px; align-items: flex-end;
       flex-shrink: 0;
-      background: rgba(15,23,42,.5);
+      background: rgba(10,15,20,.5);
     }
     .cb-input {
       flex: 1; background: rgba(30,58,138,.3);
@@ -301,7 +301,7 @@
     }
 
     .cb-modal-overlay {
-      position: fixed; inset: 0; background: rgba(15,23,42,.75);
+      position: fixed; inset: 0; background: rgba(10,15,20,.75);
       backdrop-filter: blur(6px); z-index: 10000;
       display: none; align-items: center; justify-content: center;
       padding: 20px;
@@ -327,7 +327,7 @@
     }
     .cb-modal input[type=text], .cb-modal input[type=password] {
       width: 100%; box-sizing: border-box;
-      background: rgba(15,23,42,.7); border: 1px solid rgba(30,58,138,.4);
+      background: rgba(10,15,20,.7); border: 1px solid rgba(30,58,138,.4);
       border-radius: 8px; padding: 10px 12px;
       color: #E2E8F0; font-family: 'Roboto Mono', monospace; font-size: 12px;
     }
@@ -372,7 +372,7 @@
     }
     .cb-audit-row .cb-audit-ts { color: #64748B; font-family: monospace; }
     .cb-audit-row .cb-audit-q { color: #E2E8F0; margin: 4px 0; }
-    .cb-audit-row .cb-audit-sent { color: #94A3B8; background: rgba(15,23,42,.6); padding: 6px 8px; border-radius: 4px; font-family: monospace; font-size: 10px; white-space: pre-wrap; word-break: break-all; }
+    .cb-audit-row .cb-audit-sent { color: #94A3B8; background: rgba(10,15,20,.6); padding: 6px 8px; border-radius: 4px; font-family: monospace; font-size: 10px; white-space: pre-wrap; word-break: break-all; }
     .cb-audit-row .cb-audit-ok { color: #22DBAE; font-weight: 600; }
     .cb-audit-row .cb-audit-err { color: #f87171; font-weight: 600; }
 
@@ -399,18 +399,18 @@
 
   /* ---------- HTML ---------- */
   const html = `
-    <button id="spcd-cb-btn" title="Asistente SP·CD" aria-label="Abrir asistente">
+    <button id="spcd-cb-btn" title="Asistente Lumen" aria-label="Abrir asistente">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
       </svg>
       <span class="cb-dot"></span>
     </button>
-    <div id="spcd-cb-win" role="dialog" aria-label="Asistente SP·CD">
+    <div id="spcd-cb-win" role="dialog" aria-label="Asistente Lumen">
       <div class="cb-header">
         <div class="cb-header-left">
-          <div class="cb-avatar">SP</div>
+          <div class="cb-avatar" style="display:flex; align-items:center; justify-content:center;"><svg width="22" height="22" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="54" height="54" rx="13" fill="#0A0F14" stroke="#1F2937" stroke-width="0.8"/><path d="M16 14 L16 46 L44 46" fill="none" stroke="#F1F5F9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="22" r="9" fill="none" stroke="#F59E0B" stroke-width="0.6" opacity="0.4"/><circle cx="38" cy="22" r="4" fill="#F59E0B"/><circle cx="38" cy="22" r="1.8" fill="#FEF3C7"/></svg></div>
           <div>
-            <div class="cb-title">ASISTENTE SP·CD</div>
+            <div class="cb-title">ASISTENTE LUMEN</div>
             <div class="cb-status">En línea</div>
           </div>
         </div>
@@ -937,7 +937,7 @@
   function respondFAQ(id) {
     switch(id) {
       case 'saludo':
-        return `¡Hola! 👋 Soy el asistente inteligente de SP·CD.\nPodés preguntarme lo que quieras sobre los datos.\n\n<strong>Ejemplos:</strong>\n• "cuántas resonancias en abril"\n• "errores de SPITRELLA este mes"\n• "top equipos esta semana"\n• "dame el excel de sin informe"\n\nTocá los chips de abajo para empezar.`;
+        return `¡Hola! 👋 Soy el asistente inteligente de Lumen.\nPodés preguntarme lo que quieras sobre los datos.\n\n<strong>Ejemplos:</strong>\n• "cuántas resonancias en abril"\n• "errores de SPITRELLA este mes"\n• "top equipos esta semana"\n• "dame el excel de sin informe"\n\nTocá los chips de abajo para empezar.`;
       case 'gracias':   return '¡De nada! Cualquier cosa que necesites, me preguntás.';
       case 'despedida': return '¡Hasta luego! 👋 Acá estoy cuando me necesites.';
       case 'ayuda':
@@ -955,7 +955,7 @@
       case 'cambiar_modulo':
         return `Tocá <strong>VOLVER</strong> o ${link('index.html?screen=roles','Área de Trabajo')}.`;
       case 'cambiar_sede':
-        return `Tocá <strong>SP·CD</strong> → Iniciar → elegí otra sede.\n${link('index.html','Inicio')}`;
+        return `Tocá <strong>Lumen</strong> → Iniciar → elegí otra sede.\n${link('index.html','Inicio')}`;
       case 'modulo_medico':
         return `<strong>Módulo Médico</strong> — ${link('medico.html','Abrir')}\n• Informes realizados y pendientes\n• Tiempo promedio de informe\n• Ranking por médico informante`;
       case 'modulo_tecnico':
@@ -1705,7 +1705,7 @@
         { reportTitle: spec.reportTitle, infoTitle: spec.infoTitle, fileName: fullName, cellColorFn: spec.cellColorFn }
       );
       return periodBadge +
-        `📥 <strong>Excel generado</strong>\n• Contenido: ${spec.descripcion}\n• Registros: <strong>${fmt(spec.rows.length)}</strong>\n• Archivo: <strong>${fullName}</strong>\n<em>Formato oficial SP·CD — revisá tu carpeta de descargas.</em>`;
+        `📥 <strong>Excel generado</strong>\n• Contenido: ${spec.descripcion}\n• Registros: <strong>${fmt(spec.rows.length)}</strong>\n• Archivo: <strong>${fullName}</strong>\n<em>Formato oficial Lumen — revisá tu carpeta de descargas.</em>`;
     } catch(e) {
       console.error('[SPCD-CB] export error:', e);
       return `❌ Error al generar el archivo: ${e.message || e}`;
@@ -1763,7 +1763,7 @@
 
     /* ===== SCHEMA — data dictionary ===== */
     const SCHEMA_DESC = `
-SPCD (SP Control Data) — dashboard admin del Hospital Italiano de Mendoza.
+Lumen by Pyralis — módulo de operaciones clínicas del Hospital Italiano de Mendoza (ex SPCD).
 
 ENTIDAD: Turnos de estudios médicos.
 COLUMNAS DE INTERÉS (no enviamos datos reales, sólo el esquema):
@@ -2707,11 +2707,11 @@ Reescribí la respuesta de forma natural y profesional en español, manteniendo 
       'admin.html': 'el Módulo Administrativo',
       'operativo.html': 'el Módulo Operativo',
     };
-    const where = pageNames[PAGE] || 'SP·CD';
+    const where = pageNames[PAGE] || 'Lumen';
     const user = getCurrentUser();
     const greeting = user.username ? `¡Hola <strong>${user.username}</strong>! 👋` : '¡Hola! 👋';
 
-    addMsg('bot', `${greeting} Soy el asistente inteligente de SP·CD. Estás en <strong>${where}</strong>.\n\nPreguntame lo que quieras:\n• "cuántas resonancias en abril"\n• "sin informe de SPITRELLA esta semana"\n• "top equipos este mes"\n\n📥 <strong>Exporto a Excel al instante</strong>\n<em>"dame el excel de sin informe este mes"</em>\n\n🧠 <strong>Aprendo de tus consultas</strong>\n<em>Las preguntas frecuentes aparecen como sugerencias.</em>`);
+    addMsg('bot', `${greeting} Soy el asistente inteligente de Lumen. Estás en <strong>${where}</strong>.\n\nPreguntame lo que quieras:\n• "cuántas resonancias en abril"\n• "sin informe de SPITRELLA esta semana"\n• "top equipos este mes"\n\n📥 <strong>Exporto a Excel al instante</strong>\n<em>"dame el excel de sin informe este mes"</em>\n\n🧠 <strong>Aprendo de tus consultas</strong>\n<em>Las preguntas frecuentes aparecen como sugerencias.</em>`);
   }
 
   async function send() {
