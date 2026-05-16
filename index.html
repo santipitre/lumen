@@ -615,9 +615,15 @@
         <label>Usuario</label>
         <input type="text" id="login-user" placeholder="Ej: SPITRELLA" autocomplete="off" autocapitalize="characters" required/>
       </div>
-      <div class="form-group">
+      <!-- Campo PIN: se oculta autom&aacute;ticamente cuando el usuario est&aacute; migrado a OTP -->
+      <div class="form-group" id="pin-group">
         <label>PIN</label>
-        <input type="password" id="login-pin" placeholder="4-6 d&iacute;gitos (solo si no tenés OTP)" inputmode="numeric" pattern="[0-9]{4,6}" maxlength="6" autocomplete="off"/>
+        <input type="password" id="login-pin" placeholder="4-6 d&iacute;gitos" inputmode="numeric" pattern="[0-9]{4,6}" maxlength="6" autocomplete="off"/>
+      </div>
+      <!-- Info OTP: se muestra cuando detectamos que el usuario usa magic link -->
+      <div id="otp-info" style="display:none; padding:12px 14px; background:rgba(34,219,174,0.08); border:1px solid rgba(34,219,174,0.3); border-radius:8px; margin-bottom:12px; text-align:center;">
+        <div style="font-size:13px; color:var(--cyan, #22DBAE); font-weight:600;">&#x1F4E7; Te enviaremos un link a tu email</div>
+        <div style="font-size:11px; color:var(--muted, #94A3B8); margin-top:4px;">No necesit&aacute;s recordar PIN. Hac&eacute; click en el bot&oacute;n.</div>
       </div>
       <button type="submit" class="btn-login" id="btn-login-submit">Ingresar</button>
       <div class="login-error" id="login-error"></div>
@@ -643,10 +649,10 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="spcd-utils.js"></script>
+<script src="spcd-utils.js?v=2026-05-16-v2"></script>
 <!-- Supabase SDK ANTES de spcd-supabase.js para inicializar sbAuth (Fase 2.C Etapa 3) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="spcd-supabase.js"></script>
+<script src="spcd-supabase.js?v=2026-05-16-v2"></script>
 <script>
 /* -- STORAGE (IndexedDB) -- */
 /* SPCD_DB, SPCD_STORE, openDB, dbLoad, dbSave viven ahora en spcd-utils.js */
@@ -786,6 +792,77 @@ function doLogout() {
   document.getElementById('login-user').value = '';
   document.getElementById('login-pin').value = '';
   document.getElementById('login-error').style.display = 'none';
+}
+
+
+/* -- Auto-detect si el usuario est&aacute; migrado a OTP (Fase 2.C Etapa 3 v2) -- */
+let _checkingMigrated = null;
+async function checkIfMigrated() {
+  const userEl = document.getElementById('login-user');
+  const username = userEl.value.trim().toUpperCase();
+  if (!username || username.length < 3) {
+    // Mostrar todo por defecto
+    document.getElementById('pin-group').style.display = '';
+    document.getElementById('otp-info').style.display = 'none';
+    return;
+  }
+  // Debounce: cancelar request previa si est&aacute; pendiente
+  if (_checkingMigrated && _checkingMigrated.username === username) return;
+  _checkingMigrated = { username };
+  try {
+    const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/esta_migrado', {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_username: username })
+    });
+    if (!r.ok) return;
+    const migrado = await r.json();
+    // Si el username cambi&oacute; mientras consult&aacute;bamos, descartar
+    if (_checkingMigrated.username !== username) return;
+    if (migrado) {
+      document.getElementById('pin-group').style.display = 'none';
+      document.getElementById('otp-info').style.display = 'block';
+      document.getElementById('btn-login-submit').textContent = 'Enviar link a mi email';
+    } else {
+      document.getElementById('pin-group').style.display = '';
+      document.getElementById('otp-info').style.display = 'none';
+      document.getElementById('btn-login-submit').textContent = 'Ingresar';
+    }
+  } catch (e) {
+    // Sin red o RPC ca&iacute;do: dejar el form como est&aacute;
+  }
+}
+
+// Activar auto-detect: se ejecuta al perder foco (blur) y mientras tipea con debounce
+(function setupAutoDetect() {
+  const tryAttach = () => {
+    const el = document.getElementById('login-user');
+    if (!el) { setTimeout(tryAttach, 200); return; }
+    let timer;
+    el.addEventListener('input', () => {
+      clearTimeout(timer);
+      timer = setTimeout(checkIfMigrated, 400);
+    });
+    el.addEventListener('blur', checkIfMigrated);
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', tryAttach);
+  } else {
+    tryAttach();
+  }
+})();
+
+/* -- Traductor de errores comunes Supabase Auth -- */
+function _traducirErrorSupabase(msg) {
+  msg = String(msg || '');
+  // Rate limit: "For security purposes, you can only request this after 33 seconds."
+  const m = msg.match(/after\s+(\d+)\s+seconds?/i);
+  if (m) return 'Espera ' + m[1] + ' segundos antes de pedir otro link.';
+  if (/rate.?limit/i.test(msg)) return 'Demasiados intentos. Espera unos segundos.';
+  if (/invalid.?or.?has.?expired|otp.?expired/i.test(msg)) return 'El link expir&oacute; o ya fue usado. Ped&iacute; uno nuevo.';
+  if (/invalid.?login|user.?not.?found/i.test(msg)) return 'Usuario o credenciales incorrectos.';
+  if (/network|fetch|connection/i.test(msg)) return 'Error de conexi&oacute;n. Verific&aacute; tu internet.';
+  return msg; // dejar original si no matchea
 }
 
 /* -- LOGIN DUAL (Fase 2.C Etapa 3) --

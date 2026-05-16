@@ -1380,12 +1380,12 @@
 
 
 <!-- ==================== JAVASCRIPT ==================== -->
-<script src="spcd-utils.js"></script>
-<script src="spcd-dialog.js"></script>
+<script src="spcd-utils.js?v=2026-05-16-v2"></script>
+<script src="spcd-dialog.js?v=2026-05-16-v2"></script>
 <!-- Supabase SDK ANTES de spcd-supabase.js para que se inicialice sbAuth (Fase 2.C Etapa 3) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="spcd-supabase.js"></script>
-<script src="spcd-realtime.js"></script>
+<script src="spcd-supabase.js?v=2026-05-16-v2"></script>
+<script src="spcd-realtime.js?v=2026-05-16-v2"></script>
 <script>
 /* ===========================================================
    SP CONTROL DATA — MÓDULO OPERATIVO
@@ -1503,7 +1503,7 @@ async function _sendOtp(username, email) {
     email,
     options: { emailRedirectTo: redirectTo }
   });
-  if (error) throw new Error('No pudimos enviar el link: ' + error.message);
+  if (error) throw new Error(_traducirErrorSupabase ? _traducirErrorSupabase(error.message) : 'No pudimos enviar el link: ' + error.message);
 
   _otpLastUsername = username;
   _otpLastEmail = email;
