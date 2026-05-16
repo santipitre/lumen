@@ -536,6 +536,7 @@
     <button class="tab-btn active" onclick="switchTab('tab-resumen',this)">Resumen</button>
     <button class="tab-btn"        onclick="switchTab('tab-derivantes',this)">Derivantes</button>
     <button class="tab-btn"        onclick="switchTab('tab-detalle',this)">Detalle</button>
+    <button class="tab-btn"        id="btn-tab-permisos" onclick="switchTab('tab-permisos',this); cargarUsuariosPanel();" style="display:none;">👥 Permisos</button>
   </div>
 
   <!-- TAB RESUMEN -->
@@ -627,6 +628,167 @@
           </tr></thead>
           <tbody id="tbody-detalle"></tbody>
         </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB PERMISOS (solo visible para admins via auth_es_admin()) -->
+  <div class="tab-pane" id="tab-permisos">
+    <div class="table-card fade-in" style="margin-bottom:16px;">
+      <div class="table-header" style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between;">
+        <div>
+          <div class="table-header-title">👥 Gestión de Usuarios y Permisos</div>
+          <div style="font-size:12px; color:var(--muted); margin-top:4px;">
+            Crear, editar roles, permisos por módulo, activar/desactivar y resetear PIN.
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn-action btn-primary" onclick="abrirModalCrearUsuario()" style="background:rgba(59,130,246,.2); border:1px solid rgba(59,130,246,.5); color:var(--blue); padding:8px 14px; border-radius:6px; cursor:pointer; font-weight:600;">
+            ➕ Nuevo usuario
+          </button>
+          <button class="btn-action" onclick="cargarUsuariosPanel()" style="background:rgba(59,130,246,.1); border:1px solid var(--border); color:var(--muted); padding:8px 14px; border-radius:6px; cursor:pointer;">
+            🔄 Recargar
+          </button>
+        </div>
+      </div>
+      <div id="permisos-info" style="padding:10px 16px; font-size:12px; color:var(--muted);"></div>
+      <div class="table-wrap">
+        <table id="tabla-usuarios">
+          <thead><tr>
+            <th>Usuario</th>
+            <th>Nombre</th>
+            <th>Email</th>
+            <th>Rol</th>
+            <th>Sedes</th>
+            <th>Módulos</th>
+            <th>Login</th>
+            <th>Activo</th>
+            <th>Acciones</th>
+          </tr></thead>
+          <tbody id="tbody-usuarios">
+            <tr><td colspan="9" style="text-align:center; padding:24px; color:var(--muted);">Cargando usuarios...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Instrucciones de invite (Approach A) -->
+    <div class="table-card" style="padding:16px; border-left:3px solid var(--amber);">
+      <div style="font-weight:700; color:var(--amber); margin-bottom:8px;">📨 Cómo invitar un usuario nuevo (paso a paso)</div>
+      <ol style="font-size:13px; line-height:1.8; color:var(--text); padding-left:20px; margin:0;">
+        <li>Crear el usuario acá con <b>➕ Nuevo usuario</b> (cargar username, nombre, email, rol y permisos).</li>
+        <li>Ir al <a href="https://supabase.com/dashboard/project/erjdncsnomwymjiaslpx/auth/users" target="_blank" style="color:var(--blue);">Dashboard de Supabase → Authentication → Users</a>.</li>
+        <li>Click en <b>Add user → Send invitation</b>. Pegar el email del usuario. Enviar.</li>
+        <li>El usuario recibe el magic link, hace click y queda creado en <code>auth.users</code>.</li>
+        <li>Volvé acá, hacé click en <b>🔗 Vincular auth</b> en la fila del usuario y pegá el <code>auth.users.id</code> que aparece en el Dashboard.</li>
+        <li>Listo: el usuario ya puede loguearse con su email desde la pantalla de login.</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- MODAL CREAR/EDITAR USUARIO -->
+  <div id="modal-usuario" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:var(--bg, #0F172A); border:1px solid var(--border-a); border-radius:12px; padding:24px; max-width:540px; width:100%; max-height:90vh; overflow-y:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <div style="font-weight:700; font-size:16px; letter-spacing:2px; text-transform:uppercase; color:var(--blue);" id="modal-usuario-titulo">Editar usuario</div>
+        <button onclick="cerrarModalUsuario()" style="background:transparent; border:none; color:var(--muted); font-size:22px; cursor:pointer;">×</button>
+      </div>
+      <input type="hidden" id="mu-id"/>
+      <div style="display:grid; gap:14px;">
+        <div>
+          <label style="font-size:11px; letter-spacing:1px; color:var(--muted); display:block; margin-bottom:4px;">USERNAME</label>
+          <input type="text" id="mu-username" style="width:100%; padding:8px 10px; background:rgba(59,130,246,.05); border:1px solid var(--border); border-radius:6px; color:var(--text); text-transform:uppercase;"/>
+        </div>
+        <div>
+          <label style="font-size:11px; letter-spacing:1px; color:var(--muted); display:block; margin-bottom:4px;">NOMBRE COMPLETO</label>
+          <input type="text" id="mu-nombre" style="width:100%; padding:8px 10px; background:rgba(59,130,246,.05); border:1px solid var(--border); border-radius:6px; color:var(--text);"/>
+        </div>
+        <div>
+          <label style="font-size:11px; letter-spacing:1px; color:var(--muted); display:block; margin-bottom:4px;">EMAIL (para magic link)</label>
+          <input type="email" id="mu-email" placeholder="usuario@hospital.com" style="width:100%; padding:8px 10px; background:rgba(59,130,246,.05); border:1px solid var(--border); border-radius:6px; color:var(--text);"/>
+        </div>
+        <div>
+          <label style="font-size:11px; letter-spacing:1px; color:var(--muted); display:block; margin-bottom:4px;">ROL</label>
+          <select id="mu-rol" style="width:100%; padding:8px 10px; background:rgba(59,130,246,.05); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+            <option value="admin">admin</option>
+            <option value="consultor">consultor</option>
+            <option value="mixto">mixto</option>
+            <option value="solicitante">solicitante</option>
+            <option value="licencias">licencias</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px; letter-spacing:1px; color:var(--muted); display:block; margin-bottom:4px;">SEDES (separadas por coma: NEURO, RESONANCIA, etc.)</label>
+          <input type="text" id="mu-sedes" placeholder="NEURO, RESONANCIA, TC" style="width:100%; padding:8px 10px; background:rgba(59,130,246,.05); border:1px solid var(--border); border-radius:6px; color:var(--text);"/>
+        </div>
+        <div>
+          <label style="font-size:11px; letter-spacing:1px; color:var(--muted); display:block; margin-bottom:8px;">MÓDULOS Y NIVELES</label>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <div>
+              <span style="font-size:11px; color:var(--muted);">operativo</span>
+              <select id="mu-mod-operativo" style="width:100%; padding:6px 8px; background:rgba(59,130,246,.05); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+                <option value="">(sin acceso)</option>
+                <option value="view">view</option>
+                <option value="edit">edit</option>
+                <option value="pedidos">pedidos</option>
+                <option value="admin">admin</option>
+              </select>
+            </div>
+            <div>
+              <span style="font-size:11px; color:var(--muted);">medico</span>
+              <select id="mu-mod-medico" style="width:100%; padding:6px 8px; background:rgba(59,130,246,.05); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+                <option value="">(sin acceso)</option>
+                <option value="view">view</option>
+                <option value="edit">edit</option>
+                <option value="admin">admin</option>
+              </select>
+            </div>
+            <div>
+              <span style="font-size:11px; color:var(--muted);">admin</span>
+              <select id="mu-mod-admin" style="width:100%; padding:6px 8px; background:rgba(59,130,246,.05); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+                <option value="">(sin acceso)</option>
+                <option value="view">view</option>
+                <option value="edit">edit</option>
+                <option value="admin">admin</option>
+              </select>
+            </div>
+            <div>
+              <span style="font-size:11px; color:var(--muted);">licencias</span>
+              <select id="mu-mod-licencias" style="width:100%; padding:6px 8px; background:rgba(59,130,246,.05); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+                <option value="">(sin acceso)</option>
+                <option value="view">view</option>
+                <option value="edit">edit</option>
+                <option value="admin">admin</option>
+              </select>
+            </div>
+            <div>
+              <span style="font-size:11px; color:var(--muted);">mensajeria</span>
+              <select id="mu-mod-mensajeria" style="width:100%; padding:6px 8px; background:rgba(59,130,246,.05); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+                <option value="">(sin acceso)</option>
+                <option value="view">view</option>
+                <option value="edit">edit</option>
+                <option value="admin">admin</option>
+              </select>
+            </div>
+            <div>
+              <span style="font-size:11px; color:var(--muted);">stats</span>
+              <select id="mu-mod-stats" style="width:100%; padding:6px 8px; background:rgba(59,130,246,.05); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+                <option value="">(sin acceso)</option>
+                <option value="view">view</option>
+                <option value="edit">edit</option>
+                <option value="admin">admin</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <input type="checkbox" id="mu-activo" style="width:18px; height:18px;"/>
+          <label for="mu-activo" style="color:var(--text); cursor:pointer;">Usuario activo</label>
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:24px;">
+        <button onclick="cerrarModalUsuario()" style="padding:10px 18px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer;">Cancelar</button>
+        <button onclick="guardarUsuario()" style="padding:10px 18px; border-radius:6px; border:1px solid rgba(59,130,246,.5); background:rgba(59,130,246,.2); color:var(--blue); cursor:pointer; font-weight:600;">💾 Guardar</button>
       </div>
     </div>
   </div>
@@ -2936,6 +3098,230 @@ function emptyState(icon, text) {
 <script src="spcd-bg.js?v=2"></script>
 <script src="spcd-share.js?v=4"></script>
 <script src="spcd-excel-template.js?v=1"></script>
+
+<!-- Supabase SDK + cliente JWT (Fase 2.D.5 · panel Permisos) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="spcd-supabase.js?v=2026-05-16-v3"></script>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     PANEL DE PERMISOS (Fase 2.D.5)
+     Solo se muestra si auth_es_admin() devuelve true para el user actual.
+     ═══════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+  // Esperamos a que el SDK + nuestro cliente estén disponibles.
+  function ready(fn) {
+    if (document.readyState !== 'loading') fn();
+    else document.addEventListener('DOMContentLoaded', fn);
+  }
+  ready(async function() {
+    try {
+      // Solo chequear si hay sesión Supabase Auth (post OTP). Los usuarios legacy
+      // (PIN bcrypt sin auth_user_id) NO ven el tab — no son admins en auth.users.
+      if (!window.sbAuth || !window.sbAuth.auth) return;
+      const { data: sess } = await window.sbAuth.auth.getSession();
+      if (!sess || !sess.session) return;
+
+      // Verificar si es admin via RPC
+      const esAdmin = await sbRpc('auth_es_admin', {});
+      if (esAdmin === true) {
+        const btn = document.getElementById('btn-tab-permisos');
+        if (btn) btn.style.display = '';
+      }
+    } catch (e) {
+      console.warn('[panel-permisos] No se pudo verificar admin:', e);
+    }
+  });
+})();
+
+// Cache de usuarios para uso del modal
+window._spcdUsuarios = [];
+
+async function cargarUsuariosPanel() {
+  const tbody = document.getElementById('tbody-usuarios');
+  const info  = document.getElementById('permisos-info');
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:24px; color:var(--muted);">⏳ Cargando...</td></tr>';
+  try {
+    const usuarios = await sbRpc('admin_listar_usuarios', {});
+    window._spcdUsuarios = usuarios || [];
+    if (info) info.textContent = `${usuarios.length} usuarios · ${usuarios.filter(u=>u.activo).length} activos · ${usuarios.filter(u=>u.auth_user_id).length} con login OTP habilitado`;
+    renderTablaUsuarios(usuarios);
+  } catch (e) {
+    console.error('[cargarUsuariosPanel]', e);
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:24px; color:var(--red);">❌ Error: ${e.message}</td></tr>`;
+  }
+}
+
+function renderTablaUsuarios(usuarios) {
+  const tbody = document.getElementById('tbody-usuarios');
+  if (!usuarios || !usuarios.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:24px; color:var(--muted);">No hay usuarios</td></tr>';
+    return;
+  }
+  const rolColor = {
+    'admin':'#A78BFA', 'consultor':'#60A5FA', 'mixto':'#34D399',
+    'solicitante':'#FBBF24', 'licencias':'#FB7185'
+  };
+  tbody.innerHTML = usuarios.map(u => {
+    const perm     = u.permisos || {};
+    const sedes    = (perm.sedes || []).join(', ') || '<span style="color:var(--muted);">—</span>';
+    const modulos  = Object.entries(perm.modulos || {})
+                     .filter(([_,v]) => v && v !== '')
+                     .map(([k,v]) => `${k}:${v}`).join(' · ') || '<span style="color:var(--muted);">—</span>';
+    const loginIcon = u.auth_user_id
+                    ? '<span title="Login OTP" style="color:#34D399;">📧 OTP</span>'
+                    : (u.email
+                       ? `<span title="Pendiente invitar" style="color:#FBBF24;">⏳ pendiente</span>`
+                       : '<span title="Solo PIN legacy" style="color:var(--muted);">🔑 PIN</span>');
+    const activoChip = u.activo
+                     ? '<span style="color:#34D399; font-weight:600;">✓ activo</span>'
+                     : '<span style="color:var(--red);">✗ inactivo</span>';
+    return `<tr>
+      <td style="font-weight:600; color:var(--text);">${escapeHtml(u.username)}</td>
+      <td>${escapeHtml(u.nombre || '—')}</td>
+      <td style="font-size:12px; color:var(--muted);">${escapeHtml(u.email || '—')}</td>
+      <td><span style="color:${rolColor[u.rol]||'#94A3B8'}; font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:1px;">${escapeHtml(u.rol)}</span></td>
+      <td style="font-size:12px;">${sedes}</td>
+      <td style="font-size:11px; color:var(--muted);">${modulos}</td>
+      <td>${loginIcon}</td>
+      <td>${activoChip}</td>
+      <td style="white-space:nowrap;">
+        <button onclick="editarUsuarioPanel('${u.id}')" title="Editar" style="background:rgba(59,130,246,.15); border:1px solid rgba(59,130,246,.4); color:var(--blue); padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin-right:4px;">✏️</button>
+        <button onclick="resetearPinPanel('${u.id}','${escapeHtml(u.username)}')" title="Reset PIN a 1234" style="background:rgba(251,191,36,.15); border:1px solid rgba(251,191,36,.4); color:#FBBF24; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin-right:4px;">🔑</button>
+        ${!u.auth_user_id && u.email ? `<button onclick="vincularAuthPanel('${u.id}','${escapeHtml(u.username)}')" title="Vincular auth.users.id" style="background:rgba(167,139,250,.15); border:1px solid rgba(167,139,250,.4); color:#A78BFA; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px;">🔗</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+function abrirModalCrearUsuario() {
+  document.getElementById('modal-usuario-titulo').textContent = '➕ Crear usuario nuevo';
+  document.getElementById('mu-id').value = '';
+  document.getElementById('mu-username').value = '';
+  document.getElementById('mu-username').disabled = false;
+  document.getElementById('mu-nombre').value = '';
+  document.getElementById('mu-email').value = '';
+  document.getElementById('mu-rol').value = 'consultor';
+  document.getElementById('mu-sedes').value = '';
+  ['operativo','medico','admin','licencias','mensajeria','stats'].forEach(m => {
+    document.getElementById('mu-mod-' + m).value = '';
+  });
+  document.getElementById('mu-activo').checked = true;
+  document.getElementById('modal-usuario').style.display = 'flex';
+}
+
+function editarUsuarioPanel(id) {
+  const u = window._spcdUsuarios.find(x => x.id === id);
+  if (!u) return;
+  document.getElementById('modal-usuario-titulo').textContent = '✏️ Editar: ' + u.username;
+  document.getElementById('mu-id').value = u.id;
+  document.getElementById('mu-username').value = u.username;
+  document.getElementById('mu-username').disabled = true; // no permitir cambiar username
+  document.getElementById('mu-nombre').value = u.nombre || '';
+  document.getElementById('mu-email').value = u.email || '';
+  document.getElementById('mu-rol').value = u.rol;
+  const perm = u.permisos || {};
+  document.getElementById('mu-sedes').value = (perm.sedes || []).join(', ');
+  const mods = perm.modulos || {};
+  ['operativo','medico','admin','licencias','mensajeria','stats'].forEach(m => {
+    document.getElementById('mu-mod-' + m).value = mods[m] || '';
+  });
+  document.getElementById('mu-activo').checked = !!u.activo;
+  document.getElementById('modal-usuario').style.display = 'flex';
+}
+
+function cerrarModalUsuario() {
+  document.getElementById('modal-usuario').style.display = 'none';
+}
+
+async function guardarUsuario() {
+  const id = document.getElementById('mu-id').value.trim();
+  const username = document.getElementById('mu-username').value.trim().toUpperCase();
+  const nombre   = document.getElementById('mu-nombre').value.trim();
+  const email    = document.getElementById('mu-email').value.trim();
+  const rol      = document.getElementById('mu-rol').value;
+  const sedes    = document.getElementById('mu-sedes').value
+                    .split(',').map(s => s.trim()).filter(Boolean);
+  const modulos  = {};
+  ['operativo','medico','admin','licencias','mensajeria','stats'].forEach(m => {
+    const v = document.getElementById('mu-mod-' + m).value;
+    if (v) modulos[m] = v;
+  });
+  const activo = document.getElementById('mu-activo').checked;
+  const permisos = { sedes, modulos };
+
+  if (!username) { alert('Username es obligatorio'); return; }
+
+  try {
+    if (id) {
+      // Editar
+      await sbRpc('admin_actualizar_usuario', {
+        p_usuario_id: id, p_nombre: nombre, p_email: email,
+        p_rol: rol, p_permisos: permisos, p_activo: activo
+      });
+      if (typeof showToast === 'function') showToast('✅ Usuario actualizado: ' + username);
+    } else {
+      // Crear
+      await sbRpc('admin_crear_usuario', {
+        p_username: username, p_nombre: nombre, p_email: email,
+        p_rol: rol, p_permisos: permisos
+      });
+      if (typeof showToast === 'function') {
+        showToast('✅ Usuario creado: ' + username + '. PIN inicial: 1234. Ahora invitalo desde Dashboard de Supabase.');
+      } else {
+        alert('Usuario creado. PIN inicial 1234. Ahora invitalo desde Dashboard de Supabase con el email.');
+      }
+    }
+    cerrarModalUsuario();
+    await cargarUsuariosPanel();
+  } catch (e) {
+    console.error('[guardarUsuario]', e);
+    alert('Error: ' + e.message);
+  }
+}
+
+async function resetearPinPanel(id, username) {
+  if (!confirm(`¿Resetear PIN de ${username} a 1234? El usuario deberá cambiarlo al loguearse.`)) return;
+  try {
+    const res = await sbRpc('admin_reset_pin', { p_usuario_id: id });
+    if (typeof showToast === 'function') showToast('🔑 ' + (res.mensaje || 'PIN reseteado'));
+    else alert(res.mensaje || 'PIN reseteado a 1234');
+  } catch (e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+async function vincularAuthPanel(id, username) {
+  const authId = prompt(
+    `Vincular ${username} con un auth.users.id\n\n` +
+    `1) Andá al Dashboard de Supabase → Authentication → Users\n` +
+    `2) Buscá al usuario por email y copiá su UID\n` +
+    `3) Pegalo acá:`
+  );
+  if (!authId) return;
+  const clean = authId.trim();
+  if (!/^[0-9a-f-]{36}$/i.test(clean)) {
+    alert('UUID inválido. Debe tener formato 8-4-4-4-12 chars hex.');
+    return;
+  }
+  try {
+    await sbRpc('admin_vincular_auth_id', { p_usuario_id: id, p_auth_user_id: clean });
+    if (typeof showToast === 'function') showToast('🔗 Vinculado: ' + username + ' ahora puede loguearse con magic link');
+    else alert('Vinculado OK. ' + username + ' ya puede loguearse con su email.');
+    await cargarUsuariosPanel();
+  } catch (e) {
+    alert('Error: ' + e.message);
+  }
+}
+</script>
+
 <script src="chatbot.js?v=ai-2026-04-20-g"></script>
 </body>
 </html>
