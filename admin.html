@@ -3101,7 +3101,7 @@ function emptyState(icon, text) {
 
 <!-- Supabase SDK + cliente JWT (Fase 2.D.5 · panel Permisos) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="spcd-supabase.js?v=2026-05-16-v3"></script>
+<script src="spcd-supabase.js?v=2026-05-16-v4"></script>
 
 <!-- ═══════════════════════════════════════════════════════════════════
      PANEL DE PERMISOS (Fase 2.D.5)
@@ -3109,27 +3109,45 @@ function emptyState(icon, text) {
      ═══════════════════════════════════════════════════════════════════ -->
 <script>
 (function(){
-  // Esperamos a que el SDK + nuestro cliente estén disponibles.
   function ready(fn) {
     if (document.readyState !== 'loading') fn();
     else document.addEventListener('DOMContentLoaded', fn);
   }
-  ready(async function() {
-    try {
-      // Solo chequear si hay sesión Supabase Auth (post OTP). Los usuarios legacy
-      // (PIN bcrypt sin auth_user_id) NO ven el tab — no son admins en auth.users.
-      if (!window.sbAuth || !window.sbAuth.auth) return;
-      const { data: sess } = await window.sbAuth.auth.getSession();
-      if (!sess || !sess.session) return;
 
-      // Verificar si es admin via RPC
+  // Chequea sesión OTP + auth_es_admin y muestra el tab si corresponde.
+  // Devuelve true si lo mostró (para cortar retries).
+  async function chequearYMostrarTab() {
+    try {
+      if (!window.sbAuth || !window.sbAuth.auth) return false;
+      const { data: sess } = await window.sbAuth.auth.getSession();
+      if (!sess || !sess.session) return false;
       const esAdmin = await sbRpc('auth_es_admin', {});
       if (esAdmin === true) {
         const btn = document.getElementById('btn-tab-permisos');
         if (btn) btn.style.display = '';
+        return true;
       }
     } catch (e) {
-      console.warn('[panel-permisos] No se pudo verificar admin:', e);
+      console.warn('[panel-permisos] check falló:', e.message);
+    }
+    return false;
+  }
+
+  ready(async function() {
+    // 1) Intento inmediato
+    if (await chequearYMostrarTab()) return;
+
+    // 2) Escuchar cambios de auth (SIGNED_IN, TOKEN_REFRESHED, etc.)
+    if (window.sbAuth && window.sbAuth.auth) {
+      window.sbAuth.auth.onAuthStateChange(async (event, session) => {
+        if (session) await chequearYMostrarTab();
+      });
+    }
+
+    // 3) Fallback: reintentar cada 500ms hasta 5 veces (por si el SDK no dispara evento)
+    for (let i = 0; i < 5; i++) {
+      await new Promise(r => setTimeout(r, 500));
+      if (await chequearYMostrarTab()) return;
     }
   });
 })();
