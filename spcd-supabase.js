@@ -10,6 +10,14 @@
      sbDelete(tabla, id)                       → DELETE por id
      sbRpc(nombreFuncion, args)                → POST /rpc/<fn>
 
+   AUTH (Fase 2.C Etapa 3 · 2026-05-15):
+     Para `signInWithOtp` y el callback del magic link se usa el
+     SDK oficial de Supabase (cargado desde CDN). Se inicializa
+     bajo `window.sbAuth` solo si el SDK ya está disponible.
+
+         <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+         <script src="spcd-supabase.js"></script>
+
    Cómo incluir:
        <script src="spcd-supabase.js"></script>
 
@@ -91,3 +99,36 @@ async function sbRpc(fn, args) {
   }
   return r.json();
 }
+
+/* ============================================================
+   AUTH CLIENT (Fase 2.C Etapa 3) — Magic Link / OTP
+   ------------------------------------------------------------
+   Se inicializa SOLO si `window.supabase.createClient` está
+   disponible (SDK oficial cargado desde CDN). Si no está, no
+   se rompe nada y los módulos que solo usan REST siguen
+   funcionando igual.
+   ============================================================ */
+(function initSupabaseAuthClient() {
+  if (typeof window === 'undefined') return;
+  if (window.sbAuth) return; // ya inicializado
+  const sdk = window.supabase;
+  if (!sdk || typeof sdk.createClient !== 'function') {
+    // SDK no cargado en este HTML — OK, solo se usa REST aquí.
+    return;
+  }
+  try {
+    const client = sdk.createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true, // captura el token del fragment cuando volvés del magic link
+        storage: window.localStorage,
+        storageKey: 'spcd_supabase_auth',
+        flowType: 'pkce'
+      }
+    });
+    window.sbAuth = client;
+  } catch (e) {
+    console.warn('[spcd-supabase] No se pudo inicializar sbAuth:', e);
+  }
+})();

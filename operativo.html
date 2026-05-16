@@ -2,10 +2,18 @@
 <html lang="es">
 <head>
 <script>
-/* SPCD Auth Gate · 2026-05-07 · si no hay sesión válida, redirect a login */
+/* SPCD Auth Gate · 2026-05-07 · si no hay sesión válida, redirect a login.
+   2026-05-15 (Fase 2.C Etapa 3): si la URL trae callback de Supabase Auth
+   (magic link OTP), NO redirigir — dejar que la página procese el callback. */
 (function(){
   var KEY='spcd_session', TIMEOUT=8*60*60*1000, s=null;
   try { s=JSON.parse(localStorage.getItem(KEY)); } catch(e){}
+
+  // Detectar callback de Supabase Auth: viene en ?code= (PKCE) o #access_token= (implicit)
+  var url = location.href;
+  var hasOtpCallback = /[?&#]code=|[?&#]access_token=|[?&#]error=|[?&#]error_description=/.test(url);
+  if (hasOtpCallback) return; // dejar pasar, el código de operativo.html procesará el callback
+
   if (!s || !s.user || (Date.now()-s.ts) >= TIMEOUT) {
     localStorage.removeItem(KEY);
     localStorage.removeItem('spcd_operativo_session');
@@ -728,6 +736,21 @@
       <button type="submit" class="btn-login" id="btn-login-submit">Ingresar</button>
       <div class="login-error" id="login-error"></div>
     </form>
+
+    <!-- Panel OTP (Fase 2.C Etapa 3): se muestra despu&eacute;s de pedir magic link -->
+    <div id="otp-sent-panel" style="display:none; text-align:center; padding-top:8px;">
+      <div style="font-size:42px; margin-bottom:8px;">&#x1F4E7;</div>
+      <h3 style="margin:0 0 6px; color:var(--cyan,#22DBAE); font-size:18px; letter-spacing:1.5px;">REVIS&Aacute; TU EMAIL</h3>
+      <p id="otp-sent-msg" style="font-size:13px; color:var(--muted,#94A3B8); line-height:1.5; margin-bottom:14px;">
+        Te enviamos un link de acceso a tu casilla.
+      </p>
+      <p style="font-size:11px; color:#64748B; line-height:1.4; margin-bottom:18px;">
+        Hac&eacute; click en el bot&oacute;n del email para entrar al sistema. El link es de un solo uso y caduca en 1 hora.
+      </p>
+      <button type="button" class="btn-login" id="btn-otp-resend" onclick="doResendOtp()" style="margin-bottom:8px;">Reenviar link</button>
+      <button type="button" class="btn-login" id="btn-otp-back" onclick="doOtpBackToLogin()" style="background:transparent; border:1px solid var(--border,rgba(59,130,246,0.2)); color:var(--muted,#94A3B8);">Volver al login</button>
+      <div class="login-error" id="otp-error" style="margin-top:10px;"></div>
+    </div>
   </div>
 </div>
 
@@ -1359,8 +1382,9 @@
 <!-- ==================== JAVASCRIPT ==================== -->
 <script src="spcd-utils.js"></script>
 <script src="spcd-dialog.js"></script>
-<script src="spcd-supabase.js"></script>
+<!-- Supabase SDK ANTES de spcd-supabase.js para que se inicialice sbAuth (Fase 2.C Etapa 3) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="spcd-supabase.js"></script>
 <script src="spcd-realtime.js"></script>
 <script>
 /* ===========================================================
@@ -1403,6 +1427,18 @@ function saveSession(user) {
   localStorage.setItem(SESSION_KEY_OLD, data);
 }
 
+// ============================================================
+// LOGIN DUAL (Fase 2.C Etapa 3 · 2026-05-15)
+// ------------------------------------------------------------
+// Si el usuario está vinculado a auth.users (usuarios.auth_user_id
+// IS NOT NULL), disparamos magic link OTP vía supabase.auth.
+// Si no, fallback al verificar_pin tradicional. Sin breaking change.
+// ============================================================
+
+// Estado del flujo OTP (para reintento)
+let _otpLastUsername = null;
+let _otpLastEmail = null;
+
 async function doLogin(e) {
   e.preventDefault();
   const btn = document.getElementById('btn-login-submit');
@@ -1414,7 +1450,26 @@ async function doLogin(e) {
     const username = document.getElementById('login-user').value.trim().toUpperCase();
     const pin = document.getElementById('login-pin').value.trim();
 
-    if (!username || !pin) throw new Error('Completá usuario y PIN.');
+    if (!username) throw new Error('Ingresá tu usuario.');
+
+    // 1) ¿Está el usuario migrado a OTP? Buscar email vinculado en auth.users
+    //    email_para_otp() devuelve el email si auth_user_id IS NOT NULL, sino NULL.
+    let emailMigrado = null;
+    try {
+      emailMigrado = await sbRpc('email_para_otp', { p_username: username });
+    } catch (rpcErr) {
+      // Si la RPC todavía no existe (Etapa 3 no aplicada), seguimos con PIN.
+      console.warn('[login dual] email_para_otp no disponible, fallback a PIN:', rpcErr);
+    }
+
+    if (emailMigrado) {
+      // 2a) Flujo OTP: usuario ya migrado → mandar magic link.
+      await _sendOtp(username, emailMigrado);
+      return;
+    }
+
+    // 2b) Flujo PIN (legacy): comportamiento original.
+    if (!pin) throw new Error('Ingresá tu PIN.');
     if (!/^\d{4,6}$/.test(pin)) throw new Error('El PIN debe ser de 4 a 6 dígitos.');
 
     const result = await sbRpc('verificar_pin', { p_username: username, p_pin: pin });
@@ -1433,6 +1488,101 @@ async function doLogin(e) {
     errEl.style.display = 'block';
   } finally {
     btn.disabled = false; btn.textContent = 'Ingresar';
+  }
+}
+
+// ─── Enviar magic link vía Supabase Auth ────────────────────
+async function _sendOtp(username, email) {
+  if (!window.sbAuth) {
+    throw new Error('Supabase Auth no inicializado. Recargá la página o avisá al admin.');
+  }
+  // El emailRedirectTo decide a qué URL vuelve el usuario tras hacer click.
+  // Apuntamos a operativo.html para que el callback se procese acá mismo.
+  const redirectTo = window.location.origin + window.location.pathname;
+  const { error } = await window.sbAuth.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: redirectTo }
+  });
+  if (error) throw new Error('No pudimos enviar el link: ' + error.message);
+
+  _otpLastUsername = username;
+  _otpLastEmail = email;
+
+  // Mostrar panel "te enviamos un link"
+  document.getElementById('login-form').style.display = 'none';
+  const panel = document.getElementById('otp-sent-panel');
+  panel.style.display = 'block';
+  const masked = _maskEmail(email);
+  document.getElementById('otp-sent-msg').innerHTML =
+    'Te enviamos un link de acceso a <strong>' + masked + '</strong>.';
+}
+
+function _maskEmail(email) {
+  const [local, domain] = String(email || '').split('@');
+  if (!local || !domain) return email;
+  const head = local.slice(0, 2);
+  const tail = local.slice(-1);
+  return head + '***' + tail + '@' + domain;
+}
+
+async function doResendOtp() {
+  const errEl = document.getElementById('otp-error');
+  const btn = document.getElementById('btn-otp-resend');
+  errEl.style.display = 'none';
+  if (!_otpLastEmail) {
+    doOtpBackToLogin();
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'Enviando...';
+  try {
+    await _sendOtp(_otpLastUsername, _otpLastEmail);
+    errEl.style.color = 'var(--cyan, #22DBAE)';
+    errEl.textContent = '✓ Link reenviado. Revisá tu casilla.';
+    errEl.style.display = 'block';
+  } catch (err) {
+    errEl.style.color = '';
+    errEl.textContent = err.message;
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Reenviar link';
+  }
+}
+
+function doOtpBackToLogin() {
+  _otpLastUsername = null;
+  _otpLastEmail = null;
+  document.getElementById('otp-sent-panel').style.display = 'none';
+  document.getElementById('otp-error').style.display = 'none';
+  document.getElementById('login-form').style.display = '';
+  document.getElementById('login-pin').value = '';
+  document.getElementById('login-user').focus();
+}
+
+// ─── Callback al cargar la página: detectar sesión de magic link ───
+async function _checkOtpCallback() {
+  if (!window.sbAuth) return false;
+  try {
+    const { data: { session } } = await window.sbAuth.auth.getSession();
+    if (!session || !session.user) return false;
+    // El usuario volvió del magic link → buscar su row en usuarios
+    const rows = await sbRpc('usuario_por_auth_id', { p_auth_user_id: session.user.id });
+    if (!rows || rows.length === 0) {
+      console.warn('[login dual] Sesión Supabase Auth válida pero no hay row en usuarios para este auth_user_id');
+      // Salimos de la sesión auth para no dejar al user en un limbo
+      try { await window.sbAuth.auth.signOut(); } catch {}
+      return false;
+    }
+    currentUser = rows[0];
+    saveSession(currentUser);
+    if (currentUser.debe_cambiar_pin) {
+      document.getElementById('modal-pin').classList.add('active');
+    } else {
+      enterApp();
+    }
+    return true;
+  } catch (e) {
+    console.warn('[login dual] Error procesando callback OTP:', e);
+    return false;
   }
 }
 
@@ -1464,12 +1614,45 @@ async function doChangePin(e) {
   }
 }
 
-function doLogout() {
+async function doLogout() {
+  // Limpiar sesión local de SPCD
   localStorage.removeItem(SESSION_KEY);
   localStorage.removeItem(SESSION_KEY_OLD);
   currentUser = null;
+
+  // Limpiar sesión de Supabase Auth si está activa (Fase 2.C Etapa 3)
+  try {
+    if (window.sbAuth && window.sbAuth.auth) {
+      await window.sbAuth.auth.signOut();
+    }
+  } catch (e) { /* sin sesión auth, OK */ }
+
   window.location.href = 'index.html';
 }
+
+// ─── Inicialización: detectar callback OTP al cargar ───
+// Se ejecuta al final del archivo (después de definir todas las funciones).
+(function _bootstrapOtpCallback(){
+  function _runOnce() {
+    if (typeof _checkOtpCallback !== 'function') return;
+    _checkOtpCallback().then(function(handled){
+      if (handled) {
+        // Limpiar parámetros de la URL para que un reload no reintente el callback
+        try {
+          var clean = window.location.origin + window.location.pathname;
+          window.history.replaceState({}, document.title, clean);
+        } catch(e) {}
+      }
+    }).catch(function(e){
+      console.warn('[bootstrap OTP] error:', e);
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _runOnce);
+  } else {
+    _runOnce();
+  }
+})();
 
 // ============================================================
 // ENTER APP (after login)
