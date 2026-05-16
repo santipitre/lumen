@@ -617,17 +617,35 @@
       </div>
       <div class="form-group">
         <label>PIN</label>
-        <input type="password" id="login-pin" placeholder="4-6 d&iacute;gitos" inputmode="numeric" pattern="[0-9]{4,6}" maxlength="6" autocomplete="off" required/>
+        <input type="password" id="login-pin" placeholder="4-6 d&iacute;gitos (solo si no tenés OTP)" inputmode="numeric" pattern="[0-9]{4,6}" maxlength="6" autocomplete="off"/>
       </div>
       <button type="submit" class="btn-login" id="btn-login-submit">Ingresar</button>
       <div class="login-error" id="login-error"></div>
     </form>
-    <div class="login-back-link" onclick="goBack()">&#8592; Volver al Inicio</div>
+
+    <!-- Panel OTP (Fase 2.C Etapa 3) -->
+    <div id="otp-sent-panel" style="display:none; text-align:center; padding-top:8px;">
+      <div style="font-size:42px; margin-bottom:8px;">&#x1F4E7;</div>
+      <h3 style="margin:0 0 6px; color:var(--cyan,#22DBAE); font-size:18px; letter-spacing:1.5px;">REVIS&Aacute; TU EMAIL</h3>
+      <p id="otp-sent-msg" style="font-size:13px; color:var(--muted,#94A3B8); line-height:1.5; margin-bottom:14px;">
+        Te enviamos un link de acceso a tu casilla.
+      </p>
+      <p style="font-size:11px; color:#64748B; line-height:1.4; margin-bottom:18px;">
+        Hac&eacute; click en el bot&oacute;n del email para entrar al sistema. El link es de un solo uso y caduca en 1 hora.
+      </p>
+      <button type="button" class="btn-login" id="btn-otp-resend" onclick="doResendOtp()" style="margin-bottom:8px;">Reenviar link</button>
+      <button type="button" class="btn-login" id="btn-otp-back" onclick="doOtpBackToLogin()" style="background:transparent; border:1px solid var(--border,rgba(59,130,246,0.2)); color:var(--muted,#94A3B8);">Volver al login</button>
+      <div class="login-error" id="otp-error" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="login-back-link" onclick="goBack()" id="login-back-link">&#8592; Volver al Inicio</div>
   </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="spcd-utils.js"></script>
+<!-- Supabase SDK ANTES de spcd-supabase.js para inicializar sbAuth (Fase 2.C Etapa 3) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="spcd-supabase.js"></script>
 <script>
 /* -- STORAGE (IndexedDB) -- */
@@ -770,7 +788,13 @@ function doLogout() {
   document.getElementById('login-error').style.display = 'none';
 }
 
-/* -- LOGIN -- */
+/* -- LOGIN DUAL (Fase 2.C Etapa 3) --
+   Si el usuario está vinculado a auth.users (auth_user_id IS NOT NULL),
+   disparamos magic link OTP. Si no, fallback a verificar_pin tradicional. */
+
+let _otpLastUsername = null;
+let _otpLastEmail = null;
+
 async function doLoginOperativo(e) {
   e.preventDefault();
   const btn = document.getElementById('btn-login-submit');
@@ -782,7 +806,29 @@ async function doLoginOperativo(e) {
     const username = document.getElementById('login-user').value.trim().toUpperCase();
     const pin = document.getElementById('login-pin').value.trim();
 
-    if (!username || !pin) throw new Error('Completá usuario y PIN.');
+    if (!username) throw new Error('Ingresá tu usuario.');
+
+    // 1) ¿Está migrado a OTP? Buscar email vinculado en auth.users
+    let emailMigrado = null;
+    try {
+      const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/email_para_otp', {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_username: username })
+      });
+      if (r.ok) emailMigrado = await r.json();
+    } catch (rpcErr) {
+      console.warn('[login dual] email_para_otp no disponible, fallback a PIN:', rpcErr);
+    }
+
+    if (emailMigrado) {
+      // 2a) Flujo OTP: usuario migrado -> magic link
+      await _sendOtpFromIndex(username, emailMigrado);
+      return;
+    }
+
+    // 2b) Flujo PIN tradicional
+    if (!pin) throw new Error('Ingresá tu PIN.');
     if (!/^\d{4,6}$/.test(pin)) throw new Error('El PIN debe ser de 4 a 6 dígitos.');
 
     const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/verificar_pin', {
@@ -808,6 +854,69 @@ async function doLoginOperativo(e) {
   } finally {
     btn.disabled = false; btn.textContent = 'Ingresar';
   }
+}
+
+// ─── Helpers OTP ───
+async function _sendOtpFromIndex(username, email) {
+  if (!window.sbAuth) {
+    throw new Error('Supabase Auth no inicializado. Recargá la página o avisá al admin.');
+  }
+  const redirectTo = window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + 'operativo.html';
+  const { error } = await window.sbAuth.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: redirectTo }
+  });
+  if (error) throw new Error('No pudimos enviar el link: ' + error.message);
+
+  _otpLastUsername = username;
+  _otpLastEmail = email;
+
+  document.getElementById('login-form').style.display = 'none';
+  document.getElementById('login-back-link').style.display = 'none';
+  const panel = document.getElementById('otp-sent-panel');
+  panel.style.display = 'block';
+  const masked = _maskEmailIndex(email);
+  document.getElementById('otp-sent-msg').innerHTML =
+    'Te enviamos un link de acceso a <strong>' + masked + '</strong>.';
+}
+
+function _maskEmailIndex(email) {
+  const [local, domain] = String(email || '').split('@');
+  if (!local || !domain) return email;
+  const head = local.slice(0, 2);
+  const tail = local.slice(-1);
+  return head + '***' + tail + '@' + domain;
+}
+
+async function doResendOtp() {
+  const errEl = document.getElementById('otp-error');
+  const btn = document.getElementById('btn-otp-resend');
+  errEl.style.display = 'none';
+  if (!_otpLastEmail) { doOtpBackToLogin(); return; }
+  btn.disabled = true; btn.textContent = 'Enviando...';
+  try {
+    await _sendOtpFromIndex(_otpLastUsername, _otpLastEmail);
+    errEl.style.color = 'var(--cyan, #22DBAE)';
+    errEl.textContent = '✓ Link reenviado. Revisá tu casilla.';
+    errEl.style.display = 'block';
+  } catch (err) {
+    errEl.style.color = '';
+    errEl.textContent = err.message;
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Reenviar link';
+  }
+}
+
+function doOtpBackToLogin() {
+  _otpLastUsername = null;
+  _otpLastEmail = null;
+  document.getElementById('otp-sent-panel').style.display = 'none';
+  document.getElementById('otp-error').style.display = 'none';
+  document.getElementById('login-form').style.display = '';
+  document.getElementById('login-back-link').style.display = '';
+  document.getElementById('login-pin').value = '';
+  document.getElementById('login-user').focus();
 }
 
 /* -- AFTER LOGIN: filtrar sedes y módulos -- */
