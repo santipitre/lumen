@@ -410,6 +410,13 @@
     <span class="crumb-active">ADMINISTRATIVO</span>
   </div>
   <div class="topbar-right">
+    <button id="btn-top-permisos"
+            onclick="abrirPanelPermisosModal()"
+            style="display:none; background:linear-gradient(135deg, rgba(167,139,250,.2), rgba(59,130,246,.2)); border:1px solid rgba(167,139,250,.5); color:#A78BFA; padding:7px 14px; border-radius:6px; cursor:pointer; font-family:'Rajdhani',sans-serif; font-weight:700; letter-spacing:2px; font-size:12px; text-transform:uppercase; transition:all .2s;"
+            onmouseover="this.style.background='linear-gradient(135deg, rgba(167,139,250,.35), rgba(59,130,246,.35))'"
+            onmouseout="this.style.background='linear-gradient(135deg, rgba(167,139,250,.2), rgba(59,130,246,.2))'">
+      👥 Permisos
+    </button>
     <div class="sede-chip" id="top-sede">—</div>
     <button class="btn-back-top" onclick="spcdVolverAtras('index.html?screen=roles')" style="cursor:pointer; font-family:inherit;">← Atrás</button>
   </div>
@@ -536,7 +543,6 @@
     <button class="tab-btn active" onclick="switchTab('tab-resumen',this)">Resumen</button>
     <button class="tab-btn"        onclick="switchTab('tab-derivantes',this)">Derivantes</button>
     <button class="tab-btn"        onclick="switchTab('tab-detalle',this)">Detalle</button>
-    <button class="tab-btn"        id="btn-tab-permisos" onclick="switchTab('tab-permisos',this); cargarUsuariosPanel();" style="display:none;">👥 Permisos</button>
   </div>
 
   <!-- TAB RESUMEN -->
@@ -632,8 +638,17 @@
     </div>
   </div>
 
-  <!-- TAB PERMISOS (solo visible para admins via auth_es_admin()) -->
-  <div class="tab-pane" id="tab-permisos">
+  <!-- PANEL PERMISOS - MODAL OVERLAY (solo abierto via botón topbar 👥 Permisos) -->
+  <div id="modal-panel-permisos" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:900; padding:24px; overflow-y:auto;">
+    <div style="max-width:1400px; margin:0 auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <div style="font-weight:700; font-size:18px; letter-spacing:3px; text-transform:uppercase; color:#A78BFA;">
+          👥 PANEL DE PERMISOS
+        </div>
+        <button onclick="cerrarPanelPermisosModal()" style="background:rgba(248,113,113,.15); border:1px solid rgba(248,113,113,.4); color:#F87171; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:600;">
+          ✕ Cerrar
+        </button>
+      </div>
     <div class="table-card fade-in" style="margin-bottom:16px;">
       <div class="table-header" style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between;">
         <div>
@@ -684,7 +699,8 @@
         <li>Listo: el usuario ya puede loguearse con su email desde la pantalla de login.</li>
       </ol>
     </div>
-  </div>
+    </div><!-- /max-width wrapper -->
+  </div><!-- /modal-panel-permisos -->
 
   <!-- MODAL CREAR/EDITAR USUARIO -->
   <div id="modal-usuario" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:1000; align-items:center; justify-content:center; padding:20px;">
@@ -3101,7 +3117,7 @@ function emptyState(icon, text) {
 
 <!-- Supabase SDK + cliente JWT (Fase 2.D.5 · panel Permisos) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="spcd-supabase.js?v=2026-05-16-v4"></script>
+<script src="spcd-supabase.js?v=2026-05-16-v5"></script>
 
 <!-- ═══════════════════════════════════════════════════════════════════
      PANEL DE PERMISOS (Fase 2.D.5)
@@ -3114,8 +3130,7 @@ function emptyState(icon, text) {
     else document.addEventListener('DOMContentLoaded', fn);
   }
 
-  // Chequea sesión OTP + auth_es_admin y muestra el tab si corresponde.
-  // Devuelve true si lo mostró (para cortar retries).
+  // Chequea sesión OTP + auth_es_admin y muestra el botón Permisos del topbar.
   async function chequearYMostrarTab() {
     try {
       if (!window.sbAuth || !window.sbAuth.auth) return false;
@@ -3123,7 +3138,7 @@ function emptyState(icon, text) {
       if (!sess || !sess.session) return false;
       const esAdmin = await sbRpc('auth_es_admin', {});
       if (esAdmin === true) {
-        const btn = document.getElementById('btn-tab-permisos');
+        const btn = document.getElementById('btn-top-permisos');
         if (btn) btn.style.display = '';
         return true;
       }
@@ -3132,6 +3147,17 @@ function emptyState(icon, text) {
     }
     return false;
   }
+
+  // Abrir / cerrar el modal del panel
+  window.abrirPanelPermisosModal = function() {
+    document.getElementById('modal-panel-permisos').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    cargarUsuariosPanel();
+  };
+  window.cerrarPanelPermisosModal = function() {
+    document.getElementById('modal-panel-permisos').style.display = 'none';
+    document.body.style.overflow = '';
+  };
 
   ready(async function() {
     // 1) Intento inmediato
