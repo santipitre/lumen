@@ -584,6 +584,44 @@ async function loadSobresPara(retiroId){
   } catch(e){ console.error(e); return []; }
 }
 
+// ─── Anular retiro (solo PENDIENTE_FIRMA) ───────────────────
+async function anularRetiro(retiroId){
+  // Buscar el retiro localmente para mostrar info en el confirm
+  const r = retiros.find(x => x.id === retiroId);
+  if (!r){ alert('Retiro no encontrado.'); return; }
+  if (r.estado !== 'PENDIENTE_FIRMA'){
+    alert('Solo se pueden anular retiros en estado "Pendiente firma".');
+    return;
+  }
+  const m = mensajeros.find(x => x.id === r.mensajero_id);
+  const d = destinos.find(x => x.id === r.destino_id);
+  const msg = `¿Anular este retiro?\n\n`
+            + `Mensajero: ${m ? m.nombre : '—'}\n`
+            + `Destino: ${d ? d.nombre : '—'}\n`
+            + `Cajas: ${r.cant_cajas} · Sobres: ${r.cant_sobres} · Monto: ${fmtARS(r.monto_total)}\n\n`
+            + `Esta accion no se puede deshacer.`;
+  if (!confirm(msg)) return;
+
+  try {
+    const res = await sbRpc('anular_retiro_pendiente', { p_retiro_id: retiroId });
+    if (!res || !res.ok){
+      const err = res?.error || 'desconocido';
+      let m2 = 'No se pudo anular: ' + err;
+      if (err === 'NO_AUTH')          m2 = 'Tu sesion expiro. Volve a iniciar sesion.';
+      else if (err === 'NOT_FOUND')   m2 = 'El retiro ya no existe.';
+      else if (err === 'ESTADO_INVALIDO') m2 = `Este retiro ya esta en estado "${res.estado_actual}". No se puede anular.`;
+      alert(m2);
+      return;
+    }
+    // OK — recargar lista
+    await loadRetiros();
+    applyFiltrosAndRender();
+  } catch (e){
+    console.error('[anularRetiro]', e);
+    alert('Error de red al anular. Probá de nuevo.');
+  }
+}
+
 // ═════════════════ FILTROS ═════════════════
 function setearFiltrosFechaPorDefecto(){
   const hoy = new Date();
@@ -667,6 +705,7 @@ function renderTabla(){
       <td style="font-size:11px; color:var(--muted)">${fmtFechaHora(r.firmado_at)}</td>
       <td>
         ${r.estado === 'PENDIENTE_FIRMA' ? `<button class="btn-primary" style="padding:5px 12px; font-size:11px;" onclick="generarQR('${r.id}')">📱 Generar QR</button>` : ''}
+        ${r.estado === 'PENDIENTE_FIRMA' ? `<button class="btn-ghost" style="padding:5px 12px; font-size:11px; color:var(--red); border-color:rgba(239,68,68,.4);" onclick="anularRetiro('${r.id}')">✕ Anular</button>` : ''}
         <button class="btn-ghost" onclick="verDetalle('${r.id}')">Detalle</button>
       </td>
     </tr>`;
