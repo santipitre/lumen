@@ -151,8 +151,11 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function cargarMensajeros(){
-  try { mensajeros = await sbQuery('mensajeros', 'select=id,nombre&activo=eq.true&order=nombre.asc'); }
-  catch(e){ mensajeros = []; }
+  // Usa RPC SECURITY DEFINER porque la tabla mensajeros tiene RLS
+  // authenticated-only (Fase 2.D) y esta pagina la usan mensajeros
+  // EXTERNOS sin sesion OTP. Ver supabase_mensajeria_fix_listar_activos.sql
+  try { mensajeros = await sbRpc('listar_mensajeros_activos', {}); }
+  catch(e){ console.warn('[mensajero-historial] No se pudieron cargar mensajeros:', e); mensajeros = []; }
 }
 
 function renderLogin(midPreselect){
