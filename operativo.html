@@ -1393,11 +1393,11 @@
 
 
 <!-- ==================== JAVASCRIPT ==================== -->
-<script src="spcd-utils.js?v=2026-05-19-v1"></script>
+<script src="spcd-utils.js?v=2026-05-19-v2"></script>
 <script src="spcd-dialog.js?v=2026-05-16-v2"></script>
 <!-- Supabase SDK ANTES de spcd-supabase.js para que se inicialice sbAuth (Fase 2.C Etapa 3) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="spcd-supabase.js?v=2026-05-19-v1"></script>
+<script src="spcd-supabase.js?v=2026-05-19-v2"></script>
 <script src="spcd-realtime.js?v=2026-05-16-v2"></script>
 <script>
 /* ===========================================================
@@ -1609,11 +1609,11 @@ let _pinModalMode = 'change';
 function _setPinModalMode(mode) {
   _pinModalMode = mode;
   const isFirst = (mode === 'first');
-  document.getElementById('pin-modal-title').innerHTML = isFirst
-    ? '&#x1F510; Cre&aacute; tu PIN de acceso'
-    : '&#x1F511; Cambiar PIN';
+  document.getElementById('pin-modal-title').textContent = isFirst
+    ? '🔐 Creá tu PIN de acceso'
+    : '🔑 Cambiar PIN';
   document.getElementById('pin-modal-sub').textContent = isFirst
-    ? 'Primera vez que entr&aacute;s. Eleg&iacute; un PIN de 4 a 6 d&iacute;gitos que vas a usar de ahora en m&aacute;s para ingresar.'
+    ? 'Primera vez que entrás. Elegí un PIN de 4 a 6 dígitos que vas a usar de ahora en más para ingresar.'
     : 'Por seguridad, debés cambiar tu PIN por defecto antes de continuar.';
   document.getElementById('cp-current-group').style.display = isFirst ? 'none' : '';
   document.getElementById('cp-current').required = !isFirst;

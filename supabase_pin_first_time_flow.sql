@@ -120,7 +120,7 @@ CREATE OR REPLACE FUNCTION setear_pin_inicial(p_pin TEXT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, auth
+SET search_path = public, auth, extensions
 AS $$
 DECLARE
   v_auth_id UUID;
