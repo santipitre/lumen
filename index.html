@@ -478,6 +478,24 @@
 <!-- Fondo animado -->
 <canvas id="bg-canvas"></canvas>
 
+<!-- Insignia Lumen persistente (visible en todas las pantallas excepto inicio) -->
+<a href="index.html" id="lumen-badge" style="position:fixed;top:24px;left:24px;z-index:100;display:inline-flex;align-items:center;gap:10px;padding:8px 14px;border-radius:10px;background:rgba(10,15,20,0.7);border:0.5px solid rgba(31,41,55,0.6);backdrop-filter:blur(12px);text-decoration:none;color:inherit;transition:background 0.2s;">
+  <svg width="24" height="24" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" aria-label="Lumen by Pyralis" style="flex-shrink:0;">
+    <rect x="3" y="3" width="54" height="54" rx="13" fill="#0A0F14" stroke="#1F2937" stroke-width="0.8"/>
+    <path d="M16 14 L16 46 L44 46" fill="none" stroke="#F1F5F9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="38" cy="22" r="9" fill="none" stroke="#F59E0B" stroke-width="0.6" opacity="0.4"/>
+    <circle cx="38" cy="22" r="4" fill="#F59E0B"/>
+    <circle cx="38" cy="22" r="1.8" fill="#FEF3C7"/>
+  </svg>
+  <span style="font-size:14px;font-weight:600;letter-spacing:-0.02em;color:#F1F5F9;">L<span class="firefly-o" style="color:#F59E0B;">u</span>men</span>
+  <span style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:#94A3B8;margin-left:2px;">by Pyralis</span>
+</a>
+<style>
+  #lumen-badge:hover { background: rgba(10,15,20,0.9) !important; border-color: rgba(245,158,11,0.4) !important; }
+  /* En screen-inicio el logo grande ya está, ocultamos la insignia */
+  body:has(#screen-inicio.active) #lumen-badge { display: none; }
+</style>
+
 <!-- Boton volver -->
 <button class="btn-back" id="btn-back" onclick="goBack()">
   <span>&#8592;</span> <span id="back-label">Volver</span>
@@ -488,7 +506,7 @@
 
   <div class="logo-wrap">
     <div class="logo-shield">
-      <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Lumen by Pyralis" role="img">
         <defs>
           <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stop-color="#3B82F6"/>
@@ -547,7 +565,7 @@
     </div>
 
     <div class="logo-text-block">
-      <div class="logo-control">LUMEN</div>
+      <div class="logo-control">L<span class="firefly-o" style="color:#F59E0B;">U</span>MEN</div>
       <div class="logo-data" style="font-size:14px; letter-spacing:0.18em; color:#94A3B8;">BY PYRALIS</div>
     </div>
   </div>
