@@ -767,24 +767,25 @@
 </div>
 
 <!-- ==================== CHANGE PIN MODAL ==================== -->
+<!-- Modo "change": pide PIN actual + nuevo. Modo "first": solo pide PIN nuevo (post-OTP primera vez). -->
 <div class="modal-overlay" id="modal-pin">
   <div class="modal-box">
-    <h3>&#x1F511; Cambiar PIN</h3>
-    <p>Por seguridad, deb&eacute;s cambiar tu PIN por defecto antes de continuar.</p>
+    <h3 id="pin-modal-title">&#x1F511; Cambiar PIN</h3>
+    <p id="pin-modal-sub">Por seguridad, deb&eacute;s cambiar tu PIN por defecto antes de continuar.</p>
     <form id="change-pin-form" onsubmit="doChangePin(event)">
-      <div class="form-group">
+      <div class="form-group" id="cp-current-group">
         <label>PIN actual</label>
-        <input type="password" id="cp-current" inputmode="numeric" pattern="[0-9]{4,6}" maxlength="6" required/>
+        <input type="password" id="cp-current" inputmode="numeric" pattern="[0-9]{4,6}" maxlength="6"/>
       </div>
       <div class="form-group">
-        <label>Nuevo PIN (4-6 d&iacute;gitos)</label>
+        <label id="cp-new-label">Nuevo PIN (4-6 d&iacute;gitos)</label>
         <input type="password" id="cp-new" inputmode="numeric" pattern="[0-9]{4,6}" maxlength="6" required/>
       </div>
       <div class="form-group">
         <label>Confirmar nuevo PIN</label>
         <input type="password" id="cp-confirm" inputmode="numeric" pattern="[0-9]{4,6}" maxlength="6" required/>
       </div>
-      <button type="submit" class="btn-login">Cambiar PIN</button>
+      <button type="submit" class="btn-login" id="cp-submit-btn">Cambiar PIN</button>
       <div class="login-error" id="pin-error"></div>
     </form>
   </div>
@@ -1392,11 +1393,11 @@
 
 
 <!-- ==================== JAVASCRIPT ==================== -->
-<script src="spcd-utils.js?v=2026-05-16-v2"></script>
+<script src="spcd-utils.js?v=2026-05-19-v1"></script>
 <script src="spcd-dialog.js?v=2026-05-16-v2"></script>
 <!-- Supabase SDK ANTES de spcd-supabase.js para que se inicialice sbAuth (Fase 2.C Etapa 3) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="spcd-supabase.js?v=2026-05-16-v2"></script>
+<script src="spcd-supabase.js?v=2026-05-19-v1"></script>
 <script src="spcd-realtime.js?v=2026-05-16-v2"></script>
 <script>
 /* ===========================================================
@@ -1464,26 +1465,57 @@ async function doLogin(e) {
 
     if (!username) throw new Error('Ingresá tu usuario.');
 
-    // 1) ¿Está el usuario migrado a OTP? Buscar email vinculado en auth.users
-    //    email_para_otp() devuelve el email si auth_user_id IS NOT NULL, sino NULL.
-    let emailMigrado = null;
+    // ─── LOGIN TRIPLE (Fase 2.E · 2026-05-19) ───
+    // 1) Primera vez: email_para_otp devuelve email solo si pin_set_at IS NULL
+    let emailPrimerLogin = null;
     try {
-      emailMigrado = await sbRpc('email_para_otp', { p_username: username });
+      emailPrimerLogin = await sbRpc('email_para_otp', { p_username: username });
     } catch (rpcErr) {
-      // Si la RPC todavía no existe (Etapa 3 no aplicada), seguimos con PIN.
-      console.warn('[login dual] email_para_otp no disponible, fallback a PIN:', rpcErr);
+      console.warn('[login] email_para_otp no disponible:', rpcErr);
     }
 
-    if (emailMigrado) {
-      // 2a) Flujo OTP: usuario ya migrado → mandar magic link.
-      await _sendOtp(username, emailMigrado);
+    if (emailPrimerLogin) {
+      // 1a) Magic link SOLO primera vez
+      await _sendOtp(username, emailPrimerLogin);
       return;
     }
 
-    // 2b) Flujo PIN (legacy): comportamiento original.
+    // 2) Necesita PIN: validar formato
     if (!pin) throw new Error('Ingresá tu PIN.');
     if (!/^\d{4,6}$/.test(pin)) throw new Error('El PIN debe ser de 4 a 6 dígitos.');
 
+    // 3) Usuario migrado con PIN seteado → signInWithPassword
+    let emailLogin = null;
+    try {
+      emailLogin = await sbRpc('email_para_login', { p_username: username });
+    } catch (rpcErr) {
+      console.warn('[login] email_para_login no disponible:', rpcErr);
+    }
+
+    if (emailLogin && window.sbAuth) {
+      const { data, error } = await window.sbAuth.auth.signInWithPassword({
+        email: emailLogin,
+        password: pin
+      });
+      if (error || !data || !data.user) throw new Error('Usuario o PIN incorrecto.');
+
+      const rows = await sbRpc('usuario_por_auth_id', { p_auth_user_id: data.user.id });
+      if (!rows || rows.length === 0) {
+        try { await window.sbAuth.auth.signOut(); } catch {}
+        throw new Error('Tu usuario no está vinculado en el sistema. Avisá al admin.');
+      }
+      currentUser = rows[0];
+      saveSession(currentUser);
+      if (currentUser.debe_cambiar_pin) {
+        _setPinModalMode('change');
+        document.getElementById('modal-pin').classList.add('active');
+      } else {
+        enterApp();
+      }
+      return;
+    }
+
+    // 4) Fallback legacy: verificar_pin (usuarios sin auth_user_id)
     const result = await sbRpc('verificar_pin', { p_username: username, p_pin: pin });
     if (!result || result.length === 0) throw new Error('Usuario o PIN incorrecto.');
 
@@ -1491,6 +1523,7 @@ async function doLogin(e) {
     saveSession(currentUser);
 
     if (currentUser.debe_cambiar_pin) {
+      _setPinModalMode('change');
       document.getElementById('modal-pin').classList.add('active');
     } else {
       enterApp();
@@ -1570,6 +1603,23 @@ function doOtpBackToLogin() {
   document.getElementById('login-user').focus();
 }
 
+// ─── Estado del modal-pin: 'change' (legacy con PIN actual) | 'first' (post-OTP primera vez) ───
+let _pinModalMode = 'change';
+
+function _setPinModalMode(mode) {
+  _pinModalMode = mode;
+  const isFirst = (mode === 'first');
+  document.getElementById('pin-modal-title').innerHTML = isFirst
+    ? '&#x1F510; Cre&aacute; tu PIN de acceso'
+    : '&#x1F511; Cambiar PIN';
+  document.getElementById('pin-modal-sub').textContent = isFirst
+    ? 'Primera vez que entr&aacute;s. Eleg&iacute; un PIN de 4 a 6 d&iacute;gitos que vas a usar de ahora en m&aacute;s para ingresar.'
+    : 'Por seguridad, debés cambiar tu PIN por defecto antes de continuar.';
+  document.getElementById('cp-current-group').style.display = isFirst ? 'none' : '';
+  document.getElementById('cp-current').required = !isFirst;
+  document.getElementById('cp-submit-btn').textContent = isFirst ? 'Crear PIN y entrar' : 'Cambiar PIN';
+}
+
 // ─── Callback al cargar la página: detectar sesión de magic link ───
 async function _checkOtpCallback() {
   if (!window.sbAuth) return false;
@@ -1586,7 +1636,15 @@ async function _checkOtpCallback() {
     }
     currentUser = rows[0];
     saveSession(currentUser);
-    if (currentUser.debe_cambiar_pin) {
+
+    // Decidir flujo según estado del usuario (Fase 2.E)
+    if (currentUser.pin_set_at == null) {
+      // Primera vez post-OTP → forzar creación de PIN propio
+      _setPinModalMode('first');
+      document.getElementById('modal-pin').classList.add('active');
+    } else if (currentUser.debe_cambiar_pin) {
+      // Legacy: usuario que necesita cambiar PIN por defecto
+      _setPinModalMode('change');
       document.getElementById('modal-pin').classList.add('active');
     } else {
       enterApp();
@@ -1606,23 +1664,63 @@ async function doChangePin(e) {
   const cur = document.getElementById('cp-current').value.trim();
   const nw = document.getElementById('cp-new').value.trim();
   const conf = document.getElementById('cp-confirm').value.trim();
+  const submitBtn = document.getElementById('cp-submit-btn');
+  const originalBtnText = submitBtn.textContent;
 
   if (!/^\d{4,6}$/.test(nw)) { errEl.textContent = 'El nuevo PIN debe ser de 4 a 6 dígitos.'; errEl.style.display = 'block'; return; }
   if (nw !== conf) { errEl.textContent = 'Los PINs no coinciden.'; errEl.style.display = 'block'; return; }
-  if (nw === cur) { errEl.textContent = 'El nuevo PIN debe ser diferente al actual.'; errEl.style.display = 'block'; return; }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Guardando...';
 
   try {
-    const ok = await sbRpc('cambiar_pin', { p_usuario_id: currentUser.id, p_pin_actual: cur, p_pin_nuevo: nw });
-    if (!ok) throw new Error('PIN actual incorrecto.');
+    if (_pinModalMode === 'first') {
+      // ─── PRIMERA VEZ POST-OTP (Fase 2.E) ───
+      // 1) Setear el PIN como password de Supabase Auth (para signInWithPassword futuro)
+      if (!window.sbAuth) throw new Error('Supabase Auth no inicializado.');
+      const { error: pwErr } = await window.sbAuth.auth.updateUser({ password: nw });
+      if (pwErr) throw new Error('No pudimos guardar el PIN en tu sesión: ' + pwErr.message);
 
-    currentUser.debe_cambiar_pin = false;
-    saveSession(currentUser);
-    document.getElementById('modal-pin').classList.remove('active');
-    showToast('PIN cambiado correctamente', 'success');
-    enterApp();
+      // 2) Actualizar usuarios.pin + marcar pin_set_at = now()
+      await sbRpc('setear_pin_inicial', { p_pin: nw });
+
+      currentUser.pin_set_at = new Date().toISOString();
+      currentUser.debe_cambiar_pin = false;
+      saveSession(currentUser);
+      document.getElementById('modal-pin').classList.remove('active');
+      showToast('PIN creado. La próxima vez ingresá directo con tu PIN.', 'success');
+      enterApp();
+    } else {
+      // ─── CAMBIO DE PIN LEGACY (requiere PIN actual) ───
+      if (nw === cur) { throw new Error('El nuevo PIN debe ser diferente al actual.'); }
+      const ok = await sbRpc('cambiar_pin', { p_usuario_id: currentUser.id, p_pin_actual: cur, p_pin_nuevo: nw });
+      if (!ok) throw new Error('PIN actual incorrecto.');
+
+      // Si el usuario está auth-linked, también actualizar password en auth.users
+      // así futuros logins funcionan con signInWithPassword(email, nuevoPin).
+      try {
+        if (window.sbAuth) {
+          const { data: { session } } = await window.sbAuth.auth.getSession();
+          if (session && session.user) {
+            await window.sbAuth.auth.updateUser({ password: nw });
+          }
+        }
+      } catch (syncErr) {
+        console.warn('[cambiar_pin] No se pudo sincronizar password en auth.users:', syncErr);
+      }
+
+      currentUser.debe_cambiar_pin = false;
+      saveSession(currentUser);
+      document.getElementById('modal-pin').classList.remove('active');
+      showToast('PIN cambiado correctamente', 'success');
+      enterApp();
+    }
   } catch (err) {
     errEl.textContent = err.message;
     errEl.style.display = 'block';
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalBtnText;
   }
 }
 

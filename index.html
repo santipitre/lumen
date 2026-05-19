@@ -654,10 +654,10 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="spcd-utils.js?v=2026-05-16-v2"></script>
+<script src="spcd-utils.js?v=2026-05-19-v1"></script>
 <!-- Supabase SDK ANTES de spcd-supabase.js para inicializar sbAuth (Fase 2.C Etapa 3) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="spcd-supabase.js?v=2026-05-16-v2"></script>
+<script src="spcd-supabase.js?v=2026-05-19-v1"></script>
 <script>
 /* -- STORAGE (IndexedDB) -- */
 /* SPCD_DB, SPCD_STORE, openDB, dbLoad, dbSave viven ahora en spcd-utils.js */
@@ -870,12 +870,26 @@ function _traducirErrorSupabase(msg) {
   return msg; // dejar original si no matchea
 }
 
-/* -- LOGIN DUAL (Fase 2.C Etapa 3) --
-   Si el usuario está vinculado a auth.users (auth_user_id IS NOT NULL),
-   disparamos magic link OTP. Si no, fallback a verificar_pin tradicional. */
+/* -- LOGIN TRIPLE (Fase 2.E · 2026-05-19) --
+   Orden de evaluación:
+     1) email_para_otp(username) → si devuelve email, PRIMERA VEZ → magic link.
+     2) email_para_login(username) → si devuelve email, login con PIN via
+        Supabase signInWithPassword (mantiene sesión auth activa para RLS).
+     3) verificar_pin(username, pin) → fallback legacy para usuarios sin
+        auth_user_id (sin Supabase Auth). */
 
 let _otpLastUsername = null;
 let _otpLastEmail = null;
+
+async function _sbRpcAnon(fn, body) {
+  const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/' + fn, {
+    method: 'POST',
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error('RPC ' + fn + ' error: ' + r.status);
+  return r.json();
+}
 
 async function doLoginOperativo(e) {
   e.preventDefault();
@@ -890,29 +904,54 @@ async function doLoginOperativo(e) {
 
     if (!username) throw new Error('Ingresá tu usuario.');
 
-    // 1) ¿Está migrado a OTP? Buscar email vinculado en auth.users
-    let emailMigrado = null;
+    // 1) ¿Primera vez? (migrado pero pin_set_at IS NULL)
+    let emailPrimerLogin = null;
     try {
-      const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/email_para_otp', {
-        method: 'POST',
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ p_username: username })
-      });
-      if (r.ok) emailMigrado = await r.json();
+      emailPrimerLogin = await _sbRpcAnon('email_para_otp', { p_username: username });
     } catch (rpcErr) {
-      console.warn('[login dual] email_para_otp no disponible, fallback a PIN:', rpcErr);
+      console.warn('[login] email_para_otp no disponible:', rpcErr);
     }
 
-    if (emailMigrado) {
-      // 2a) Flujo OTP: usuario migrado -> magic link
-      await _sendOtpFromIndex(username, emailMigrado);
+    if (emailPrimerLogin) {
+      // 1a) Magic link SOLO la primera vez
+      await _sendOtpFromIndex(username, emailPrimerLogin);
       return;
     }
 
-    // 2b) Flujo PIN tradicional
+    // 2) Necesita PIN: validar formato
     if (!pin) throw new Error('Ingresá tu PIN.');
     if (!/^\d{4,6}$/.test(pin)) throw new Error('El PIN debe ser de 4 a 6 dígitos.');
 
+    // 3) ¿Tiene email vinculado? (usuario migrado que ya seteó PIN propio)
+    let emailLogin = null;
+    try {
+      emailLogin = await _sbRpcAnon('email_para_login', { p_username: username });
+    } catch (rpcErr) {
+      console.warn('[login] email_para_login no disponible:', rpcErr);
+    }
+
+    if (emailLogin && window.sbAuth) {
+      // 3a) PIN como password via Supabase Auth (mantiene sesión + RLS)
+      const { data, error } = await window.sbAuth.auth.signInWithPassword({
+        email: emailLogin,
+        password: pin
+      });
+      if (error || !data || !data.user) {
+        throw new Error('Usuario o PIN incorrecto.');
+      }
+      // Cargar row de usuarios autenticado
+      const rows = await sbRpc('usuario_por_auth_id', { p_auth_user_id: data.user.id });
+      if (!rows || rows.length === 0) {
+        try { await window.sbAuth.auth.signOut(); } catch {}
+        throw new Error('Tu usuario no está vinculado en el sistema. Avisá al admin.');
+      }
+      currentUser = enforceRoleOverride(rows[0]);
+      saveSession(currentUser);
+      afterLogin();
+      return;
+    }
+
+    // 4) Fallback legacy: verificar_pin (usuarios sin auth_user_id)
     const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/verificar_pin', {
       method: 'POST',
       headers: {
@@ -931,7 +970,7 @@ async function doLoginOperativo(e) {
     afterLogin();
 
   } catch (err) {
-    errEl.textContent = err.message;
+    errEl.textContent = _traducirErrorSupabase(err.message);
     errEl.style.display = 'block';
   } finally {
     btn.disabled = false; btn.textContent = 'Ingresar';
