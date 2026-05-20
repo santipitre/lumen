@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lumen — Operaciones clínicas claras · by Pyralis</title>
+<meta name="description" content="Lumen unifica lo que hoy vive en 6 planillas distintas: tiempos de atención por médico, stock con vencimientos, pedidos, licencias y mensajería interna. Una interfaz por rol — médico, jefe, operativo, administrativo. Una app de Pyralis." />
+<meta name="theme-color" content="#0A0F14" />
+
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Lumen — Operaciones clínicas claras · by Pyralis" />
+<meta property="og:description" content="Tu clínica de un vistazo. Dashboard ejecutivo, stock FEFO, mensajería, licencias y multi-rol en una sola interfaz." />
+<meta property="og:url" content="https://santipitre.github.io/lumen/landing.html" />
+
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --pyralis-bg:           #0A0F14;
+  --pyralis-bg-soft:      #0E1521;
+  --pyralis-surface:      #111922;
+  --pyralis-border:       #1F2937;
+  --pyralis-border-strong:#2D3748;
+  --pyralis-firefly:      #F59E0B;
+  --pyralis-firefly-glow: #FEF3C7;
+  --pyralis-text:         #F1F5F9;
+  --pyralis-text-muted:   #94A3B8;
+  --pyralis-text-dim:     #64748B;
+  --accent-lumen:         #06B6D4;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: var(--pyralis-bg);
+  color: var(--pyralis-text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-weight: 400;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  scroll-behavior: smooth;
+}
+a { color: inherit; text-decoration: none; }
+button { font: inherit; background: none; border: none; color: inherit; cursor: pointer; }
+ul { list-style: none; }
+
+.bg-layer { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(6, 182, 212, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(6, 182, 212, 0.04) 1px, transparent 1px);
+  background-size: 80px 80px;
+  background-position: center center;
+}
+.bg-glow {
+  background: radial-gradient(
+    ellipse 800px 600px at center 35%,
+    rgba(245, 158, 11, 0.15) 0%,
+    rgba(6, 182, 212, 0.08) 30%,
+    transparent 60%
+  );
+}
+
+.firefly {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, #FEF3C7 0%, #F59E0B 30%, transparent 70%);
+  box-shadow: 0 0 6px 1px rgba(245, 158, 11, 0.5), 0 0 14px 3px rgba(245, 158, 11, 0.25);
+  animation: drift 14s ease-in-out infinite;
+  opacity: 0;
+}
+.firefly:nth-child(1) { top: 18%; left: 12%; width: 4px; height: 4px; animation-delay: 0s; animation-duration: 16s; }
+.firefly:nth-child(2) { top: 28%; left: 78%; width: 3px; height: 3px; animation-delay: -3s; animation-duration: 18s; }
+.firefly:nth-child(3) { top: 55%; left: 85%; width: 5px; height: 5px; animation-delay: -7s; animation-duration: 13s; }
+.firefly:nth-child(4) { top: 72%; left: 8%; width: 3px; height: 3px; animation-delay: -10s; animation-duration: 17s; }
+.firefly:nth-child(5) { top: 40%; left: 50%; width: 4px; height: 4px; animation-delay: -5s; animation-duration: 15s; }
+.firefly:nth-child(6) { top: 85%; left: 60%; width: 3px; height: 3px; animation-delay: -12s; animation-duration: 19s; }
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0); opacity: 0; }
+  10%, 90% { opacity: 0.85; }
+  50% { transform: translate(30px, -40px); opacity: 1; }
+}
+
+.nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+  background: rgba(10, 15, 20, 0.8);
+  backdrop-filter: blur(16px) saturate(180%);
+  border-bottom: 0.5px solid var(--pyralis-border);
+}
+.nav-inner {
+  max-width: 1280px; margin: 0 auto;
+  padding: 0 24px; height: 64px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.nav-brand { display: flex; align-items: center; gap: 10px; }
+.nav-brand svg { display: block; }
+.nav-brand-text { display: flex; flex-direction: column; gap: 2px; line-height: 1; }
+.nav-brand-name { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: var(--pyralis-text); }
+.nav-brand-by { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--pyralis-text-dim); font-weight: 500; }
+.nav-links { display: flex; align-items: center; gap: 28px; }
+.nav-link { font-size: 13px; color: var(--pyralis-text-muted); transition: color 0.15s; }
+.nav-link:hover { color: var(--pyralis-text); }
+.nav-cta {
+  background: var(--accent-lumen); color: #0A0F14;
+  padding: 8px 16px; border-radius: 6px;
+  font-size: 13px; font-weight: 600;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.nav-cta:hover { background: #22D3EE; box-shadow: 0 0 24px rgba(6, 182, 212, 0.4); }
+@media (max-width: 768px) {
+  .nav-link:not(.nav-cta) { display: none; }
+  .nav-links { gap: 12px; }
+}
+
+.hero {
+  position: relative; z-index: 1;
+  min-height: 100vh;
+  padding: 140px 24px 80px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center;
+}
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 6px 14px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 0.5px solid rgba(6, 182, 212, 0.25);
+  font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--pyralis-text-muted);
+  margin-bottom: 40px;
+}
+.hero-eyebrow::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent-lumen);
+  box-shadow: 0 0 8px var(--accent-lumen);
+}
+.hero-wordmark {
+  font-size: clamp(72px, 13vw, 168px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+  margin-bottom: 12px;
+  color: var(--pyralis-text);
+}
+.hero-wordmark .firefly-o {
+  color: var(--pyralis-firefly);
+  font-weight: 600;
+  text-shadow:
+    0 0 20px rgba(245, 158, 11, 0.95),
+    0 0 42px rgba(245, 158, 11, 0.65),
+    0 0 80px rgba(245, 158, 11, 0.4);
+}
+.hero-byline {
+  font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--pyralis-text-dim);
+  margin-bottom: 36px;
+}
+.hero-byline .by-mark { margin: 0 6px; color: var(--pyralis-text-dim); }
+.hero-byline .pyralis { color: var(--pyralis-text-muted); font-weight: 500; letter-spacing: 0.05em; text-transform: none; font-size: 14px; }
+.hero-headline {
+  font-size: clamp(28px, 4.2vw, 44px);
+  font-weight: 600; letter-spacing: -0.025em;
+  line-height: 1.15;
+  margin: 0 auto 24px;
+  max-width: 760px;
+}
+.hero-headline .accent { color: var(--accent-lumen); }
+.hero-sub {
+  font-size: clamp(16px, 1.6vw, 18px);
+  color: var(--pyralis-text-muted);
+  line-height: 1.6;
+  max-width: 640px; margin: 0 auto 44px;
+}
+.hero-ctas { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-bottom: 64px; }
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--accent-lumen); color: #0A0F14;
+  padding: 14px 28px; border-radius: 8px;
+  font-size: 15px; font-weight: 600;
+  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+  box-shadow: 0 8px 32px rgba(6, 182, 212, 0.25);
+}
+.btn-primary:hover { background: #22D3EE; transform: translateY(-1px); box-shadow: 0 12px 40px rgba(6, 182, 212, 0.4); }
+.btn-ghost {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 0.5px solid var(--pyralis-border);
+  color: var(--pyralis-text);
+  padding: 14px 28px; border-radius: 8px;
+  font-size: 15px; font-weight: 500;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-ghost:hover { background: rgba(255, 255, 255, 0.08); border-color: var(--pyralis-border-strong); }
+.hero-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 640px; width: 100%; }
+.stat {
+  padding: 18px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 0.5px solid var(--pyralis-border);
+  border-radius: 10px;
+  text-align: center;
+}
+.stat-value {
+  font-size: clamp(22px, 3vw, 28px); font-weight: 600;
+  color: var(--accent-lumen);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.stat-label {
+  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--pyralis-text-dim); margin-top: 6px; font-weight: 500;
+}
+
+.section { padding: 100px 24px; position: relative; z-index: 1; }
+.section-inner { max-width: 1120px; margin: 0 auto; }
+.section-header { text-align: center; margin-bottom: 64px; }
+.section-eyebrow {
+  font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--accent-lumen); margin-bottom: 12px; font-weight: 600;
+}
+.section h2 {
+  font-size: clamp(28px, 4vw, 42px); font-weight: 600; letter-spacing: -0.028em;
+  line-height: 1.15; margin-bottom: 14px;
+}
+.section-subtitle {
+  font-size: 17px; color: var(--pyralis-text-muted);
+  max-width: 620px; margin: 0 auto; line-height: 1.6;
+}
+
+.features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+.feature-card {
+  background: var(--pyralis-surface);
+  border: 0.5px solid var(--pyralis-border);
+  border-radius: 14px;
+  padding: 28px 24px;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.feature-card:hover { border-color: rgba(6, 182, 212, 0.4); transform: translateY(-2px); }
+.feature-icon {
+  width: 40px; height: 40px; border-radius: 8px;
+  background: rgba(6, 182, 212, 0.12);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 16px;
+}
+.feature-icon svg { width: 20px; height: 20px; stroke: var(--accent-lumen); stroke-width: 1.6; fill: none; }
+.feature-title { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 8px; }
+.feature-desc { font-size: 14px; color: var(--pyralis-text-muted); line-height: 1.6; }
+
+.roles-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; max-width: 1000px; margin: 0 auto; }
+.role-card {
+  background: var(--pyralis-surface);
+  border: 0.5px solid var(--pyralis-border);
+  border-radius: 12px;
+  padding: 22px 20px;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.role-card:hover { border-color: rgba(6, 182, 212, 0.4); }
+.role-name {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 15px; font-weight: 600; margin-bottom: 8px;
+}
+.role-name::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent-lumen); box-shadow: 0 0 8px var(--accent-lumen);
+}
+.role-desc { font-size: 13px; color: var(--pyralis-text-muted); line-height: 1.55; }
+
+.pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+.pricing-card {
+  background: var(--pyralis-surface);
+  border: 0.5px solid var(--pyralis-border);
+  border-radius: 16px;
+  padding: 32px 28px;
+  display: flex; flex-direction: column;
+  position: relative;
+}
+.pricing-card.featured {
+  border-color: rgba(6, 182, 212, 0.4);
+  background: linear-gradient(180deg, rgba(6, 182, 212, 0.04), var(--pyralis-surface));
+}
+.pricing-badge {
+  position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+  background: var(--accent-lumen); color: #0A0F14;
+  padding: 4px 14px; border-radius: 999px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+}
+.pricing-name { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+.pricing-tagline { font-size: 13px; color: var(--pyralis-text-muted); margin-bottom: 20px; }
+.pricing-price { display: flex; align-items: baseline; gap: 4px; margin-bottom: 4px; }
+.pricing-price .amount { font-size: 36px; font-weight: 700; letter-spacing: -0.02em; }
+.pricing-price .per { color: var(--pyralis-text-muted); font-size: 14px; }
+.pricing-note { font-size: 11px; color: var(--pyralis-text-dim); font-family: monospace; margin-bottom: 24px; }
+.pricing-cta {
+  display: block; text-align: center;
+  padding: 12px; border-radius: 8px;
+  font-size: 14px; font-weight: 600;
+  margin-bottom: 24px;
+  transition: background 0.15s;
+}
+.pricing-card .pricing-cta {
+  background: rgba(255, 255, 255, 0.04);
+  border: 0.5px solid var(--pyralis-border);
+}
+.pricing-card .pricing-cta:hover { background: rgba(255, 255, 255, 0.08); }
+.pricing-card.featured .pricing-cta { background: var(--accent-lumen); color: #0A0F14; }
+.pricing-card.featured .pricing-cta:hover { background: #22D3EE; }
+.pricing-features { display: flex; flex-direction: column; gap: 10px; }
+.pricing-features li {
+  font-size: 13px; color: var(--pyralis-text-muted);
+  padding-left: 22px; position: relative;
+}
+.pricing-features li::before {
+  content: ''; position: absolute; left: 0; top: 7px;
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--accent-lumen);
+  box-shadow: 0 0 8px var(--accent-lumen);
+}
+
+.cta-final {
+  text-align: center; padding: 100px 24px;
+  position: relative; z-index: 1;
+  border-top: 0.5px solid var(--pyralis-border);
+  background: linear-gradient(180deg, transparent, rgba(6, 182, 212, 0.04), transparent);
+}
+.cta-final h2 {
+  font-size: clamp(28px, 4vw, 38px); font-weight: 600;
+  letter-spacing: -0.025em; margin-bottom: 16px;
+}
+.cta-final p {
+  font-size: 17px; color: var(--pyralis-text-muted);
+  max-width: 520px; margin: 0 auto 28px;
+}
+
+.footer {
+  padding: 40px 24px; position: relative; z-index: 1;
+  border-top: 0.5px solid var(--pyralis-border);
+  text-align: center;
+  font-size: 13px; color: var(--pyralis-text-dim);
+}
+.footer .pyralis-link { color: var(--accent-lumen); font-weight: 500; }
+.footer .pyralis-link:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="bg-layer bg-grid"></div>
+<div class="bg-layer bg-glow"></div>
+<div class="bg-layer">
+  <span class="firefly"></span>
+  <span class="firefly"></span>
+  <span class="firefly"></span>
+  <span class="firefly"></span>
+  <span class="firefly"></span>
+  <span class="firefly"></span>
+</div>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="#" class="nav-brand">
+      <svg width="36" height="36" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" aria-label="Lumen by Pyralis">
+        <rect x="3" y="3" width="54" height="54" rx="13" fill="#0A0F14" stroke="#1F2937" stroke-width="0.8"/>
+        <path d="M16 14 L16 46 L44 46" fill="none" stroke="#F1F5F9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="38" cy="22" r="9" fill="none" stroke="#F59E0B" stroke-width="0.6" opacity="0.4"/>
+        <circle cx="38" cy="22" r="4" fill="#F59E0B"/>
+        <circle cx="38" cy="22" r="1.8" fill="#FEF3C7"/>
+      </svg>
+      <span class="nav-brand-text">
+        <span class="nav-brand-name">Lumen</span>
+        <span class="nav-brand-by">By Pyralis</span>
+      </span>
+    </a>
+    <div class="nav-links">
+      <a href="#features" class="nav-link">Características</a>
+      <a href="#roles" class="nav-link">Roles</a>
+      <a href="#precios" class="nav-link">Precios</a>
+      <a href="#contacto" class="nav-link">Contacto</a>
+      <a href="index.html" class="nav-link nav-cta">Entrar a Lumen →</a>
+    </div>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-eyebrow">Pyralis · App de salud · v2026</div>
+
+  <h1 class="hero-wordmark">
+    L<span class="firefly-o">u</span>men
+  </h1>
+
+  <div class="hero-byline">
+    <span class="by-mark">—</span> BY <span class="by-mark">—</span>
+    <span class="pyralis">Pyralis</span>
+  </div>
+
+  <h2 class="hero-headline">
+    Tu clínica de un vistazo.<br/>
+    <span class="accent">Operaciones claras.</span>
+  </h2>
+
+  <p class="hero-sub">
+    Lumen unifica lo que hoy vive en 6 planillas distintas: tiempos de atención por médico, stock con vencimientos, pedidos, licencias y mensajería interna. Una interfaz por rol.
+  </p>
+
+  <div class="hero-ctas">
+    <a href="index.html" class="btn-primary">
+      Entrar a Lumen
+      <span style="font-size: 18px; line-height: 1;">→</span>
+    </a>
+    <a href="#features" class="btn-ghost">Ver qué hace</a>
+  </div>
+
+  <div class="hero-stats">
+    <div class="stat">
+      <div class="stat-value">6 → 1</div>
+      <div class="stat-label">Planillas unificadas</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">5</div>
+      <div class="stat-label">Roles operativos</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">PWA</div>
+      <div class="stat-label">Celu · tablet · desktop</div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="features">
+  <div class="section-inner">
+    <div class="section-header">
+      <div class="section-eyebrow">Producto</div>
+      <h2>Todo lo que vivía en planillas,<br/>en una sola interfaz</h2>
+      <p class="section-subtitle">
+        Co-diseñado con jefes de servicio cansados de pedir Excels a tres personas distintas.
+      </p>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        </div>
+        <h3 class="feature-title">Dashboard ejecutivo</h3>
+        <p class="feature-desc">TAT por médico, heatmaps de demanda, proyección semanal. Todo en tiempo real desde Supabase.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+        </div>
+        <h3 class="feature-title">Stock FEFO con alertas</h3>
+        <p class="feature-desc">First-Expired-First-Out por defecto. Alertas por vencimiento, stock mínimo y punto de reposición. Catálogo multi-sede.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <h3 class="feature-title">Mensajería con firma digital QR</h3>
+        <p class="feature-desc">Cada mensaje crítico (retiro de medicación, autorización) se firma escaneando un QR. Trazabilidad completa.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <h3 class="feature-title">Licencias y aprobaciones</h3>
+        <p class="feature-desc">El personal solicita licencias, cambios de turno o llegada tarde. Bandeja de aprobación por jefatura.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h3 class="feature-title">PWA — se instala</h3>
+        <p class="feature-desc">Celu, tablet o desktop. Funciona offline para el rol técnico (cargas que después sincronizan).</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        </div>
+        <h3 class="feature-title">Multi-sede, multi-rol</h3>
+        <p class="feature-desc">Cada usuario ve solo lo suyo. Sedes aisladas en Supabase con RLS. Compliance Ley 25.326.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="roles">
+  <div class="section-inner">
+    <div class="section-header">
+      <div class="section-eyebrow">Roles</div>
+      <h2>Una interfaz por rol</h2>
+      <p class="section-subtitle">
+        Cada persona ve sólo lo que necesita. Sin menús sobrecargados.
+      </p>
+    </div>
+
+    <div class="roles-grid">
+      <div class="role-card">
+        <div class="role-name">Médico</div>
+        <div class="role-desc">Informes pendientes, tiempos por estudio, producción diaria.</div>
+      </div>
+      <div class="role-card">
+        <div class="role-name">Jefatura</div>
+        <div class="role-desc">Dashboard ejecutivo, simulación estratégica, aprobaciones.</div>
+      </div>
+      <div class="role-card">
+        <div class="role-name">Operativo</div>
+        <div class="role-desc">Stock, insumos, pedidos a almacén central, lotes con vencimiento.</div>
+      </div>
+      <div class="role-card">
+        <div class="role-name">Administrativo</div>
+        <div class="role-desc">Derivantes, coberturas, afiliados, coseguros.</div>
+      </div>
+      <div class="role-card">
+        <div class="role-name">Personal</div>
+        <div class="role-desc">Solicitar licencias, cambios de turno, ver historial.</div>
+      </div>
+      <div class="role-card">
+        <div class="role-name">Técnico</div>
+        <div class="role-desc">Carga de estudios realizados, tiempos por equipo.</div>
+      </div>
+      <div class="role-card">
+        <div class="role-name">Mensajero</div>
+        <div class="role-desc">Retiros pendientes, firma digital QR, historial.</div>
+      </div>
+      <div class="role-card">
+        <div class="role-name">Admin (superuser)</div>
+        <div class="role-desc">Gestión de usuarios, sedes, licencias, configuración.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="precios">
+  <div class="section-inner">
+    <div class="section-header">
+      <div class="section-eyebrow">Precios</div>
+      <h2>Pagás por sede</h2>
+      <p class="section-subtitle">
+        Onboarding gratuito. Datos de ejemplo precargados para que arranques en 30 minutos.
+      </p>
+    </div>
+
+    <div class="pricing-grid">
+      <div class="pricing-card">
+        <div class="pricing-name">Starter</div>
+        <div class="pricing-tagline">Centros chicos. 1 sede.</div>
+        <div class="pricing-price">
+          <span class="amount">$99</span><span class="per">/mes</span>
+        </div>
+        <div class="pricing-note">14 días gratis · Sin tarjeta</div>
+        <a href="#contacto" class="pricing-cta">Empezar</a>
+        <ul class="pricing-features">
+          <li>1 sede</li>
+          <li>Hasta 10 usuarios</li>
+          <li>Todos los roles</li>
+          <li>Stock + Mensajería + Licencias</li>
+          <li>Soporte por email</li>
+        </ul>
+      </div>
+
+      <div class="pricing-card featured">
+        <div class="pricing-badge">Más elegido</div>
+        <div class="pricing-name">Clínica</div>
+        <div class="pricing-tagline">Centros medianos. Multi-sede.</div>
+        <div class="pricing-price">
+          <span class="amount">$199</span><span class="per">/mes</span>
+        </div>
+        <div class="pricing-note">Onboarding 45min Zoom incluido</div>
+        <a href="#contacto" class="pricing-cta">Empezar</a>
+        <ul class="pricing-features">
+          <li>Hasta 3 sedes</li>
+          <li>Usuarios ilimitados</li>
+          <li>Dashboard ejecutivo</li>
+          <li>Firma digital QR en mensajería</li>
+          <li>Exportación a Excel ejecutivo</li>
+          <li>Soporte prioritario por WhatsApp</li>
+        </ul>
+      </div>
+
+      <div class="pricing-card">
+        <div class="pricing-name">Empresarial</div>
+        <div class="pricing-tagline">Hospitales. Cadenas.</div>
+        <div class="pricing-price">
+          <span class="amount">Custom</span>
+        </div>
+        <div class="pricing-note">HL7 / FHIR · BAA · HIPAA</div>
+        <a href="#contacto" class="pricing-cta">Hablar con ventas</a>
+        <ul class="pricing-features">
+          <li>Sedes ilimitadas</li>
+          <li>Integración HL7 / FHIR</li>
+          <li>BAA + Ley 26.529 ready</li>
+          <li>SLA 99,9%</li>
+          <li>Training presencial</li>
+          <li>Account manager dedicado</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cta-final" id="contacto">
+  <h2>Probá Lumen 14 días<br/>sin tarjeta</h2>
+  <p>Datos de ejemplo precargados. Si al día 14 no querés seguir, no pagás nada.</p>
+  <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+    <a href="mailto:hola@pyralis.ar?subject=Quiero%20probar%20Lumen" class="btn-primary">
+      Solicitar demo
+      <span style="font-size: 18px; line-height: 1;">→</span>
+    </a>
+    <a href="index.html" class="btn-ghost">
+      Entrar a Lumen
+    </a>
+  </div>
+</section>
+
+<footer class="footer">
+  <p>
+    Lumen es una app del ecosistema
+    <a href="https://santipitre.github.io/pyralis/" class="pyralis-link">Pyralis</a>
+    · © 2026
+  </p>
+</footer>
+
+</body>
+</html>
