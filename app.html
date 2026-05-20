@@ -1,0 +1,1459 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+  <title>Lumen by Pyralis</title>
+
+  <!-- PWA / iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Lumen"/>
+  <meta name="theme-color" content="#0A0F14"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png?v=2026051701"/>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=2026051701"/>
+  <link rel="shortcut icon" href="favicon.ico?v=2026051701"/>
+  <link rel="apple-touch-icon" id="apple-icon" sizes="180x180" href="apple-touch-icon.png?v=2026051701"/>
+
+  <link rel="stylesheet" href="spcd-theme.css"/>
+  <link rel="stylesheet" href="spcd-components.css"/>
+  <style>
+    /* Variables especificas del modulo index / landing (las comunes vienen de spcd-theme.css) */
+    :root {
+      --slate:   #64748B;
+      --glass:   rgba(30, 58, 138, 0.25);
+      --border:  rgba(34, 219, 174, 0.2);
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* --- CANVAS BACKGROUND --- */
+    #bg-canvas {
+      position: fixed; inset: 0; z-index: 0;
+      pointer-events: none;
+    }
+
+    /* --- SCREENS --- */
+    .screen {
+      position: fixed; inset: 0; z-index: 10;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 24px;
+      opacity: 0; pointer-events: none;
+      transition: opacity .5s ease;
+    }
+    .screen.active {
+      opacity: 1; pointer-events: all;
+    }
+    .screen.exit {
+      opacity: 0; pointer-events: none;
+    }
+
+    /* --- SCREEN 1: INICIO --- */
+    #screen-inicio {
+      gap: 40px;
+    }
+    .logo-wrap {
+      display: flex; align-items: center; gap: 20px;
+      animation: fadeUp .8s ease both;
+    }
+    .logo-shield {
+      width: 110px; height: 110px;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .logo-shield svg { width: 100%; height: 100%; filter: drop-shadow(0 0 24px rgba(59,130,246,.5)); }
+    .logo-text-block { display: flex; flex-direction: column; gap: 0; }
+    .logo-control {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 38px; font-weight: 700; letter-spacing: 8px;
+      color: #B8D4F0; line-height: 1;
+    }
+    .logo-data {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 38px; font-weight: 700; letter-spacing: 8px;
+      color: #3B82F6; line-height: 1; margin-top: -2px;
+    }
+
+    .tagline {
+      font-size: 13px; letter-spacing: 3px; text-transform: uppercase;
+      color: var(--muted);
+      animation: fadeUp .8s .2s ease both;
+    }
+
+    .divider {
+      width: 160px; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      animation: fadeUp .8s .3s ease both;
+    }
+
+    .btn-iniciar {
+      margin-top: 8px;
+      padding: 16px 56px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 18px; font-weight: 700; letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--navy);
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      border: none; border-radius: 4px;
+      cursor: pointer; position: relative; overflow: hidden;
+      transition: transform .2s, box-shadow .2s;
+      animation: fadeUp .8s .5s ease both;
+    }
+    .btn-iniciar::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      opacity: 0; transition: opacity .3s;
+    }
+    .btn-iniciar:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(34,219,174,.4); }
+    .btn-iniciar:hover::before { opacity: 1; }
+    .btn-iniciar span { position: relative; z-index: 1; }
+
+    .version-tag {
+      position: fixed; bottom: 20px;
+      font-size: 11px; letter-spacing: 2px;
+      color: rgba(148,163,184,.4); text-transform: uppercase;
+    }
+
+    /* --- SCREEN 2: SEDES --- */
+    #screen-sedes {
+      gap: 28px;
+      overflow-y: auto;
+      justify-content: flex-start;
+      padding-top: 40px; padding-bottom: 40px;
+    }
+
+    .screen-header {
+      text-align: center; animation: fadeUp .5s ease both;
+    }
+    .screen-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 28px; font-weight: 700; letter-spacing: 3px;
+      color: var(--cyan);
+    }
+    .screen-sub {
+      font-size: 12px; letter-spacing: 2px; color: var(--muted);
+      text-transform: uppercase; margin-top: 4px;
+    }
+
+    .sedes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px; width: 100%; max-width: 720px;
+    }
+
+    .sede-btn {
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px 20px;
+      cursor: pointer;
+      display: flex; align-items: center; gap: 14px;
+      transition: all .25s ease;
+      animation: fadeUp .5s ease both;
+      text-align: left;
+    }
+    .sede-btn:hover {
+      background: rgba(34,219,174,.1);
+      border-color: var(--cyan);
+      transform: translateX(4px);
+      box-shadow: 0 0 20px rgba(34,219,174,.15);
+    }
+    .sede-btn:hover .sede-icon { color: var(--cyan); }
+    .sede-icon {
+      font-size: 20px; transition: color .25s;
+      color: var(--blue); flex-shrink: 0;
+    }
+    .sede-info { flex: 1; }
+    .sede-name {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 15px; font-weight: 700; letter-spacing: 1px;
+      color: var(--text);
+    }
+    .sede-type {
+      font-size: 10px; letter-spacing: 2px;
+      color: var(--muted); text-transform: uppercase;
+      margin-top: 2px;
+    }
+    .sede-arrow { color: var(--muted); font-size: 14px; }
+
+    /* --- SCREEN 3: ROLES --- */
+    #screen-roles { gap: 32px; }
+
+    .selected-sede-tag {
+      background: rgba(34,219,174,.1);
+      border: 1px solid rgba(34,219,174,.3);
+      border-radius: 4px; padding: 6px 16px;
+      font-size: 11px; letter-spacing: 3px;
+      color: var(--cyan); text-transform: uppercase;
+      animation: fadeUp .4s ease both;
+    }
+
+    .roles-grid {
+      display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;
+      max-width: 920px;
+    }
+
+    .role-card {
+      width: 200px;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px 20px;
+      cursor: pointer;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 16px;
+      transition: all .3s ease;
+      animation: fadeUp .5s ease both;
+      text-align: center; position: relative; overflow: hidden;
+    }
+    .role-card::before {
+      content: '';
+      position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      transform: scaleX(0); transition: transform .3s;
+    }
+    .role-card:hover {
+      border-color: var(--cyan);
+      box-shadow: 0 8px 40px rgba(34,219,174,.2);
+      transform: translateY(-4px);
+    }
+    .role-card:hover::before { transform: scaleX(1); }
+
+    .role-card.admin:hover     { border-color: var(--cyan);  box-shadow: 0 8px 40px rgba(34,219,174,.2); }
+    .role-card.tecnico:hover   { border-color: var(--blue);  box-shadow: 0 8px 40px rgba(59,130,246,.2); }
+    .role-card.medico:hover    { border-color: var(--green); box-shadow: 0 8px 40px rgba(85,231,139,.2); }
+    .role-card.operativo:hover { border-color: #38BDF8;      box-shadow: 0 8px 40px rgba(56,189,248,.25); }
+    .role-card.tecnico::before  { background: linear-gradient(90deg,transparent,var(--blue),transparent); }
+    .role-card.medico::before   { background: linear-gradient(90deg,transparent,var(--green),transparent); }
+    .role-card.operativo::before{ background: linear-gradient(90deg,transparent,#38BDF8,transparent); }
+
+    .role-icon-wrap {
+      width: 64px; height: 64px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+      transition: background .35s ease, box-shadow .35s ease, transform .35s ease;
+    }
+    .role-card.admin  .role-icon-wrap     { background: rgba(34,219,174,.15); }
+    .role-card.tecnico .role-icon-wrap    { background: rgba(59,130,246,.15); }
+    .role-card.medico .role-icon-wrap     { background: rgba(85,231,139,.15); }
+    .role-card.operativo .role-icon-wrap  { background: rgba(56,189,248,.15); }
+
+    /* ── Estado inicial del ícono: ligeramente desaturado para contrastar con el hover ── */
+    .role-icon-wrap svg,
+    .role-icon-wrap img {
+      transition: filter .35s ease, transform .35s ease;
+      filter: brightness(.9) saturate(.85);
+    }
+    /* ── Hover: el ícono se enciende con el color del módulo ── */
+    .role-card:hover .role-icon-wrap { transform: scale(1.06); }
+    .role-card:hover .role-icon-wrap svg,
+    .role-card:hover .role-icon-wrap img {
+      filter: brightness(1.2) saturate(1.5);
+      transform: scale(1.05);
+    }
+    .role-card.admin:hover .role-icon-wrap {
+      background: rgba(34,219,174,.35);
+      box-shadow: 0 0 28px rgba(34,219,174,.55), inset 0 0 18px rgba(34,219,174,.25);
+    }
+    .role-card.admin:hover .role-icon-wrap svg,
+    .role-card.admin:hover .role-icon-wrap img {
+      filter: brightness(1.25) saturate(1.6) drop-shadow(0 0 12px rgba(34,219,174,.9));
+    }
+    .role-card.tecnico:hover .role-icon-wrap {
+      background: rgba(59,130,246,.35);
+      box-shadow: 0 0 28px rgba(59,130,246,.55), inset 0 0 18px rgba(59,130,246,.25);
+    }
+    .role-card.tecnico:hover .role-icon-wrap svg,
+    .role-card.tecnico:hover .role-icon-wrap img {
+      filter: brightness(1.25) saturate(1.6) drop-shadow(0 0 12px rgba(59,130,246,.9));
+    }
+    .role-card.medico:hover .role-icon-wrap {
+      background: rgba(85,231,139,.35);
+      box-shadow: 0 0 28px rgba(85,231,139,.55), inset 0 0 18px rgba(85,231,139,.25);
+    }
+    .role-card.medico:hover .role-icon-wrap svg,
+    .role-card.medico:hover .role-icon-wrap img {
+      filter: brightness(1.25) saturate(1.6) drop-shadow(0 0 12px rgba(85,231,139,.9));
+    }
+    .role-card.operativo:hover .role-icon-wrap {
+      background: rgba(56,189,248,.35);
+      box-shadow: 0 0 28px rgba(56,189,248,.55), inset 0 0 18px rgba(56,189,248,.25);
+    }
+    .role-card.operativo:hover .role-icon-wrap svg,
+    .role-card.operativo:hover .role-icon-wrap img {
+      filter: brightness(1.25) saturate(1.6) drop-shadow(0 0 12px rgba(56,189,248,.9));
+    }
+
+    .notif-dot {
+      position: absolute; top: -6px; right: -6px;
+      min-width: 22px; height: 22px; padding: 0 6px;
+      border-radius: 11px; font-size: 11px; font-weight: 700;
+      background: #ef4444; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 8px rgba(239,68,68,.5);
+      animation: notifPulse 2s infinite;
+      z-index: 5;
+    }
+    @keyframes notifPulse {
+      0%, 100% { box-shadow: 0 2px 8px rgba(239,68,68,.5); }
+      50% { box-shadow: 0 2px 16px rgba(239,68,68,.8); }
+    }
+
+    .role-name {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 18px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .role-desc { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+    /* --- BACK BUTTON --- */
+    .btn-back {
+      position: fixed; top: 20px; left: 20px; z-index: 100;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px; padding: 8px 16px;
+      font-family: 'Inter', sans-serif;
+      font-size: 12px; letter-spacing: 2px; color: var(--muted);
+      cursor: pointer; transition: all .2s;
+      text-transform: uppercase; display: none; align-items: center; gap: 8px;
+    }
+    .btn-back:hover { border-color: var(--cyan); color: var(--cyan); }
+    .btn-back.visible { display: flex; }
+
+    /* --- ANIMATIONS --- */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* stagger sedes */
+    .sede-btn:nth-child(1) { animation-delay: .05s; }
+    .sede-btn:nth-child(2) { animation-delay: .10s; }
+    .sede-btn:nth-child(3) { animation-delay: .15s; }
+    .sede-btn:nth-child(4) { animation-delay: .20s; }
+    .sede-btn:nth-child(5) { animation-delay: .25s; }
+    .sede-btn:nth-child(6) { animation-delay: .30s; }
+    .sede-btn:nth-child(7) { animation-delay: .35s; }
+    .sede-btn:nth-child(8) { animation-delay: .40s; }
+
+    .role-card:nth-child(1){ animation-delay: .1s; }
+    .role-card:nth-child(2){ animation-delay: .2s; }
+    .role-card:nth-child(3){ animation-delay: .3s; }
+    .role-card:nth-child(4){ animation-delay: .4s; }
+
+    /* --- UPLOAD ZONE --- */
+    .upload-section {
+      width: 100%; max-width: 720px;
+      animation: fadeUp .5s .5s ease both;
+    }
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      display: flex; align-items: center; gap: 16px;
+      cursor: pointer;
+      transition: all .3s ease;
+      background: rgba(15, 23, 42, 0.5);
+      position: relative;
+    }
+    .upload-zone:hover, .upload-zone.dragover {
+      border-color: var(--cyan);
+      background: rgba(34, 219, 174, 0.05);
+      box-shadow: 0 0 30px rgba(34, 219, 174, 0.1);
+    }
+    .upload-zone.has-data {
+      border-color: var(--green);
+      border-style: solid;
+      background: rgba(85, 231, 139, 0.05);
+    }
+    .upload-icon {
+      width: 48px; height: 48px; border-radius: 10px;
+      background: rgba(59, 130, 246, 0.15);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0;
+      transition: background .3s;
+    }
+    .upload-zone.has-data .upload-icon {
+      background: rgba(85, 231, 139, 0.15);
+    }
+    .upload-info { flex: 1; }
+    .upload-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 15px; font-weight: 700; letter-spacing: 1px;
+      color: var(--text);
+    }
+    .upload-sub {
+      font-size: 11px; color: var(--muted); margin-top: 3px;
+      letter-spacing: .5px;
+    }
+    .upload-sub.loaded { color: var(--green); }
+    .upload-badge {
+      font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--muted); padding: 4px 10px;
+      border: 1px solid var(--border); border-radius: 4px;
+      transition: all .3s;
+    }
+    .upload-zone:hover .upload-badge { border-color: var(--cyan); color: var(--cyan); }
+    .upload-zone.has-data .upload-badge { border-color: var(--green); color: var(--green); }
+    .upload-input { display: none; }
+    .btn-reload {
+      display: inline-block; margin-top: 12px;
+      padding: 8px 20px; border-radius: 6px;
+      background: rgba(59,130,246,.1); border: 1px solid rgba(59,130,246,.3);
+      color: #3B82F6; font-size: 11px; letter-spacing: 1px;
+      text-transform: uppercase; cursor: pointer; transition: all .2s;
+      font-family: 'Inter', sans-serif;
+    }
+    .btn-reload:hover { background: rgba(59,130,246,.2); border-color: #3B82F6; }
+    .upload-progress {
+      position: absolute; bottom: 0; left: 0; height: 3px;
+      background: linear-gradient(90deg, var(--cyan), var(--blue));
+      border-radius: 0 0 12px 12px;
+      width: 0; transition: width .3s;
+    }
+
+    /* --- SCREEN 4: LOGIN OPERATIVO --- */
+    #screen-login {
+      gap: 28px;
+    }
+    .login-box {
+      width: 100%; max-width: 380px;
+      background: rgba(30,58,138,.15);
+      border: 1px solid var(--border);
+      border-radius: 16px; padding: 40px 32px;
+      backdrop-filter: blur(8px);
+      animation: fadeUp .4s ease;
+    }
+    .login-logo { text-align: center; margin-bottom: 28px; }
+    .login-logo .ll-icon {
+      width: 56px; height: 56px; border-radius: 12px;
+      background: linear-gradient(135deg, var(--blue-d), var(--navy));
+      border: 1px solid #38BDF8; margin: 0 auto 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Rajdhani', sans-serif; font-weight: 700;
+      font-size: 22px; color: #38BDF8;
+      box-shadow: 0 0 20px rgba(56,189,248,.3);
+    }
+    .login-logo h2 {
+      font-family: 'Rajdhani', sans-serif; font-size: 22px;
+      font-weight: 700; letter-spacing: 4px; color: #38BDF8;
+    }
+    .login-logo p {
+      font-size: 11px; letter-spacing: 2px; color: var(--muted);
+      text-transform: uppercase; margin-top: 2px;
+    }
+    /* .form-group y .btn-login: base en spcd-components.css */
+    .form-group input:focus { border-color: #38BDF8; }
+    .form-group input::placeholder { color: var(--slate); }
+    .btn-login { margin-top: 6px; }
+    .btn-login:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+    .login-error {
+      margin-top: 12px; padding: 10px 14px; border-radius: 6px;
+      background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3);
+      color: #EF4444; font-size: 12px; text-align: center;
+      display: none;
+    }
+    .login-back-link {
+      display: block; text-align: center; margin-top: 16px;
+      font-size: 12px; letter-spacing: 1px; color: var(--muted);
+      cursor: pointer; transition: color .2s;
+    }
+    .login-back-link:hover { color: #38BDF8; }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- Fondo animado -->
+<canvas id="bg-canvas"></canvas>
+
+<!-- Insignia Lumen persistente (al lado del botón de back, oculta en inicio) -->
+<a href="index.html" id="lumen-badge" style="position:fixed;top:20px;left:240px;z-index:100;display:none;align-items:center;gap:10px;padding:8px 14px;border-radius:8px;background:rgba(10,15,20,0.75);border:0.5px solid rgba(31,41,55,0.6);backdrop-filter:blur(12px);text-decoration:none;color:inherit;transition:background 0.2s, border-color 0.2s;">
+  <svg width="24" height="24" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" aria-label="Lumen by Pyralis" style="flex-shrink:0;">
+    <rect x="3" y="3" width="54" height="54" rx="13" fill="#0A0F14" stroke="#1F2937" stroke-width="0.8"/>
+    <path d="M16 14 L16 46 L44 46" fill="none" stroke="#F1F5F9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="38" cy="22" r="9" fill="none" stroke="#F59E0B" stroke-width="0.6" opacity="0.4"/>
+    <circle cx="38" cy="22" r="4" fill="#F59E0B"/>
+    <circle cx="38" cy="22" r="1.8" fill="#FEF3C7"/>
+  </svg>
+  <span style="font-size:14px;font-weight:600;letter-spacing:-0.02em;color:#F1F5F9;">L<span class="firefly-o" style="color:#F59E0B;">u</span>men</span>
+  <span style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:#94A3B8;margin-left:2px;">by Pyralis</span>
+</a>
+<style>
+  #lumen-badge:hover { background: rgba(10,15,20,0.9) !important; border-color: rgba(245,158,11,0.4) !important; }
+  /* Ajuste responsive: en pantallas chicas el badge se posiciona debajo del botón back */
+  @media (max-width: 640px) {
+    #lumen-badge { left: 20px !important; top: 64px !important; }
+  }
+</style>
+
+<!-- Boton volver -->
+<button class="btn-back" id="btn-back" onclick="goBack()">
+  <span>&#8592;</span> <span id="back-label">Volver</span>
+</button>
+
+<!-- SCREEN 1: INICIO -->
+<div class="screen active" id="screen-inicio">
+
+  <div class="logo-wrap">
+    <div class="logo-shield">
+      <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Lumen by Pyralis" role="img">
+        <defs>
+          <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#3B82F6"/>
+            <stop offset="50%" stop-color="#22DBAE"/>
+            <stop offset="100%" stop-color="#3B82F6"/>
+          </linearGradient>
+          <linearGradient id="innerGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#1E3A8A"/>
+            <stop offset="100%" stop-color="#0F172A"/>
+          </linearGradient>
+          <linearGradient id="spGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#B8D4F0"/>
+            <stop offset="100%" stop-color="#3B82F6"/>
+          </linearGradient>
+          <filter id="glow"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <filter id="glowBig"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <!-- Outer glow ring -->
+        <circle cx="60" cy="60" r="54" fill="none" stroke="url(#ringGrad)" stroke-width="1.5" opacity="0.3" filter="url(#glowBig)"/>
+        <!-- Main ring -->
+        <circle cx="60" cy="60" r="48" fill="none" stroke="url(#ringGrad)" stroke-width="2.5" filter="url(#glow)"/>
+        <!-- Inner ring -->
+        <circle cx="60" cy="60" r="42" fill="none" stroke="#3B82F6" stroke-width="0.8" opacity="0.35"/>
+        <!-- Dark fill -->
+        <circle cx="60" cy="60" r="41" fill="url(#innerGrad)" opacity="0.95"/>
+        <!-- Tech arc segments on outer ring -->
+        <path d="M60 8 A52 52 0 0 1 100 30" fill="none" stroke="#22DBAE" stroke-width="2" stroke-linecap="round" opacity="0.7" filter="url(#glow)"/>
+        <path d="M108 52 A52 52 0 0 1 104 80" fill="none" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+        <path d="M20 30 A52 52 0 0 1 60 8" fill="none" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+        <!-- Decorative tech dots on ring -->
+        <circle cx="60" cy="8" r="2.5" fill="#22DBAE" filter="url(#glow)"/>
+        <circle cx="100" cy="30" r="2" fill="#3B82F6" filter="url(#glow)"/>
+        <circle cx="108" cy="55" r="1.5" fill="#22DBAE" opacity="0.8"/>
+        <circle cx="104" cy="80" r="1.5" fill="#3B82F6" opacity="0.6"/>
+        <circle cx="20" cy="30" r="1.8" fill="#3B82F6" opacity="0.6"/>
+        <circle cx="16" cy="80" r="1.5" fill="#22DBAE" opacity="0.5"/>
+        <!-- Tech lines radiating -->
+        <line x1="100" y1="30" x2="112" y2="24" stroke="#22DBAE" stroke-width="0.8" opacity="0.5"/>
+        <line x1="108" y1="55" x2="116" y2="52" stroke="#3B82F6" stroke-width="0.6" opacity="0.4"/>
+        <line x1="60" y1="8" x2="60" y2="2" stroke="#22DBAE" stroke-width="0.8" opacity="0.5"/>
+        <line x1="20" y1="30" x2="12" y2="24" stroke="#3B82F6" stroke-width="0.6" opacity="0.4"/>
+        <!-- Small particle dots -->
+        <circle cx="113" cy="23" r="1" fill="#22DBAE" opacity="0.6"/>
+        <circle cx="117" cy="51" r="0.8" fill="#3B82F6" opacity="0.4"/>
+        <circle cx="10" cy="22" r="0.8" fill="#3B82F6" opacity="0.4"/>
+        <!-- Lumen "L" + firefly luciérnaga -->
+        <text x="58" y="76" text-anchor="middle"
+              font-family="Inter, sans-serif" font-weight="500" font-size="48"
+              letter-spacing="-0.04em"
+              fill="#F1F5F9" filter="url(#glow)">L</text>
+        <!-- Punto firefly (ámbar) en la esquina superior derecha de la L -->
+        <circle cx="78" cy="44" r="6" fill="none" stroke="#F59E0B" stroke-width="0.8" opacity="0.4"/>
+        <circle cx="78" cy="44" r="3.5" fill="#F59E0B" filter="url(#glow)"/>
+        <circle cx="78" cy="44" r="1.6" fill="#FEF3C7"/>
+      </svg>
+    </div>
+
+    <div class="logo-text-block">
+      <div class="logo-control">L<span class="firefly-o" style="color:#F59E0B;">U</span>MEN</div>
+      <div class="logo-data" style="font-size:14px; letter-spacing:0.18em; color:#94A3B8;">BY PYRALIS</div>
+    </div>
+  </div>
+
+  <p class="tagline">Operaciones clínicas claras</p>
+
+  <div class="divider"></div>
+
+  <button class="btn-iniciar" onclick="goToLogin()">
+    <span>INICIAR</span>
+  </button>
+
+  <span class="version-tag">v1.0 &middot; 2026</span>
+</div>
+
+<!-- SCREEN 2: SEDES -->
+<div class="screen" id="screen-sedes">
+  <div class="screen-header">
+    <div class="screen-title">SELECCIONAR SEDE</div>
+    <div class="screen-sub">Elegi la institucion o sede a controlar</div>
+  </div>
+
+  <div class="sedes-grid" id="sedes-grid">
+    <!-- Se llena dinámicamente según permisos del usuario -->
+  </div>
+
+  <!-- Upload Excel -->
+  <div class="upload-section">
+    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('excel-input').click()">
+      <div class="upload-icon" id="upload-icon">&#128196;</div>
+      <div class="upload-info">
+        <div class="upload-title" id="upload-title">CARGAR ARCHIVO EXCEL</div>
+        <div class="upload-sub" id="upload-sub">Arrastra o hace click para subir el archivo .xls / .xlsx de Visual Medica</div>
+      </div>
+      <span class="upload-badge" id="upload-badge">.XLS</span>
+      <div class="upload-progress" id="upload-progress"></div>
+    </div>
+    <input type="file" id="excel-input" class="upload-input" accept=".xls,.xlsx,.csv" onchange="handleExcelUpload(event)"/>
+    <label class="btn-reload" id="btn-reload" style="display:none">
+      🔄 Recargar datos
+      <input type="file" accept=".xls,.xlsx,.csv" style="display:none" onchange="handleExcelUpload(event)"/>
+    </label>
+  </div>
+</div>
+
+<!-- SCREEN 3: ROLES -->
+<div class="screen" id="screen-roles">
+  <div class="screen-header" style="animation-delay:.0s">
+    <div class="screen-title">AREA DE TRABAJO</div>
+    <div class="screen-sub">Seleccion&aacute; tu &aacute;rea de control, <span id="user-greeting" style="color:var(--cyan)"></span></div>
+  </div>
+
+  <div class="selected-sede-tag" id="sede-tag">-- SEDE --</div>
+
+  <div class="roles-grid" id="roles-grid">
+    <!-- Se llena dinámicamente según permisos del usuario -->
+  </div>
+</div>
+
+<!-- SCREEN 4: LOGIN OPERATIVO -->
+<div class="screen" id="screen-login">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="ll-icon">SP</div>
+      <h2>INGRESO AL SISTEMA</h2>
+      <p>Sistema de Control Interno</p>
+    </div>
+    <form id="login-form" onsubmit="doLoginOperativo(event)">
+      <div class="form-group">
+        <label>Usuario</label>
+        <input type="text" id="login-user" placeholder="Ej: SPITRELLA" autocomplete="off" autocapitalize="characters" required/>
+      </div>
+      <!-- Campo PIN: se oculta autom&aacute;ticamente cuando el usuario est&aacute; migrado a OTP -->
+      <div class="form-group" id="pin-group">
+        <label>PIN</label>
+        <input type="password" id="login-pin" placeholder="4-6 d&iacute;gitos" inputmode="numeric" pattern="[0-9]{4,6}" maxlength="6" autocomplete="off"/>
+      </div>
+      <!-- Info OTP: se muestra cuando detectamos que el usuario usa magic link -->
+      <div id="otp-info" style="display:none; padding:12px 14px; background:rgba(34,219,174,0.08); border:1px solid rgba(34,219,174,0.3); border-radius:8px; margin-bottom:12px; text-align:center;">
+        <div style="font-size:13px; color:var(--cyan, #22DBAE); font-weight:600;">&#x1F4E7; Te enviaremos un link a tu email</div>
+        <div style="font-size:11px; color:var(--muted, #94A3B8); margin-top:4px;">No necesit&aacute;s recordar PIN. Hac&eacute; click en el bot&oacute;n.</div>
+      </div>
+      <button type="submit" class="btn-login" id="btn-login-submit">Ingresar</button>
+      <div class="login-error" id="login-error"></div>
+    </form>
+
+    <!-- Panel OTP (Fase 2.C Etapa 3) -->
+    <div id="otp-sent-panel" style="display:none; text-align:center; padding-top:8px;">
+      <div style="font-size:42px; margin-bottom:8px;">&#x1F4E7;</div>
+      <h3 style="margin:0 0 6px; color:var(--cyan,#22DBAE); font-size:18px; letter-spacing:1.5px;">REVIS&Aacute; TU EMAIL</h3>
+      <p id="otp-sent-msg" style="font-size:13px; color:var(--muted,#94A3B8); line-height:1.5; margin-bottom:14px;">
+        Te enviamos un link de acceso a tu casilla.
+      </p>
+      <p style="font-size:11px; color:#64748B; line-height:1.4; margin-bottom:18px;">
+        Hac&eacute; click en el bot&oacute;n del email para entrar al sistema. El link es de un solo uso y caduca en 1 hora.
+      </p>
+      <button type="button" class="btn-login" id="btn-otp-resend" onclick="doResendOtp()" style="margin-bottom:8px;">Reenviar link</button>
+      <button type="button" class="btn-login" id="btn-otp-back" onclick="doOtpBackToLogin()" style="background:transparent; border:1px solid var(--border,rgba(59,130,246,0.2)); color:var(--muted,#94A3B8);">Volver al login</button>
+      <div class="login-error" id="otp-error" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="login-back-link" onclick="goBack()" id="login-back-link">&#8592; Volver al Inicio</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="spcd-utils.js?v=2026-05-19-v1"></script>
+<!-- Supabase SDK ANTES de spcd-supabase.js para inicializar sbAuth (Fase 2.C Etapa 3) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="spcd-supabase.js?v=2026-05-19-v1"></script>
+<script>
+/* -- STORAGE (IndexedDB) -- */
+/* SPCD_DB, SPCD_STORE, openDB, dbLoad, dbSave viven ahora en spcd-utils.js */
+
+/* -- SUPABASE CONFIG -- */
+/* SUPABASE_URL, SUPABASE_KEY y SB_HEADERS viven ahora en spcd-supabase.js */
+const SESSION_KEY = 'spcd_session';
+const SESSION_TIMEOUT = 8 * 60 * 60 * 1000; // 8 horas
+
+/* -- ESTADO -- */
+let currentScreen = 'screen-inicio';
+let navHistory = ['screen-inicio'];
+let selectedSede = '';
+let selectedRol  = '';
+let currentUser  = null; // { id, username, nombre, rol, permisos }
+
+/* -- OVERRIDE DURO DE ROL: estos usuarios SOLO pueden solicitar pedidos
+     (se fuerza rol='solicitante' sin importar lo que diga Supabase) -- */
+const SOLICITANTES_FORZADOS = ['TRUMBO', 'VFORNI', 'ISKAMLEC', 'MWSANCHEZ', 'JAVILA', 'LBASTIAS'];
+function enforceRoleOverride(user) {
+  if (!user || !user.username) return user;
+  if (SOLICITANTES_FORZADOS.includes(user.username.toUpperCase())) {
+    user.rol = 'solicitante';
+    // Limpia permisos personalizados para que use los defaults del rol solicitante
+    user.permisos = null;
+  }
+  return user;
+}
+
+/* -- CATÁLOGO DE SEDES -- */
+const ALL_SEDES = [
+  { nombre: 'Sede Hospital Italiano', tipo: 'Hospital', icon: '&#127973;' },
+  { nombre: 'Fuesmen Central',        tipo: 'Sede Central', icon: '&#127970;' },
+  { nombre: 'Sede Maipu',             tipo: 'Sede', icon: '&#128205;' },
+  { nombre: 'Sede San Rafael',        tipo: 'Sede', icon: '&#128205;' },
+  { nombre: 'Sede Tunuyan',           tipo: 'Sede', icon: '&#128205;' },
+  { nombre: 'Sede Rivadavia',         tipo: 'Sede', icon: '&#128205;' },
+  { nombre: 'Sede Hospital Central',  tipo: 'Hospital', icon: '&#127973;' },
+  { nombre: 'COIR',                   tipo: 'Fund. Centro Oncológico de Integración Regional', icon: '&#128300;' }
+];
+
+/* -- CATÁLOGO DE MÓDULOS (SVG inline) -- */
+const MODULE_CARDS = {
+  admin: {
+    clase: 'admin', nombre: 'Administrativo', key: 'admin',
+    desc: 'Derivantes &middot; Coberturas &middot; Afiliados &middot; Coseguros',
+    svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/><path d="M82 52 L82 44 Q82 38 88 38 L112 38 Q118 38 118 44 L118 52" fill="none" stroke="#3B82F6" stroke-width="3.5" stroke-linecap="round"/><rect x="45" y="52" width="110" height="72" rx="8" fill="none" stroke="#3B82F6" stroke-width="3.5"/><line x1="45" y1="75" x2="155" y2="75" stroke="#3B82F6" stroke-width="2" stroke-opacity="0.5"/><rect x="93" y="69" width="14" height="12" rx="2" fill="none" stroke="#3B82F6" stroke-width="2.5"/><text x="100" y="200" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">MÓDULO</text><text x="100" y="222" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="1">ADMINISTRATIVO</text></svg>`
+  },
+  tecnico: {
+    clase: 'tecnico', nombre: 'Técnico', key: 'tecnico',
+    desc: 'Estudios realizados &middot; Tiempos promedio &middot; Equipos',
+    svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/><rect x="40" y="35" width="120" height="80" rx="6" fill="none" stroke="#3B82F6" stroke-width="3.5"/><rect x="90" y="115" width="20" height="14" rx="2" fill="#3B82F6"/><rect x="75" y="127" width="50" height="5" rx="2" fill="#3B82F6"/><path d="M82 58 Q100 52 118 58" fill="none" stroke="#22DBAE" stroke-width="2.5" stroke-linecap="round"/><path d="M84 65 Q100 60 116 65" fill="none" stroke="#22DBAE" stroke-width="2.5" stroke-linecap="round"/><path d="M86 72 Q100 67 114 72" fill="none" stroke="#22DBAE" stroke-width="2.5" stroke-linecap="round"/><path d="M88 79 Q100 74 112 79" fill="none" stroke="#22DBAE" stroke-width="2.5" stroke-linecap="round"/><path d="M90 86 Q100 82 110 86" fill="none" stroke="#22DBAE" stroke-width="2.5" stroke-linecap="round"/><line x1="100" y1="52" x2="100" y2="56" stroke="#22DBAE" stroke-width="2.5" stroke-linecap="round"/><rect x="97" y="88" width="6" height="5" rx="1" fill="#22DBAE"/><rect x="97" y="95" width="6" height="5" rx="1" fill="#22DBAE"/><rect x="97" y="102" width="6" height="5" rx="1" fill="#22DBAE"/><text x="100" y="200" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">MÓDULO</text><text x="100" y="222" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">TÉCNICO</text></svg>`
+  },
+  medico: {
+    clase: 'medico', nombre: 'Médico', key: 'medico',
+    desc: 'Informes pendientes &middot; Tiempos &middot; Producción',
+    svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/><path d="M72 38 L72 70 Q72 95 100 95 Q128 95 128 70 L128 38" fill="none" stroke="#3B82F6" stroke-width="4" stroke-linecap="round"/><path d="M72 38 Q72 30 66 28" fill="none" stroke="#3B82F6" stroke-width="4" stroke-linecap="round"/><path d="M128 38 Q128 30 134 28" fill="none" stroke="#3B82F6" stroke-width="4" stroke-linecap="round"/><path d="M100 95 Q100 108 115 115" fill="none" stroke="#3B82F6" stroke-width="3.5" stroke-linecap="round"/><circle cx="122" cy="122" r="12" fill="none" stroke="#3B82F6" stroke-width="3"/><circle cx="122" cy="122" r="5" fill="#1E3A8A" stroke="#22DBAE" stroke-width="1.5"/><text x="100" y="200" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">MÓDULO</text><text x="100" y="222" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">MÉDICO</text></svg>`
+  },
+  operativo: {
+    clase: 'operativo', nombre: 'Operativo', key: 'operativo',
+    desc: 'Stock medicación &middot; Insumos &middot; Pedidos',
+    svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gearGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#38BDF8"/><stop offset="100%" stop-color="#22D3EE"/></linearGradient></defs><rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/><g transform="translate(100 90)" fill="none" stroke="url(#gearGrad)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"><path d="M -8 -58 L 8 -58 L 10 -46 Q 18 -43 25 -38 L 37 -43 L 46 -34 L 41 -22 Q 46 -15 49 -7 L 61 -5 L 61 7 L 49 9 Q 46 17 41 24 L 46 36 L 37 45 L 25 40 Q 18 45 10 48 L 8 60 L -8 60 L -10 48 Q -18 45 -25 40 L -37 45 L -46 36 L -41 24 Q -46 17 -49 9 L -61 7 L -61 -5 L -49 -7 Q -46 -15 -41 -22 L -46 -34 L -37 -43 L -25 -38 Q -18 -43 -10 -46 Z"/><circle cx="0" cy="0" r="18"/></g><text x="100" y="200" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">MÓDULO</text><text x="100" y="222" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">OPERATIVO</text></svg>`
+  },
+  personal: {
+    clase: 'personal', nombre: 'Personal', key: 'personal',
+    desc: 'Licencias &middot; Cambios de turno &middot; Horarios',
+    svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/><rect x="45" y="38" width="110" height="90" rx="10" fill="none" stroke="#A78BFA" stroke-width="3.5"/><line x1="45" y1="60" x2="155" y2="60" stroke="#A78BFA" stroke-width="2.5"/><circle cx="70" cy="48" r="2.5" fill="#A78BFA"/><circle cx="130" cy="48" r="2.5" fill="#A78BFA"/><line x1="70" y1="40" x2="70" y2="54" stroke="#A78BFA" stroke-width="2.5" stroke-linecap="round"/><line x1="130" y1="40" x2="130" y2="54" stroke="#A78BFA" stroke-width="2.5" stroke-linecap="round"/><rect x="60" y="72" width="14" height="12" rx="2" fill="#A78BFA" fill-opacity="0.3" stroke="#A78BFA" stroke-width="1.5"/><rect x="80" y="72" width="14" height="12" rx="2" fill="none" stroke="#A78BFA" stroke-width="1.5"/><rect x="100" y="72" width="14" height="12" rx="2" fill="#22DBAE" fill-opacity="0.5" stroke="#22DBAE" stroke-width="1.5"/><rect x="120" y="72" width="14" height="12" rx="2" fill="none" stroke="#A78BFA" stroke-width="1.5"/><rect x="60" y="90" width="14" height="12" rx="2" fill="none" stroke="#A78BFA" stroke-width="1.5"/><rect x="80" y="90" width="14" height="12" rx="2" fill="#A78BFA" fill-opacity="0.3" stroke="#A78BFA" stroke-width="1.5"/><rect x="100" y="90" width="14" height="12" rx="2" fill="none" stroke="#A78BFA" stroke-width="1.5"/><rect x="120" y="90" width="14" height="12" rx="2" fill="none" stroke="#A78BFA" stroke-width="1.5"/><rect x="60" y="108" width="14" height="12" rx="2" fill="none" stroke="#A78BFA" stroke-width="1.5"/><rect x="80" y="108" width="14" height="12" rx="2" fill="none" stroke="#A78BFA" stroke-width="1.5"/><rect x="100" y="108" width="14" height="12" rx="2" fill="none" stroke="#A78BFA" stroke-width="1.5"/><rect x="120" y="108" width="14" height="12" rx="2" fill="#22DBAE" fill-opacity="0.5" stroke="#22DBAE" stroke-width="1.5"/><text x="100" y="200" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">MÓDULO</text><text x="100" y="222" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="1">PERSONAL</text></svg>`
+  }
+};
+
+/* -- SESSION -- */
+function getSession() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SESSION_KEY));
+    if (s && Date.now() - s.ts < SESSION_TIMEOUT) return s.user;
+    localStorage.removeItem(SESSION_KEY);
+  } catch(e) {}
+  return null;
+}
+function saveSession(user) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ user, ts: Date.now() }));
+  // También guardar en la key vieja para compatibilidad con operativo.html
+  localStorage.setItem('spcd_operativo_session', JSON.stringify({ user, ts: Date.now() }));
+}
+
+/* -- NAVEGACION -- */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active','exit'));
+  document.getElementById(id).classList.add('active');
+  currentScreen = id;
+
+  const btn = document.getElementById('btn-back');
+  const badge = document.getElementById('lumen-badge');
+  if (id === 'screen-inicio') {
+    btn.classList.remove('visible');
+    if (badge) badge.style.display = 'none';
+  } else {
+    btn.classList.add('visible');
+    document.getElementById('back-label').textContent =
+      id === 'screen-login'  ? 'Inicio' :
+      id === 'screen-sedes'  ? 'Cerrar sesión' :
+      id === 'screen-roles'  ? 'Sedes'  : 'Volver';
+    if (badge) badge.style.display = 'inline-flex';
+  }
+}
+
+function goBack() {
+  // Si está en sedes y vuelve, cerrar sesión
+  if (currentScreen === 'screen-sedes') {
+    doLogout();
+    return;
+  }
+  navHistory.pop();
+  showScreen(navHistory[navHistory.length - 1]);
+}
+
+function navigate(id) {
+  navHistory.push(id);
+  showScreen(id);
+}
+
+function goToLogin() {
+  // Si ya tiene sesión activa, ir directo a sedes
+  const saved = getSession();
+  if (saved) {
+    currentUser = enforceRoleOverride(saved);
+    afterLogin();
+    return;
+  }
+  navigate('screen-login');
+  setTimeout(() => document.getElementById('login-user').focus(), 300);
+}
+
+function doLogout() {
+  localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem('spcd_operativo_session');
+  currentUser = null;
+  navHistory = ['screen-inicio'];
+  showScreen('screen-inicio');
+  document.getElementById('login-user').value = '';
+  document.getElementById('login-pin').value = '';
+  document.getElementById('login-error').style.display = 'none';
+}
+
+
+/* -- Auto-detect si el usuario est&aacute; migrado a OTP (Fase 2.C Etapa 3 v2) -- */
+let _checkingMigrated = null;
+async function checkIfMigrated() {
+  const userEl = document.getElementById('login-user');
+  const username = userEl.value.trim().toUpperCase();
+  if (!username || username.length < 3) {
+    // Mostrar todo por defecto
+    document.getElementById('pin-group').style.display = '';
+    document.getElementById('otp-info').style.display = 'none';
+    return;
+  }
+  // Debounce: cancelar request previa si est&aacute; pendiente
+  if (_checkingMigrated && _checkingMigrated.username === username) return;
+  _checkingMigrated = { username };
+  try {
+    const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/esta_migrado', {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_username: username })
+    });
+    if (!r.ok) return;
+    const migrado = await r.json();
+    // Si el username cambi&oacute; mientras consult&aacute;bamos, descartar
+    if (_checkingMigrated.username !== username) return;
+    if (migrado) {
+      document.getElementById('pin-group').style.display = 'none';
+      document.getElementById('otp-info').style.display = 'block';
+      document.getElementById('btn-login-submit').textContent = 'Enviar link a mi email';
+    } else {
+      document.getElementById('pin-group').style.display = '';
+      document.getElementById('otp-info').style.display = 'none';
+      document.getElementById('btn-login-submit').textContent = 'Ingresar';
+    }
+  } catch (e) {
+    // Sin red o RPC ca&iacute;do: dejar el form como est&aacute;
+  }
+}
+
+// Activar auto-detect: se ejecuta al perder foco (blur) y mientras tipea con debounce
+(function setupAutoDetect() {
+  const tryAttach = () => {
+    const el = document.getElementById('login-user');
+    if (!el) { setTimeout(tryAttach, 200); return; }
+    let timer;
+    el.addEventListener('input', () => {
+      clearTimeout(timer);
+      timer = setTimeout(checkIfMigrated, 400);
+    });
+    el.addEventListener('blur', checkIfMigrated);
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', tryAttach);
+  } else {
+    tryAttach();
+  }
+})();
+
+/* -- Traductor de errores comunes Supabase Auth -- */
+function _traducirErrorSupabase(msg) {
+  msg = String(msg || '');
+  // Rate limit: "For security purposes, you can only request this after 33 seconds."
+  const m = msg.match(/after\s+(\d+)\s+seconds?/i);
+  if (m) return 'Espera ' + m[1] + ' segundos antes de pedir otro link.';
+  if (/rate.?limit/i.test(msg)) return 'Demasiados intentos. Espera unos segundos.';
+  if (/invalid.?or.?has.?expired|otp.?expired/i.test(msg)) return 'El link expir&oacute; o ya fue usado. Ped&iacute; uno nuevo.';
+  if (/invalid.?login|user.?not.?found/i.test(msg)) return 'Usuario o credenciales incorrectos.';
+  if (/network|fetch|connection/i.test(msg)) return 'Error de conexi&oacute;n. Verific&aacute; tu internet.';
+  return msg; // dejar original si no matchea
+}
+
+/* -- LOGIN TRIPLE (Fase 2.E · 2026-05-19) --
+   Orden de evaluación:
+     1) email_para_otp(username) → si devuelve email, PRIMERA VEZ → magic link.
+     2) email_para_login(username) → si devuelve email, login con PIN via
+        Supabase signInWithPassword (mantiene sesión auth activa para RLS).
+     3) verificar_pin(username, pin) → fallback legacy para usuarios sin
+        auth_user_id (sin Supabase Auth). */
+
+let _otpLastUsername = null;
+let _otpLastEmail = null;
+
+async function _sbRpcAnon(fn, body) {
+  const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/' + fn, {
+    method: 'POST',
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error('RPC ' + fn + ' error: ' + r.status);
+  return r.json();
+}
+
+async function doLoginOperativo(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btn-login-submit');
+  const errEl = document.getElementById('login-error');
+  errEl.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Verificando...';
+
+  try {
+    const username = document.getElementById('login-user').value.trim().toUpperCase();
+    const pin = document.getElementById('login-pin').value.trim();
+
+    if (!username) throw new Error('Ingresá tu usuario.');
+
+    // 1) ¿Primera vez? (migrado pero pin_set_at IS NULL)
+    let emailPrimerLogin = null;
+    try {
+      emailPrimerLogin = await _sbRpcAnon('email_para_otp', { p_username: username });
+    } catch (rpcErr) {
+      console.warn('[login] email_para_otp no disponible:', rpcErr);
+    }
+
+    if (emailPrimerLogin) {
+      // 1a) Magic link SOLO la primera vez
+      await _sendOtpFromIndex(username, emailPrimerLogin);
+      return;
+    }
+
+    // 2) Necesita PIN: validar formato
+    if (!pin) throw new Error('Ingresá tu PIN.');
+    if (!/^\d{4,6}$/.test(pin)) throw new Error('El PIN debe ser de 4 a 6 dígitos.');
+
+    // 3) ¿Tiene email vinculado? (usuario migrado que ya seteó PIN propio)
+    let emailLogin = null;
+    try {
+      emailLogin = await _sbRpcAnon('email_para_login', { p_username: username });
+    } catch (rpcErr) {
+      console.warn('[login] email_para_login no disponible:', rpcErr);
+    }
+
+    if (emailLogin && window.sbAuth) {
+      // 3a) PIN como password via Supabase Auth (mantiene sesión + RLS)
+      const { data, error } = await window.sbAuth.auth.signInWithPassword({
+        email: emailLogin,
+        password: pin
+      });
+      if (error || !data || !data.user) {
+        throw new Error('Usuario o PIN incorrecto.');
+      }
+      // Cargar row de usuarios autenticado
+      const rows = await sbRpc('usuario_por_auth_id', { p_auth_user_id: data.user.id });
+      if (!rows || rows.length === 0) {
+        try { await window.sbAuth.auth.signOut(); } catch {}
+        throw new Error('Tu usuario no está vinculado en el sistema. Avisá al admin.');
+      }
+      currentUser = enforceRoleOverride(rows[0]);
+      saveSession(currentUser);
+      afterLogin();
+      return;
+    }
+
+    // 4) Fallback legacy: verificar_pin (usuarios sin auth_user_id)
+    const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/verificar_pin', {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ p_username: username, p_pin: pin })
+    });
+    if (!r.ok) throw new Error('Error de conexión al servidor.');
+    const result = await r.json();
+    if (!result || result.length === 0) throw new Error('Usuario o PIN incorrecto.');
+
+    currentUser = enforceRoleOverride(result[0]);
+    saveSession(currentUser);
+    afterLogin();
+
+  } catch (err) {
+    errEl.textContent = _traducirErrorSupabase(err.message);
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Ingresar';
+  }
+}
+
+// ─── Helpers OTP ───
+async function _sendOtpFromIndex(username, email) {
+  if (!window.sbAuth) {
+    throw new Error('Supabase Auth no inicializado. Recargá la página o avisá al admin.');
+  }
+  const redirectTo = window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + 'operativo.html';
+  const { error } = await window.sbAuth.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: redirectTo }
+  });
+  if (error) throw new Error('No pudimos enviar el link: ' + error.message);
+
+  _otpLastUsername = username;
+  _otpLastEmail = email;
+
+  document.getElementById('login-form').style.display = 'none';
+  document.getElementById('login-back-link').style.display = 'none';
+  const panel = document.getElementById('otp-sent-panel');
+  panel.style.display = 'block';
+  const masked = _maskEmailIndex(email);
+  document.getElementById('otp-sent-msg').innerHTML =
+    'Te enviamos un link de acceso a <strong>' + masked + '</strong>.';
+}
+
+function _maskEmailIndex(email) {
+  const [local, domain] = String(email || '').split('@');
+  if (!local || !domain) return email;
+  const head = local.slice(0, 2);
+  const tail = local.slice(-1);
+  return head + '***' + tail + '@' + domain;
+}
+
+async function doResendOtp() {
+  const errEl = document.getElementById('otp-error');
+  const btn = document.getElementById('btn-otp-resend');
+  errEl.style.display = 'none';
+  if (!_otpLastEmail) { doOtpBackToLogin(); return; }
+  btn.disabled = true; btn.textContent = 'Enviando...';
+  try {
+    await _sendOtpFromIndex(_otpLastUsername, _otpLastEmail);
+    errEl.style.color = 'var(--cyan, #22DBAE)';
+    errEl.textContent = '✓ Link reenviado. Revisá tu casilla.';
+    errEl.style.display = 'block';
+  } catch (err) {
+    errEl.style.color = '';
+    errEl.textContent = err.message;
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Reenviar link';
+  }
+}
+
+function doOtpBackToLogin() {
+  _otpLastUsername = null;
+  _otpLastEmail = null;
+  document.getElementById('otp-sent-panel').style.display = 'none';
+  document.getElementById('otp-error').style.display = 'none';
+  document.getElementById('login-form').style.display = '';
+  document.getElementById('login-back-link').style.display = '';
+  document.getElementById('login-pin').value = '';
+  document.getElementById('login-user').focus();
+}
+
+/* -- AFTER LOGIN: filtrar sedes y módulos -- */
+// Defaults por rol (si permisos JSONB aún no existe en DB)
+const ROLE_DEFAULTS = {
+  admin:       { sedes: ['*'], modulos: { admin:'edit', tecnico:'edit', medico:'edit', operativo:'admin', personal:'admin' } },
+  consultor:   { sedes: ['*'], modulos: { admin:'view', tecnico:'view', medico:'view', operativo:'view', personal:'view' } },
+  mixto:       { sedes: ['Sede Hospital Italiano'], modulos: { medico:'edit', operativo:'admin', personal:'user' } },
+  solicitante: { sedes: ['Sede Hospital Italiano'], modulos: { operativo:'pedidos', personal:'user' } },
+  // Rol con acceso EXCLUSIVO al módulo Personal (solicitudes de licencia)
+  licencias:   { sedes: ['Sede Hospital Italiano'], modulos: { personal:'user' } }
+};
+
+function getPermisos() {
+  const p = currentUser.permisos;
+  // Si permisos viene con contenido real (tiene sedes o modulos), usarlo
+  if (p && (p.sedes || p.modulos)) return p;
+  // Sino, usar defaults según el rol
+  return ROLE_DEFAULTS[currentUser.rol] || ROLE_DEFAULTS.solicitante;
+}
+
+function afterLogin() {
+  const permisos = getPermisos();
+  const sedesPermitidas = permisos.sedes || ['*'];
+  const allAccess = sedesPermitidas.includes('*');
+
+  // Filtrar sedes
+  const sedes = allAccess ? ALL_SEDES : ALL_SEDES.filter(s => sedesPermitidas.includes(s.nombre));
+
+  // Si solo tiene 1 sede, saltear selección
+  if (sedes.length === 1) {
+    selectedSede = sedes[0].nombre;
+    localStorage.setItem('spcd_sede', selectedSede);
+    document.getElementById('sede-tag').textContent = selectedSede.toUpperCase();
+    renderModules();
+    navHistory = ['screen-inicio', 'screen-roles'];
+    showScreen('screen-roles');
+    return;
+  }
+
+  // Renderizar sedes filtradas
+  renderSedes(sedes);
+  navHistory = ['screen-inicio', 'screen-sedes'];
+  showScreen('screen-sedes');
+}
+
+function renderSedes(sedes) {
+  const grid = document.getElementById('sedes-grid');
+  grid.innerHTML = sedes.map((s, i) =>
+    `<button class="sede-btn" onclick="selectSede('${s.nombre}')" style="animation-delay:${(i+1)*0.05}s">
+      <span class="sede-icon">${s.icon}</span>
+      <div class="sede-info">
+        <div class="sede-name">${s.nombre.toUpperCase()}</div>
+        <div class="sede-type">${s.tipo}</div>
+      </div>
+      <span class="sede-arrow">&#8250;</span>
+    </button>`
+  ).join('');
+}
+
+function selectSede(nombre) {
+  selectedSede = nombre;
+  localStorage.setItem('spcd_sede', selectedSede);
+  document.getElementById('sede-tag').textContent = nombre.toUpperCase();
+  renderModules();
+  navigate('screen-roles');
+}
+
+async function renderModules() {
+  const permisos = getPermisos();
+  const modulos = permisos.modulos || {};
+  const grid = document.getElementById('roles-grid');
+
+  // Atajo: si el usuario tiene acceso a UN SOLO m\u00f3dulo, lo mandamos directo ah\u00ed
+  // (no tiene sentido mostrarle la pantalla de selecci\u00f3n con una sola card).
+  // Si tiene 2 o m\u00e1s (ej: operativo + personal para solicitantes), mostramos la pantalla.
+  const modulosConPermiso = ['admin', 'tecnico', 'medico', 'operativo', 'personal']
+    .filter(key => modulos[key]);
+  if (modulosConPermiso.length === 1) {
+    const key = modulosConPermiso[0];
+    const destinos = { admin:'admin.html', tecnico:'tecnico.html', medico:'medico.html', operativo:'operativo.html?modo=pedidos', personal:'personal.html' };
+    localStorage.setItem('spcd_rol', key);
+    window.location.replace(destinos[key] || 'index.html');
+    return;
+  }
+
+  // Greeting
+  document.getElementById('user-greeting').textContent = currentUser.nombre;
+
+  // Check pending pedidos for notification dot
+  let pendingCount = 0;
+  if (modulos.operativo === 'admin') {
+    try {
+      const r = await fetch(SUPABASE_URL + '/rest/v1/v_pedidos?select=id&estado=eq.PENDIENTE', {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+      });
+      if (r.ok) { const data = await r.json(); pendingCount = data.length; }
+    } catch(e) { /* silent */ }
+  }
+
+  // Solo mostrar módulos que el usuario tiene permiso
+  const order = ['admin', 'tecnico', 'medico', 'operativo', 'personal'];
+  const cards = order
+    .filter(key => modulos[key]) // solo los que tiene algún permiso
+    .map((key, i) => {
+      const m = MODULE_CARDS[key];
+      const perm = modulos[key];
+      const badge = perm === 'view' ? '<div style="font-size:10px; letter-spacing:1.5px; color:var(--muted); margin-top:4px; text-transform:uppercase;">Solo lectura</div>' : '';
+      const notifDot = (key === 'operativo' && pendingCount > 0)
+        ? `<span class="notif-dot">${pendingCount}</span>` : '';
+      return `<div class="role-card ${m.clase}" onclick="selectRol('${m.nombre}','${m.key}')" style="padding:12px 20px; animation-delay:${(i+1)*0.1}s; position:relative;">
+        ${notifDot}
+        ${m.svg}
+        <div class="role-desc">${m.desc}${badge}</div>
+      </div>`;
+    });
+
+  grid.innerHTML = cards.length > 0 ? cards.join('') :
+    '<div style="text-align:center; color:var(--muted); padding:40px;"><p>No tenés módulos asignados para esta sede.</p><p style="font-size:11px; margin-top:8px;">Contactá al administrador.</p></div>';
+}
+
+function selectRol(nombre, clase) {
+  selectedRol = nombre;
+  localStorage.setItem('spcd_rol', nombre);
+  const destinos = { admin:'admin.html', tecnico:'tecnico.html', medico:'medico.html', operativo:'operativo.html', personal:'personal.html' };
+  window.location.href = destinos[clase] || 'index.html';
+}
+
+/* -- EXCEL UPLOAD -- */
+function handleExcelUpload(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  const zone = document.getElementById('upload-zone');
+  const progress = document.getElementById('upload-progress');
+  const sub = document.getElementById('upload-sub');
+  const title = document.getElementById('upload-title');
+  const icon = document.getElementById('upload-icon');
+  const badge = document.getElementById('upload-badge');
+
+  sub.textContent = 'Procesando...';
+  sub.className = 'upload-sub';
+  progress.style.width = '60%';
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'binary', cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+      dbSave('spcd_data_full', data).catch(err => console.warn('IndexedDB error:', err));
+      localStorage.setItem('spcd_upload_date', new Date().toLocaleString('es-AR', {hour12:false}));
+      try { localStorage.removeItem('spcd_data_full'); } catch(e) {} // limpiar viejo storage
+
+      progress.style.width = '100%';
+      setTimeout(() => {
+        zone.classList.add('has-data');
+        icon.innerHTML = '&#9989;';
+        title.textContent = file.name;
+        sub.textContent = data.length.toLocaleString() + ' registros cargados';
+        sub.className = 'upload-sub loaded';
+        badge.textContent = 'OK';
+        document.getElementById('btn-reload').style.display = 'inline-block';
+        setTimeout(() => { progress.style.width = '0'; }, 600);
+      }, 400);
+    } catch(err) {
+      progress.style.width = '0';
+      sub.textContent = 'Error al leer el archivo. Verifica el formato.';
+      sub.className = 'upload-sub';
+      console.error('Error parsing Excel:', err);
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+
+// Drag & drop
+(function() {
+  const zone = document.getElementById('upload-zone');
+  const input = document.getElementById('excel-input');
+  ['dragenter','dragover'].forEach(ev => {
+    zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.add('dragover'); });
+  });
+  ['dragleave','drop'].forEach(ev => {
+    zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.remove('dragover'); });
+  });
+  zone.addEventListener('drop', e => {
+    const files = e.dataTransfer.files;
+    if (files.length) {
+      input.files = files;
+      handleExcelUpload({ target: { files: files } });
+    }
+  });
+})();
+
+// Check if data already loaded from previous session (IndexedDB)
+dbLoad('spcd_data_full').then(data => {
+  if (data && data.length > 0) {
+    const zone = document.getElementById('upload-zone');
+    zone.classList.add('has-data');
+    document.getElementById('upload-icon').innerHTML = '&#9989;';
+    document.getElementById('upload-title').textContent = 'DATOS CARGADOS';
+    document.getElementById('upload-sub').textContent = data.length.toLocaleString() + ' registros (sesión anterior)';
+    document.getElementById('upload-sub').className = 'upload-sub loaded';
+    document.getElementById('upload-badge').textContent = 'OK';
+    document.getElementById('btn-reload').style.display = 'inline-block';
+  }
+}).catch(e => console.warn('Error loading IndexedDB data:', e));
+
+// Si viene con ?screen=roles y tiene sesión, ir directo a Área de Trabajo
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('screen') === 'roles') {
+    const saved = getSession();
+    const sede = localStorage.getItem('spcd_sede') || '';
+    if (saved && sede) {
+      currentUser = enforceRoleOverride(saved);
+      selectedSede = sede;
+      document.getElementById('sede-tag').textContent = sede.toUpperCase();
+      renderModules();
+      navHistory = ['screen-inicio', 'screen-sedes', 'screen-roles'];
+      showScreen('screen-roles');
+    } else if (saved) {
+      currentUser = enforceRoleOverride(saved);
+      afterLogin();
+    }
+  }
+  if (params.get('screen') === 'login') {
+    showScreen('screen-login');
+    setTimeout(function(){ var el=document.getElementById('login-user'); if(el) el.focus(); }, 300);
+  }
+})();
+
+/* -- GENERAR ICONO PWA DINÁMICO -- */
+(function() {
+  const c = document.createElement('canvas');
+  c.width = 180; c.height = 180;
+  const ctx = c.getContext('2d');
+  const s = 180 / 512;
+  ctx.scale(s, s);
+
+  // Background
+  const bg = ctx.createLinearGradient(0, 0, 512, 512);
+  bg.addColorStop(0, '#1E3A8A'); bg.addColorStop(1, '#0F172A');
+  ctx.beginPath();
+  ctx.moveTo(90, 0); ctx.lineTo(422, 0);
+  ctx.quadraticCurveTo(512, 0, 512, 90);
+  ctx.lineTo(512, 422); ctx.quadraticCurveTo(512, 512, 422, 512);
+  ctx.lineTo(90, 512); ctx.quadraticCurveTo(0, 512, 0, 422);
+  ctx.lineTo(0, 90); ctx.quadraticCurveTo(0, 0, 90, 0);
+  ctx.closePath();
+  ctx.fillStyle = bg; ctx.fill();
+
+  // Glow
+  const ig = ctx.createRadialGradient(256, 200, 0, 256, 256, 320);
+  ig.addColorStop(0, 'rgba(59,130,246,0.18)'); ig.addColorStop(1, 'rgba(10,15,20,0)');
+  ctx.fillStyle = ig; ctx.fillRect(0, 0, 512, 512);
+
+  // Shield
+  const cx2 = 256, cy2 = 215;
+  ctx.beginPath();
+  ctx.moveTo(cx2, cy2 - 115);
+  ctx.bezierCurveTo(cx2+60,cy2-115, cx2+120,cy2-85, cx2+105,cy2+20);
+  ctx.bezierCurveTo(cx2+95,cy2+80, cx2+50,cy2+120, cx2,cy2+135);
+  ctx.bezierCurveTo(cx2-50,cy2+120, cx2-95,cy2+80, cx2-105,cy2+20);
+  ctx.bezierCurveTo(cx2-120,cy2-85, cx2-60,cy2-115, cx2,cy2-115);
+  ctx.closePath();
+  const sf = ctx.createLinearGradient(cx2-110,cy2-115, cx2+110,cy2+135);
+  sf.addColorStop(0,'#0F172A'); sf.addColorStop(0.4,'#111d35'); sf.addColorStop(1,'#0F172A');
+  ctx.fillStyle = sf; ctx.fill();
+  const sb = ctx.createLinearGradient(cx2-110,cy2-115, cx2+110,cy2+135);
+  sb.addColorStop(0,'#3B82F6'); sb.addColorStop(0.6,'#22DBAE'); sb.addColorStop(1,'#3B82F6');
+  ctx.strokeStyle = sb; ctx.lineWidth = 5; ctx.stroke();
+
+  // Wave
+  ctx.save(); ctx.clip();
+  ctx.beginPath();
+  ctx.moveTo(cx2-130, cy2+40);
+  ctx.quadraticCurveTo(cx2-30,cy2+5, cx2+20,cy2+50);
+  ctx.quadraticCurveTo(cx2+70,cy2+90, cx2+130,cy2+30);
+  ctx.lineTo(cx2+130,cy2+160); ctx.lineTo(cx2-130,cy2+160); ctx.closePath();
+  const wg = ctx.createLinearGradient(cx2-100,cy2+30, cx2+100,cy2+140);
+  wg.addColorStop(0,'rgba(59,130,246,0.35)'); wg.addColorStop(1,'rgba(34,219,174,0.25)');
+  ctx.fillStyle = wg; ctx.fill(); ctx.restore();
+
+  // SP
+  ctx.font = 'bold 155px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillText('SP', cx2+4, cy2+18);
+  const tg = ctx.createLinearGradient(cx2-80,cy2-50, cx2+80,cy2+50);
+  tg.addColorStop(0,'#FFFFFF'); tg.addColorStop(0.6,'#C8DEFF'); tg.addColorStop(1,'#3B82F6');
+  ctx.fillStyle = tg; ctx.fillText('SP', cx2, cy2+14);
+
+  // Bottom text
+  ctx.font = 'bold 38px Arial'; ctx.fillStyle = '#22DBAE';
+  ctx.fillText('CONTROL DATA', cx2, 420);
+
+  // Set apple-touch-icon
+  const link = document.getElementById('apple-icon');
+  if (link) link.href = c.toDataURL('image/png');
+})();
+
+/* -- CANVAS: PARTICULAS / CIRCUITOS -- */
+(function() {
+  const canvas  = document.getElementById('bg-canvas');
+  const ctx     = canvas.getContext('2d');
+  let W, H, particles = [], nodes = [];
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+
+  function randomBetween(a, b) { return a + Math.random() * (b - a); }
+
+  function initParticles() {
+    particles = [];
+    const count = Math.floor((W * H) / 18000);
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: randomBetween(.5, 2),
+        vx: randomBetween(-.15, .15),
+        vy: randomBetween(-.15, .15),
+        alpha: randomBetween(.2, .6),
+        color: Math.random() > .5 ? '#22DBAE' : '#3B82F6'
+      });
+    }
+    nodes = particles.slice(0, 12);
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Gradient overlay
+    const grad = ctx.createRadialGradient(W*.5, H*.5, 0, W*.5, H*.5, W*.7);
+    grad.addColorStop(0, 'rgba(30,58,138,.15)');
+    grad.addColorStop(1, 'rgba(10,15,20,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(30,58,138,.25)';
+    ctx.lineWidth = .5;
+    const gSize = 60;
+    for (let x = 0; x < W; x += gSize) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    }
+    for (let y = 0; y < H; y += gSize) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+
+    // Connections between nearby nodes
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const dx = nodes[i].x - nodes[j].x;
+        const dy = nodes[i].y - nodes[j].y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 200) {
+          ctx.beginPath();
+          ctx.strokeStyle = 'rgba(34,219,174,' + (.12 * (1 - dist/200)) + ')';
+          ctx.lineWidth = .8;
+          ctx.moveTo(nodes[i].x, nodes[i].y);
+          ctx.lineTo(nodes[j].x, nodes[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Particles
+    particles.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.globalAlpha = p.alpha;
+      ctx.fillStyle   = p.color;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = W;
+      if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H;
+      if (p.y > H) p.y = 0;
+    });
+
+    requestAnimationFrame(draw);
+  }
+
+  resize();
+  initParticles();
+  draw();
+  window.addEventListener('resize', () => { resize(); initParticles(); });
+})();
+</script>
+<script src="chatbot.js?v=ai-2026-04-20-g"></script>
+</body>
+</html>
