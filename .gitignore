@@ -17,3 +17,7 @@ desktop.ini
 
 # Logs
 *.log
+
+# Lanzador local del bot FUESMEN (no debe servirse en GitHub Pages)
+reparar_lumen.ps1
+*.reg

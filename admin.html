@@ -1000,16 +1000,27 @@
     <div class="reparar-box-body">
       <div class="reparar-step">
         <span class="rs-num">1</span>
-        <div><b id="reparar-count-txt">Generando Excel…</b> El archivo se descargó en tu carpeta <b>Descargas</b> con el nombre que el bot ya espera. No lo renombres ni lo muevas.</div>
+        <div><b id="reparar-count-txt">Generando Excel…</b> Se descargó en tu carpeta <b>Descargas</b> con el nombre que el bot ya espera. No lo renombres ni lo muevas.</div>
       </div>
       <div class="reparar-step">
         <span class="rs-num">2</span>
-        <div>Abrí <b>PowerShell</b> y pegá este comando. El bot abre FUESMEN, te pedís login manual y procesa los turnos:
+        <div>Se está abriendo <b>PowerShell</b> y arrancando el bot. Si el navegador pregunta <i>"¿Abrir LumenBot?"</i>, dale <b>Abrir</b> (tildá "Permitir siempre" para que no vuelva a preguntar).</div>
+      </div>
+      <div class="reparar-step">
+        <span class="rs-num">3</span>
+        <div>Logueate en FUESMEN en la ventana que abre el bot, volvé a PowerShell y apretá <b>ENTER</b>. El bot procesa los turnos solo.</div>
+      </div>
+      <details style="margin-top:6px">
+        <summary style="cursor:pointer;color:var(--muted);font-size:12px">¿No se abrió PowerShell?</summary>
+        <div style="margin-top:10px;font-size:12.5px;line-height:1.5">
+          La primera vez hay que registrar el protocolo: ejecutá <b>una sola vez</b> el archivo
+          <code style="color:var(--cyan)">lumenbot_install.reg</code> (doble clic → "Sí"). Después, este botón abre PowerShell solo.
+          <div style="margin-top:8px">O corré el comando a mano:</div>
           <div class="reparar-cmd" id="reparar-cmd">cd "C:\Users\pitre\OneDrive\Documentos\Claude\Projects\Automatización tareas adm\fuesmen_bot"; .\.venv\Scripts\Activate.ps1; python bot.py</div>
           <button class="reparar-copy" onclick="copiarComandoReparar()">📋 Copiar comando</button>
         </div>
-      </div>
-      <div class="reparar-note">El bot va a preguntarte cuántos turnos procesar (ENTER = todos). Solo cambia los que siguen marcados como error; los ya reparados se saltean por historial.</div>
+      </details>
+      <div class="reparar-note">El bot pregunta cuántos turnos procesar (ENTER = todos). Solo cambia los que siguen como error; los ya reparados se saltean por historial.</div>
     </div>
   </div>
 </div>
@@ -3207,6 +3218,9 @@ async function repararInstDerivante() {
     if (countTxt) {
       countTxt.textContent = `${cantidad.toLocaleString('es-AR')} turno(s) exportado(s).`;
     }
+    // Dispara el protocolo lumenbot:// → abre PowerShell y corre el bot.
+    // Si no está instalado el .reg, el navegador no hace nada y queda el fallback manual del panel.
+    try { window.location.href = 'lumenbot://reparar'; } catch (e) { console.warn('protocolo lumenbot no disponible:', e); }
   } catch (err) {
     console.error('[repararInstDerivante] error al exportar:', err);
     if (countTxt) countTxt.textContent = 'No se pudo generar el Excel.';
