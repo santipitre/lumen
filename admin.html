@@ -256,6 +256,54 @@
       transition:all .2s; white-space:nowrap;
     }
     .btn-csv:hover { background:rgba(34,219,174,.2); }
+    /* Botón Reparar (solo modal instderiv) */
+    .btn-reparar {
+      padding:8px 16px; border-radius:6px;
+      background:rgba(248,113,113,.12); border:1px solid rgba(248,113,113,.4);
+      color:var(--red); font-size:11px; letter-spacing:2px;
+      text-transform:uppercase; cursor:pointer; font-family:'Inter',sans-serif;
+      transition:all .2s; white-space:nowrap;
+    }
+    .btn-reparar:hover { background:rgba(248,113,113,.22); }
+    /* Overlay de instrucciones del bot */
+    .reparar-overlay {
+      display:none; position:fixed; inset:0; z-index:1100;
+      background:rgba(2,6,16,.82); align-items:center; justify-content:center; padding:24px;
+    }
+    .reparar-overlay.open { display:flex; }
+    .reparar-box {
+      width:100%; max-width:560px; background:#0a1424;
+      border:1px solid rgba(248,113,113,.35); border-radius:12px;
+      box-shadow:0 24px 60px rgba(0,0,0,.6); overflow:hidden;
+    }
+    .reparar-box-head {
+      display:flex; align-items:center; gap:10px;
+      padding:16px 20px; border-bottom:1px solid var(--border);
+    }
+    .reparar-box-head .rb-title { flex:1; font-weight:700; letter-spacing:1px; color:var(--red); font-size:14px; text-transform:uppercase; }
+    .reparar-box-head .rb-close { background:transparent; border:none; color:var(--muted); font-size:20px; cursor:pointer; }
+    .reparar-box-body { padding:20px; font-size:13px; color:var(--text); line-height:1.55; }
+    .reparar-step { display:flex; gap:10px; margin-bottom:14px; }
+    .reparar-step .rs-num {
+      flex-shrink:0; width:22px; height:22px; border-radius:50%;
+      background:rgba(248,113,113,.18); border:1px solid rgba(248,113,113,.4);
+      color:var(--red); font-size:12px; font-weight:700;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .reparar-cmd {
+      position:relative; margin-top:8px; background:#060d18;
+      border:1px solid var(--border); border-radius:8px;
+      padding:12px 12px; font-family:'Rajdhani','Consolas',monospace;
+      font-size:12px; color:var(--cyan); white-space:pre-wrap; word-break:break-all;
+    }
+    .reparar-copy {
+      margin-top:10px; padding:9px 16px; border-radius:6px;
+      background:rgba(34,219,174,.12); border:1px solid rgba(34,219,174,.35);
+      color:var(--cyan); font-size:11px; letter-spacing:1.5px; text-transform:uppercase;
+      cursor:pointer; font-family:'Inter',sans-serif; transition:all .2s;
+    }
+    .reparar-copy:hover { background:rgba(34,219,174,.22); }
+    .reparar-note { margin-top:14px; font-size:11.5px; color:var(--muted); }
     /* Export dropdown */
     .export-group { position:relative; display:flex; }
     .btn-csv-arrow {
@@ -899,6 +947,8 @@
         <button class="btn-csv-arrow" onclick="toggleExportMenu(event)">▾</button>
         <div class="export-menu" id="export-menu"></div>
       </div>
+      <button id="btn-reparar-instderiv" class="btn-reparar" style="display:none"
+              onclick="repararInstDerivante()" title="Genera el Excel y te da el comando del bot FUESMEN">🔧 Reparar automáticamente</button>
     </div>
     <div class="modal-body">
       <table class="modal-table">
@@ -936,6 +986,30 @@
     <div class="modal-footer">
       <span id="modal-footer-count"></span>
       <span>Presioná <kbd style="background:var(--glass);padding:1px 6px;border-radius:3px;border:1px solid var(--border)">Esc</kbd> para cerrar</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ OVERLAY: INSTRUCCIONES BOT REPARAR (Institución Derivante) ══════ -->
+<div class="reparar-overlay" id="reparar-overlay" onclick="if(event.target===this)cerrarReparar()">
+  <div class="reparar-box">
+    <div class="reparar-box-head">
+      <span class="rb-title">🔧 Reparar Institución Derivante</span>
+      <button class="rb-close" onclick="cerrarReparar()">✕</button>
+    </div>
+    <div class="reparar-box-body">
+      <div class="reparar-step">
+        <span class="rs-num">1</span>
+        <div><b id="reparar-count-txt">Generando Excel…</b> El archivo se descargó en tu carpeta <b>Descargas</b> con el nombre que el bot ya espera. No lo renombres ni lo muevas.</div>
+      </div>
+      <div class="reparar-step">
+        <span class="rs-num">2</span>
+        <div>Abrí <b>PowerShell</b> y pegá este comando. El bot abre FUESMEN, te pedís login manual y procesa los turnos:
+          <div class="reparar-cmd" id="reparar-cmd">cd "C:\Users\pitre\OneDrive\Documentos\Claude\Projects\Automatización tareas adm\fuesmen_bot"; .\.venv\Scripts\Activate.ps1; python bot.py</div>
+          <button class="reparar-copy" onclick="copiarComandoReparar()">📋 Copiar comando</button>
+        </div>
+      </div>
+      <div class="reparar-note">El bot va a preguntarte cuántos turnos procesar (ENTER = todos). Solo cambia los que siguen marcados como error; los ya reparados se saltean por historial.</div>
     </div>
   </div>
 </div>
@@ -2646,6 +2720,10 @@ function _openModalInternal(tipo) {
   document.getElementById('modal-bar').style.background = color;
   document.getElementById('modal-search').value = '';
 
+  // Botón "Reparar" solo para Institución Derivante
+  const btnRep = document.getElementById('btn-reparar-instderiv');
+  if (btnRep) btnRep.style.display = (tipo === 'instderiv') ? 'inline-block' : 'none';
+
   modalFiltered = [...modalRows];
   renderModalTable(modalFiltered);
 
@@ -2694,6 +2772,8 @@ function handleOverlayClick(e) {
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
+    const rep = document.getElementById('reparar-overlay');
+    if (rep && rep.classList.contains('open')) { rep.classList.remove('open'); return; }
     const em = document.getElementById('export-menu');
     if (em.classList.contains('open')) { em.classList.remove('open'); return; }
     closeModal();
@@ -3101,6 +3181,75 @@ async function exportExcel(asegSuffix, share) {
     } else {
       alert('Error al generar el Excel: ' + err.message);
     }
+  }
+}
+
+/* ══════════════════════════════════
+   REPARAR — Institución Derivante (bot FUESMEN)
+   Exporta el Excel con el nombre que el bot ya espera y muestra el comando.
+══════════════════════════════════ */
+async function repararInstDerivante() {
+  if (modalTipo !== 'instderiv') return;
+
+  const cantidad = modalRows.length;
+  const overlay = document.getElementById('reparar-overlay');
+  const countTxt = document.getElementById('reparar-count-txt');
+
+  // Abrir overlay con estado "generando"
+  if (countTxt) countTxt.textContent = 'Generando Excel…';
+  if (overlay) overlay.classList.add('open');
+
+  try {
+    // Reutiliza el export existente: para instderiv produce
+    // "SPCD_Admin_Institución_Derivante_—_Probable_Error_(FUESMEN_+_Operador)_<fecha>.xlsx"
+    // que es exactamente el patrón que busca excel_reader.py en Descargas.
+    await exportExcel(undefined, false);
+    if (countTxt) {
+      countTxt.textContent = `${cantidad.toLocaleString('es-AR')} turno(s) exportado(s).`;
+    }
+  } catch (err) {
+    console.error('[repararInstDerivante] error al exportar:', err);
+    if (countTxt) countTxt.textContent = 'No se pudo generar el Excel.';
+    if (typeof spcdAlert === 'function') {
+      spcdAlert('No se pudo generar el Excel para el bot: ' + (err && err.message ? err.message : err),
+                { type:'error', title:'Error al reparar' });
+    }
+  }
+}
+
+function cerrarReparar() {
+  const overlay = document.getElementById('reparar-overlay');
+  if (overlay) overlay.classList.remove('open');
+}
+
+function copiarComandoReparar() {
+  const cmd = document.getElementById('reparar-cmd');
+  if (!cmd) return;
+  const texto = cmd.textContent;
+  const ok = () => {
+    if (typeof showToast === 'function') showToast('Comando copiado al portapapeles');
+    else if (typeof spcdAlert === 'function') spcdAlert('Comando copiado', { type:'success' });
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(texto).then(ok).catch(() => fallbackCopiar(texto, ok));
+  } else {
+    fallbackCopiar(texto, ok);
+  }
+}
+
+function fallbackCopiar(texto, ok) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = texto;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    if (ok) ok();
+  } catch (e) {
+    console.warn('No se pudo copiar el comando:', e);
   }
 }
 
