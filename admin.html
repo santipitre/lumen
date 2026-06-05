@@ -948,7 +948,7 @@
         <div class="export-menu" id="export-menu"></div>
       </div>
       <button id="btn-reparar-instderiv" class="btn-reparar" style="display:none"
-              onclick="repararInstDerivante()" title="Genera el Excel y te da el comando del bot FUESMEN">🔧 Reparar automáticamente</button>
+              onclick="repararConBot()" title="Genera el Excel y lanza el bot FUESMEN">🔧 Reparar automáticamente</button>
     </div>
     <div class="modal-body">
       <table class="modal-table">
@@ -994,7 +994,7 @@
 <div class="reparar-overlay" id="reparar-overlay" onclick="if(event.target===this)cerrarReparar()">
   <div class="reparar-box">
     <div class="reparar-box-head">
-      <span class="rb-title">🔧 Reparar Institución Derivante</span>
+      <span class="rb-title" id="reparar-title">🔧 Reparar</span>
       <button class="rb-close" onclick="cerrarReparar()">✕</button>
     </div>
     <div class="reparar-box-body">
@@ -2731,9 +2731,9 @@ function _openModalInternal(tipo) {
   document.getElementById('modal-bar').style.background = color;
   document.getElementById('modal-search').value = '';
 
-  // Botón "Reparar" solo para Institución Derivante
+  // Botón "Reparar" para los KPIs que tienen bot (Inst. Derivante y Tipo Cobertura)
   const btnRep = document.getElementById('btn-reparar-instderiv');
-  if (btnRep) btnRep.style.display = (tipo === 'instderiv') ? 'inline-block' : 'none';
+  if (btnRep) btnRep.style.display = (tipo === 'instderiv' || tipo === 'cobertura') ? 'inline-block' : 'none';
 
   modalFiltered = [...modalRows];
   renderModalTable(modalFiltered);
@@ -3199,30 +3199,46 @@ async function exportExcel(asegSuffix, share) {
    REPARAR — Institución Derivante (bot FUESMEN)
    Exporta el Excel con el nombre que el bot ya espera y muestra el comando.
 ══════════════════════════════════ */
-async function repararInstDerivante() {
-  if (modalTipo !== 'instderiv') return;
+// Config por tipo de KPI que tiene bot asociado.
+const REPARAR_CFG = {
+  instderiv: {
+    titulo:    '🔧 Reparar Institución Derivante',
+    protocolo: 'lumenbot://reparar',
+    cmd:       'cd "C:\\Users\\pitre\\OneDrive\\Documentos\\Claude\\Projects\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe bot.py'
+  },
+  cobertura: {
+    titulo:    '🔧 Reparar Tipo Cobertura',
+    protocolo: 'lumenbot://cobertura',
+    cmd:       'cd "C:\\Users\\pitre\\OneDrive\\Documentos\\Claude\\Projects\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe spcd-fix-tipocobertura.py'
+  }
+};
+
+async function repararConBot() {
+  const tipo = modalTipo;
+  const cfg = REPARAR_CFG[tipo];
+  if (!cfg) return;
 
   const cantidad = modalRows.length;
-  const overlay = document.getElementById('reparar-overlay');
+  const overlay  = document.getElementById('reparar-overlay');
   const countTxt = document.getElementById('reparar-count-txt');
+  const titleEl  = document.getElementById('reparar-title');
+  const cmdEl    = document.getElementById('reparar-cmd');
 
-  // Abrir overlay con estado "generando"
+  if (titleEl) titleEl.textContent = cfg.titulo;
+  if (cmdEl)   cmdEl.textContent   = cfg.cmd;          // comando manual de fallback correcto
   if (countTxt) countTxt.textContent = 'Generando Excel…';
-  if (overlay) overlay.classList.add('open');
+  if (overlay)  overlay.classList.add('open');
 
   try {
-    // Reutiliza el export existente: para instderiv produce
-    // "SPCD_Admin_Institución_Derivante_—_Probable_Error_(FUESMEN_+_Operador)_<fecha>.xlsx"
-    // que es exactamente el patrón que busca excel_reader.py en Descargas.
+    // Reutiliza el export del modal activo. El nombre del archivo coincide con el
+    // patrón que cada bot busca en Descargas (instderiv → excel_reader; cobertura → buscar_excel_cobertura).
     await exportExcel(undefined, false);
-    if (countTxt) {
-      countTxt.textContent = `${cantidad.toLocaleString('es-AR')} turno(s) exportado(s).`;
-    }
-    // Dispara el protocolo lumenbot:// → abre PowerShell y corre el bot.
-    // Si no está instalado el .reg, el navegador no hace nada y queda el fallback manual del panel.
-    try { window.location.href = 'lumenbot://reparar'; } catch (e) { console.warn('protocolo lumenbot no disponible:', e); }
+    if (countTxt) countTxt.textContent = `${cantidad.toLocaleString('es-AR')} turno(s) exportado(s).`;
+
+    // Dispara el protocolo correcto → el lanzador elige qué bot correr según la URI.
+    try { window.location.href = cfg.protocolo; } catch (e) { console.warn('protocolo lumenbot no disponible:', e); }
   } catch (err) {
-    console.error('[repararInstDerivante] error al exportar:', err);
+    console.error('[repararConBot] error al exportar:', err);
     if (countTxt) countTxt.textContent = 'No se pudo generar el Excel.';
     if (typeof spcdAlert === 'function') {
       spcdAlert('No se pudo generar el Excel para el bot: ' + (err && err.message ? err.message : err),
