@@ -577,6 +577,13 @@
       <div class="kpi-sub" id="kpi-tramites-harefield-sub">a recepcionar</div>
       <div class="kpi-hint">ver detalle →</div>
     </div>
+    <div class="kpi-card red" onclick="openModal('tramitesfinamed')">
+      <div class="kpi-icon">⚠️</div>
+      <div class="kpi-label">Trámites Incompletos Finamed</div>
+      <div class="kpi-val" id="kpi-tramites-finamed">—</div>
+      <div class="kpi-sub" id="kpi-tramites-finamed-sub">a recepcionar</div>
+      <div class="kpi-hint">ver detalle →</div>
+    </div>
     <div class="kpi-card amber" onclick="openModal('cobertura')">
       <div class="kpi-icon">⚠️</div>
       <div class="kpi-label">Tipo Cobertura</div>
@@ -1334,6 +1341,19 @@ function esErrorTramiteHarefield(r) {
 }
 
 /* ══════════════════════════════════
+   ERROR TRÁMITES INCOMPLETOS FINAMED
+   - ID Aseguradora = 1665 (FINAMED SA - HOSP ITAL (PROV), ID estable)
+   - N° Orden = 0  → "a recepcionar"
+   (Estado = REA se aplica aguas arriba, igual que el resto de KPIs)
+══════════════════════════════════ */
+function esErrorTramiteFinamed(r) {
+  const idAseg = String(r['ID Aseguradora']||'').trim();
+  if (idAseg !== '1665') return false;
+  const orden = String(r['N° Orden'] ?? r['Nº Orden'] ?? r['N Orden'] ?? '').trim();
+  return orden === '0';
+}
+
+/* ══════════════════════════════════
    KPIs
 ══════════════════════════════════ */
 function calcKPIs(data) {
@@ -1387,8 +1407,8 @@ function calcKPIs(data) {
   const pctFuera = totalOblIds ? ((fueraFechaErr.length/totalOblIds)*100).toFixed(1) : 0;
   document.getElementById('kpi-fuerafecha-sub').textContent = `${pctFuera}% — ${asegNombres3075_1665}`;
 
-  // Trámites Incompletos (excluye Harefield, que tiene su propio cuadro)
-  const tramitesErr = rea.filter(r => esErrorTramiteIncompleto(r) && !esErrorTramiteHarefield(r));
+  // Trámites Incompletos (excluye Harefield y Finamed, que tienen su propio cuadro)
+  const tramitesErr = rea.filter(r => esErrorTramiteIncompleto(r) && !esErrorTramiteHarefield(r) && !esErrorTramiteFinamed(r));
   document.getElementById('kpi-tramites').textContent = tramitesErr.length.toLocaleString();
   const partCount = tramitesErr.filter(r => (r['Aseguradora']||'').trim().toUpperCase() === 'PARTICULAR').length;
   const obraCount = tramitesErr.length - partCount;
@@ -1398,6 +1418,11 @@ function calcKPIs(data) {
   const harefieldErr = rea.filter(r => esErrorTramiteHarefield(r));
   document.getElementById('kpi-tramites-harefield').textContent = harefieldErr.length.toLocaleString();
   document.getElementById('kpi-tramites-harefield-sub').textContent = `${harefieldErr.length.toLocaleString()} a recepcionar`;
+
+  // Trámites Incompletos Finamed (subconjunto: ID 1665 + N° Orden = 0)
+  const finamedErr = rea.filter(r => esErrorTramiteFinamed(r));
+  document.getElementById('kpi-tramites-finamed').textContent = finamedErr.length.toLocaleString();
+  document.getElementById('kpi-tramites-finamed-sub').textContent = `${finamedErr.length.toLocaleString()} a recepcionar`;
 }
 
 /* ══════════════════════════════════
@@ -2634,6 +2659,7 @@ const MODAL_COLORS = {
   fuerafecha:    'var(--amber)',
   tramites:      'var(--red)',
   tramitesharefield: 'var(--red)',
+  tramitesfinamed: 'var(--red)',
   sumerrores:    'var(--red)',
   sumturnos:     'var(--blue)',
   sumpracticas:  'var(--cyan)',
@@ -2652,6 +2678,7 @@ const MODAL_LABELS = {
   fuerafecha:    'Fuera Fecha Facturación — Error (ID 3075/1665 mes distinto)',
   tramites:      'Trámites Incompletos — Factura o N° Orden en 0',
   tramitesharefield: 'Trámites Incompletos Harefield — ID 3075 (HAREFIELD S.A.) con N° Orden en 0 (a recepcionar)',
+  tramitesfinamed: 'Trámites Incompletos Finamed — ID 1665 (FINAMED SA - HOSP ITAL (PROV)) con N° Orden en 0 (a recepcionar)',
   sumerrores:    'Todos los Errores Detectados',
   sumturnos:     'Total Turnos (Únicos)',
   sumpracticas:  'Prácticas Realizadas',
@@ -2706,6 +2733,7 @@ function _openModalInternal(tipo) {
     case 'fuerafecha':  modalRows = filtered.filter(r => esErrorFueraFechaFact(r)); break;
     case 'tramites':    modalRows = filtered.filter(r => esErrorTramiteIncompleto(r) && !esErrorTramiteHarefield(r)); break;
     case 'tramitesharefield': modalRows = filtered.filter(r => esErrorTramiteHarefield(r)); break;
+    case 'tramitesfinamed': modalRows = filtered.filter(r => esErrorTramiteFinamed(r)); break;
     case 'sumerrores':  modalRows = filtered.filter(r =>
       esErrorInstDerivante(r) ||
       (()=>{ const d=_safe(r['Derivante']).toUpperCase(); return !d || d==='A CONFIRMAR'; })() ||
@@ -3525,48 +3553,4 @@ async function guardarUsuario() {
         p_username: username, p_nombre: nombre, p_email: email,
         p_rol: rol, p_permisos: permisos
       });
-      if (typeof showToast === 'function') {
-        showToast('✅ Usuario creado: ' + username + '. PIN inicial: 1234. Ahora invitalo desde Dashboard de Supabase.');
-      } else {
-        alert('Usuario creado. PIN inicial 1234. Ahora invitalo desde Dashboard de Supabase con el email.');
-      }
-    }
-    cerrarModalUsuario();
-    await cargarUsuariosPanel();
-  } catch (e) {
-    console.error('[guardarUsuario]', e);
-    alert('Error: ' + e.message);
-  }
-}
-
-async function resetearPinPanel(id, username) {
-  if (!confirm(`¿Resetear PIN de ${username} a 1234? El usuario deberá cambiarlo al loguearse.`)) return;
-  try {
-    const res = await sbRpc('admin_reset_pin', { p_usuario_id: id });
-    if (typeof showToast === 'function') showToast('🔑 ' + (res.mensaje || 'PIN reseteado'));
-    else alert(res.mensaje || 'PIN reseteado a 1234');
-  } catch (e) {
-    alert('Error: ' + e.message);
-  }
-}
-
-async function vincularAuthPanel(id, username) {
-  const authId = prompt(
-    `Vincular ${username} con un auth.users.id\n\n` +
-    `1) Andá al Dashboard de Supabase → Authentication → Users\n` +
-    `2) Buscá al usuario por email y copiá su UID\n` +
-    `3) Pegalo acá:`
-  );
-  if (!authId) return;
-  const clean = authId.trim();
-  if (!/^[0-9a-f-]{36}$/i.test(clean)) {
-    alert('UUID inválido. Debe tener formato 8-4-4-4-12 chars hex.');
-    return;
-  }
-  try {
-    await sbRpc('admin_vincular_auth_id', { p_usuario_id: id, p_auth_user_id: clean });
-    if (typeof showToast === 'function') showToast('🔗 Vinculado: ' + username + ' ahora puede loguearse con magic link');
-    else alert('Vinculado OK. ' + username + ' ya puede loguearse con su email.');
-    await cargarUsuariosPanel();
-  } catch (e) {
-    alert('
+      if (typeof showTo
