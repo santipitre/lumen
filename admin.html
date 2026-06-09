@@ -570,6 +570,13 @@
       <div class="kpi-sub" id="kpi-tramites-sub">Factura o N° Orden en 0</div>
       <div class="kpi-hint">ver detalle →</div>
     </div>
+    <div class="kpi-card red" onclick="openModal('tramitesharefield')">
+      <div class="kpi-icon">⚠️</div>
+      <div class="kpi-label">Trámites Incompletos Harefield</div>
+      <div class="kpi-val" id="kpi-tramites-harefield">—</div>
+      <div class="kpi-sub" id="kpi-tramites-harefield-sub">a recepcionar</div>
+      <div class="kpi-hint">ver detalle →</div>
+    </div>
     <div class="kpi-card amber" onclick="openModal('cobertura')">
       <div class="kpi-icon">⚠️</div>
       <div class="kpi-label">Tipo Cobertura</div>
@@ -1314,6 +1321,19 @@ function esErrorTramiteIncompleto(r) {
 }
 
 /* ══════════════════════════════════
+   ERROR TRÁMITES INCOMPLETOS HAREFIELD
+   - ID Aseguradora = 3075 (HAREFIELD S.A., ID estable)
+   - N° Orden = 0  → "a recepcionar"
+   (Estado = REA se aplica aguas arriba, igual que el resto de KPIs)
+══════════════════════════════════ */
+function esErrorTramiteHarefield(r) {
+  const idAseg = String(r['ID Aseguradora']||'').trim();
+  if (idAseg !== '3075') return false;
+  const orden = String(r['N° Orden'] ?? r['Nº Orden'] ?? r['N Orden'] ?? '').trim();
+  return orden === '0';
+}
+
+/* ══════════════════════════════════
    KPIs
 ══════════════════════════════════ */
 function calcKPIs(data) {
@@ -1373,6 +1393,11 @@ function calcKPIs(data) {
   const partCount = tramitesErr.filter(r => (r['Aseguradora']||'').trim().toUpperCase() === 'PARTICULAR').length;
   const obraCount = tramitesErr.length - partCount;
   document.getElementById('kpi-tramites-sub').textContent = `${partCount} Part. sin fact. / ${obraCount} O.S. sin orden`;
+
+  // Trámites Incompletos Harefield (subconjunto: HAREFIELD S.A. + N° Orden = 0)
+  const harefieldErr = rea.filter(r => esErrorTramiteHarefield(r));
+  document.getElementById('kpi-tramites-harefield').textContent = harefieldErr.length.toLocaleString();
+  document.getElementById('kpi-tramites-harefield-sub').textContent = `${harefieldErr.length.toLocaleString()} a recepcionar`;
 }
 
 /* ══════════════════════════════════
@@ -2607,6 +2632,7 @@ const MODAL_COLORS = {
   cobertura:     'var(--amber)',
   fuerafecha:    'var(--amber)',
   tramites:      'var(--red)',
+  tramitesharefield: 'var(--red)',
   sumerrores:    'var(--red)',
   sumturnos:     'var(--blue)',
   sumpracticas:  'var(--cyan)',
@@ -2624,6 +2650,7 @@ const MODAL_LABELS = {
   cobertura:     'Tipo Cobertura — Error (ID 3075/1665 sin OBL)',
   fuerafecha:    'Fuera Fecha Facturación — Error (ID 3075/1665 mes distinto)',
   tramites:      'Trámites Incompletos — Factura o N° Orden en 0',
+  tramitesharefield: 'Trámites Incompletos Harefield — ID 3075 (HAREFIELD S.A.) con N° Orden en 0 (a recepcionar)',
   sumerrores:    'Todos los Errores Detectados',
   sumturnos:     'Total Turnos (Únicos)',
   sumpracticas:  'Prácticas Realizadas',
@@ -2677,6 +2704,7 @@ function _openModalInternal(tipo) {
     case 'cobertura':   modalRows = filtered.filter(r => esErrorCobertura(r)); break;
     case 'fuerafecha':  modalRows = filtered.filter(r => esErrorFueraFechaFact(r)); break;
     case 'tramites':    modalRows = filtered.filter(r => esErrorTramiteIncompleto(r)); break;
+    case 'tramitesharefield': modalRows = filtered.filter(r => esErrorTramiteHarefield(r)); break;
     case 'sumerrores':  modalRows = filtered.filter(r =>
       esErrorInstDerivante(r) ||
       (()=>{ const d=_safe(r['Derivante']).toUpperCase(); return !d || d==='A CONFIRMAR'; })() ||
