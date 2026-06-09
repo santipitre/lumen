@@ -566,9 +566,10 @@
     success(cell) { cell.font = { ...(cell.font||{}), color:{ argb:P.EMERALD }, bold:true }; },
     accent(cell)  { cell.font = { ...(cell.font||{}), color:{ argb:P.CYAN }, bold:true }; }
   };
-
-  /* ─────────────────────  EXPORT API  ───────────────────── */
   root.SpcdExcel = {
-    PALETTE, P,
-    ready,
-    gene
+    PALETTE, P, ready, generateLogoPNG, createBook, buildHeader, buildKPIs,
+    buildSection, buildTable, buildTotals, buildFooter, exportAndShare,
+    makeReportHash, Fmt, fillCell, fillRange, getCurrentUser, getCurrentSede,
+    nowAr, dateAr, nowIsoDate
+  };
+})(window);
