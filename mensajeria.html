@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="spcd-components.css"/>
   <link rel="stylesheet" href="spcd-dialog.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+  <script src="spcd-excel-template.js?v=2026060801"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
   :root {
@@ -1134,50 +1135,20 @@ async function resetearPin(mensajeroId, nombre){
   } catch(e){ alert('Error: ' + e.message); }
 }
 
-// ═════════════════ EXPORT EXCEL (con plantilla corporativa) ═════════════════
+// ═════════════════ EXPORT EXCEL (template Lumen by Pyralis) ═════════════════
 async function exportarExcel(){
   if (!retirosFiltrados.length){ alert('No hay retiros para exportar'); return; }
   try {
-    const wb = new ExcelJS.Workbook();
-    wb.creator = 'Lumen'; wb.lastModifiedBy = 'Lumen'; wb.created = new Date();
+    // Fallback defensivo: si el template no cargó, avisar en vez de romper
+    if (!window.SpcdExcel) { alert('No se pudo cargar la plantilla de exportación (spcd-excel-template.js).'); return; }
+    await SpcdExcel.ready();
 
-    const ws = wb.addWorksheet('Retiros', {
-      properties:{ defaultRowHeight: 18 },
-      views:[{ state:'frozen', ySplit: 4 }]
-    });
-
-    // ── Encabezado corporativo (filas 1–3) ──
-    ws.mergeCells('A1:I1');
-    ws.getCell('A1').value = 'Lumen — REGISTRO DE MENSAJERÍA';
-    ws.getCell('A1').font = { name:'Calibri', size:16, bold:true, color:{ argb:'FF22DBAE' } };
-    ws.getCell('A1').alignment = { horizontal:'center', vertical:'middle' };
-    ws.getCell('A1').fill = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF0F172A' } };
-    ws.getRow(1).height = 28;
-
-    ws.mergeCells('A2:I2');
-    ws.getCell('A2').value = `Generado: ${new Date().toLocaleString('es-AR')} · ${retirosFiltrados.length} registros`;
-    ws.getCell('A2').font = { name:'Calibri', size:10, italic:true, color:{ argb:'FF64748B' } };
-    ws.getCell('A2').alignment = { horizontal:'center' };
-    ws.getRow(3).height = 8;
-
-    // ── Encabezado de columnas (fila 4) ──
     const headers = ['Fecha / Hora','Mensajero','Destino','Cajas','Sobres','Monto Total (ARS)','Estado','Firmado','Encargado'];
-    const headRow = ws.getRow(4);
-    headers.forEach((h,i) => {
-      const c = headRow.getCell(i+1);
-      c.value = h;
-      c.font = { name:'Calibri', size:11, bold:true, color:{ argb:'FFFFFFFF' } };
-      c.alignment = { horizontal:'center', vertical:'middle' };
-      c.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF1E3A8A' } };
-      c.border = { bottom:{ style:'thin', color:{ argb:'FF22DBAE' } } };
-    });
-    headRow.height = 24;
-
-    // ── Datos ──
-    retirosFiltrados.forEach(r => {
+    const widths  = [22,22,22,8,8,18,16,18,18];
+    const rows = retirosFiltrados.map(r => {
       const m = mensajeros.find(x => x.id === r.mensajero_id);
       const d = destinos.find(x => x.id === r.destino_id);
-      const row = ws.addRow([
+      return [
         fmtFechaHora(r.fecha_hora),
         m ? m.nombre : '—',
         d ? d.nombre : '—',
@@ -1187,26 +1158,25 @@ async function exportarExcel(){
         ESTADO_LABEL[r.estado] ? ESTADO_LABEL[r.estado].txt : r.estado,
         r.firmado_at ? fmtFechaHora(r.firmado_at) : '—',
         r.encargado_nombre || '—'
-      ]);
-      row.getCell(6).numFmt = '"$"#,##0.00';
-      row.eachCell(c => {
-        c.font = { name:'Calibri', size:10 };
-        c.border = { bottom:{ style:'hair', color:{ argb:'FFE2E8F0' } } };
-        c.alignment = { vertical:'middle' };
-      });
+      ];
     });
 
-    // Anchos
-    [22,22,22,8,8,18,16,18,18].forEach((w,i) => ws.getColumn(i+1).width = w);
+    const totalCols = headers.length;
+    const { wb, ws } = SpcdExcel.createBook({ sheetName:'Retiros', subtitle:'REGISTRO DE MENSAJERÍA' });
+    const h = SpcdExcel.buildHeader(ws, {
+      subtitle:'REGISTRO DE MENSAJERÍA', totalCols,
+      meta:{ modulo:'MENSAJERÍA', registros: rows.length }
+    });
+    const t = SpcdExcel.buildTable(ws, {
+      columns: headers, widths, rows, startRow: h.nextRow, totalCols,
+      formatter: (cell, value, rowData, rowIdx, colIdx) => {
+        if (colIdx === 5) SpcdExcel.Fmt.moneyD(cell);            // Monto Total
+        if (colIdx === 3 || colIdx === 4) SpcdExcel.Fmt.int(cell); // Cajas / Sobres
+      }
+    });
+    SpcdExcel.buildFooter(ws, { startRow: t.nextRow + 1, totalCols });
 
-    const buf = await wb.xlsx.writeBuffer();
-    const blob = new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `mensajeria_${new Date().toISOString().slice(0,10)}.xlsx`;
-    a.click();
-    URL.revokeObjectURL(url);
+    await SpcdExcel.exportAndShare(wb, `mensajeria_${new Date().toISOString().slice(0,10)}`);
   } catch(e){
     alert('Error al exportar: ' + e.message);
   }

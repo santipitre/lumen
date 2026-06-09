@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="spcd-components.css"/>
   <link rel="stylesheet" href="spcd-dialog.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+  <script src="spcd-excel-template.js?v=2026060801"></script>
 
   <style>
     /* Variables específicas del módulo personal */
@@ -1613,64 +1614,46 @@ async function exportLicenciasMes() {
 
     if (!licencias.length) { await spcdAlert('No hay solicitudes en el mes seleccionado.', { type:'alert' }); return; }
 
-    const wb = new ExcelJS.Workbook();
-    wb.creator = 'Lumen by Pyralis';
-    const ws = wb.addWorksheet('Licencias');
+    if (!window.SpcdExcel) { await spcdAlert('No se pudo cargar la plantilla de exportación (spcd-excel-template.js).', { type:'error' }); return; }
+    await SpcdExcel.ready();
 
-    const NAVY='FF0F172A', BLUE='FF3B82F6', WHITE='FFE2E8F0', BLUED='FF1E3A8A', CYAN='FF22DBAE', SURF='FF111827';
-
-    ws.mergeCells(1, 1, 1, 10);
-    const t1 = ws.getCell('A1');
-    t1.value = `LICENCIAS Y CAMBIOS DE TURNO — ${_calDate.toLocaleDateString('es-AR', { month:'long', year:'numeric' }).toUpperCase()}`;
-    t1.font = { name:'Calibri', size:14, bold:true, color:{ argb:WHITE } };
-    t1.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:NAVY } };
-    t1.alignment = { horizontal:'center', vertical:'middle' };
-    ws.getRow(1).height = 32;
-
+    const periodo = _calDate.toLocaleDateString('es-AR', { month:'long', year:'numeric' }).toUpperCase();
     const headers = ['#','Solicitante','Tipo','Desde','Hasta','Hora Desde','Hora Hasta','Motivo','Compañero','Estado'];
-    const hr = ws.getRow(3);
-    headers.forEach((h,i) => {
-      const c = hr.getCell(i+1);
-      c.value = h;
-      c.font = { name:'Calibri', size:10, bold:true, color:{ argb:WHITE } };
-      c.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:BLUE } };
-      c.alignment = { horizontal:'center', vertical:'middle' };
-    });
-    hr.height = 22;
-    [6,22,16,12,12,12,12,30,22,12].forEach((w,i) => ws.getColumn(i+1).width = w);
+    const widths  = [6,22,16,12,12,12,12,30,22,12];
+    const rows = licencias.map(l => [
+      l.id,
+      l.solicitante_nombre || '',
+      TIPO_LABELS[l.tipo] || l.tipo,
+      l.fecha_desde || '',
+      l.fecha_hasta || '',
+      l.hora_desde ? l.hora_desde.slice(0,5) : '',
+      l.hora_hasta ? l.hora_hasta.slice(0,5) : '',
+      l.motivo || '',
+      l.companero_nombre || '',
+      l.estado
+    ]);
 
-    licencias.forEach((l, idx) => {
-      const row = ws.getRow(4 + idx);
-      const bg = idx % 2 === 0 ? SURF : 'FF1A2332';
-      [
-        l.id,
-        l.solicitante_nombre || '',
-        TIPO_LABELS[l.tipo] || l.tipo,
-        l.fecha_desde || '',
-        l.fecha_hasta || '',
-        l.hora_desde ? l.hora_desde.slice(0,5) : '',
-        l.hora_hasta ? l.hora_hasta.slice(0,5) : '',
-        l.motivo || '',
-        l.companero_nombre || '',
-        l.estado
-      ].forEach((v, i) => {
-        const c = row.getCell(i+1);
-        c.value = v;
-        c.font = { name:'Calibri', size:9, color:{ argb:WHITE } };
-        c.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:bg } };
-        c.alignment = { vertical:'middle', wrapText:true };
-      });
-      row.height = 18;
+    const totalCols = headers.length;
+    const { wb, ws } = SpcdExcel.createBook({ sheetName:'Licencias', subtitle:'LICENCIAS Y CAMBIOS DE TURNO' });
+    const h = SpcdExcel.buildHeader(ws, {
+      subtitle:'LICENCIAS Y CAMBIOS DE TURNO', totalCols,
+      meta:{ modulo:'PERSONAL', periodo, registros: rows.length }
     });
+    const t = SpcdExcel.buildTable(ws, {
+      columns: headers, widths, rows, startRow: h.nextRow, totalCols,
+      formatter: (cell, value, rowData, rowIdx, colIdx) => {
+        if (colIdx === 0) SpcdExcel.Fmt.center(cell);              // #
+        if (colIdx === 9) {                                        // Estado
+          const v = String(value || '').toUpperCase();
+          if (v === 'PENDIENTE') SpcdExcel.Fmt.warn(cell);
+          else if (v === 'APROBADA' || v === 'APROBADO') SpcdExcel.Fmt.success(cell);
+          else if (v === 'RECHAZADA' || v === 'RECHAZADO') SpcdExcel.Fmt.error(cell);
+        }
+      }
+    });
+    SpcdExcel.buildFooter(ws, { startRow: t.nextRow + 1, totalCols });
 
-    const buffer = await wb.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `SPCD_Licencias_${year}-${String(month+1).padStart(2,'0')}.xlsx`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    await SpcdExcel.exportAndShare(wb, `Lumen_Licencias_${year}-${String(month+1).padStart(2,'0')}`);
 
     showToast(`Excel descargado (${licencias.length} solicitudes)`, 'success');
   } catch(e) {

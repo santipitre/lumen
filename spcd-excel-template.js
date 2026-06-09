@@ -1,8 +1,8 @@
 /* ═══════════════════════════════════════════════════════════════════
    SPCD-EXCEL-TEMPLATE  ·  Plantilla ejecutiva común (Bloomberg / Fintech)
    ───────────────────────────────────────────────────────────────────
-   Paleta:   Negro tecnológico  +  Cian neón
-   Estilo:   Ejecutivo / formal / institucional / data-terminal
+   Paleta:   Negro Pyralis  +  Firefly dorado (#F59E0B)  ·  acento cian secundario
+   Estilo:   Ejecutivo / formal / institucional / data-terminal · Marca: Lumen by Pyralis
 
    Uso (cualquier módulo):
      await SpcdExcel.ready();
@@ -20,28 +20,34 @@
 
   /* ─────────────────────  PALETA EJECUTIVA · TECH NEÓN  ───────────────────── */
   const P = {
-    INK:        'FF05070D', // Negro tinta — header principal
-    CARBON:     'FF0A0E1A', // Carbón — bg general (filas pares)
-    STEEL:      'FF11182B', // Acero — filas impares
-    GRAPHITE:   'FF1A2438', // Grafito — bordes/divisores
-    SLATE:      'FF243049', // Pizarra — bg secundario
-    CYAN:       'FF00D9FF', // Cian neón — acento principal
-    CYAN_DEEP:  'FF0891B2', // Cian profundo
-    NEON:       'FF00FFC2', // Verde-cian neón — líneas brillantes
-    ICE:        'FFE6F7FF', // Hielo — texto destacado
-    WHITE:      'FFF5F9FF', // Blanco — texto base
-    SILVER:     'FFB7C2D6', // Plata — texto secundario
-    MUTED:      'FF5A6378', // Mudo — texto sutil
-    AMBER:      'FFFFB020', // Ámbar — warnings
-    ROSE:       'FFFF3D71', // Rosa — errores / críticos
-    EMERALD:    'FF22DBAE', // Esmeralda — éxito
+    INK:        'FF070B10', // Negro Pyralis — header principal
+    CARBON:     'FF0A0F14', // Fondo Pyralis — filas pares
+    STEEL:      'FF0E1521', // Elevado — filas impares
+    GRAPHITE:   'FF1F2937', // Borde Pyralis — divisores
+    SLATE:      'FF1A2332', // Input — bg secundario
+    CYAN:       'FFF59E0B', // Firefly dorado — ACENTO PRINCIPAL Lumen (alias histórico "CYAN")
+    CYAN_DEEP:  'FFB45309', // Dorado profundo — bordes de header
+    NEON:       'FFFCD34D', // Firefly soft — líneas brillantes
+    ICE:        'FFF1F5F9', // Texto claro destacado
+    WHITE:      'FFF1F5F9', // Blanco — texto base
+    SILVER:     'FF94A3B8', // Plata — texto secundario
+    MUTED:      'FF64748B', // Mudo — texto sutil
+    AMBER:      'FFFBBF24', // Ámbar — warnings
+    ROSE:       'FFF87171', // Rojo — errores / críticos
+    EMERALD:    'FF10B981', // Esmeralda — éxito
+    /* Acentos de marca Lumen (semánticos) */
+    GOLD:       'FFF59E0B', // Firefly (idéntico a CYAN, nombre claro)
+    GOLD_SOFT:  'FFFCD34D',
+    GOLD_GLOW:  'FFFEF3C7',
+    ACCENT2:    'FF06B6D4', // Cian eléctrico — acento secundario Lumen
   };
 
   /* Nombres "cortos" para usar fuera */
   const PALETTE = Object.freeze({
     ink:P.INK, carbon:P.CARBON, steel:P.STEEL, graphite:P.GRAPHITE, slate:P.SLATE,
     cyan:P.CYAN, cyanDeep:P.CYAN_DEEP, neon:P.NEON, ice:P.ICE, white:P.WHITE,
-    silver:P.SILVER, muted:P.MUTED, amber:P.AMBER, rose:P.ROSE, emerald:P.EMERALD
+    silver:P.SILVER, muted:P.MUTED, amber:P.AMBER, rose:P.ROSE, emerald:P.EMERALD,
+    gold:P.GOLD, goldSoft:P.GOLD_SOFT, goldGlow:P.GOLD_GLOW, accent2:P.ACCENT2
   });
 
   /* ─────────────────────  CARGADOR DE EXCELJS (lazy)  ───────────────────── */
@@ -58,102 +64,81 @@
     return root.__spcdExcelJSPromise;
   }
 
-  /* ─────────────────────  LOGO PNG (canvas) — cian neón  ───────────────────── */
+  /* ─────────────────────  LOGO PNG (canvas) — Lumen by Pyralis  ─────────────────────
+     Identidad: "L" blanca + punto firefly dorado (favicon Lumen) + wordmark.
+     Paleta: fondo Pyralis #0A0F14 · firefly #F59E0B · texto #F1F5F9
+  */
   function generateLogoPNG() {
     const c = document.createElement('canvas');
     c.width = 520; c.height = 110;
     const ctx = c.getContext('2d');
 
-    // Fondo INK
-    ctx.fillStyle = '#05070D';
+    // Fondo INK Pyralis
+    ctx.fillStyle = '#070B10';
     ctx.fillRect(0,0,c.width,c.height);
 
-    const cx = 55, cy = 55, r = 36;
+    /* ── Marca: panel redondeado con "L" + punto dorado (escala del favicon 60→78) ── */
+    const bx = 16, by = 16, bs = 78, s = bs/60; // factor de escala desde el viewBox 60
+    const X = x => bx + x*s, Y = y => by + y*s;
 
-    // Halo cian
-    const glow = ctx.createRadialGradient(cx,cy,r-4,cx,cy,r+18);
-    glow.addColorStop(0,'rgba(0,217,255,.40)');
-    glow.addColorStop(1,'rgba(0,217,255,0)');
-    ctx.fillStyle = glow;
-    ctx.fillRect(cx-r-20,cy-r-20,(r+20)*2,(r+20)*2);
-
-    // Anillo principal
-    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
-    ctx.strokeStyle = '#00D9FF'; ctx.lineWidth = 2.6; ctx.stroke();
-
-    // Anillo interno tenue
-    ctx.beginPath(); ctx.arc(cx,cy,r-6,0,Math.PI*2);
-    ctx.strokeStyle = 'rgba(0,217,255,.35)'; ctx.lineWidth = 1; ctx.stroke();
-
-    // Núcleo (gradient negro -> cian)
-    ctx.beginPath(); ctx.arc(cx,cy,r-8,0,Math.PI*2);
-    const inner = ctx.createLinearGradient(cx-r,cy-r,cx+r,cy+r);
-    inner.addColorStop(0,'#0A0E1A');
-    inner.addColorStop(1,'#11182B');
-    ctx.fillStyle = inner; ctx.fill();
-
-    // Arco superior — neón verde
-    ctx.beginPath(); ctx.arc(cx,cy,r,-1.4,0.4);
-    ctx.strokeStyle = '#00FFC2'; ctx.lineWidth = 3; ctx.lineCap='round'; ctx.stroke();
-
-    // Arco inferior — cian
-    ctx.beginPath(); ctx.arc(cx,cy,r,2.1,3.4);
-    ctx.strokeStyle = '#00D9FF'; ctx.lineWidth = 1.6; ctx.lineCap='round'; ctx.stroke();
-
-    // Nodos tech sobre el anillo
-    const nodes = [
-      [-1.4,'#00FFC2',3.2],[0.4,'#00D9FF',2.6],[-Math.PI/2,'#00FFC2',2.6],
-      [2.1,'#00D9FF',2],[3.4,'#00FFC2',1.8]
-    ];
-    nodes.forEach(([ang,col,sz]) => {
+    // Panel redondeado (rect x3 y3 54x54 rx13)
+    (function roundRect(x,y,w,h,r){
       ctx.beginPath();
-      ctx.arc(cx+Math.cos(ang)*r,cy+Math.sin(ang)*r,sz,0,Math.PI*2);
-      ctx.fillStyle = col; ctx.fill();
-    });
+      ctx.moveTo(x+r,y);
+      ctx.arcTo(x+w,y,x+w,y+h,r);
+      ctx.arcTo(x+w,y+h,x,y+h,r);
+      ctx.arcTo(x,y+h,x,y,r);
+      ctx.arcTo(x,y,x+w,y,r);
+      ctx.closePath();
+    })(X(3),Y(3),54*s,54*s,13*s);
+    ctx.fillStyle = '#0A0F14'; ctx.fill();
+    ctx.strokeStyle = '#1F2937'; ctx.lineWidth = 0.8*s; ctx.stroke();
 
-    // Líneas radiales tech
-    [[-1.4,12,'#00FFC2'],[0.4,9,'#00D9FF'],[-Math.PI/2,9,'#00FFC2']].forEach(([ang,len,col]) => {
-      const x1=cx+Math.cos(ang)*r, y1=cy+Math.sin(ang)*r;
-      const x2=cx+Math.cos(ang)*(r+len), y2=cy+Math.sin(ang)*(r+len);
-      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
-      ctx.strokeStyle = col; ctx.lineWidth=0.9; ctx.globalAlpha=0.7; ctx.stroke(); ctx.globalAlpha=1;
-    });
-
-    // Partículas
-    [[cx+r+14,cy-9,1.2,'#00FFC2',0.6],[cx+r+8,cy+15,1,'#00D9FF',0.5],[cx-r-10,cy-13,1,'#00D9FF',0.4]].forEach(([x,y,sz,col,a]) => {
-      ctx.beginPath(); ctx.arc(x,y,sz,0,Math.PI*2);
-      ctx.fillStyle=col; ctx.globalAlpha=a; ctx.fill(); ctx.globalAlpha=1;
-    });
-
-    // Texto SP (gradient cian → blanco)
-    const spGrad = ctx.createLinearGradient(cx-15,cy-13,cx+15,cy+13);
-    spGrad.addColorStop(0,'#E6F7FF');
-    spGrad.addColorStop(1,'#00D9FF');
-    ctx.font = 'bold 34px Rajdhani, Calibri, Arial';
-    ctx.fillStyle = spGrad;
-    ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText('SP',cx,cy+1);
-
-    // CONTROL
-    ctx.textAlign='left'; ctx.textBaseline='alphabetic';
-    ctx.font = 'bold 30px Rajdhani, Calibri, Arial';
-    ctx.fillStyle = '#E6F7FF';
-    ctx.fillText('CONTROL',108,44);
-
-    // DATA (cian)
-    ctx.font = 'bold 30px Rajdhani, Calibri, Arial';
-    ctx.fillStyle = '#00D9FF';
-    ctx.fillText('DATA',108,76);
-
-    // Línea cian fina debajo de CONTROL
+    // "L" (M16 14 L16 46 L44 46)
     ctx.beginPath();
-    ctx.moveTo(108,52); ctx.lineTo(290,52);
-    ctx.strokeStyle = 'rgba(0,217,255,.35)'; ctx.lineWidth = 0.7; ctx.stroke();
+    ctx.moveTo(X(16),Y(14));
+    ctx.lineTo(X(16),Y(46));
+    ctx.lineTo(X(44),Y(46));
+    ctx.strokeStyle = '#F1F5F9'; ctx.lineWidth = 3*s;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
 
-    // Tagline · ENTERPRISE INTELLIGENCE
+    // Anillo firefly tenue (cx38 cy22 r9)
+    ctx.beginPath(); ctx.arc(X(38),Y(22),9*s,0,Math.PI*2);
+    ctx.strokeStyle = 'rgba(245,158,11,.40)'; ctx.lineWidth = 0.8*s; ctx.stroke();
+    // Núcleo dorado (r4)
+    ctx.beginPath(); ctx.arc(X(38),Y(22),4*s,0,Math.PI*2);
+    ctx.fillStyle = '#F59E0B'; ctx.fill();
+    // Brillo central (r1.8)
+    ctx.beginPath(); ctx.arc(X(38),Y(22),1.8*s,0,Math.PI*2);
+    ctx.fillStyle = '#FEF3C7'; ctx.fill();
+
+    /* ── Wordmark ── */
+    const tx = 116;
+    // "Lumen" (la 'u' en dorado, guiño al firefly-o de la marca)
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.font = '600 36px Rajdhani, Calibri, Arial';
+    let cursor = tx;
+    const parts = [['L','#F1F5F9'],['u','#F59E0B'],['men','#F1F5F9']];
+    parts.forEach(([txt,col]) => {
+      ctx.fillStyle = col;
+      ctx.fillText(txt, cursor, 52);
+      cursor += ctx.measureText(txt).width;
+    });
+
+    // Línea dorada fina debajo del wordmark
+    ctx.beginPath();
+    ctx.moveTo(tx, 60); ctx.lineTo(cursor + 6, 60);
+    ctx.strokeStyle = 'rgba(245,158,11,.45)'; ctx.lineWidth = 0.8; ctx.stroke();
+
+    // "by Pyralis"
+    ctx.font = '600 12px Calibri, Arial';
+    ctx.fillStyle = '#94A3B8';
+    ctx.fillText('by Pyralis', tx, 76);
+
+    // Tagline
     ctx.font = '600 9px Calibri, Arial';
-    ctx.fillStyle = 'rgba(183,194,214,.85)';
-    ctx.fillText('ENTERPRISE  ·  INTELLIGENCE  ·  HEALTHCARE', 108, 95);
+    ctx.fillStyle = 'rgba(148,163,184,.85)';
+    ctx.fillText('ENTERPRISE  ·  INTELLIGENCE  ·  HEALTHCARE', tx, 92);
 
     return c.toDataURL('image/png').split(',')[1];
   }
@@ -192,7 +177,7 @@
     wb.lastModifiedBy = opts.author || 'Lumen by Pyralis';
     wb.created = new Date();
     wb.title = opts.subtitle || 'SPCD Report';
-    wb.company = 'Hospital Italiano · SPCD';
+    wb.company = 'Hospital Italiano · Lumen by Pyralis';
     const ws = wb.addWorksheet(opts.sheetName || 'Reporte', {
       properties: { tabColor: { argb: P.CYAN } },
       views: [{ showGridLines: false, state:'normal', zoomScale: 100 }],
@@ -205,7 +190,7 @@
         margins: { left:0.4, right:0.4, top:0.4, bottom:0.5, header:0.2, footer:0.2 }
       },
       headerFooter: {
-        oddFooter: '&L&8&"Calibri"&KB7C2D6SP CONTROL DATA&R&8&"Calibri"&K00D9FFPágina &P de &N'
+        oddFooter: '&L&8&"Calibri"&K94A3B8LUMEN by Pyralis&R&8&"Calibri"&KF59E0BPágina &P de &N'
       }
     });
     // Print area se ajusta cuando se sabe el rango — opcional
@@ -515,7 +500,7 @@
     const hash = opts.hash || makeReportHash();
     const usuario = (opts.meta && opts.meta.usuario) || getCurrentUser();
     const partes = [
-      `SP CONTROL DATA · ENTERPRISE INTELLIGENCE`,
+      `LUMEN by Pyralis · ENTERPRISE INTELLIGENCE`,
       `Generado: ${nowAr()}`,
       usuario ? `Usuario: ${usuario}` : null,
       `Reporte ID: ${hash}`,
