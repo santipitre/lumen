@@ -1387,8 +1387,8 @@ function calcKPIs(data) {
   const pctFuera = totalOblIds ? ((fueraFechaErr.length/totalOblIds)*100).toFixed(1) : 0;
   document.getElementById('kpi-fuerafecha-sub').textContent = `${pctFuera}% — ${asegNombres3075_1665}`;
 
-  // Trámites Incompletos
-  const tramitesErr = rea.filter(r => esErrorTramiteIncompleto(r));
+  // Trámites Incompletos (excluye Harefield, que tiene su propio cuadro)
+  const tramitesErr = rea.filter(r => esErrorTramiteIncompleto(r) && !esErrorTramiteHarefield(r));
   document.getElementById('kpi-tramites').textContent = tramitesErr.length.toLocaleString();
   const partCount = tramitesErr.filter(r => (r['Aseguradora']||'').trim().toUpperCase() === 'PARTICULAR').length;
   const obraCount = tramitesErr.length - partCount;
@@ -2704,7 +2704,7 @@ function _openModalInternal(tipo) {
     case 'sinreferencia':modalRows = filtered.filter(r => esErrorReferencia(r)); break;
     case 'cobertura':   modalRows = filtered.filter(r => esErrorCobertura(r)); break;
     case 'fuerafecha':  modalRows = filtered.filter(r => esErrorFueraFechaFact(r)); break;
-    case 'tramites':    modalRows = filtered.filter(r => esErrorTramiteIncompleto(r)); break;
+    case 'tramites':    modalRows = filtered.filter(r => esErrorTramiteIncompleto(r) && !esErrorTramiteHarefield(r)); break;
     case 'tramitesharefield': modalRows = filtered.filter(r => esErrorTramiteHarefield(r)); break;
     case 'sumerrores':  modalRows = filtered.filter(r =>
       esErrorInstDerivante(r) ||
