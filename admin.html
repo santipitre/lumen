@@ -2514,7 +2514,7 @@ async function exportarInformeOperador(share) {
     const a = document.createElement('a');
     a.href = url;
     const opTag = inf.isGeneral ? 'GENERAL' : inf.op;
-    const fileName = `SPCD_Admin_Informe_${opTag}_${inf.months[0]}_${inf.months[inf.months.length-1]}.xlsx`;
+    const fileName = `LUMEN_Informe_${opTag}_${inf.months[0]}_${inf.months[inf.months.length-1]}_${SpcdExcel.makeReportHash()}.xlsx`;
     a.download = fileName;
     document.body.appendChild(a);
     a.click();
@@ -3203,7 +3203,7 @@ async function exportExcel(asegSuffix, share) {
 
     /* ─── Nombre y descarga ─── */
     const asegTag  = asegSuffix ? `_${asegSuffix.replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ\s]/g,'').replace(/\s+/g,'_').slice(0,30)}` : '';
-    const fileName = `SPCD_Admin_${modalTitle.replace(/\s+/g,'_')}${asegTag}_${SpcdExcel.nowIsoDate()}.xlsx`;
+    const fileName = `${modalTitle.replace(/\s+/g,'_')}${asegTag}_${SpcdExcel.nowIsoDate()}.xlsx`;
 
     await SpcdExcel.exportAndShare(wb, fileName, share ? {
       titulo:   modalTitle + (asegSuffix ? ' — ' + asegSuffix : ''),

@@ -4744,7 +4744,7 @@ async function __spcd_unused_pedidoExcelLegacy() {
   const a = document.createElement('a');
   a.href = url;
   const prefijo = esRemito ? 'Remito' : 'Pedido';
-  const fileName = `SPCD_${prefijo}_${ped.id}_${now.toISOString().slice(0,10)}.xlsx`;
+  const fileName = `LUMEN_${prefijo}_${ped.id}_${now.toISOString().slice(0,10)}_${SpcdExcel.makeReportHash()}.xlsx`;
   a.download = fileName;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);

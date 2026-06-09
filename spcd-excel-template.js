@@ -178,6 +178,9 @@
     wb.created = new Date();
     wb.title = opts.subtitle || 'SPCD Report';
     wb.company = 'Hospital Italiano · Lumen by Pyralis';
+    // Reporte ID único del libro: identifica el archivo y evita duplicados.
+    // Se reutiliza en header, footer y nombre de archivo (todo el mismo ID).
+    wb._lumenRef = makeReportHash();
     const ws = wb.addWorksheet(opts.sheetName || 'Reporte', {
       properties: { tabColor: { argb: P.CYAN } },
       views: [{ showGridLines: false, state:'normal', zoomScale: 100 }],
@@ -209,7 +212,7 @@
     const usuario = m.usuario || getCurrentUser();
     const fecha   = m.fecha || dateAr();
     const modulo  = (m.modulo || 'SPCD').toUpperCase();
-    const hash = opts.hash || makeReportHash();
+    const hash = opts.hash || (ws.workbook && ws.workbook._lumenRef) || makeReportHash();
 
     /* Fila 1 — barra superior cian neón (h=3) */
     fillRange(ws, 1, 1, cols, P.CYAN);
@@ -497,7 +500,7 @@
     fillRange(ws, r+2, 1, cols, P.INK);
     ws.mergeCells(r+2, 1, r+2, cols);
     const c = ws.getCell(r+2, 1);
-    const hash = opts.hash || makeReportHash();
+    const hash = opts.hash || (ws.workbook && ws.workbook._lumenRef) || makeReportHash();
     const usuario = (opts.meta && opts.meta.usuario) || getCurrentUser();
     const partes = [
       `LUMEN by Pyralis · ENTERPRISE INTELLIGENCE`,
@@ -519,7 +522,17 @@
      shareOpts: si está y existe window.SpcdShare → muestra diálogo
   */
   async function exportAndShare(wb, fileName, shareOpts) {
-    if (!fileName.toLowerCase().endsWith('.xlsx')) fileName += '.xlsx';
+    // ── Convención de nombre Lumen ──
+    //   LUMEN_<descripción>_<ReporteID>.xlsx
+    //   · Prefijo LUMEN_ (saca prefijos viejos SPCD_/LUMEN_ si venían en el nombre).
+    //   · ReporteID = mismo hash único del documento → identificatorio y sin duplicados.
+    let base = String(fileName || 'Reporte').replace(/\.xlsx$/i, '');
+    base = base.replace(/^\s*(SPCD|LUMEN)[\s_\-]+/i, '').trim();   // quita prefijo viejo
+    if (!base) base = 'Reporte';
+    const ref = (wb && wb._lumenRef) || makeReportHash();
+    if (!new RegExp(`${ref}$`).test(base)) base = `${base}_${ref}`; // evita duplicar el ID
+    fileName = `LUMEN_${base}.xlsx`;
+
     const buffer = await wb.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = URL.createObjectURL(blob);

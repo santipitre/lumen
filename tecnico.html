@@ -1805,7 +1805,7 @@ async function exportarHistorialCSV(share) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    const fileName = `SPCD_Tecnico_HistorialEquipos_${new Date().toISOString().slice(0,10)}.xlsx`;
+    const fileName = `LUMEN_Tecnico_HistorialEquipos_${new Date().toISOString().slice(0,10)}_${SpcdExcel.makeReportHash()}.xlsx`;
     a.download = fileName;
     document.body.appendChild(a);
     a.click();
