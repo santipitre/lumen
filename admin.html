@@ -144,6 +144,17 @@
     .tab-pane.active { display:block; }
 
     /* ── KPI GRID ── */
+    .kpi-section-label {
+      display:flex; align-items:center; gap:8px;
+      font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase;
+      color:var(--muted); margin:6px 2px 10px;
+    }
+    .kpi-section-label::before { content:''; width:10px; height:10px; border-radius:3px; }
+    .kpi-section-label.sec-errores::before { background:var(--red); }
+    .kpi-section-label.sec-errores { color:var(--red); }
+    .kpi-section-label.sec-tramites::before { background:var(--purple); }
+    .kpi-section-label.sec-tramites { color:var(--purple); }
+    .kpi-grid.kpi-grid-tramites { margin-top:2px; margin-bottom:24px; }
     .kpi-grid {
       display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
       gap:14px; margin-bottom:28px;
@@ -533,7 +544,8 @@
     <button class="btn-reset"  onclick="resetFilters()">Limpiar</button>
   </div>
 
-  <!-- KPIs (errores) -->
+  <!-- KPIs · Grupo 1: Errores de carga -->
+  <div class="kpi-section-label sec-errores">Errores de carga</div>
   <div class="kpi-grid fade-in">
     <div class="kpi-card red" onclick="openModal('instderiv')">
       <div class="kpi-icon">⚠️</div>
@@ -563,27 +575,6 @@
       <div class="kpi-sub" id="kpi-ref-sub">ID 1665: vacío o dígitos inválidos</div>
       <div class="kpi-hint">ver detalle →</div>
     </div>
-    <div class="kpi-card red" onclick="openModal('tramites')">
-      <div class="kpi-icon">⚠️</div>
-      <div class="kpi-label">Trámites Incompletos</div>
-      <div class="kpi-val" id="kpi-tramites">—</div>
-      <div class="kpi-sub" id="kpi-tramites-sub">Factura o N° Orden en 0</div>
-      <div class="kpi-hint">ver detalle →</div>
-    </div>
-    <div class="kpi-card red" onclick="openModal('tramitesharefield')">
-      <div class="kpi-icon">⚠️</div>
-      <div class="kpi-label">Trámites Incompletos Harefield</div>
-      <div class="kpi-val" id="kpi-tramites-harefield">—</div>
-      <div class="kpi-sub" id="kpi-tramites-harefield-sub">a recepcionar</div>
-      <div class="kpi-hint">ver detalle →</div>
-    </div>
-    <div class="kpi-card red" onclick="openModal('tramitesfinamed')">
-      <div class="kpi-icon">⚠️</div>
-      <div class="kpi-label">Trámites Incompletos Finamed</div>
-      <div class="kpi-val" id="kpi-tramites-finamed">—</div>
-      <div class="kpi-sub" id="kpi-tramites-finamed-sub">a recepcionar</div>
-      <div class="kpi-hint">ver detalle →</div>
-    </div>
     <div class="kpi-card amber" onclick="openModal('cobertura')">
       <div class="kpi-icon">⚠️</div>
       <div class="kpi-label">Tipo Cobertura</div>
@@ -596,6 +587,32 @@
       <div class="kpi-label">Fuera Fecha Facturación</div>
       <div class="kpi-val" id="kpi-fuerafecha">—</div>
       <div class="kpi-sub" id="kpi-fuerafecha-sub">ID 3075/1665 mes distinto</div>
+      <div class="kpi-hint">ver detalle →</div>
+    </div>
+  </div>
+
+  <!-- KPIs · Grupo 2: Trámites incompletos -->
+  <div class="kpi-section-label sec-tramites">Trámites incompletos · a recepcionar</div>
+  <div class="kpi-grid kpi-grid-tramites fade-in">
+    <div class="kpi-card purple" onclick="openModal('tramites')">
+      <div class="kpi-icon">⚠️</div>
+      <div class="kpi-label">Trámites Incompletos</div>
+      <div class="kpi-val" id="kpi-tramites">—</div>
+      <div class="kpi-sub" id="kpi-tramites-sub">Factura o N° Orden en 0</div>
+      <div class="kpi-hint">ver detalle →</div>
+    </div>
+    <div class="kpi-card purple" onclick="openModal('tramitesharefield')">
+      <div class="kpi-icon">⚠️</div>
+      <div class="kpi-label">Trámites Incompletos Harefield</div>
+      <div class="kpi-val" id="kpi-tramites-harefield">—</div>
+      <div class="kpi-sub" id="kpi-tramites-harefield-sub">a recepcionar</div>
+      <div class="kpi-hint">ver detalle →</div>
+    </div>
+    <div class="kpi-card purple" onclick="openModal('tramitesfinamed')">
+      <div class="kpi-icon">⚠️</div>
+      <div class="kpi-label">Trámites Incompletos Finamed</div>
+      <div class="kpi-val" id="kpi-tramites-finamed">—</div>
+      <div class="kpi-sub" id="kpi-tramites-finamed-sub">a recepcionar</div>
       <div class="kpi-hint">ver detalle →</div>
     </div>
   </div>
@@ -3528,29 +3545,4 @@ async function guardarUsuario() {
   const email    = document.getElementById('mu-email').value.trim();
   const rol      = document.getElementById('mu-rol').value;
   const sedes    = document.getElementById('mu-sedes').value
-                    .split(',').map(s => s.trim()).filter(Boolean);
-  const modulos  = {};
-  ['operativo','medico','admin','licencias','mensajeria','stats'].forEach(m => {
-    const v = document.getElementById('mu-mod-' + m).value;
-    if (v) modulos[m] = v;
-  });
-  const activo = document.getElementById('mu-activo').checked;
-  const permisos = { sedes, modulos };
-
-  if (!username) { alert('Username es obligatorio'); return; }
-
-  try {
-    if (id) {
-      // Editar
-      await sbRpc('admin_actualizar_usuario', {
-        p_usuario_id: id, p_nombre: nombre, p_email: email,
-        p_rol: rol, p_permisos: permisos, p_activo: activo
-      });
-      if (typeof showToast === 'function') showToast('✅ Usuario actualizado: ' + username);
-    } else {
-      // Crear
-      await sbRpc('admin_crear_usuario', {
-        p_username: username, p_nombre: nombre, p_email: email,
-        p_rol: rol, p_permisos: permisos
-      });
-      if (typeof showTo
+                
