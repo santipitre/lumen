@@ -1682,9 +1682,10 @@ async function exportarHistorialCSV(share) {
 
   try {
     // Paleta corporativa SPCD
-    const NAVY='FF0F172A', BLUED='FF1E3A8A', BLUE='FF3B82F6', WHITE='FFE2E8F0',
-          RED='FFF87171', GREEN='FF55E78B', SURF='FF111827', ALT='FF1A2332',
-          CYAN='FF22DBAE', MUTED='FF64748B';
+    // Paleta Lumen: bandas oscuras + acento firefly dorado
+    const NAVY='FF0A0F14', BLUED='FF243049', BLUE='FFF59E0B', WHITE='FFF1F5F9',
+          INK='FF0A0F14', RED='FFF87171', GREEN='FF10B981', SURF='FF0A0F14', ALT='FF0E1521',
+          CYAN='FFF59E0B', MUTED='FF94A3B8';
 
     const cols   = ['Fecha','Hora','Acción','Equipo','Usuario','Motivo / Motivo previo'];
     const colW   = [14, 10, 18, 36, 20, 48];
@@ -1697,7 +1698,7 @@ async function exportarHistorialCSV(share) {
 
     // ─── Logo fila 1 ───
     try {
-      const logoB64 = generateLogoPNG();
+      const logoB64 = SpcdExcel.generateLogoPNG();
       const logoId = wb.addImage({base64:logoB64, extension:'png'});
       ws.addImage(logoId, { tl:{col:0,row:0}, ext:{width:220, height:46} });
     } catch(e) {}
@@ -1737,7 +1738,7 @@ async function exportarHistorialCSV(share) {
     cols.forEach((h,i) => {
       const cell = hr.getCell(i+1);
       cell.value = h;
-      cell.font = { name:'Calibri', size:8, bold:true, color:{argb:WHITE} };
+      cell.font = { name:'Calibri', size:8, bold:true, color:{argb:INK} };
       cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:BLUE} };
       cell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
       cell.border = {
@@ -2115,6 +2116,4 @@ function groupBy(arr, keyFn) {
 
 <script src="spcd-bg.js?v=2"></script>
 <script src="spcd-share.js?v=4"></script>
-<script src="spcd-excel-template.js?v=2026060801"></script>
-<script src="chatbot.js?v=ai-2026-04-20-g"></script>
-</body>
+<scrip

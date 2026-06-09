@@ -2282,9 +2282,10 @@ async function exportarInformeOperador(share) {
 
   try {
     // Paleta corporativa (mismo que exportExcel)
-    const NAVY='FF0F172A', BLUED='FF1E3A8A', BLUE='FF3B82F6', WHITE='FFE2E8F0',
-          RED='FFF87171', SURF='FF111827', CYAN='FF22DBAE', GREEN='FF22DBAE',
-          AMBER='FFFBBF24', MUTED='FF64748B', ALT='FF1A2332';
+    // Paleta Lumen: bandas oscuras + acento firefly dorado
+    const NAVY='FF0A0F14', BLUED='FF243049', BLUE='FFF59E0B', WHITE='FFF1F5F9',
+          INK='FF0A0F14', RED='FFF87171', SURF='FF0A0F14', CYAN='FFF59E0B', GREEN='FF10B981',
+          AMBER='FFFBBF24', MUTED='FF94A3B8', ALT='FF0E1521';
 
     const sede = localStorage.getItem('spcd_sede') || 'General';
     const fecha = new Date().toLocaleDateString('es-AR');
@@ -2300,7 +2301,7 @@ async function exportarInformeOperador(share) {
 
     // ─── Logo (fila 1) ───
     try {
-      const logoB64 = generateLogoPNG();
+      const logoB64 = SpcdExcel.generateLogoPNG();
       const logoId = wb.addImage({base64:logoB64, extension:'png'});
       ws.addImage(logoId, { tl:{col:0,row:0}, ext:{width:220,height:46} });
     } catch(e) { console.warn('Logo omitido:', e); }
@@ -2343,7 +2344,7 @@ async function exportarInformeOperador(share) {
       ws.mergeCells(row,1,row,totalCols);
       const c = ws.getCell(row,1);
       c.value = text;
-      c.font = { name:'Calibri', size:10, bold:true, color:{argb:WHITE} };
+      c.font = { name:'Calibri', size:10, bold:true, color:{argb:INK} };
       c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:color} };
       c.alignment = { horizontal:'left', vertical:'middle', indent:1 };
       c.border = { top:{style:'thin',color:{argb:CYAN}}, bottom:{style:'thin',color:{argb:CYAN}} };
@@ -2353,7 +2354,7 @@ async function exportarInformeOperador(share) {
       headers.forEach((h,i) => {
         const c = ws.getCell(row, i+1);
         c.value = h;
-        c.font = { name:'Calibri', size:8, bold:true, color:{argb:WHITE} };
+        c.font = { name:'Calibri', size:8, bold:true, color:{argb:INK} };
         c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:BLUE} };
         c.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
         c.border = { bottom:{style:'thin',color:{argb:CYAN}}, top:{style:'thin',color:{argb:BLUE}} };
@@ -3568,10 +3569,4 @@ async function vincularAuthPanel(id, username) {
     else alert('Vinculado OK. ' + username + ' ya puede loguearse con su email.');
     await cargarUsuariosPanel();
   } catch (e) {
-    alert('Error: ' + e.message);
-  }
-}
-</script>
-
-<script src="chatbot.js?v=ai-2026-04-20-g"></script>
-</
+    alert('
