@@ -224,7 +224,7 @@
     const tCell = ws.getCell(2, Math.min(4, cols));
     tCell.value = sub;
     tCell.font = { name:'Calibri', size:16, bold:true, color:{ argb:P.ICE } };
-    tCell.alignment = { horizontal:'right', vertical:'middle', indent:1 };
+    tCell.alignment = { horizontal:'center', vertical:'middle' };
     ws.getRow(2).height = 46;
 
     if (opts.logo !== false) {
@@ -529,6 +529,12 @@
     let base = String(fileName || 'Reporte').replace(/\.xlsx$/i, '');
     base = base.replace(/^\s*(SPCD|LUMEN)[\s_\-]+/i, '').trim();   // quita prefijo viejo
     if (!base) base = 'Reporte';
+    // Acortar: quitar la explicación que va tras un guión largo (—/–), preservando la fecha final
+    if (/[—–]/.test(base)) {
+      const dm = base.match(/\d{4}-\d{2}-\d{2}/);
+      base = base.split(/[—–]/)[0].replace(/[_\s]+$/, '');
+      if (dm && !base.includes(dm[0])) base += '_' + dm[0];
+    }
     const ref = (wb && wb._lumenRef) || makeReportHash();
     if (!new RegExp(`${ref}$`).test(base)) base = `${base}_${ref}`; // evita duplicar el ID
     fileName = `LUMEN_${base}.xlsx`;
@@ -565,21 +571,4 @@
   root.SpcdExcel = {
     PALETTE, P,
     ready,
-    generateLogoPNG,
-    createBook,
-    buildHeader,
-    buildKPIs,
-    buildSection,
-    buildTable,
-    buildTotals,
-    buildFooter,
-    exportAndShare,
-    makeReportHash,
-    Fmt,
-    /* utilidades */
-    fillCell, fillRange,
-    getCurrentUser, getCurrentSede,
-    nowAr, dateAr, nowIsoDate
-  };
-
-})(window);
+    gene

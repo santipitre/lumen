@@ -3181,9 +3181,6 @@ async function exportExcel(asegSuffix, share) {
       { label:'Registros',      value: totRegs.toLocaleString('es-AR'), tone:'cyan' },
       { label:'Aseguradoras',   value: asegSet.size,                    tone:'silver' }
     ];
-    if (totNeto > 0) {
-      kpis.push({ label:'Neto facturado', value:'$ '+ Math.round(totNeto).toLocaleString('es-AR'), tone:'emerald' });
-    }
     if (errCount > 0) {
       kpis.push({ label:'Errores detect.', value: errCount, tone:'rose', hint:'Requieren revisión' });
     } else {
@@ -3366,7 +3363,7 @@ function emptyState(icon, text) {
 
 <script src="spcd-bg.js?v=2"></script>
 <script src="spcd-share.js?v=4"></script>
-<script src="spcd-excel-template.js?v=2026060801"></script>
+<script src="spcd-excel-template.js?v=2026060802"></script>
 
 <!-- Supabase SDK + cliente JWT (Fase 2.D.5 · panel Permisos) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
