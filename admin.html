@@ -1048,7 +1048,7 @@
           La primera vez hay que registrar el protocolo: ejecutá <b>una sola vez</b> el archivo
           <code style="color:var(--cyan)">lumenbot_install.reg</code> (doble clic → "Sí"). Después, este botón abre PowerShell solo.
           <div style="margin-top:8px">O corré el comando a mano:</div>
-          <div class="reparar-cmd" id="reparar-cmd">cd "C:\Users\pitre\OneDrive\Documentos\Claude\Projects\Automatización tareas adm\fuesmen_bot"; .\.venv\Scripts\Activate.ps1; python bot.py</div>
+          <div class="reparar-cmd" id="reparar-cmd">cd "C:\Users\pitre\OneDrive\Documentos\Claude\Projects\Automatización tareas adm\fuesmen_bot"; .\.venv\Scripts\Activate.ps1; python lumen-fix-instderivante.py</div>
           <button class="reparar-copy" onclick="copiarComandoReparar()">📋 Copiar comando</button>
         </div>
       </details>
@@ -3276,12 +3276,12 @@ const REPARAR_CFG = {
   instderiv: {
     titulo:    '🔧 Reparar Institución Derivante',
     protocolo: 'lumenbot://reparar',
-    cmd:       'cd "C:\\Users\\pitre\\OneDrive\\Documentos\\Claude\\Projects\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe bot.py'
+    cmd:       'cd "C:\\Users\\pitre\\OneDrive\\Documentos\\Claude\\Projects\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe lumen-fix-instderivante.py'
   },
   cobertura: {
     titulo:    '🔧 Reparar Tipo Cobertura',
     protocolo: 'lumenbot://cobertura',
-    cmd:       'cd "C:\\Users\\pitre\\OneDrive\\Documentos\\Claude\\Projects\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe spcd-fix-tipocobertura.py'
+    cmd:       'cd "C:\\Users\\pitre\\OneDrive\\Documentos\\Claude\\Projects\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe lumen-fix-tipocobertura.py'
   }
 };
 
