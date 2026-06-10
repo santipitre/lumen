@@ -2808,7 +2808,7 @@ function _openModalInternal(tipo) {
 
   // Botón "Reparar" para los KPIs que tienen bot (Inst. Derivante y Tipo Cobertura)
   const btnRep = document.getElementById('btn-reparar-instderiv');
-  if (btnRep) btnRep.style.display = (tipo === 'instderiv' || tipo === 'cobertura') ? 'inline-block' : 'none';
+  if (btnRep) btnRep.style.display = (tipo === 'instderiv' || tipo === 'cobertura' || tipo === 'fuerafecha') ? 'inline-block' : 'none';
 
   modalFiltered = [...modalRows];
   renderModalTable(modalFiltered);
@@ -3282,6 +3282,11 @@ const REPARAR_CFG = {
     titulo:    '🔧 Reparar Tipo Cobertura',
     protocolo: 'lumenbot://cobertura',
     cmd:       'cd "C:\\Users\\pitre\\OneDrive\\Documentos\\Claude\\Projects\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe lumen-fix-tipocobertura.py'
+  },
+  fuerafecha: {
+    titulo:    '🔧 Reparar Fuera Fecha Facturación',
+    protocolo: 'lumenbot://fuerafecha',
+    cmd:       'cd "C:\\Users\\pitre\\OneDrive\\Documentos\\Claude\\Projects\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe lumen-fix-fuerafecha.py'
   }
 };
 
