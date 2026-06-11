@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<script>
+/* Lumen Auth Gate · si no hay sesión válida, redirige al login */
+(function(){
+  var KEY='spcd_session', TIMEOUT=8*60*60*1000, s=null;
+  try { s=JSON.parse(localStorage.getItem(KEY)); } catch(e){}
+  if (!s || !s.user || (Date.now()-s.ts) >= TIMEOUT) {
+    localStorage.removeItem(KEY);
+    localStorage.removeItem('spcd_operativo_session');
+    location.replace('index.html?screen=login');
+  }
+})();
+</script>
+<script>/* modo embebido (dentro de una pestaña de Lumen): oculta el topbar propio */
+if (location.search.indexOf('embed=1') >= 0) document.documentElement.classList.add('embed');</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cronograma · Lumen by Pyralis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   PYRALIS THEME (tokens) · módulo Lumen (accent cyan)
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  --pyralis-bg:            #0A0F14;
+  --pyralis-bg-elevated:   #0E1521;
+  --pyralis-bg-input:      #1A2332;
+  --pyralis-bg-hover:      #1F2937;
+  --pyralis-border:        #1F2937;
+  --pyralis-border-strong: #2D3748;
+
+  --pyralis-firefly:       #F59E0B;
+  --pyralis-firefly-soft:  #FCD34D;
+  --pyralis-firefly-glow:  #FEF3C7;
+  --pyralis-firefly-dim:   rgba(245, 158, 11, 0.12);
+  --pyralis-firefly-ring:  rgba(245, 158, 11, 0.30);
+
+  --pyralis-text:          #F1F5F9;
+  --pyralis-text-muted:    #94A3B8;
+  --pyralis-text-dim:      #64748B;
+
+  --pyralis-success:       #10B981;
+  --pyralis-warning:       #FBBF24;
+  --pyralis-danger:        #F87171;
+  --pyralis-info:          #60A5FA;
+
+  /* Acento de la app Lumen */
+  --app-accent:            #06B6D4;
+  --app-accent-soft:       #22D3EE;
+  --app-accent-dim:        rgba(6, 182, 212, 0.12);
+  --app-accent-ring:       rgba(6, 182, 212, 0.30);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  min-height: 100%;
+  background: var(--pyralis-bg);
+  color: var(--pyralis-text);
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 400;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::-webkit-scrollbar         { width: 8px; height: 8px; }
+::-webkit-scrollbar-track   { background: var(--pyralis-bg); }
+::-webkit-scrollbar-thumb   { background: var(--pyralis-border-strong); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--pyralis-text-dim); }
+
+/* ── TOPBAR ─────────────────────────────────────────────── */
+.topbar {
+  background: linear-gradient(180deg, #0A0F14 0%, #0E1521 100%);
+  border-bottom: 0.5px solid var(--pyralis-border);
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 60px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(12px);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.lockup { display: flex; align-items: center; gap: 12px; padding: 10px 0; }
+.firefly-svg { width: 42px; height: 42px; flex-shrink: 0; }
+.wordmark-block { display: flex; flex-direction: column; }
+.wordmark {
+  font-weight: 500; letter-spacing: -0.028em; color: var(--pyralis-text);
+  line-height: 1; font-size: 24px; display: inline-flex; align-items: baseline;
+}
+.byline { display: flex; align-items: center; gap: 7px; font-size: 11px; margin-top: 4px; }
+.byline .by { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--pyralis-text-dim); }
+.byline .pyralis { color: var(--pyralis-text-muted); font-weight: 500; }
+.byline .dot { color: var(--pyralis-border-strong); }
+.byline .desc { color: var(--pyralis-text-muted); }
+
+/* breadcrumb estilo Lumen */
+.lumen-crumbs { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--pyralis-text-muted); margin-right: auto; padding-left: 4px; }
+.lumen-crumbs a { color: var(--pyralis-text-muted); text-decoration: none; transition: color .15s; }
+.lumen-crumbs a:hover { color: var(--app-accent-soft); }
+.lumen-crumbs .sep { color: var(--pyralis-border-strong); }
+.lumen-crumbs .crumb-active { color: var(--app-accent-soft); font-weight: 500; }
+
+/* modo embebido dentro de una pestaña de Lumen */
+.embed .lockup, .embed .lumen-crumbs, .embed .back-tecnico { display: none !important; }
+.embed .topbar { position: static; min-height: 0; padding: 10px 24px; justify-content: flex-end; }
+
+/* vocal luciérnaga */
+.firefly-o {
+  color: var(--pyralis-firefly-glow); font-weight: 600; position: relative;
+  display: inline-block; margin: 0 0.02em; z-index: 1;
+  animation: firefly-text 2.8s ease-in-out infinite;
+}
+.firefly-o::before {
+  content: ''; position: absolute; inset: -50% -25%; border-radius: 50%;
+  background: radial-gradient(circle, rgba(252,211,77,0.35) 0%, rgba(245,158,11,0.22) 28%, rgba(245,158,11,0.08) 55%, transparent 75%);
+  z-index: -1; filter: blur(2px); pointer-events: none;
+  animation: firefly-halo 2.8s ease-in-out infinite;
+}
+@keyframes firefly-text {
+  0%,100% { text-shadow: 0 0 4px rgba(254,243,199,.95),0 0 9px rgba(252,211,77,.85),0 0 18px rgba(245,158,11,.7),0 0 32px rgba(245,158,11,.4),0 0 56px rgba(245,158,11,.2); transform: translateY(0); }
+  50%     { text-shadow: 0 0 7px rgba(254,243,199,1),0 0 14px rgba(252,211,77,1),0 0 26px rgba(245,158,11,.9),0 0 44px rgba(245,158,11,.55),0 0 72px rgba(245,158,11,.3); transform: translateY(-0.5px); }
+}
+@keyframes firefly-halo { 0%,100%{opacity:.7;transform:scale(.92);} 50%{opacity:1;transform:scale(1.18);} }
+@keyframes firefly-pulse {
+  0%,100% { filter: drop-shadow(0 0 6px rgba(245,158,11,.85)) drop-shadow(0 0 16px rgba(245,158,11,.45)); }
+  50%     { filter: drop-shadow(0 0 12px rgba(252,211,77,1)) drop-shadow(0 0 26px rgba(245,158,11,.6)); }
+}
+.firefly-svg circle[fill="#F59E0B"] { animation: firefly-pulse 2.8s ease-in-out infinite; transform-origin: center; }
+
+/* ── TOOLBAR ────────────────────────────────────────────── */
+.toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.btn {
+  font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer;
+  padding: 8px 14px; border-radius: 6px; transition: background .15s, border-color .15s, color .15s, box-shadow .15s, transform .05s;
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+.btn:active { transform: scale(0.98); }
+.btn-primary { background: var(--pyralis-firefly); color: var(--pyralis-bg); border: none; }
+.btn-primary:hover { background: var(--pyralis-firefly-soft); box-shadow: 0 0 16px rgba(245,158,11,.4); }
+.btn-ghost { background: transparent; color: var(--pyralis-text-muted); border: 0.5px solid var(--pyralis-border); }
+.btn-ghost:hover { background: var(--pyralis-bg-hover); color: var(--pyralis-text); border-color: var(--pyralis-border-strong); }
+.btn-accent { background: var(--app-accent-dim); color: var(--app-accent-soft); border: 0.5px solid var(--app-accent-ring); }
+.btn-accent:hover { background: rgba(6,182,212,.2); border-color: var(--app-accent); }
+.btn-danger { background: transparent; color: var(--pyralis-danger); border: 0.5px solid rgba(248,113,113,.3); }
+.btn-danger:hover { background: rgba(248,113,113,.12); border-color: var(--pyralis-danger); }
+
+/* ── LAYOUT ─────────────────────────────────────────────── */
+.page { max-width: 1500px; margin: 0 auto; padding: 28px 24px 64px; }
+
+.h2 { font-size: 11px; font-weight: 500; letter-spacing: 0.3em; text-transform: uppercase; color: var(--pyralis-text-muted); }
+
+.controls {
+  display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap;
+  background: var(--pyralis-bg-elevated); border: 0.5px solid var(--pyralis-border);
+  border-radius: 14px; padding: 18px 22px; margin-bottom: 22px;
+}
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 9px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--pyralis-text-dim); }
+.input {
+  background: var(--pyralis-bg-input); color: var(--pyralis-text);
+  border: 0.5px solid var(--pyralis-border-strong); border-radius: 6px;
+  padding: 8px 12px; font-family: inherit; font-size: 14px; transition: border-color .15s, box-shadow .15s;
+}
+.input:focus { outline: none; border-color: var(--app-accent); box-shadow: 0 0 0 3px var(--app-accent-dim); }
+.input::placeholder { color: var(--pyralis-text-dim); }
+.title-input { font-size: 22px; font-weight: 500; letter-spacing: -0.02em; min-width: 320px; }
+.range-label { font-size: 13px; color: var(--pyralis-text-muted); padding-bottom: 9px; }
+.range-label b { color: var(--app-accent-soft); font-weight: 500; }
+
+.coverage { display: flex; align-items: center; gap: 10px; margin-left: auto; padding-bottom: 6px; }
+.cov-bar { width: 140px; height: 6px; border-radius: 3px; background: var(--pyralis-bg-input); overflow: hidden; }
+.cov-fill { height: 100%; background: var(--app-accent); transition: width .3s; }
+.cov-text { font-size: 12px; color: var(--pyralis-text-muted); white-space: nowrap; }
+
+/* ── ROSTER ─────────────────────────────────────────────── */
+.roster {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 22px; padding: 14px 18px;
+  background: var(--pyralis-bg-elevated); border: 0.5px solid var(--pyralis-border); border-radius: 12px;
+}
+.roster .h2 { margin-right: 4px; }
+.roster-hint { font-size: 11px; color: var(--pyralis-text-dim); }
+
+/* ── GRID ───────────────────────────────────────────────── */
+.grid-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--pyralis-border-strong); box-shadow: 0 2px 18px rgba(0,0,0,.28); }
+table { border-collapse: collapse; width: 100%; min-width: 1080px; background: var(--pyralis-bg-elevated); }
+thead th {
+  background: #15202F; padding: 13px 10px; text-align: center;
+  border-bottom: 2px solid var(--pyralis-border-strong);
+  border-left: 1px solid var(--pyralis-border-strong);
+}
+thead th:first-child { position: sticky; left: 0; z-index: 20; border-left: none; }
+.day-name { font-size: 14px; font-weight: 600; color: var(--pyralis-text); }
+.day-date { font-size: 11px; color: var(--pyralis-text-muted); margin-top: 2px; }
+th.weekend { background: #16252F; }
+th.weekend .day-name { color: var(--app-accent-soft); }
+
+.row-label {
+  position: sticky; left: 0; z-index: 5; background: #15202F;
+  border-right: 2px solid var(--pyralis-border-strong);
+  border-top: 1px solid var(--pyralis-border-strong);
+  padding: 14px 16px; text-align: left; vertical-align: top; min-width: 96px;
+}
+.row-label .t-name { font-size: 13px; font-weight: 600; color: var(--pyralis-text); }
+.row-label .t-tag { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--app-accent-soft); margin-top: 3px; }
+
+td.cell {
+  border-left: 1px solid var(--pyralis-border-strong);
+  border-top: 1px solid var(--pyralis-border-strong);
+  padding: 9px; vertical-align: top; min-width: 150px; height: 96px;
+  transition: background .15s;
+}
+td.cell.filled { background: rgba(6,182,212,0.09); box-shadow: inset 3px 0 0 var(--app-accent); }
+td.cell:hover { background: var(--pyralis-bg-hover); }
+td.cell.na { background: repeating-linear-gradient(45deg, transparent, transparent 7px, rgba(255,255,255,0.022) 7px, rgba(255,255,255,0.022) 14px); }
+
+.cell-time {
+  font-size: 11px; font-weight: 500; color: var(--app-accent-soft);
+  letter-spacing: 0.02em; margin-bottom: 8px; display: flex; align-items: center; gap: 5px;
+}
+.cell-time .clock { width: 11px; height: 11px; opacity: .7; }
+.na-label { font-size: 12px; color: var(--pyralis-text-dim); font-style: italic; }
+
+.chips { display: flex; flex-direction: column; gap: 5px; margin-bottom: 7px; }
+.chip {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  background: var(--pyralis-bg-input); border: 0.5px solid var(--pyralis-border-strong);
+  border-radius: 5px; padding: 5px 8px; font-size: 13px; color: var(--pyralis-text);
+}
+.chip .x { cursor: pointer; color: var(--pyralis-text-dim); font-size: 15px; line-height: 1; padding: 0 2px; border-radius: 3px; }
+.chip .x:hover { color: var(--pyralis-danger); background: rgba(248,113,113,.12); }
+.add-input {
+  width: 100%; background: transparent; border: 0.5px dashed var(--pyralis-border-strong);
+  border-radius: 5px; padding: 5px 8px; font-family: inherit; font-size: 12px; color: var(--pyralis-text);
+  transition: border-color .15s, background .15s;
+}
+.add-input::placeholder { color: var(--pyralis-text-dim); }
+.add-input:focus { outline: none; border-style: solid; border-color: var(--app-accent); background: var(--pyralis-bg-input); }
+
+/* ── FERIADOS ───────────────────────────────────────────── */
+.holidays-section { margin-top: 30px; }
+.hol-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+.hol-table { min-width: 620px; }
+.hol-table thead th {
+  text-align: left; padding: 12px 14px; font-size: 9px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--pyralis-text-muted); font-weight: 500;
+  background: #15202F; border-bottom: 2px solid var(--pyralis-border-strong);
+}
+.hol-table tbody tr:nth-child(even) td { background: rgba(255,255,255,0.022); }
+.hol-table td { padding: 11px 14px; border-top: 1px solid var(--pyralis-border-strong); vertical-align: middle; transition: background .15s; }
+.hol-table tbody tr:hover td { background: var(--pyralis-bg-hover); }
+.hol-date { white-space: nowrap; }
+.hol-date .dnum { font-size: 14px; font-weight: 500; color: var(--pyralis-text); }
+.hol-date .dwk { font-size: 11px; color: var(--pyralis-text-dim); text-transform: capitalize; margin-top: 1px; }
+.hol-name { font-size: 13px; color: var(--pyralis-text); max-width: 360px; }
+.hol-name .note { font-size: 11px; color: var(--pyralis-text-dim); }
+.hol-badge { display: inline-block; font-size: 9px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; border: 0.5px solid; white-space: nowrap; }
+.badge-inam { background: var(--pyralis-firefly-dim); border-color: var(--pyralis-firefly-ring); color: var(--pyralis-firefly-soft); }
+.badge-tras { background: rgba(96,165,250,.12); border-color: rgba(96,165,250,.3); color: #93C5FD; }
+.badge-turi { background: var(--app-accent-dim); border-color: var(--app-accent-ring); color: var(--app-accent-soft); }
+.hol-assign { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.hol-assign .chips { flex-direction: row; flex-wrap: wrap; margin: 0; }
+.hol-assign .add-input { width: 170px; }
+.hol-del-cell { width: 40px; text-align: center; }
+.hol-del {
+  background: transparent; border: 0.5px solid var(--pyralis-border); color: var(--pyralis-text-dim);
+  width: 26px; height: 26px; border-radius: 6px; font-size: 16px; line-height: 1; cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.hol-del:hover { background: rgba(248,113,113,.12); border-color: var(--pyralis-danger); color: var(--pyralis-danger); }
+
+/* ── OBSERVACIONES ──────────────────────────────────────── */
+.notes-section { margin-top: 30px; }
+.notes-section .h2 { display: block; margin-bottom: 10px; }
+.notes-area {
+  width: 100%; min-height: 92px; resize: vertical;
+  background: var(--pyralis-bg-input); color: var(--pyralis-text);
+  border: 1px solid var(--pyralis-border-strong); border-radius: 10px;
+  padding: 12px 14px; font-family: inherit; font-size: 14px; line-height: 1.6;
+  transition: border-color .15s, box-shadow .15s;
+}
+.notes-area::placeholder { color: var(--pyralis-text-dim); }
+.notes-area:focus { outline: none; border-color: var(--app-accent); box-shadow: 0 0 0 3px var(--app-accent-dim); }
+
+.footer-note { margin-top: 18px; font-size: 11px; color: var(--pyralis-text-dim); line-height: 1.7; }
+.footer-note kbd { background: var(--pyralis-bg-input); border: 0.5px solid var(--pyralis-border-strong); border-radius: 4px; padding: 1px 5px; font-family: inherit; font-size: 10px; color: var(--pyralis-text-muted); }
+
+/* ── PESTAÑAS ───────────────────────────────────────────── */
+.tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid var(--pyralis-border-strong); }
+.tab {
+  background: transparent; border: none; border-bottom: 2px solid transparent;
+  color: var(--pyralis-text-muted); font-family: inherit; font-size: 14px; font-weight: 500;
+  padding: 10px 18px; cursor: pointer; margin-bottom: -1px; transition: color .15s, border-color .15s;
+}
+.tab:hover { color: var(--pyralis-text); }
+.tab.active { color: var(--app-accent-soft); border-bottom-color: var(--app-accent); }
+.tab-panel[hidden] { display: none; }
+
+/* ── MÓDULOS (tablero drag & drop) ──────────────────────── */
+.mod-layout { display: flex; gap: 18px; align-items: flex-start; }
+.mod-side { width: 270px; flex-shrink: 0; }
+.mod-board-wrap { flex: 1; overflow-x: auto; min-width: 0; }
+.mod-catalog { background: var(--pyralis-bg-elevated); border: 1px solid var(--pyralis-border-strong); border-radius: 12px; padding: 16px; }
+.mod-catalog .h2 { display: block; margin-bottom: 12px; }
+.mod-create { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.mod-create .btn { justify-content: center; }
+select.input { cursor: pointer; }
+
+.intern-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.intern-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 9px; border-radius: 6px; border: 1px solid; background: rgba(255,255,255,0.03); }
+.intern-chip .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.intern-chip .x { cursor: pointer; color: var(--pyralis-text-dim); font-size: 14px; line-height: 1; }
+.intern-chip .x:hover { color: var(--pyralis-danger); }
+
+.mod-palette { display: flex; flex-direction: column; gap: 8px; min-height: 24px; }
+.mod-empty-hint { font-size: 11px; color: var(--pyralis-text-dim); font-style: italic; }
+
+.mod-card {
+  display: flex; align-items: center; gap: 8px; background: var(--pyralis-bg-input);
+  border: 1px solid var(--pyralis-border-strong); border-left: 4px solid var(--pyralis-text-dim);
+  border-radius: 8px; padding: 8px 10px; color: var(--pyralis-text); cursor: grab; user-select: none;
+  transition: box-shadow .15s, transform .05s;
+}
+.mod-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.3); }
+.mod-card:active { cursor: grabbing; }
+.mod-card.dragging { opacity: .45; }
+.mod-card .mc-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.mod-card .mc-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mod-card .mc-intern { font-size: 10px; letter-spacing: 0.04em; color: var(--pyralis-text-muted); text-transform: uppercase; }
+.mod-card .x { margin-left: auto; cursor: pointer; color: var(--pyralis-text-dim); font-size: 16px; line-height: 1; padding-left: 4px; }
+.mod-card .x:hover { color: var(--pyralis-danger); }
+
+.mod-card.placement { flex-direction: column; align-items: stretch; gap: 6px; cursor: default; }
+.mod-card.placement .mc-top { display: flex; align-items: center; gap: 8px; }
+.mod-card.placement .mc-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mod-card.placement .x { margin-left: 0; }
+.mc-handle { cursor: grab; color: var(--pyralis-text-dim); font-size: 14px; line-height: 1; user-select: none; }
+.mc-handle:active { cursor: grabbing; }
+.mc-horario {
+  width: 100%; background: var(--pyralis-bg); color: var(--pyralis-text);
+  border: 1px solid var(--pyralis-border-strong); border-radius: 5px; padding: 4px 7px;
+  font-family: inherit; font-size: 12px;
+}
+.mc-horario::placeholder { color: var(--pyralis-text-dim); }
+.mc-horario:focus { outline: none; border-color: var(--app-accent); box-shadow: 0 0 0 2px var(--app-accent-dim); }
+
+.mod-board { display: flex; min-width: 1080px; border: 1px solid var(--pyralis-border-strong); border-radius: 12px; overflow: hidden; background: var(--pyralis-bg-elevated); }
+.mod-axis { width: 58px; flex-shrink: 0; border-right: 1px solid var(--pyralis-border-strong); }
+.axis-head { height: 44px; border-bottom: 1px solid var(--pyralis-border-strong); }
+.mod-axis-track { position: relative; }
+.axis-label { position: absolute; left: 0; right: 7px; text-align: right; font-size: 11px; color: var(--pyralis-text-muted); }
+.mod-col { flex: 1; min-width: 150px; border-right: 1px solid var(--pyralis-border); transition: background .15s; }
+.mod-col:last-child { border-right: none; }
+.mod-col.weekend { background: #11202A; }
+.mod-col-head { position: relative; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: var(--pyralis-text); border-bottom: 1px solid var(--pyralis-border-strong); }
+.mod-col.weekend .mod-col-head { color: var(--app-accent-soft); }
+.paste-btn { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: var(--app-accent-dim); color: var(--app-accent-soft); border: 1px solid var(--app-accent-ring); border-radius: 5px; width: 24px; height: 24px; font-size: 13px; cursor: pointer; line-height: 1; }
+.paste-btn:hover { background: rgba(6,182,212,.25); border-color: var(--app-accent); }
+.mod-track { position: relative; background-image: repeating-linear-gradient(to bottom, transparent, transparent 43px, var(--pyralis-border) 43px, var(--pyralis-border) 44px); }
+.mod-col.dragover .mod-track { box-shadow: inset 0 0 0 2px var(--app-accent); }
+.mod-block {
+  position: absolute; left: 4px; right: 4px; border-radius: 6px; padding: 3px 6px;
+  border: 1px solid; border-left-width: 4px; overflow: hidden; box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.mod-block.cont { opacity: .82; }
+.mb-name-row { display: flex; align-items: center; gap: 5px; }
+.mb-name { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--pyralis-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mb-foot { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 1px; }
+.mb-actions { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+.mb-handle { cursor: grab; color: var(--pyralis-text-muted); font-size: 12px; line-height: 1; }
+.mb-handle:active { cursor: grabbing; }
+.mb-act { cursor: pointer; color: var(--pyralis-text-muted); font-size: 13px; line-height: 1; }
+.mb-act:hover { color: var(--app-accent-soft); }
+.mod-block .x { cursor: pointer; color: var(--pyralis-text-dim); font-size: 15px; line-height: 1; }
+.mod-block .x:hover { color: var(--pyralis-danger); }
+.mb-range { font-size: 13px; font-weight: 600; color: var(--app-accent-soft); letter-spacing: 0.02em; white-space: nowrap; }
+.mod-block.editing { min-height: 74px; z-index: 6; box-shadow: 0 6px 20px rgba(0,0,0,.55); }
+.mb-times { display: flex; align-items: center; gap: 5px; }
+.mb-times select { background: var(--pyralis-bg-input); color: var(--pyralis-text); border: 1px solid var(--pyralis-border-strong); border-radius: 5px; padding: 4px 4px; font-family: inherit; font-size: 13px; width: 100%; min-width: 0; cursor: pointer; }
+.mb-times select:hover { border-color: var(--app-accent-soft); }
+.mb-times select:focus { outline: none; border-color: var(--app-accent); }
+.mb-times span { color: var(--pyralis-text-dim); font-size: 12px; }
+
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: var(--pyralis-bg-elevated); border: 0.5px solid var(--app-accent-ring);
+  color: var(--pyralis-text); padding: 10px 18px; border-radius: 8px; font-size: 13px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.4); opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 100;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+.print-meta { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .firefly-svg circle, .firefly-o, .firefly-o::before { animation: none !important; }
+  .firefly-o { text-shadow: 0 0 8px rgba(252,211,77,.9), 0 0 18px rgba(245,158,11,.6); }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   IMPRESIÓN / PDF · documento profesional en papel claro
+   ═══════════════════════════════════════════════════════════════ */
+@media print {
+  @page { size: landscape; margin: 11mm; }
+  html, body {
+    background: #fff; color: #0f172a;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+
+  /* ocultar todo lo interactivo y los campos vacíos */
+  .toolbar, .roster, .coverage, .add-input, .chip .x, .footer-note, .toast,
+  .lumen-crumbs, .hol-del-cell, #hol-restore, .hol-table thead th:last-child,
+  #week-start { display: none !important; }
+  .field:has(#week-start) { display: none !important; }
+
+  /* cabecera del documento */
+  .topbar { position: static; background: #fff; border-bottom: none; padding: 0 0 6px; min-height: auto; align-items: flex-start; }
+  .wordmark { color: #0f172a; font-size: 22px; }
+  .firefly-o { color: #b45309; text-shadow: none; }
+  .byline .pyralis, .byline .desc { color: #475569; }
+  .byline .by { color: #94a3b8; }
+  .firefly-svg circle[fill="#F59E0B"] { animation: none; }
+  .print-meta { display: block !important; font-size: 11px; color: #475569; text-align: right; line-height: 1.5; }
+  .print-meta b { color: #0f172a; font-weight: 600; }
+
+  .page { padding: 0; max-width: none; }
+  .controls {
+    display: flex; align-items: baseline; gap: 16px;
+    border: none; border-bottom: 2.5px solid #f59e0b; border-radius: 0;
+    padding: 0 0 10px; margin-bottom: 14px; background: #fff;
+  }
+  .controls .input { border: none !important; background: transparent !important; padding: 0 !important; }
+  .field { gap: 0; }
+  .field label { display: none; }
+  .title-input { font-size: 21px; font-weight: 600; color: #0f172a; width: 30em; min-width: 0; }
+  .range-label, .range-label b { color: #334155; }
+
+  /* grilla de turnos */
+  .grid-wrap { border: 1px solid #94a3b8; border-radius: 8px; overflow: visible; box-shadow: none; page-break-inside: avoid; }
+  td.cell { padding: 7px; }
+  table { background: #fff; min-width: 0; width: 100%; }
+  thead th { background: #f1f5f9 !important; color: #0f172a; position: static; border-color: #94a3b8; border-bottom: 2px solid #64748b; }
+  .day-name { color: #0f172a; }
+  .day-date { color: #475569; }
+  th.weekend { background: #ecfeff !important; }
+  th.weekend .day-name { color: #0e7490; }
+  .row-label { background: #f1f5f9 !important; position: static; border-color: #94a3b8; border-right: 2px solid #64748b; }
+  .row-label .t-name { color: #0f172a; }
+  .row-label .t-tag { color: #0e7490; }
+  td.cell { border-color: #cbd5e1; background: #fff !important; height: auto; box-shadow: none !important; }
+  td.cell.filled { background: #f0fdff !important; box-shadow: inset 3px 0 0 #0891b2 !important; }
+  td.cell.na { background: #f8fafc !important; }
+  .cell-time { color: #0e7490; font-weight: 600; }
+  .na-label { color: #94a3b8; }
+  .chip { background: #fff; border: 1px solid #94a3b8; color: #0f172a; border-radius: 4px; }
+  .chips { gap: 4px; margin-bottom: 0; }
+
+  /* cuadro de feriados */
+  .holidays-section { margin-top: 12px; page-break-inside: auto; }
+  .holidays-section .grid-wrap { page-break-inside: auto; }
+  .hol-table td { padding: 6px 12px; }
+  .h2 { color: #334155; }
+  .hol-head .roster-hint { color: #475569; }
+  .hol-table thead th { background: #f1f5f9 !important; color: #334155; border-bottom: 2px solid #64748b; }
+  .hol-table tbody tr:nth-child(even) td { background: #f8fafc !important; }
+  .hol-table td { border-color: #cbd5e1; }
+  .hol-date .dnum, .hol-name { color: #0f172a; }
+  .hol-date .dwk, .hol-name .note { color: #475569; }
+  .hol-badge { border-width: 1px; }
+  .badge-inam { background: #fef3c7 !important; border-color: #f59e0b !important; color: #92400e !important; }
+  .badge-tras { background: #dbeafe !important; border-color: #60a5fa !important; color: #1e40af !important; }
+  .badge-turi { background: #cffafe !important; border-color: #06b6d4 !important; color: #155e75 !important; }
+
+  .hol-table tr, td.cell { page-break-inside: avoid; }
+
+  /* observaciones */
+  .notes-section { margin-top: 14px; page-break-inside: avoid; }
+  .notes-section .h2 { color: #334155; }
+  .notes-area { border: 1px solid #94a3b8; background: #fff !important; color: #0f172a; min-height: 56px; border-radius: 8px; }
+
+  /* pestañas + módulos (línea de tiempo) */
+  .tabs { display: none !important; }
+  #tab-modulos .mod-side { display: none !important; }
+  .mb-handle, .mod-block .x, .mb-act, .paste-btn { display: none !important; }
+  .mod-board-wrap { overflow: visible; }
+  .mod-board { min-width: 0; page-break-inside: avoid; }
+  .mod-axis, .mod-col { border-color: #cbd5e1; }
+  .mod-col { background: #fff !important; }
+  .mod-col.weekend { background: #ecfeff !important; }
+  .mod-col-head { color: #0f172a; border-color: #cbd5e1; }
+  .mod-col.weekend .mod-col-head { color: #0e7490; }
+  .axis-label { color: #475569; }
+  .mod-track { background-image: repeating-linear-gradient(to bottom, transparent, transparent 43px, #e2e8f0 43px, #e2e8f0 44px); }
+  .mb-name { color: #0f172a; }
+  .mb-range { color: #0e7490 !important; }
+  .mb-times select { background: transparent !important; border: none !important; color: #0e7490 !important; font-weight: 600; padding: 0 !important; -webkit-appearance: none; appearance: none; }
+  .mb-times span { color: #475569; }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="lockup">
+    <svg class="firefly-svg" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="3" y="3" width="54" height="54" rx="13" fill="#0A0F14" stroke="#1F2937" stroke-width="0.8"/>
+      <!-- letra L -->
+      <path d="M 22 17 L 22 40 L 39 40" fill="none" stroke="#F1F5F9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- glow exterior -->
+      <circle cx="40" cy="22" r="9" fill="none" stroke="#F59E0B" stroke-width="0.8" opacity="0.4"/>
+      <!-- luciérnaga -->
+      <circle cx="40" cy="22" r="4" fill="#F59E0B"/>
+      <!-- núcleo -->
+      <circle cx="40" cy="22" r="1.8" fill="#FEF3C7"/>
+    </svg>
+    <div class="wordmark-block">
+      <span class="wordmark">L<span class="firefly-o">u</span>men</span>
+      <span class="byline">
+        <span class="by">by</span><span class="pyralis">Pyralis</span>
+        <span class="dot">·</span><span class="desc">Cronograma de técnicos RMN</span>
+      </span>
+    </div>
+  </div>
+  <nav class="lumen-crumbs">
+    <a href="app.html" title="Volver al inicio">Inicio</a><span class="sep">›</span>
+    <a href="index.html?screen=roles" title="Selección de módulo">Sede</a><span class="sep">›</span>
+    <a href="tecnico.html" title="Módulo Técnico">Técnico</a><span class="sep">›</span>
+    <span class="crumb-active">Cronograma</span>
+  </nav>
+  <div class="toolbar">
+    <a class="btn btn-ghost back-tecnico" href="tecnico.html" style="text-decoration:none;" title="Volver al Módulo Técnico">← Técnico</a>
+    <button class="btn btn-primary" id="btn-print" title="Genera el documento profesional · elegí 'Guardar como PDF' en el diálogo de impresión">⎙ Exportar PDF</button>
+    <button class="btn btn-ghost" id="btn-export" title="Descarga un respaldo de datos en formato JSON (sin diseño)">↧ Respaldo (JSON)</button>
+    <button class="btn btn-ghost" id="btn-import" title="Carga un respaldo JSON">↥ Importar</button>
+    <button class="btn btn-danger" id="btn-clear" title="Vaciar todas las asignaciones de la semana">Limpiar semana</button>
+    <input type="file" id="file-import" accept="application/json" hidden>
+  </div>
+  <div class="print-meta" id="print-meta"></div>
+</header>
+
+<main class="page">
+
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="turnos">Turnos</button>
+    <button class="tab" data-tab="modulos">Módulos por semana</button>
+  </nav>
+
+  <div id="tab-turnos" class="tab-panel">
+
+  <div class="controls">
+    <div class="field">
+      <label for="title">Título</label>
+      <input class="input title-input" id="title" type="text" value="Cronograma semanal — Técnicos RMN" spellcheck="false">
+    </div>
+    <div class="coverage">
+      <div class="cov-bar"><div class="cov-fill" id="cov-fill" style="width:0%"></div></div>
+      <span class="cov-text" id="cov-text">0 / 18 turnos cubiertos</span>
+    </div>
+  </div>
+
+  <div class="roster">
+    <span class="h2">Plantel</span>
+    <input class="input" id="roster-input" type="text" placeholder="+ Agregar técnico (Enter)" style="width:240px" spellcheck="false">
+    <div class="chips" id="roster-chips" style="flex-direction:row;flex-wrap:wrap;margin:0;"></div>
+    <span class="roster-hint">Opcional. Los nombres del plantel aparecen como sugerencia al asignar en cada turno.</span>
+  </div>
+
+  <div class="grid-wrap">
+    <table>
+      <thead><tr id="head-row"></tr></thead>
+      <tbody id="body"></tbody>
+    </table>
+  </div>
+
+  <section class="holidays-section">
+    <div class="hol-head">
+      <span class="h2">Feriados nacionales 2026</span>
+      <span class="roster-hint">Calendario oficial (Argentina.gob.ar · Ley 27.399). Asigná el técnico de guardia para cada feriado.</span>
+      <button class="btn btn-ghost" id="hol-restore" style="display:none; font-size:11px; padding:5px 10px;"></button>
+    </div>
+    <div class="grid-wrap">
+      <table class="hol-table">
+        <thead><tr><th>Fecha</th><th>Feriado</th><th>Tipo</th><th>Técnico de guardia pasiva</th><th></th></tr></thead>
+        <tbody id="hol-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="notes-section">
+    <span class="h2">Observaciones</span>
+    <textarea class="notes-area" id="notes" placeholder="Notas de la semana: cambios de turno, ausencias, cobertura especial, avisos…" spellcheck="false"></textarea>
+  </section>
+
+  <p class="footer-note">
+    Cada turno admite varios técnicos. Escribí un nombre y presioná <kbd>Enter</kbd> o <kbd>,</kbd> para agregarlo; la <b style="color:var(--pyralis-firefly-soft);font-weight:500">×</b> lo quita.
+    Los cambios se guardan automáticamente en este navegador. Para mover el archivo a otra máquina, usá <b style="color:var(--pyralis-firefly-soft);font-weight:500">Respaldo (JSON)</b> e <b style="color:var(--pyralis-firefly-soft);font-weight:500">Importar</b>.
+    Las celdas rayadas son turnos que no operan ese día.
+  </p>
+
+  </div><!-- /tab-turnos -->
+
+  <div id="tab-modulos" class="tab-panel" hidden>
+
+    <div class="controls">
+      <div class="field">
+        <label for="mod-title">Título</label>
+        <input class="input title-input" id="mod-title" type="text" value="Cronograma de módulos — Semana" spellcheck="false">
+      </div>
+    </div>
+
+    <div class="mod-layout">
+      <aside class="mod-side">
+        <div class="mod-catalog">
+          <span class="h2">Internados</span>
+          <div class="mod-create">
+            <input class="input" id="intern-input" type="text" placeholder="+ Agregar internado (Enter)" spellcheck="false">
+          </div>
+          <div class="mod-palette" id="mod-palette"></div>
+          <p class="roster-hint" style="margin-top:10px;">Arrastrá cada internado a un día del tablero. En cada tarjeta colocada cargás el rango horario, y podés moverlas entre días.</p>
+        </div>
+      </aside>
+
+      <div class="mod-board-wrap">
+        <div class="mod-board" id="mod-board"></div>
+      </div>
+    </div>
+
+  </div><!-- /tab-modulos -->
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ── Modelo de turnos ──────────────────────────────────
+  const DAYS = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+  const TURNOS = [
+    { id:'T1', name:'Turno 1' },
+    { id:'T2', name:'Turno 2' },
+    { id:'T3', name:'Turno 3' },
+  ];
+  // horarios[diaIndex][turnoId] = 'HH:MM–HH:MM' | null (no opera)
+  const HORARIOS = DAYS.map((_, d) => {
+    if (d <= 4) return { T1:'08:00–14:00', T2:'14:00–20:00', T3:'20:00–02:00' }; // Lun-Vie
+    if (d === 5) return { T1:'09:00–13:00', T2:'13:00–20:00', T3:null };          // Sábado
+    return { T1:'08:00–20:00', T2:null, T3:null };                               // Domingo
+  });
+  const TOTAL_TURNOS = HORARIOS.reduce((acc,h)=> acc + Object.values(h).filter(Boolean).length, 0); // 18
+
+  const STORE_KEY = 'pyralis-lumen-cronograma-rmn-v1';
+
+  // ── Estado ────────────────────────────────────────────
+  let state = {
+    title: 'Cronograma semanal — Técnicos RMN',
+    roster: [],               // string[]
+    assign: {},               // { 'd-Tid': ['Nombre', ...] }
+    holidays: {},             // { 'YYYY-MM-DD': ['Nombre', ...] }
+    removedHolidays: [],      // ['YYYY-MM-DD', ...] feriados ocultos por el usuario
+    notes: '',                // observaciones libres de la semana
+    // ── pestaña Módulos ──
+    modTitle: 'Cronograma de módulos — Semana',
+    internados: [],           // [{name, color}]
+    catalog: [],              // [{id, name, internado}] catálogo de módulos
+    board: {0:[],1:[],2:[],3:[],4:[],5:[],6:[]}, // {díaIndex: [{pid, name, internado}]}
+    activeTab: 'turnos'
+  };
+
+  // ── Feriados nacionales 2026 (Argentina.gob.ar · Ley 27.399 + Dto 614/2025) ──
+  // Para los trasladables se lista la FECHA EFECTIVA (la que efectivamente es feriado).
+  const HOLIDAYS = [
+    { d:'2026-01-01', n:'Año Nuevo', t:'inam' },
+    { d:'2026-02-16', n:'Carnaval', t:'inam' },
+    { d:'2026-02-17', n:'Carnaval', t:'inam' },
+    { d:'2026-03-23', n:'Día no laborable con fines turísticos', t:'turi' },
+    { d:'2026-03-24', n:'Día Nacional de la Memoria por la Verdad y la Justicia', t:'inam' },
+    { d:'2026-04-02', n:'Día del Veterano y de los Caídos en la Guerra de Malvinas', t:'inam' },
+    { d:'2026-04-03', n:'Viernes Santo', t:'inam' },
+    { d:'2026-05-01', n:'Día del Trabajador', t:'inam' },
+    { d:'2026-05-25', n:'Día de la Revolución de Mayo', t:'inam' },
+    { d:'2026-06-15', n:'Paso a la Inmortalidad del Gral. Güemes', t:'tras', note:'traslada del 17/06' },
+    { d:'2026-06-20', n:'Paso a la Inmortalidad del Gral. Belgrano', t:'inam' },
+    { d:'2026-07-09', n:'Día de la Independencia', t:'inam' },
+    { d:'2026-07-10', n:'Día no laborable con fines turísticos', t:'turi' },
+    { d:'2026-08-17', n:'Paso a la Inmortalidad del Gral. San Martín', t:'tras' },
+    { d:'2026-10-12', n:'Día del Respeto a la Diversidad Cultural', t:'tras' },
+    { d:'2026-11-23', n:'Día de la Soberanía Nacional', t:'tras', note:'traslada del 20/11' },
+    { d:'2026-12-07', n:'Día no laborable con fines turísticos', t:'turi' },
+    { d:'2026-12-08', n:'Inmaculada Concepción de María', t:'inam' },
+    { d:'2026-12-25', n:'Navidad', t:'inam' },
+  ];
+
+  // ── Persistencia ──────────────────────────────────────
+  function save(){
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch(e){}
+  }
+  function load(){
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (raw) state = Object.assign(state, JSON.parse(raw));
+    } catch(e){}
+  }
+
+  // ── Render: encabezado de días (plantilla genérica, sin fechas) ──
+  function renderHead(){
+    const head = document.getElementById('head-row');
+    head.innerHTML = '<th class="row-label"><span class="h2">Turno</span></th>';
+    DAYS.forEach((name, i) => {
+      const weekend = i >= 5 ? ' weekend' : '';
+      head.insertAdjacentHTML('beforeend',
+        `<th class="${weekend.trim()}"><div class="day-name">${name}</div></th>`);
+    });
+  }
+
+  // ── Render: cuerpo ────────────────────────────────────
+  const clockSVG = '<svg class="clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+
+  function renderBody(){
+    const body = document.getElementById('body');
+    body.innerHTML = '';
+    TURNOS.forEach(turno => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="row-label"><div class="t-name">${turno.name}</div><div class="t-tag">${turno.id}</div></td>`;
+      DAYS.forEach((_, d) => {
+        const horario = HORARIOS[d][turno.id];
+        const td = document.createElement('td');
+        const key = d + '-' + turno.id;
+        if (!horario){
+          td.className = 'cell na';
+          td.innerHTML = '<div class="na-label">— no opera —</div>';
+        } else {
+          const names = state.assign[key] || [];
+          td.className = 'cell' + (names.length ? ' filled' : '');
+          let chips = '<div class="chips">';
+          names.forEach((n, idx) => {
+            chips += `<div class="chip"><span>${escapeHtml(n)}</span><span class="x" data-key="${key}" data-idx="${idx}" title="Quitar">×</span></div>`;
+          });
+          chips += '</div>';
+          td.innerHTML =
+            `<div class="cell-time">${clockSVG}${horario}</div>` +
+            chips +
+            `<input class="add-input" list="roster-list" data-key="${key}" placeholder="+ Asignar técnico">`;
+        }
+        tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+    bindCells();
+    renderCoverage();
+  }
+
+  function escapeHtml(s){ return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  function bindCells(){
+    document.querySelectorAll('#body .add-input').forEach(inp => {
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ',') {
+          e.preventDefault();
+          const val = inp.value.trim().replace(/,$/,'').trim();
+          if (val){ addName(inp.dataset.key, val); }
+        }
+      });
+      inp.addEventListener('change', e => {
+        const val = inp.value.trim();
+        if (val){ addName(inp.dataset.key, val); }
+      });
+    });
+    document.querySelectorAll('#body .chip .x').forEach(x => {
+      x.addEventListener('click', () => removeName(x.dataset.key, parseInt(x.dataset.idx,10)));
+    });
+  }
+
+  // ── Feriados: render + binding ────────────────────────
+  function renderHolidays(){
+    const body = document.getElementById('hol-body');
+    if (!body) return;
+    body.innerHTML = '';
+    const typeLabel = { inam:'Inamovible', tras:'Trasladable', turi:'No laborable' };
+    const typeClass = { inam:'badge-inam', tras:'badge-tras', turi:'badge-turi' };
+    const removed = state.removedHolidays || [];
+    HOLIDAYS.filter(h => removed.indexOf(h.d) === -1).forEach(h => {
+      const dt = new Date(h.d + 'T00:00:00');
+      const wk = dt.toLocaleDateString('es-AR', { weekday:'long' });
+      const dm = dt.toLocaleDateString('es-AR', { day:'numeric', month:'short' });
+      const names = state.holidays[h.d] || [];
+      let chips = '<div class="chips">';
+      names.forEach((n, idx) => {
+        chips += `<div class="chip"><span>${escapeHtml(n)}</span><span class="x" data-hol="${h.d}" data-idx="${idx}" title="Quitar">×</span></div>`;
+      });
+      chips += '</div>';
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        `<td class="hol-date"><div class="dnum">${dm}</div><div class="dwk">${wk}</div></td>` +
+        `<td class="hol-name">${escapeHtml(h.n)}${h.note ? ` <span class="note">(${h.note})</span>` : ''}</td>` +
+        `<td><span class="hol-badge ${typeClass[h.t]}">${typeLabel[h.t]}</span></td>` +
+        `<td><div class="hol-assign">${chips}<input class="add-input" list="roster-list" data-hol="${h.d}" placeholder="+ Guardia pasiva"></div></td>` +
+        `<td class="hol-del-cell"><button class="hol-del" data-del="${h.d}" title="Quitar este día del cuadro">×</button></td>`;
+      body.appendChild(tr);
+    });
+    bindHolidays();
+    renderRestore();
+  }
+  function renderRestore(){
+    const btn = document.getElementById('hol-restore');
+    if (!btn) return;
+    const n = (state.removedHolidays || []).length;
+    if (n){ btn.style.display = ''; btn.textContent = `↺ Restaurar ${n} feriado${n>1?'s':''} oculto${n>1?'s':''}`; }
+    else { btn.style.display = 'none'; }
+  }
+  function bindHolidays(){
+    document.querySelectorAll('#hol-body .add-input').forEach(inp => {
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ',') {
+          e.preventDefault();
+          const val = inp.value.trim().replace(/,$/,'').trim();
+          if (val){ addHol(inp.dataset.hol, val); }
+        }
+      });
+      inp.addEventListener('change', e => {
+        const val = inp.value.trim();
+        if (val){ addHol(inp.dataset.hol, val); }
+      });
+    });
+    document.querySelectorAll('#hol-body .chip .x').forEach(x => {
+      x.addEventListener('click', () => removeHol(x.dataset.hol, parseInt(x.dataset.idx,10)));
+    });
+    document.querySelectorAll('#hol-body .hol-del').forEach(b => {
+      b.addEventListener('click', () => delHoliday(b.dataset.del));
+    });
+  }
+  function delHoliday(d){
+    if (!state.removedHolidays) state.removedHolidays = [];
+    if (state.removedHolidays.indexOf(d) === -1) state.removedHolidays.push(d);
+    delete state.holidays[d];          // limpia la guardia asignada a ese día
+    save(); renderHolidays();
+  }
+  function restoreHolidays(){
+    state.removedHolidays = [];
+    save(); renderHolidays();
+  }
+  function addHol(d, name){
+    if (!state.holidays[d]) state.holidays[d] = [];
+    if (!state.holidays[d].some(n => n.toLowerCase() === name.toLowerCase())){
+      state.holidays[d].push(name);
+      if (!state.roster.some(n => n.toLowerCase() === name.toLowerCase())){
+        state.roster.push(name); renderRoster(); renderDatalist();
+      }
+      save(); renderHolidays();
+      const again = document.querySelector(`#hol-body .add-input[data-hol="${d}"]`);
+      if (again) again.focus();
+    }
+  }
+  function removeHol(d, idx){
+    if (state.holidays[d]){ state.holidays[d].splice(idx,1); if(!state.holidays[d].length) delete state.holidays[d]; save(); renderHolidays(); }
+  }
+
+  function addName(key, name){
+    if (!state.assign[key]) state.assign[key] = [];
+    if (!state.assign[key].some(n => n.toLowerCase() === name.toLowerCase())){
+      state.assign[key].push(name);
+      if (!state.roster.some(n => n.toLowerCase() === name.toLowerCase())){
+        state.roster.push(name); renderRoster(); renderDatalist();
+      }
+      save(); renderBody();
+      // re-foco en la misma celda para carga rápida
+      const again = document.querySelector(`.add-input[data-key="${key}"]`);
+      if (again) again.focus();
+    }
+  }
+  function removeName(key, idx){
+    if (state.assign[key]){ state.assign[key].splice(idx,1); if(!state.assign[key].length) delete state.assign[key]; save(); renderBody(); }
+  }
+
+  // ── Coverage ──────────────────────────────────────────
+  function renderCoverage(){
+    let covered = 0;
+    HORARIOS.forEach((h,d)=> TURNOS.forEach(t=>{
+      if (h[t.id]){ const k=d+'-'+t.id; if (state.assign[k] && state.assign[k].length) covered++; }
+    }));
+    const pct = Math.round(covered/TOTAL_TURNOS*100);
+    document.getElementById('cov-fill').style.width = pct + '%';
+    document.getElementById('cov-text').textContent = `${covered} / ${TOTAL_TURNOS} turnos cubiertos`;
+  }
+
+  // ── Roster ────────────────────────────────────────────
+  function renderRoster(){
+    const wrap = document.getElementById('roster-chips');
+    wrap.innerHTML = '';
+    state.roster.forEach((n, idx) => {
+      const c = document.createElement('div'); c.className = 'chip';
+      c.innerHTML = `<span>${escapeHtml(n)}</span><span class="x" title="Quitar del plantel">×</span>`;
+      c.querySelector('.x').addEventListener('click', () => {
+        state.roster.splice(idx,1); save(); renderRoster(); renderDatalist();
+      });
+      wrap.appendChild(c);
+    });
+  }
+  function renderDatalist(){
+    let dl = document.getElementById('roster-list');
+    if (!dl){ dl = document.createElement('datalist'); dl.id = 'roster-list'; document.body.appendChild(dl); }
+    dl.innerHTML = state.roster.map(n => `<option value="${escapeHtml(n)}">`).join('');
+  }
+
+  // ══════════════════════════════════════════════════════
+  // MÓDULOS · catálogo + tablero drag & drop
+  // ══════════════════════════════════════════════════════
+  const MOD_COLORS = ['#06B6D4','#F59E0B','#A78BFA','#F472B6','#FB923C','#34D399','#22D3EE','#FBBF24'];
+  const FIXED_COLORS = { 'INTERNADO':'#EF4444', 'ART':'#3B82F6', 'AMBULATORIO':'#22C55E' }; // rojo / azul / verde
+  const MOD_SEED = ['INTERNADO','ART','AMBULATORIO'];
+  let modClipboard = null;          // módulo copiado (transitorio)
+  const editing = new Set();        // pids en modo edición (transitorio)
+  function uid(){ return 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+  function internColor(name){
+    const it = (state.internados||[]).find(i => i.name === name);
+    return it ? it.color : '#64748B';
+  }
+
+  // ── Paleta de internados (tarjetas arrastrables) ──────
+  function renderPalette(){
+    const pal = document.getElementById('mod-palette');
+    pal.innerHTML = '';
+    if (!state.internados || !state.internados.length){
+      pal.innerHTML = '<span class="mod-empty-hint">Agregá un internado para empezar.</span>';
+      return;
+    }
+    state.internados.forEach((it, idx) => {
+      const card = document.createElement('div');
+      card.className = 'mod-card';
+      card.style.borderLeftColor = it.color;
+      card.draggable = true;
+      card.innerHTML = `<div class="mc-body"><span class="mc-name">${escapeHtml(it.name)}</span></div><span class="x" title="Eliminar internado">×</span>`;
+      card.addEventListener('dragstart', e => {
+        card.classList.add('dragging');
+        e.dataTransfer.setData('text/plain', JSON.stringify({ src:'palette', name: it.name }));
+        e.dataTransfer.effectAllowed = 'copyMove';
+      });
+      card.addEventListener('dragend', () => card.classList.remove('dragging'));
+      card.querySelector('.x').addEventListener('click', () => removeIntern(idx));
+      pal.appendChild(card);
+    });
+  }
+  function addIntern(name){
+    if (!state.internados) state.internados = [];
+    if (state.internados.some(i => i.name.toLowerCase() === name.toLowerCase())) return;
+    const fixed = FIXED_COLORS[name.toUpperCase()];
+    state.internados.push({ name, color: fixed || MOD_COLORS[state.internados.length % MOD_COLORS.length] });
+    save(); renderPalette();
+  }
+  function removeIntern(idx){ state.internados.splice(idx,1); save(); renderPalette(); }
+
+  // ── Tablero como línea de tiempo de 24 h ──────────────
+  const HOUR_PX = 44;                 // alto de cada hora
+  const TRACK_H = 24 * HOUR_PX;       // 1056px = 24 h
+  const MIN_BLOCK_H = 42;             // alto mínimo (< 1 h) para que entren los campos
+  function hhmmToMin(s){ if (!s) return null; const a = s.split(':'); return (+a[0])*60 + (+(a[1]||0)); }
+  function minToHHMM(min){ min = ((min%1440)+1440)%1440; return String(Math.floor(min/60)).padStart(2,'0') + ':' + String(min%60).padStart(2,'0'); }
+  function hexToRgba(hex, a){
+    const m = hex.replace('#',''); const f = m.length === 3 ? m.split('').map(c=>c+c).join('') : m;
+    const n = parseInt(f, 16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+  }
+  // opciones de horario cada 30 min (selects ágiles)
+  function timeOptions(selected, isEnd){
+    let opts = ''; const first = isEnd ? 30 : 0; const last = isEnd ? 1440 : 1410;
+    let has = false;
+    for (let m = first; m <= last; m += 30){
+      const val = (m >= 1440) ? '24:00' : minToHHMM(m);
+      if (val === selected) has = true;
+      opts += `<option value="${val}"${val === selected ? ' selected' : ''}>${val}</option>`;
+    }
+    if (selected && !has) opts = `<option value="${selected}" selected>${selected}</option>` + opts; // valor fuera de paso
+    return opts;
+  }
+
+  function renderBoard(){
+    const board = document.getElementById('mod-board');
+    board.innerHTML = '';
+    // eje horario
+    const axis = document.createElement('div'); axis.className = 'mod-axis';
+    axis.innerHTML = '<div class="axis-head"></div>';
+    const at = document.createElement('div'); at.className = 'mod-axis-track'; at.style.height = TRACK_H + 'px';
+    for (let h = 0; h <= 24; h += 2){
+      const lab = document.createElement('div'); lab.className = 'axis-label';
+      lab.style.top = (h * HOUR_PX) + 'px';
+      lab.style.transform = h === 0 ? 'translateY(0)' : (h === 24 ? 'translateY(-100%)' : 'translateY(-50%)');
+      lab.textContent = String(h).padStart(2,'0') + ':00';
+      at.appendChild(lab);
+    }
+    axis.appendChild(at); board.appendChild(axis);
+    // columnas-día (primero los tracks, para poder derramar al día siguiente)
+    const tracks = [];
+    DAYS.forEach((name, d) => {
+      const col = document.createElement('div');
+      col.className = 'mod-col' + (d >= 5 ? ' weekend' : '');
+      const head = document.createElement('div'); head.className = 'mod-col-head';
+      head.innerHTML = `<span>${name}</span>`;
+      if (modClipboard){
+        const pb = document.createElement('button'); pb.className = 'paste-btn'; pb.type = 'button';
+        pb.innerHTML = '⧉'; pb.title = 'Pegar el módulo copiado en este día';
+        pb.addEventListener('click', () => pasteInto(d));
+        head.appendChild(pb);
+      }
+      col.appendChild(head);
+      const track = document.createElement('div'); track.className = 'mod-track'; track.style.height = TRACK_H + 'px';
+      tracks[d] = track;
+      track.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('dragover'); e.dataTransfer.dropEffect = 'copy'; });
+      track.addEventListener('dragleave', e => { if (!track.contains(e.relatedTarget)) col.classList.remove('dragover'); });
+      track.addEventListener('drop', e => {
+        e.preventDefault(); col.classList.remove('dragover');
+        let data; try { data = JSON.parse(e.dataTransfer.getData('text/plain')); } catch(_){ return; }
+        const rect = track.getBoundingClientRect();
+        dropOnDay(d, data, e.clientY - rect.top);
+      });
+      col.appendChild(track); board.appendChild(col);
+    });
+    // colocar bloques; los que cruzan medianoche continúan en el día siguiente
+    DAYS.forEach((name, d) => {
+      ((state.board && state.board[d]) || []).forEach(p => {
+        let s = hhmmToMin(p.start), e = hhmmToMin(p.end);
+        if (s == null) s = 8*60; if (e == null) e = 14*60;
+        if (e > s){
+          tracks[d].appendChild(makeBlock(p, d, s, e, 'full'));
+        } else {
+          tracks[d].appendChild(makeBlock(p, d, s, 1440, 'full'));
+          if (e > 0) tracks[(d+1)%7].appendChild(makeBlock(p, d, 0, e, 'cont'));
+        }
+      });
+    });
+  }
+
+  function makeBlock(p, d, segStart, segEnd, kind){
+    const color = internColor(p.internado);
+    const isEdit = editing.has(p.pid);
+    const block = document.createElement('div');
+    block.className = 'mod-block' + (kind === 'cont' ? ' cont' : '') + (isEdit ? ' editing' : '');
+    if (isEdit){
+      const EH = 82;                       // alto del editor; no se desborda del eje
+      let top = (segStart/1440) * TRACK_H;
+      if (top + EH > TRACK_H) top = TRACK_H - EH;
+      block.style.top = top + 'px';
+      block.style.height = EH + 'px';
+    } else {
+      block.style.top = ((segStart/1440) * TRACK_H) + 'px';
+      block.style.height = Math.max(((segEnd - segStart)/1440) * TRACK_H, MIN_BLOCK_H) + 'px';
+    }
+    block.style.borderColor = hexToRgba(color, 0.6);
+    block.style.borderLeftColor = color;
+    block.style.background = hexToRgba(color, 0.18);
+    if (kind === 'cont'){
+      block.innerHTML = `<div class="mb-name-row"><span class="mb-name">${escapeHtml(p.internado)} (cont.)</span></div>`;
+      return block;
+    }
+    if (isEdit){
+      block.innerHTML =
+        `<div class="mb-name-row">` +
+          `<span class="mb-handle" draggable="true" title="Mover de día">⠿</span>` +
+          `<span class="mb-name">${escapeHtml(p.internado)}</span>` +
+          `<span class="mb-act done" title="Listo">✓</span>` +
+          `<span class="x" title="Quitar">×</span>` +
+        `</div>` +
+        `<div class="mb-times"><select class="mb-start">${timeOptions(p.start || minToHHMM(segStart), false)}</select><span>–</span><select class="mb-end">${timeOptions(p.end || '14:00', true)}</select></div>`;
+      const si = block.querySelector('.mb-start'), ei = block.querySelector('.mb-end');
+      si.addEventListener('change', () => { p.start = si.value; save(); renderBoard(); });
+      ei.addEventListener('change', () => { p.end = ei.value; save(); renderBoard(); });
+      block.querySelector('.done').addEventListener('click', () => { editing.delete(p.pid); renderBoard(); });
+    } else {
+      block.innerHTML =
+        `<div class="mb-name-row"><span class="mb-name">${escapeHtml(p.internado)}</span></div>` +
+        `<div class="mb-foot">` +
+          `<span class="mb-range">${escapeHtml(p.start||'08:00')} – ${escapeHtml(p.end||'14:00')}</span>` +
+          `<span class="mb-actions">` +
+            `<span class="mb-handle" draggable="true" title="Mover de día">⠿</span>` +
+            `<span class="mb-act copy" title="Copiar módulo">⧉</span>` +
+            `<span class="mb-act edit" title="Editar horario">✎</span>` +
+            `<span class="x" title="Quitar">×</span>` +
+          `</span>` +
+        `</div>`;
+      block.querySelector('.copy').addEventListener('click', () => copyPlacement(p));
+      block.querySelector('.edit').addEventListener('click', () => { editing.clear(); editing.add(p.pid); renderBoard(); });
+    }
+    const handle = block.querySelector('.mb-handle');
+    handle.addEventListener('dragstart', ev => {
+      ev.dataTransfer.setData('text/plain', JSON.stringify({ src:'board', day:d, pid:p.pid }));
+      ev.dataTransfer.effectAllowed = 'copyMove';
+    });
+    block.querySelector('.x').addEventListener('click', () => removePlacement(d, p.pid));
+    return block;
+  }
+  function copyPlacement(p){
+    modClipboard = { internado: p.internado, start: p.start, end: p.end };
+    toast('Módulo copiado · tocá ⧉ en otro día para pegar');
+    renderBoard();
+  }
+  function pasteInto(day){
+    if (!modClipboard) return;
+    if (!state.board[day]) state.board[day] = [];
+    state.board[day].push({ pid: uid(), internado: modClipboard.internado, start: modClipboard.start, end: modClipboard.end });
+    save(); renderBoard();
+  }
+
+  function dropOnDay(day, data, y){
+    if (!state.board) state.board = {0:[],1:[],2:[],3:[],4:[],5:[],6:[]};
+    const snap = (px) => { let m = Math.round(((px/TRACK_H)*1440)/30)*30; return Math.max(0, Math.min(m, 1440-30)); };
+    if (data.src === 'palette'){
+      const startMin = (typeof y === 'number') ? snap(y) : 8*60;
+      const endMin = Math.min(startMin + 360, 1440);   // +6 h por defecto
+      state.board[day].push({ pid: uid(), internado: data.name, start: minToHHMM(startMin), end: endMin >= 1440 ? '24:00' : minToHHMM(endMin) });
+    } else if (data.src === 'board'){
+      const from = state.board[data.day] || [];
+      const i = from.findIndex(x => x.pid === data.pid);
+      if (i === -1) return;
+      if (data.day === day){
+        // reubicar dentro del mismo día según dónde se soltó
+        const p = from[i];
+        let dur = hhmmToMin(p.end) - hhmmToMin(p.start); if (dur <= 0) dur = 360;
+        const startMin = (typeof y === 'number') ? snap(y) : hhmmToMin(p.start);
+        p.start = minToHHMM(startMin); p.end = minToHHMM(Math.min(startMin + dur, 1440));
+      } else {
+        const [moved] = from.splice(i,1);
+        state.board[day].push(moved);
+      }
+    }
+    save(); renderBoard();
+  }
+  function removePlacement(day, pid){
+    if (state.board && state.board[day]){
+      state.board[day] = state.board[day].filter(p => p.pid !== pid);
+      save(); renderBoard();
+    }
+  }
+  function renderModules(){ renderPalette(); renderBoard(); }
+
+  // ── Pestañas ──────────────────────────────────────────
+  function setTab(tab){
+    state.activeTab = tab; save();
+    document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    document.getElementById('tab-turnos').hidden = (tab !== 'turnos');
+    document.getElementById('tab-modulos').hidden = (tab !== 'modulos');
+  }
+
+  // ── Toast ─────────────────────────────────────────────
+  let toastTimer;
+  function toast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(()=> t.classList.remove('show'), 2200);
+  }
+
+  // ── Acciones toolbar ──────────────────────────────────
+  function exportJSON(){
+    const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `cronograma-rmn-semana.json`;
+    a.click(); URL.revokeObjectURL(a.href);
+    toast('Respaldo exportado');
+  }
+  function importJSON(file){
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        state = Object.assign({title:'',roster:[],assign:{},holidays:{},removedHolidays:[],notes:'',modTitle:'Cronograma de módulos — Semana',internados:[],catalog:[],board:{},activeTab:'turnos'}, data);
+        if (!state.holidays) state.holidays = {};
+        if (!state.removedHolidays) state.removedHolidays = [];
+        if (typeof state.notes !== 'string') state.notes = '';
+        if (!state.internados) state.internados = [];
+        if (!state.catalog) state.catalog = [];
+        if (!state.board || typeof state.board !== 'object') state.board = {};
+        for (let i=0;i<7;i++){ if (!Array.isArray(state.board[i])) state.board[i] = []; }
+        if (!state.modTitle) state.modTitle = 'Cronograma de módulos — Semana';
+        if (!state.activeTab) state.activeTab = 'turnos';
+        save(); initFromState(); toast('Respaldo importado');
+      } catch(e){ toast('Archivo inválido'); }
+    };
+    reader.readAsText(file);
+  }
+  function clearWeek(){
+    if (confirm('¿Vaciar todas las asignaciones de esta semana? El plantel se conserva.')){
+      state.assign = {}; save(); renderBody(); toast('Semana vaciada');
+    }
+  }
+
+  // ── Init ──────────────────────────────────────────────
+  function initFromState(){
+    document.getElementById('title').value = state.title || 'Cronograma semanal — Técnicos RMN';
+    document.title = (state.title || 'Cronograma') + ' — Lumen by Pyralis';
+    if (!state.holidays) state.holidays = {};
+    if (!state.removedHolidays) state.removedHolidays = [];
+    if (typeof state.notes !== 'string') state.notes = '';
+    document.getElementById('notes').value = state.notes;
+    // módulos
+    if (!state.internados) state.internados = [];
+    if (!state.board || typeof state.board !== 'object') state.board = {};
+    for (let i=0;i<7;i++){ if (!Array.isArray(state.board[i])) state.board[i] = []; }
+    // sembrar los internados por defecto la primera vez
+    if (!state.modSeeded && !state.internados.length){
+      state.internados = MOD_SEED.map(n => ({ name: n, color: FIXED_COLORS[n] }));
+      state.modSeeded = true; save();
+    }
+    // color fijo para internados conocidos (corrige también los guardados antes)
+    let _cc = false;
+    state.internados.forEach(it => { const c = FIXED_COLORS[(it.name||'').toUpperCase()]; if (c && it.color !== c){ it.color = c; _cc = true; } });
+    if (_cc) save();
+    document.getElementById('mod-title').value = state.modTitle || 'Cronograma de módulos — Semana';
+    const hoy = new Date().toLocaleDateString('es-AR', { day:'numeric', month:'long', year:'numeric' });
+    document.getElementById('print-meta').innerHTML = `Generado el <b>${hoy}</b><br>Lumen · by Pyralis`;
+    renderRoster(); renderDatalist(); renderHead(); renderBody(); renderHolidays(); renderModules();
+    setTab(state.activeTab || 'turnos');
+  }
+
+  function bindGlobal(){
+    document.getElementById('title').addEventListener('input', e => {
+      state.title = e.target.value; document.title = (state.title||'Cronograma')+' — Lumen by Pyralis'; save();
+    });
+    document.getElementById('notes').addEventListener('input', e => {
+      state.notes = e.target.value; save();
+    });
+    document.getElementById('roster-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter'){
+        const v = e.target.value.trim();
+        if (v && !state.roster.some(n=>n.toLowerCase()===v.toLowerCase())){
+          state.roster.push(v); save(); renderRoster(); renderDatalist();
+        }
+        e.target.value = '';
+      }
+    });
+    document.getElementById('btn-print').addEventListener('click', () => window.print());
+    document.getElementById('btn-export').addEventListener('click', exportJSON);
+    document.getElementById('btn-import').addEventListener('click', () => document.getElementById('file-import').click());
+    document.getElementById('file-import').addEventListener('change', e => { if (e.target.files[0]) importJSON(e.target.files[0]); e.target.value=''; });
+    document.getElementById('btn-clear').addEventListener('click', clearWeek);
+    document.getElementById('hol-restore').addEventListener('click', restoreHolidays);
+    // pestañas + módulos
+    document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
+    document.getElementById('mod-title').addEventListener('input', e => { state.modTitle = e.target.value; save(); });
+    document.getElementById('intern-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter'){ const v = e.target.value.trim(); if (v) addIntern(v); e.target.value = ''; }
+    });
+  }
+
+  load();
+  bindGlobal();
+  initFromState();
+})();
+</script>
+</body>
+</html>

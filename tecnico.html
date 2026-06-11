@@ -69,6 +69,14 @@
     /* ── LAYOUT ── */
     .main { max-width: 1200px; margin: 0 auto; padding: 28px 24px 60px; }
 
+    /* ── PESTAÑAS Control | Cronogramas ── */
+    .tec-tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid var(--border); }
+    .tec-tab { background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--muted); font-family: inherit; font-size: 14px; font-weight: 600; letter-spacing: .5px; padding: 11px 20px; cursor: pointer; margin-bottom: -1px; transition: color .15s, border-color .15s; }
+    .tec-tab:hover { color: var(--pyralis-text); }
+    .tec-tab.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+    .main.show-cron > :not(.tec-tabs):not(#tec-panel-cron) { display: none !important; }
+    #tec-panel-cron iframe { width: 100%; height: calc(100vh - 132px); border: 1px solid var(--border); border-radius: 12px; background: #0A0F14; display: block; }
+
     /* ── UPLOAD ZONE ── */
     #upload-zone {
       margin-bottom: 28px;
@@ -355,6 +363,14 @@
 </div>
 
 <div class="main">
+
+  <div class="tec-tabs">
+    <button class="tec-tab active" data-tab="control" type="button">Control</button>
+    <button class="tec-tab" data-tab="cron" type="button">Cronogramas</button>
+  </div>
+  <div id="tec-panel-cron" hidden>
+    <iframe id="cron-frame" title="Cronograma de técnicos y módulos" loading="lazy"></iframe>
+  </div>
 
   <!-- ESTADO DATOS -->
   <div id="upload-zone">
@@ -2114,6 +2130,25 @@ function groupBy(arr, keyFn) {
 </script>
 <!-- Toast de notificaciones (para showToast de spcd-utils.js) -->
 <div class="toast" id="toast"></div>
+
+<script>
+/* Pestañas Control | Cronogramas (carga diferida del iframe) */
+(function(){
+  var main = document.querySelector('.main');
+  var frame = document.getElementById('cron-frame');
+  var panel = document.getElementById('tec-panel-cron');
+  var tabs = document.querySelectorAll('.tec-tab');
+  tabs.forEach(function(b){
+    b.addEventListener('click', function(){
+      tabs.forEach(function(x){ x.classList.toggle('active', x === b); });
+      var cron = b.getAttribute('data-tab') === 'cron';
+      main.classList.toggle('show-cron', cron);
+      panel.hidden = !cron;
+      if (cron && !frame.getAttribute('src')) frame.src = 'cronograma.html?embed=1';
+    });
+  });
+})();
+</script>
 
 <script src="spcd-bg.js?v=2"></script>
 <script src="spcd-share.js?v=4"></script>
