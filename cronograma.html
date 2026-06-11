@@ -1264,6 +1264,18 @@ body.locked .roster-hint { opacity: .6; }
     let _cc = false;
     state.internados.forEach(it => { const c = FIXED_COLORS[(it.name||'').toUpperCase()]; if (c && it.color !== c){ it.color = c; _cc = true; } });
     if (_cc) save();
+    // siembra única de los turnos cargados previamente (recupera la carga anterior)
+    if (!state.dataSeeded && (state.roster||[]).length === 0 && Object.keys(state.assign||{}).length === 0){
+      state.roster = ['Tobias Rumbo','Arian Walker','Romina Romero','Yanina Jofré','Federica Lucas'];
+      state.assign = {
+        '0-T1':['Tobias Rumbo'],'1-T1':['Tobias Rumbo'],'2-T1':['Tobias Rumbo'],'3-T1':['Tobias Rumbo'],'4-T1':['Tobias Rumbo'],
+        '5-T1':['Tobias Rumbo','Arian Walker','Romina Romero'],'6-T1':['Yanina Jofré'],
+        '0-T2':['Arian Walker'],'1-T2':['Arian Walker'],'2-T2':['Arian Walker'],'3-T2':['Arian Walker'],'4-T2':['Arian Walker'],
+        '5-T2':['Federica Lucas'],
+        '0-T3':['Romina Romero'],'1-T3':['Romina Romero'],'2-T3':['Romina Romero'],'3-T3':['Romina Romero'],'4-T3':['Romina Romero']
+      };
+      state.dataSeeded = true; save();
+    }
     document.getElementById('mod-title').value = state.modTitle || 'Cronograma de módulos — Semana';
     const hoy = new Date().toLocaleDateString('es-AR', { day:'numeric', month:'long', year:'numeric' });
     document.getElementById('print-meta').innerHTML = `Generado el <b>${hoy}</b><br>Lumen · by Pyralis`;
