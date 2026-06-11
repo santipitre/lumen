@@ -195,6 +195,19 @@
       color:var(--muted); opacity:0; transition:opacity .2s; pointer-events:none;
     }
     .kpi-card:hover .kpi-hint { opacity:.7; }
+    /* KPIs automatizados (bot Reparar): NO atenuados — se distinguen por el badge
+       + el contador de arreglados. El badge va en el flujo (no absoluto) para no
+       superponerse con el subtexto. */
+    .kpi-auto-badge {
+      display:inline-block; margin-top:10px; align-self:flex-start;
+      font-size:9px; letter-spacing:1px; text-transform:uppercase; font-weight:600;
+      color:var(--green); border:1px solid var(--green); border-radius:6px;
+      padding:3px 8px; background:rgba(85,231,139,.10); white-space:nowrap;
+    }
+    /* Contador "X arreglados" debajo del número del KPI automatizado. */
+    .kpi-arr { margin-top:5px; font-size:11px; font-weight:600; line-height:1.2; }
+    .kpi-arr .arr-ok   { color:var(--green); }
+    .kpi-arr .arr-pend { color:var(--amber); font-weight:500; }
 
     /* ── MODAL DRAWER ── */
     /* IMPORTANTE: spcd-components.css define .modal-overlay { display:none }
@@ -1097,6 +1110,8 @@
 let rawData  = [];
 let filtered = [];
 let charts   = {};
+// Set de turnos ya reparados por los bots: claves "tipo:turnoN" (estado OK/YA_OK).
+let REPARADOS = new Set();
 
 /* ══════════════════════════════════
    INIT
@@ -1131,6 +1146,13 @@ window.addEventListener('DOMContentLoaded', () => {
 
   console.log('%c[Lumen ADMIN] versión fix-kpi-dedup-turno-2026-05-04', 'color:#22DBAE;font-weight:700');
 
+  // Al volver a la pestaña (p.ej. después de que el bot terminó de reparar),
+  // re-consultar el contador de "arreglados" sin recargar la página.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') cargarReparaciones(false);
+  });
+  window.addEventListener('focus', () => cargarReparaciones(false));
+
   const sede = localStorage.getItem('spcd_sede') || '';
   document.getElementById('bc-sede').textContent  = sede || 'Sede';
   document.getElementById('top-sede').textContent = sede || '—';
@@ -1160,6 +1182,32 @@ function onDataLoaded(data) {
   document.getElementById('summary-bar').style.display  = 'flex';
   filtered = [...data];
   render(filtered);
+  cargarReparaciones();   // async: al volver, re-renderiza con el contador de arreglados
+}
+
+/* ══════════════════════════════════
+   REPARACIONES (contador "arreglados")
+   Lee la tabla `reparaciones` (poblada por los bots) y rearma el render.
+══════════════════════════════════ */
+let _reparadosSig = '';        // firma del Set para detectar cambios
+let _reparadosLastFetch = 0;   // throttle de los refrescos por foco
+
+async function cargarReparaciones(force = true) {
+  try {
+    if (typeof sbQuery !== 'function') return;
+    const ahora = Date.now();
+    if (!force && ahora - _reparadosLastFetch < 8000) return; // evita spamear al alternar pestañas
+    _reparadosLastFetch = ahora;
+    const rows = await sbQuery('reparaciones', 'select=turno_n,tipo&estado=in.(OK,YA_OK)');
+    const nuevo = new Set((rows || []).map(r => `${r.tipo}:${String(r.turno_n).trim()}`));
+    const sig = [...nuevo].sort().join('|');
+    if (sig === _reparadosSig) return;   // sin cambios → no re-renderizar
+    _reparadosSig = sig;
+    REPARADOS = nuevo;
+    if (filtered && filtered.length) render(filtered);  // refresca sin recargar datos
+  } catch (e) {
+    console.warn('[reparaciones] no se pudo cargar el contador de arreglados:', e);
+  }
 }
 
 /* ══════════════════════════════════
@@ -1249,13 +1297,12 @@ function calcSummaryBar(data) {
   // turnos con varios errores ni líneas múltiples del mismo turno). Coincide
   // con el modal "Total Errores" que se abre al hacer click en esta tarjeta.
   const reaUniq = dedupByTurno(reaData);
+  // NO suma los tipos automatizados (Inst. Derivante, Tipo Cobertura, Fuera Fecha
+  // Fact.): tienen bot Reparar y se muestran aparte como "✓ Automatizado".
   const totalErrores = reaUniq.filter(r =>
-    esErrorInstDerivante(r) ||
     (()=>{ const d=(r['Derivante']||'').trim().toUpperCase(); return !d || d==='A CONFIRMAR'; })() ||
     (()=>{ const id=String(r['ID Aseguradora']||'').trim(); const cu=(r['Cuenta']||'').trim().toUpperCase(); const pr=(r['Prestación']||r['Prestacion']||'').trim().toUpperCase(); const ne=parseFloat(r['Neto Unitario']||0); return id==='1665'&&cu.includes('OSEP')&&pr==='COSEGURO'&&ne===0; })() ||
     esErrorReferencia(r) ||
-    esErrorCobertura(r) ||
-    esErrorFueraFechaFact(r) ||
     esErrorTramiteIncompleto(r)
   ).length;
 
@@ -1441,6 +1488,51 @@ function calcKPIs(data) {
   const finamedErr = rea.filter(r => esErrorTramiteFinamed(r));
   document.getElementById('kpi-tramites-finamed').textContent = finamedErr.length.toLocaleString();
   document.getElementById('kpi-tramites-finamed-sub').textContent = `${finamedErr.length.toLocaleString()} a recepcionar`;
+
+  // KPIs cuyo flujo ya está automatizado (bot Reparar): se atenúan, llevan badge
+  // "✓ Automatizado", muestran cuántos ya se arreglaron y NO suman al total.
+  ['kpi-instderiv','kpi-cobertura','kpi-fuerafecha'].forEach(marcarKpiAutomatizado);
+  mostrarArreglados('kpi-instderiv', instDerivErr,  'instderiv');
+  mostrarArreglados('kpi-cobertura', cobErr,        'cobertura');
+  mostrarArreglados('kpi-fuerafecha', fueraFechaErr, 'fuerafecha');
+}
+
+/* Atenúa la tarjeta del KPI y le agrega el badge "Automatizado" (idempotente). */
+function marcarKpiAutomatizado(valId) {
+  const val = document.getElementById(valId);
+  const card = val && val.closest('.kpi-card');
+  if (!card) return;
+  card.classList.add('automatizado');
+  if (!card.querySelector('.kpi-auto-badge')) {
+    const b = document.createElement('div');
+    b.className = 'kpi-auto-badge';
+    b.textContent = '✓ Automatizado';
+    card.appendChild(b);
+  }
+}
+
+/* Muestra "✓ N arreglados · M pend." debajo del número, cruzando los turnos
+   en error contra el Set REPARADOS (poblado desde Supabase). Si todavía no
+   cargó nada, no muestra el renglón. */
+function mostrarArreglados(valId, rows, tipo) {
+  const val = document.getElementById(valId);
+  const card = val && val.closest('.kpi-card');
+  if (!card) return;
+  let el = card.querySelector('.kpi-arr');
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'kpi-arr';
+    val.insertAdjacentElement('afterend', el);
+  }
+  if (!REPARADOS || !REPARADOS.size) { el.textContent = ''; return; }
+  let arr = 0;
+  for (const r of rows) {
+    const tn = _safe(r['Turno N°'] ?? r['Turno N'] ?? r['Turno No']);
+    if (tn && REPARADOS.has(tipo + ':' + tn)) arr++;
+  }
+  const pend = Math.max(0, rows.length - arr);
+  el.innerHTML = `<span class="arr-ok">✓ ${arr.toLocaleString('es-AR')} arreglados</span>` +
+                 (pend ? ` <span class="arr-pend">· ${pend.toLocaleString('es-AR')} pend.</span>` : '');
 }
 
 /* ══════════════════════════════════
@@ -2753,12 +2845,10 @@ function _openModalInternal(tipo) {
     case 'tramitesharefield': modalRows = filtered.filter(r => esErrorTramiteHarefield(r)); break;
     case 'tramitesfinamed': modalRows = filtered.filter(r => esErrorTramiteFinamed(r)); break;
     case 'sumerrores':  modalRows = filtered.filter(r =>
-      esErrorInstDerivante(r) ||
+      // Excluye tipos automatizados (Inst. Derivante, Tipo Cobertura, Fuera Fecha Fact.)
       (()=>{ const d=_safe(r['Derivante']).toUpperCase(); return !d || d==='A CONFIRMAR'; })() ||
       (()=>{ const id=_safe(r['ID Aseguradora']); const cu=_safe(r['Cuenta']).toUpperCase(); const pr=_safe(r['Prestación']||r['Prestacion']).toUpperCase(); const ne=parseFloat(r['Neto Unitario']||0); return id==='1665'&&cu.includes('OSEP')&&pr==='COSEGURO'&&ne===0; })() ||
       esErrorReferencia(r) ||
-      esErrorCobertura(r) ||
-      esErrorFueraFechaFact(r) ||
       esErrorTramiteIncompleto(r)
     ); break;
     case 'sumturnos':    modalRows = [...filtered]; break;
@@ -3327,6 +3417,8 @@ async function repararConBot() {
 function cerrarReparar() {
   const overlay = document.getElementById('reparar-overlay');
   if (overlay) overlay.classList.remove('open');
+  // Por si el bot ya terminó: re-consultar el contador de arreglados.
+  if (typeof cargarReparaciones === 'function') cargarReparaciones(false);
 }
 
 function copiarComandoReparar() {
