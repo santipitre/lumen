@@ -399,6 +399,44 @@ select.input { cursor: pointer; }
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+/* ── BARRA DE EDICIÓN (bloqueo / guardar) ───────────────── */
+.editbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  background: var(--pyralis-bg-elevated); border: 1px solid var(--pyralis-border-strong); border-radius: 12px;
+  padding: 10px 16px; margin-bottom: 16px; }
+.edit-status { font-size: 13px; font-weight: 500; color: var(--pyralis-text-muted); display: flex; align-items: center; gap: 7px; }
+.editbar.editing { border-color: var(--app-accent-ring); background: var(--app-accent-dim); }
+.editbar.editing .edit-status { color: var(--app-accent-soft); }
+.editbar-actions { display: flex; gap: 8px; }
+
+/* modo solo-lectura: oculta toda acción de edición */
+body.locked .add-input,
+body.locked .chip .x,
+body.locked #roster-input,
+body.locked #roster-chips .x,
+body.locked .hol-del-cell,
+body.locked #hol-restore,
+body.locked .mb-handle,
+body.locked .mb-act,
+body.locked .mod-block .x,
+body.locked #intern-input,
+body.locked .mod-card .x,
+body.locked .paste-btn,
+body.locked #btn-clear,
+body.locked #btn-import { display: none !important; }
+body.locked .mod-card { pointer-events: none; opacity: .9; }
+body.locked .roster-hint { opacity: .6; }
+
+/* ── CALENDARIO COMPACTO (entra sin scroll horizontal) ──── */
+#tab-turnos > .grid-wrap > table { min-width: 0; width: 100%; table-layout: fixed; }
+#tab-turnos > .grid-wrap > table thead th,
+#tab-turnos > .grid-wrap > table td.cell { min-width: 0; }
+#tab-turnos > .grid-wrap > table .row-label { min-width: 0; width: 76px; }
+#tab-turnos > .grid-wrap > table td.cell { height: auto; min-height: 62px; padding: 6px; }
+#tab-turnos > .grid-wrap > table .cell-time { margin-bottom: 5px; }
+.controls { padding: 14px 18px; margin-bottom: 14px; }
+.roster { margin-bottom: 14px; padding: 12px 16px; }
+.tabs { margin-bottom: 16px; }
+
 .print-meta { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -548,6 +586,15 @@ select.input { cursor: pointer; }
 </header>
 
 <main class="page">
+
+  <div class="editbar" id="editbar">
+    <span class="edit-status" id="edit-status"><span class="lock-ico">🔒</span> Solo lectura</span>
+    <div class="editbar-actions">
+      <button class="btn btn-accent" id="btn-edit" type="button">✏️ Editar</button>
+      <button class="btn btn-ghost" id="btn-cancel" type="button" hidden>Cancelar</button>
+      <button class="btn btn-primary" id="btn-save" type="button" hidden>✓ Guardar cambios</button>
+    </div>
+  </div>
 
   <nav class="tabs" id="tabs">
     <button class="tab active" data-tab="turnos">Turnos</button>
@@ -701,9 +748,13 @@ select.input { cursor: pointer; }
     { d:'2026-12-25', n:'Navidad', t:'inam' },
   ];
 
+  // ── Modo edición / bloqueo ────────────────────────────
+  let editMode = false, dirty = false, restoring = false, snapshot = null;
+
   // ── Persistencia ──────────────────────────────────────
   function save(){
     try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch(e){}
+    if (editMode && !restoring){ dirty = true; refreshEditUI(); }
   }
   function load(){
     try {
@@ -1247,11 +1298,44 @@ select.input { cursor: pointer; }
     document.getElementById('intern-input').addEventListener('keydown', e => {
       if (e.key === 'Enter'){ const v = e.target.value.trim(); if (v) addIntern(v); e.target.value = ''; }
     });
+    // edición / bloqueo
+    document.getElementById('btn-edit').addEventListener('click', enterEdit);
+    document.getElementById('btn-save').addEventListener('click', doSave);
+    document.getElementById('btn-cancel').addEventListener('click', doCancel);
+    window.addEventListener('beforeunload', e => { if (editMode && dirty){ e.preventDefault(); e.returnValue = ''; } });
+  }
+
+  function setReadonly(ro){
+    ['title','mod-title','notes'].forEach(id => { const el = document.getElementById(id); if (el) el.readOnly = ro; });
+  }
+  function refreshEditUI(){
+    const st = document.getElementById('edit-status');
+    document.getElementById('btn-edit').hidden = editMode;
+    document.getElementById('btn-save').hidden = !editMode;
+    document.getElementById('btn-cancel').hidden = !editMode;
+    document.getElementById('editbar').classList.toggle('editing', editMode);
+    if (!editMode) st.innerHTML = '<span class="lock-ico">🔒</span> Solo lectura';
+    else st.innerHTML = dirty ? '✏️ Editando · cambios sin guardar' : '✏️ Editando';
+  }
+  function setLocked(locked){ document.body.classList.toggle('locked', locked); setReadonly(locked); }
+  function enterEdit(){ editMode = true; dirty = false; snapshot = JSON.stringify(state); setLocked(false); refreshEditUI(); }
+  function doSave(){ editMode = false; dirty = false; snapshot = null; setLocked(true); refreshEditUI(); toast('Cambios guardados'); }
+  function doCancel(){
+    if (dirty && !confirm('¿Descartar los cambios sin guardar?')) return;
+    if (snapshot){ restoring = true; try { state = JSON.parse(snapshot); } catch(e){} save(); restoring = false; }
+    snapshot = null; editMode = false; dirty = false;
+    setLocked(true); refreshEditUI();
+    renderRoster(); renderDatalist(); renderHead(); renderBody(); renderHolidays(); renderModules();
+    document.getElementById('title').value = state.title || '';
+    document.getElementById('mod-title').value = state.modTitle || '';
+    document.getElementById('notes').value = state.notes || '';
+    toast('Cambios descartados');
   }
 
   load();
   bindGlobal();
   initFromState();
+  setLocked(true); refreshEditUI();   // arranca en solo-lectura
 })();
 </script>
 </body>
