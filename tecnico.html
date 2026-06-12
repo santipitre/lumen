@@ -75,7 +75,7 @@
     .tec-tab:hover { color: var(--pyralis-text); }
     .tec-tab.active { color: var(--cyan); border-bottom-color: var(--cyan); }
     .main.show-cron > :not(.tec-tabs):not(#tec-panel-cron) { display: none !important; }
-    #tec-panel-cron iframe { width: 100%; height: calc(100vh - 132px); border: 1px solid var(--border); border-radius: 12px; background: #0A0F14; display: block; }
+    #tec-panel-cron iframe { width: 100%; height: auto; min-height: 420px; border: 1px solid var(--border); border-radius: 12px; background: #0A0F14; display: block; }
 
     /* ── UPLOAD ZONE ── */
     #upload-zone {
@@ -2138,6 +2138,13 @@ function groupBy(arr, keyFn) {
   var frame = document.getElementById('cron-frame');
   var panel = document.getElementById('tec-panel-cron');
   var tabs = document.querySelectorAll('.tec-tab');
+  function fitFrame(){ try { frame.style.height = frame.contentWindow.document.documentElement.scrollHeight + 'px'; } catch(e){} }
+  frame.addEventListener('load', function(){
+    fitFrame();
+    try { new ResizeObserver(fitFrame).observe(frame.contentWindow.document.body); } catch(e){}
+    var n = 0, iv = setInterval(function(){ fitFrame(); if (++n > 30) clearInterval(iv); }, 250);
+  });
+  window.addEventListener('resize', fitFrame);
   tabs.forEach(function(b){
     b.addEventListener('click', function(){
       tabs.forEach(function(x){ x.classList.toggle('active', x === b); });
@@ -2145,6 +2152,7 @@ function groupBy(arr, keyFn) {
       main.classList.toggle('show-cron', cron);
       panel.hidden = !cron;
       if (cron && !frame.getAttribute('src')) frame.src = 'cronograma.html?embed=1';
+      else if (cron) fitFrame();
     });
   });
 })();
