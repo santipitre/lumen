@@ -532,6 +532,15 @@ body.locked .roster-hint { opacity: .6; }
   .badge-inam { background: #fef3c7 !important; border-color: #f59e0b !important; color: #92400e !important; }
   .badge-tras { background: #dbeafe !important; border-color: #60a5fa !important; color: #1e40af !important; }
   .badge-turi { background: #cffafe !important; border-color: #06b6d4 !important; color: #155e75 !important; }
+  /* feriados compactos: entran en el espacio bajo la grilla, una línea por feriado */
+  .holidays-section { margin-top: 10px; page-break-inside: auto; }
+  .hol-head .h2 { font-size: 10px; }
+  .hol-table thead th, .hol-table td { padding: 1px 8px !important; }
+  .hol-table .hol-date .dwk { display: none !important; }
+  .hol-table .hol-date .dnum { font-size: 10px; }
+  .hol-name { font-size: 10px; }
+  .hol-name .note { display: none; }
+  .hol-badge { font-size: 8px; padding: 0 5px; }
 
   .hol-table tr, td.cell { page-break-inside: avoid; }
 
@@ -542,8 +551,8 @@ body.locked .roster-hint { opacity: .6; }
 
   /* pestañas + módulos (línea de tiempo) */
   .tabs { display: none !important; }
-  /* exportación a una sola hoja: solo la grilla/tablero activo */
-  .holidays-section, .notes-section { display: none !important; }
+  /* exportación a una sola hoja */
+  .notes-section { display: none !important; }
   #tab-modulos .mod-side { display: none !important; }
   /* el tablero 24h entra en una hoja; agrando fuentes para compensar el zoom */
   #tab-modulos .mod-board { zoom: 0.55; page-break-inside: avoid; }
