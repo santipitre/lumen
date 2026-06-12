@@ -468,8 +468,11 @@ body.locked .roster-hint { opacity: .6; }
 
   /* ocultar todo lo interactivo y los campos vacíos */
   .toolbar, .roster, .coverage, .add-input, .chip .x, .footer-note, .toast,
-  .lumen-crumbs, .hol-del-cell, #hol-restore, .hol-table thead th:last-child,
+  .lumen-crumbs, .editbar, .hol-del-cell, #hol-restore, .hol-table thead th:last-child,
   #week-start { display: none !important; }
+  /* en modo embebido, mostrar el logo en el documento impreso */
+  .embed .lockup { display: flex !important; }
+  .embed .topbar { justify-content: flex-start !important; padding: 0 0 6px !important; }
   .field:has(#week-start) { display: none !important; }
 
   /* cabecera del documento */
