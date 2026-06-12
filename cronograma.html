@@ -384,6 +384,12 @@ select.input { cursor: pointer; }
 .mod-block .x { cursor: pointer; color: var(--pyralis-text-dim); font-size: 15px; line-height: 1; }
 .mod-block .x:hover { color: var(--pyralis-danger); }
 .mb-range { font-size: 13px; font-weight: 600; color: var(--app-accent-soft); letter-spacing: 0.02em; white-space: nowrap; }
+.mod-block.clickable { cursor: pointer; }
+.mod-block.clickable:hover { box-shadow: inset 0 0 0 1px var(--app-accent-soft); }
+.mb-edit-hint { color: var(--app-accent-soft); font-size: 11px; opacity: .65; }
+body.locked .mod-block.clickable { cursor: default; }
+body.locked .mod-block.clickable:hover { box-shadow: none; }
+body.locked .mb-edit-hint { display: none !important; }
 .mod-block.editing { min-height: 74px; z-index: 6; box-shadow: 0 6px 20px rgba(0,0,0,.55); }
 .mb-times { display: flex; align-items: center; gap: 5px; }
 .mb-times select { background: var(--pyralis-bg-input); color: var(--pyralis-text); border: 1px solid var(--pyralis-border-strong); border-radius: 5px; padding: 4px 4px; font-family: inherit; font-size: 13px; width: 100%; min-width: 0; cursor: pointer; }
@@ -528,7 +534,7 @@ body.locked .roster-hint { opacity: .6; }
   /* pestañas + módulos (línea de tiempo) */
   .tabs { display: none !important; }
   #tab-modulos .mod-side { display: none !important; }
-  .mb-handle, .mod-block .x, .mb-act, .paste-btn { display: none !important; }
+  .mb-handle, .mod-block .x, .mb-act, .paste-btn, .mb-edit-hint { display: none !important; }
   .mod-board-wrap { overflow: visible; }
   .mod-board { min-width: 0; page-break-inside: avoid; }
   .mod-axis, .mod-col { border-color: #cbd5e1; }
@@ -1115,8 +1121,8 @@ body.locked .roster-hint { opacity: .6; }
     if (isEdit){
       block.innerHTML =
         `<div class="mb-name-row">` +
-          `<span class="mb-handle" draggable="true" title="Mover de día">⠿</span>` +
           `<span class="mb-name">${escapeHtml(p.internado)}</span>` +
+          `<span class="mb-act copy" title="Copiar módulo">⧉</span>` +
           `<span class="mb-act done" title="Listo">✓</span>` +
           `<span class="x" title="Quitar">×</span>` +
         `</div>` +
@@ -1124,28 +1130,25 @@ body.locked .roster-hint { opacity: .6; }
       const si = block.querySelector('.mb-start'), ei = block.querySelector('.mb-end');
       si.addEventListener('change', () => { p.start = si.value; save(); renderBoard(); });
       ei.addEventListener('change', () => { p.end = ei.value; save(); renderBoard(); });
-      block.querySelector('.done').addEventListener('click', () => { editing.delete(p.pid); renderBoard(); });
-    } else {
-      block.innerHTML =
-        `<div class="mb-name-row"><span class="mb-name">${escapeHtml(p.internado)}</span></div>` +
-        `<div class="mb-foot">` +
-          `<span class="mb-range">${escapeHtml(p.start||'08:00')} – ${escapeHtml(p.end||'14:00')}</span>` +
-          `<span class="mb-actions">` +
-            `<span class="mb-handle" draggable="true" title="Mover de día">⠿</span>` +
-            `<span class="mb-act copy" title="Copiar módulo">⧉</span>` +
-            `<span class="mb-act edit" title="Editar horario">✎</span>` +
-            `<span class="x" title="Quitar">×</span>` +
-          `</span>` +
-        `</div>`;
       block.querySelector('.copy').addEventListener('click', () => copyPlacement(p));
-      block.querySelector('.edit').addEventListener('click', () => { editing.clear(); editing.add(p.pid); renderBoard(); });
+      block.querySelector('.done').addEventListener('click', () => { editing.delete(p.pid); renderBoard(); });
+      block.querySelector('.x').addEventListener('click', () => removePlacement(d, p.pid));
+    } else {
+      block.classList.add('clickable');
+      block.innerHTML =
+        `<div class="mb-name-row"><span class="mb-name">${escapeHtml(p.internado)}</span><span class="mb-handle" draggable="true" title="Arrastrar para mover de día">⠿</span></div>` +
+        `<div class="mb-range">${escapeHtml(p.start||'08:00')} – ${escapeHtml(p.end||'14:00')} <span class="mb-edit-hint" title="Tocá para editar el horario">✎</span></div>`;
+      const handle = block.querySelector('.mb-handle');
+      handle.addEventListener('dragstart', ev => {
+        ev.dataTransfer.setData('text/plain', JSON.stringify({ src:'board', day:d, pid:p.pid }));
+        ev.dataTransfer.effectAllowed = 'copyMove';
+      });
+      block.addEventListener('click', ev => {
+        if (ev.target.closest('.mb-handle')) return;
+        if (document.body.classList.contains('locked')) return;
+        editing.clear(); editing.add(p.pid); renderBoard();
+      });
     }
-    const handle = block.querySelector('.mb-handle');
-    handle.addEventListener('dragstart', ev => {
-      ev.dataTransfer.setData('text/plain', JSON.stringify({ src:'board', day:d, pid:p.pid }));
-      ev.dataTransfer.effectAllowed = 'copyMove';
-    });
-    block.querySelector('.x').addEventListener('click', () => removePlacement(d, p.pid));
     return block;
   }
   function copyPlacement(p){
