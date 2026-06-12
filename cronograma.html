@@ -542,6 +542,9 @@ body.locked .roster-hint { opacity: .6; }
 
   /* pestañas + módulos (línea de tiempo) */
   .tabs { display: none !important; }
+  /* exportación a una sola hoja: solo la grilla/tablero activo */
+  .holidays-section, .notes-section { display: none !important; }
+  #tab-modulos .mod-board { zoom: 0.6; }
   #tab-modulos .mod-side { display: none !important; }
   .mb-handle, .mod-block .x, .mb-act, .paste-btn, .mb-edit-hint { display: none !important; }
   .mod-board-wrap { overflow: visible; }
@@ -1311,7 +1314,14 @@ body.locked .roster-hint { opacity: .6; }
         e.target.value = '';
       }
     });
-    document.getElementById('btn-print').addEventListener('click', () => window.print());
+    document.getElementById('btn-print').addEventListener('click', () => {
+      if (document.documentElement.classList.contains('embed')){
+        // imprimir desde una pestaña propia (dentro del iframe el PDF sale corrupto)
+        window.open('cronograma.html?print=1' + '&t=' + (state.activeTab||'turnos'), '_blank');
+      } else {
+        window.print();
+      }
+    });
     document.getElementById('btn-export').addEventListener('click', exportJSON);
     document.getElementById('btn-import').addEventListener('click', () => document.getElementById('file-import').click());
     document.getElementById('file-import').addEventListener('change', e => { if (e.target.files[0]) importJSON(e.target.files[0]); e.target.value=''; });
@@ -1361,6 +1371,14 @@ body.locked .roster-hint { opacity: .6; }
   bindGlobal();
   initFromState();
   setLocked(true); refreshEditUI();   // arranca en solo-lectura
+
+  // vista de impresión en pestaña propia (PDF en una hoja, con logo)
+  (function(){
+    if (location.search.indexOf('print=1') < 0) return;
+    const m = location.search.match(/[?&]t=([^&]+)/);
+    if (m) setTab(decodeURIComponent(m[1]));
+    setTimeout(function(){ window.print(); }, 700);
+  })();
 })();
 </script>
 </body>
