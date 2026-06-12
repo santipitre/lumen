@@ -460,7 +460,7 @@ body.locked .roster-hint { opacity: .6; }
    IMPRESIÓN / PDF · documento profesional en papel claro
    ═══════════════════════════════════════════════════════════════ */
 @media print {
-  @page { size: landscape; margin: 11mm; }
+  @page { size: landscape; margin: 8mm; }
   html, body {
     background: #fff; color: #0f172a;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
@@ -544,8 +544,14 @@ body.locked .roster-hint { opacity: .6; }
   .tabs { display: none !important; }
   /* exportación a una sola hoja: solo la grilla/tablero activo */
   .holidays-section, .notes-section { display: none !important; }
-  #tab-modulos .mod-board { zoom: 0.6; }
   #tab-modulos .mod-side { display: none !important; }
+  /* el tablero 24h entra en una hoja; agrando fuentes para compensar el zoom */
+  #tab-modulos .mod-board { zoom: 0.55; page-break-inside: avoid; }
+  #tab-modulos .axis-label { font-size: 20px; }
+  #tab-modulos .mod-col-head { font-size: 24px; }
+  #tab-modulos .mb-name { font-size: 21px; }
+  #tab-modulos .mb-range { font-size: 21px; }
+  #tab-modulos .mb-edit-hint { display: none !important; }
   .mb-handle, .mod-block .x, .mb-act, .paste-btn, .mb-edit-hint { display: none !important; }
   .mod-board-wrap { overflow: visible; }
   .mod-board { min-width: 0; page-break-inside: avoid; }
