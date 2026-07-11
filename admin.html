@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+[Resource from GitHub at repo://santipitre/lumen/sha/c7e263a00747fcd37997276ef1988e3a656eb323/contents/admin.html] <!DOCTYPE html>
 <html lang="es">
 <head>
 <script>
@@ -636,6 +636,31 @@
     <button class="tab-btn active" onclick="switchTab('tab-resumen',this)">Resumen</button>
     <button class="tab-btn"        onclick="switchTab('tab-derivantes',this)">Derivantes</button>
     <button class="tab-btn"        onclick="switchTab('tab-detalle',this)">Detalle</button>
+    <button class="tab-btn"        onclick="switchTab('tab-tramites-inc',this)">Trámites Incompletos</button>
+  </div>
+
+  <!-- TAB TRÁMITES INCOMPLETOS (dashboard desde Supabase · tabla ti_snapshot) -->
+  <div class="tab-pane" id="tab-tramites-inc">
+    <div class="kpi-section-label sec-tramites">Trámites incompletos · a recepcionar (por aseguradora)</div>
+    <div class="kpi-grid kpi-grid-tramites fade-in">
+      <div class="kpi-card purple"><div class="kpi-icon">📋</div><div class="kpi-label">Total trámites</div><div class="kpi-val" id="ti-total">—</div><div class="kpi-sub" id="ti-total-sub">turnos únicos</div></div>
+      <div class="kpi-card blue"><div class="kpi-icon">🏢</div><div class="kpi-label">FINAMED</div><div class="kpi-val" id="ti-FINAMED">—</div><div class="kpi-sub" id="ti-FINAMED-sub">a recepcionar</div></div>
+      <div class="kpi-card amber"><div class="kpi-icon">🏢</div><div class="kpi-label">PAMI (INSSJYP)</div><div class="kpi-val" id="ti-PAMI">—</div><div class="kpi-sub" id="ti-PAMI-sub">a recepcionar</div></div>
+      <div class="kpi-card cyan"><div class="kpi-icon">🏢</div><div class="kpi-label">Harefield</div><div class="kpi-val" id="ti-HAREFIELD">—</div><div class="kpi-sub" id="ti-HAREFIELD-sub">a recepcionar</div></div>
+      <div class="kpi-card green"><div class="kpi-icon">🏢</div><div class="kpi-label">Otras OS / Prepagas</div><div class="kpi-val" id="ti-OSOTRAS">—</div><div class="kpi-sub" id="ti-OSOTRAS-sub">a recepcionar</div></div>
+      <div class="kpi-card red"><div class="kpi-icon">🧾</div><div class="kpi-label">Particular</div><div class="kpi-val" id="ti-PARTICULAR">—</div><div class="kpi-sub" id="ti-PARTICULAR-sub">a recepcionar</div></div>
+    </div>
+    <div class="charts-row fade-in">
+      <div class="chart-card">
+        <div class="chart-title">Detalle por aseguradora</div>
+        <div id="ti-aseg"><div class="empty-state"><div class="e-icon">🏢</div><div class="e-text">Sin datos — corré la sincronización local</div></div></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Por servicio</div>
+        <div id="ti-serv"><div class="empty-state"><div class="e-icon">📊</div><div class="e-text">Sin datos</div></div></div>
+      </div>
+    </div>
+    <div id="ti-meta" style="color:var(--muted);font-size:11px;margin-top:-12px"></div>
   </div>
 
   <!-- TAB RESUMEN -->
@@ -1149,9 +1174,10 @@ window.addEventListener('DOMContentLoaded', () => {
   // Al volver a la pestaña (p.ej. después de que el bot terminó de reparar),
   // re-consultar el contador de "arreglados" sin recargar la página.
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') cargarReparaciones(false);
+    if (document.visibilityState === 'visible') { cargarReparaciones(false); cargarTramitesInc(false); }
   });
-  window.addEventListener('focus', () => cargarReparaciones(false));
+  window.addEventListener('focus', () => { cargarReparaciones(false); cargarTramitesInc(false); });
+  cargarTramitesInc();   // pestaña Trámites Incompletos: lee de Supabase (ti_snapshot), independiente del Excel
 
   const sede = localStorage.getItem('spcd_sede') || '';
   document.getElementById('bc-sede').textContent  = sede || 'Sede';
@@ -1208,6 +1234,65 @@ async function cargarReparaciones(force = true) {
   } catch (e) {
     console.warn('[reparaciones] no se pudo cargar el contador de arreglados:', e);
   }
+}
+
+/* ══════════════════════════════════
+   TRÁMITES INCOMPLETOS (pestaña) — lee el último snapshot de `ti_snapshot`
+   Poblada por el script local sync_tramites.py. Solo conteos agregados (sin PII).
+══════════════════════════════════ */
+let _tiSig = '', _tiLast = 0;
+function tiNum(x){ return (Number(x)||0).toLocaleString('es-AR'); }
+function tiEsc(s){ return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+async function cargarTramitesInc(force = true) {
+  try {
+    if (typeof sbQuery !== 'function') return;
+    const ahora = Date.now();
+    if (!force && ahora - _tiLast < 8000) return;   // throttle al alternar pestañas
+    _tiLast = ahora;
+    const rows = await sbQuery('ti_snapshot', 'select=payload,generado_en&order=generado_en.desc&limit=1');
+    if (!rows || !rows.length) return;
+    const p = rows[0].payload || {};
+    const sig = String(rows[0].generado_en) + ':' + String(p.total_incompletos);
+    if (sig === _tiSig) return;                     // sin cambios → no re-render
+    _tiSig = sig;
+    renderTramitesInc(p, rows[0].generado_en);
+  } catch (e) {
+    console.warn('[tramites-inc] no se pudo cargar el snapshot:', e);
+  }
+}
+
+function renderTramitesInc(p, generado) {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('ti-total', tiNum(p.total_incompletos));
+  set('ti-total-sub', tiNum(p.total_lineas_incompletas) + ' estudios');
+  (p.buckets || []).forEach(b => { set('ti-' + b.key, tiNum(b.turnos)); set('ti-' + b.key + '-sub', tiNum(b.lineas) + ' estudios'); });
+
+  const aseg = p.por_aseguradora || [];
+  const cont = document.getElementById('ti-aseg');
+  if (cont) cont.innerHTML = aseg.length ? (
+    '<table style="width:100%;border-collapse:collapse;font-size:12.5px">' +
+    '<thead><tr>' +
+    '<th style="text-align:left;padding:6px 4px;color:var(--muted);font-size:11px;text-transform:uppercase">Aseguradora</th>' +
+    '<th style="text-align:right;padding:6px 4px;color:var(--muted);font-size:11px;text-transform:uppercase">Turnos</th>' +
+    '<th style="text-align:right;padding:6px 4px;color:var(--muted);font-size:11px;text-transform:uppercase">Estudios</th>' +
+    '</tr></thead><tbody>' +
+    aseg.map(a => '<tr>' +
+      '<td style="padding:6px 4px;border-top:1px solid rgba(255,255,255,.05)">' + tiEsc(a.aseguradora) + '</td>' +
+      '<td style="padding:6px 4px;text-align:right;border-top:1px solid rgba(255,255,255,.05);font-family:Rajdhani,Inter,sans-serif;font-weight:700">' + tiNum(a.turnos) + '</td>' +
+      '<td style="padding:6px 4px;text-align:right;border-top:1px solid rgba(255,255,255,.05);color:var(--muted)">' + tiNum(a.lineas) + '</td></tr>').join('') +
+    '</tbody></table>'
+  ) : '<div class="empty-state"><div class="e-icon">🏢</div><div class="e-text">Sin datos</div></div>';
+
+  const serv = p.por_servicio || {}; const keys = Object.keys(serv); const max = Math.max(1, ...keys.map(k => serv[k]));
+  const sc = document.getElementById('ti-serv');
+  if (sc) sc.innerHTML = keys.length ? keys.map(k =>
+    '<div style="display:flex;justify-content:space-between;font-size:12.5px;margin:2px 0 4px"><span>' + tiEsc(k) + '</span><b>' + tiNum(serv[k]) + '</b></div>' +
+    '<div style="height:8px;border-radius:6px;background:rgba(255,255,255,.06);overflow:hidden;margin-bottom:8px"><span style="display:block;height:100%;width:' + Math.round(serv[k] / max * 100) + '%;background:var(--blue)"></span></div>'
+  ).join('') : '<div class="empty-state"><div class="e-icon">📊</div><div class="e-text">Sin datos</div></div>';
+
+  const meta = document.getElementById('ti-meta');
+  if (meta) meta.textContent = 'Actualizado ' + (generado || p.generado_en || '') + ' · archivo ' + (p.archivo || '—') + ' · el detalle por paciente se ve en la herramienta local (no se sube a la nube)';
 }
 
 /* ══════════════════════════════════
@@ -3641,3 +3726,4 @@ async function guardarUsuario() {
   const rol      = document.getElementById('mu-rol').value;
   const sedes    = document.getElementById('mu-sedes').value
                 
+
