@@ -1,0 +1,3729 @@
+[Resource from GitHub at repo://santipitre/lumen/sha/c7e263a00747fcd37997276ef1988e3a656eb323/contents/admin.html] <!DOCTYPE html>
+<html lang="es">
+<head>
+<script>
+/* SPCD Auth Gate · 2026-05-07 · si no hay sesión válida, redirect a login */
+(function(){
+  var KEY='spcd_session', TIMEOUT=8*60*60*1000, s=null;
+  try { s=JSON.parse(localStorage.getItem(KEY)); } catch(e){}
+  if (!s || !s.user || (Date.now()-s.ts) >= TIMEOUT) {
+    localStorage.removeItem(KEY);
+    localStorage.removeItem('spcd_operativo_session');
+    location.replace('index.html?screen=login');
+  }
+})();
+</script>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+  <title>Administrativo · Lumen by Pyralis</title>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="theme-color" content="#0F172A"/>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png?v=2026051701"/>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=2026051701"/>
+  <link rel="shortcut icon" href="favicon.ico?v=2026051701"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2026051701"/>
+  <link rel="stylesheet" href="spcd-theme.css"/>
+  <link rel="stylesheet" href="spcd-components.css"/>
+  <link rel="stylesheet" href="spcd-dialog.css"/>
+  <style>
+    /* Variables especificas del modulo admin (las comunes vienen de spcd-theme.css) */
+    :root {
+      --red:     #F87171;
+      --amber:   #FBBF24;
+      --purple:  #A78BFA;
+      --rose:    #FB7185;
+      --glass:   rgba(30,58,138,.22);
+      --border:  rgba(59,130,246,.2);
+      --border-a:rgba(59,130,246,.3);
+      /* Color de acento del rol (usado por spcd-components.css) */
+      --accent:        var(--blue);
+      --accent-bg:     rgba(59,130,246,.1);
+      --accent-border: rgba(59,130,246,.3);
+    }
+    html, body {
+      font-size: 14px; line-height: 1.5;
+    }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(10,15,20,.88); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      display: flex; align-items: center; gap: 16px; height: 56px;
+    }
+    /* .topbar-logo, .topbar-sep, .topbar-crumbs, .sede-chip, .btn-back-top:hover
+       ahora viven en spcd-components.css y usan var(--accent) */
+
+    /* ── LAYOUT ── */
+    .main { max-width:1200px; margin:0 auto; padding:28px 24px 60px; }
+
+    /* ── UPLOAD ── */
+    #upload-zone {
+      margin-bottom:28px; border:1.5px dashed var(--border-a);
+      border-radius:12px; padding:36px; text-align:center;
+      transition:all .3s; background:rgba(59,130,246,.03);
+    }
+    #upload-zone.has-data { border-color:rgba(59,130,246,.4); background:rgba(59,130,246,.06); padding:20px; }
+    .upload-icon { font-size:32px; margin-bottom:10px; }
+    .upload-title { font-family:'Rajdhani',sans-serif; font-size:16px; letter-spacing:2px; color:var(--blue); }
+    .upload-sub   { font-size:12px; color:var(--muted); margin-top:4px; }
+    .upload-label {
+      display:inline-block; margin-top:16px;
+      padding:10px 28px; border-radius:6px;
+      background:rgba(59,130,246,.1); border:1px solid var(--border-a);
+      color:var(--blue); font-size:12px; letter-spacing:2px;
+      text-transform:uppercase; cursor:pointer; transition:all .2s;
+    }
+    .upload-label:hover { background:rgba(59,130,246,.2); }
+    #file-input  { display:none; }
+    #data-status { margin-top:10px; font-size:12px; color:var(--muted); letter-spacing:1px; }
+
+    /* ── SUMMARY BAR ── */
+    .summary-bar {
+      display:none; gap:0;
+      background:var(--glass); border:1px solid var(--border);
+      border-radius:10px; overflow:hidden; margin-bottom:24px;
+    }
+    .summary-item {
+      flex:1; padding:14px 18px; text-align:center;
+      border-right:1px solid var(--border);
+      transition:background .2s;
+    }
+    .summary-item:last-child { border-right:none; }
+    .summary-item:hover { background:rgba(59,130,246,.08); cursor:pointer; }
+    .summary-item-label { font-size:10px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; }
+    .summary-item-val   {
+      font-family:'Rajdhani',sans-serif; font-size:22px;
+      font-weight:700; margin-top:2px;
+    }
+
+    /* ── FILTERS ── */
+    .filters-bar {
+      display:none; flex-wrap:wrap; gap:10px;
+      margin-bottom:24px; align-items:flex-end;
+    }
+    .filter-group { display:flex; flex-direction:column; gap:4px; }
+    .filter-label { font-size:10px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; }
+    .filter-input, .filter-select {
+      padding:8px 12px; border-radius:6px;
+      background:var(--glass); border:1px solid var(--border);
+      color:var(--text); font-size:12px; font-family:'Inter',sans-serif;
+      outline:none; transition:border-color .2s;
+    }
+    .filter-input:focus,.filter-select:focus { border-color:var(--blue); }
+    .filter-select option { background:var(--navy); }
+    .btn-apply {
+      padding:8px 20px; border-radius:6px;
+      background:linear-gradient(135deg,var(--blue-d),var(--blue));
+      border:none; color:#fff; font-size:12px; letter-spacing:2px;
+      text-transform:uppercase; cursor:pointer; font-family:'Inter',sans-serif;
+      transition:opacity .2s; align-self:flex-end; font-weight:700;
+    }
+    .btn-apply:hover { opacity:.85; }
+    /* .btn-reset: base en spcd-components.css, hover especifico de admin aqui */
+    .btn-reset:hover { border-color:var(--red); color:var(--red); }
+
+    /* ── TABS ── */
+    .tabs {
+      display:flex; gap:4px; margin-bottom:24px;
+      background:var(--glass); border:1px solid var(--border);
+      border-radius:8px; padding:4px; width:fit-content; flex-wrap:wrap;
+    }
+    .tab-btn {
+      padding:8px 18px; border-radius:6px; border:none;
+      background:transparent; color:var(--muted);
+      font-family:'Rajdhani',sans-serif; font-size:13px;
+      letter-spacing:2px; font-weight:700; text-transform:uppercase;
+      cursor:pointer; transition:all .2s;
+    }
+    .tab-btn.active { background:rgba(59,130,246,.15); color:var(--blue); border:1px solid rgba(59,130,246,.3); }
+    .tab-pane { display:none; }
+    .tab-pane.active { display:block; }
+
+    /* ── KPI GRID ── */
+    .kpi-section-label {
+      display:flex; align-items:center; gap:8px;
+      font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase;
+      color:var(--muted); margin:6px 2px 10px;
+    }
+    .kpi-section-label::before { content:''; width:10px; height:10px; border-radius:3px; }
+    .kpi-section-label.sec-errores::before { background:var(--red); }
+    .kpi-section-label.sec-errores { color:var(--red); }
+    .kpi-section-label.sec-tramites::before { background:var(--purple); }
+    .kpi-section-label.sec-tramites { color:var(--purple); }
+    .kpi-grid.kpi-grid-tramites { margin-top:2px; margin-bottom:24px; }
+    .kpi-grid {
+      display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+      gap:14px; margin-bottom:28px;
+    }
+    .kpi-card {
+      background:var(--glass); border:1px solid var(--border);
+      border-radius:10px; padding:20px; position:relative; overflow:hidden;
+      transition:transform .2s, box-shadow .2s, border-color .2s;
+      cursor:pointer;
+    }
+    .kpi-card:hover { transform:translateY(-3px); }
+    .kpi-card.blue:hover   { border-color:var(--blue);   box-shadow:0 8px 28px rgba(59,130,246,.2); }
+    .kpi-card.cyan:hover   { border-color:var(--cyan);   box-shadow:0 8px 28px rgba(34,219,174,.2); }
+    .kpi-card.amber:hover  { border-color:var(--amber);  box-shadow:0 8px 28px rgba(251,191,36,.2); }
+    .kpi-card.purple:hover { border-color:var(--purple); box-shadow:0 8px 28px rgba(167,139,250,.2); }
+    .kpi-card.green:hover  { border-color:var(--green);  box-shadow:0 8px 28px rgba(85,231,139,.2); }
+    .kpi-card.red:hover    { border-color:var(--red);    box-shadow:0 8px 28px rgba(248,113,113,.2); }
+    .kpi-card::after { content:''; position:absolute; top:0;left:0;right:0;height:2px; }
+    .kpi-card.blue::after   { background:linear-gradient(90deg,var(--blue),transparent); }
+    .kpi-card.cyan::after   { background:linear-gradient(90deg,var(--cyan),transparent); }
+    .kpi-card.amber::after  { background:linear-gradient(90deg,var(--amber),transparent); }
+    .kpi-card.purple::after { background:linear-gradient(90deg,var(--purple),transparent); }
+    .kpi-card.green::after  { background:linear-gradient(90deg,var(--green),transparent); }
+    .kpi-card.red::after    { background:linear-gradient(90deg,var(--red),transparent); }
+    /* .kpi-label: base en spcd-components.css */
+    .kpi-val   { font-family:'Rajdhani',sans-serif; font-size:36px; font-weight:700; line-height:1; }
+    .kpi-card.blue   .kpi-val { color:var(--blue); }
+    .kpi-card.cyan   .kpi-val { color:var(--cyan); }
+    .kpi-card.amber  .kpi-val { color:var(--amber); }
+    .kpi-card.purple .kpi-val { color:var(--purple); }
+    .kpi-card.green  .kpi-val { color:var(--green); }
+    .kpi-card.red    .kpi-val { color:var(--red); }
+    .kpi-sub  { font-size:11px; color:var(--muted); margin-top:6px; }
+    .kpi-icon { position:absolute;right:16px;top:16px;font-size:28px;opacity:.15; }
+    .kpi-hint {
+      position:absolute; bottom:9px; right:12px;
+      font-size:9px; letter-spacing:1.5px; text-transform:uppercase;
+      color:var(--muted); opacity:0; transition:opacity .2s; pointer-events:none;
+    }
+    .kpi-card:hover .kpi-hint { opacity:.7; }
+    /* KPIs automatizados (bot Reparar): NO atenuados — se distinguen por el badge
+       + el contador de arreglados. El badge va en el flujo (no absoluto) para no
+       superponerse con el subtexto. */
+    .kpi-auto-badge {
+      display:inline-block; margin-top:10px; align-self:flex-start;
+      font-size:9px; letter-spacing:1px; text-transform:uppercase; font-weight:600;
+      color:var(--green); border:1px solid var(--green); border-radius:6px;
+      padding:3px 8px; background:rgba(85,231,139,.10); white-space:nowrap;
+    }
+    /* Contador "X arreglados" debajo del número del KPI automatizado. */
+    .kpi-arr { margin-top:5px; font-size:11px; font-weight:600; line-height:1.2; }
+    .kpi-arr .arr-ok   { color:var(--green); }
+    .kpi-arr .arr-pend { color:var(--amber); font-weight:500; }
+
+    /* ── MODAL DRAWER ── */
+    /* IMPORTANTE: spcd-components.css define .modal-overlay { display:none }
+       y usa .active en lugar de .open. Como acá usamos .open, forzamos display
+       y visibilidad con !important para ganar la cascada. */
+    .modal-overlay {
+      position:fixed !important; inset:0 !important; z-index:99990 !important;
+      background:rgba(0,0,0,.65); backdrop-filter:blur(4px);
+      opacity:0; pointer-events:none; transition:opacity .3s;
+      display:block !important;
+      padding:0 !important;
+    }
+    .modal-overlay.open {
+      opacity:1 !important;
+      pointer-events:all !important;
+      visibility:visible !important;
+      display:block !important;
+    }
+    .modal-drawer {
+      position:fixed !important; top:0 !important; right:0 !important; bottom:0 !important; z-index:99991 !important;
+      width:min(920px,96vw);
+      background:#0b1321;
+      border-left:1px solid var(--border);
+      display:flex; flex-direction:column;
+      transform:translateX(100%);
+      transition:transform .35s cubic-bezier(.4,0,.2,1);
+      box-shadow:-8px 0 40px rgba(0,0,0,.6);
+    }
+    .modal-overlay.open .modal-drawer {
+      transform:translateX(0) !important;
+      visibility:visible !important;
+      opacity:1 !important;
+    }
+    .modal-head {
+      padding:16px 22px; border-bottom:1px solid var(--border);
+      display:flex; align-items:center; gap:14px; flex-shrink:0;
+    }
+    .modal-bar  { width:4px; height:28px; border-radius:2px; flex-shrink:0; }
+    .modal-head-info { flex:1; min-width:0; }
+    .modal-head-title {
+      font-family:'Rajdhani',sans-serif; font-size:16px;
+      font-weight:700; letter-spacing:2px; text-transform:uppercase;
+    }
+    .modal-head-count { font-size:11px; color:var(--muted); margin-top:1px; }
+    .modal-close {
+      width:34px; height:34px; border-radius:6px;
+      background:var(--glass); border:1px solid var(--border);
+      color:var(--muted); font-size:18px; cursor:pointer; line-height:1;
+      display:flex; align-items:center; justify-content:center;
+      transition:all .2s; flex-shrink:0;
+    }
+    .modal-close:hover { border-color:var(--red); color:var(--red); }
+    .modal-toolbar {
+      padding:10px 22px; border-bottom:1px solid var(--border);
+      display:flex; gap:10px; align-items:center; flex-shrink:0; flex-wrap:wrap;
+    }
+    .modal-search {
+      flex:1; min-width:180px; padding:8px 12px; border-radius:6px;
+      background:var(--glass); border:1px solid var(--border);
+      color:var(--text); font-size:12px; font-family:'Inter',sans-serif;
+      outline:none; transition:border-color .2s;
+    }
+    .modal-search:focus { border-color:var(--blue); }
+    .modal-search::placeholder { color:var(--muted); }
+    .btn-csv {
+      padding:8px 16px; border-radius:6px;
+      background:rgba(34,219,174,.1); border:1px solid rgba(34,219,174,.3);
+      color:var(--cyan); font-size:11px; letter-spacing:2px;
+      text-transform:uppercase; cursor:pointer; font-family:'Inter',sans-serif;
+      transition:all .2s; white-space:nowrap;
+    }
+    .btn-csv:hover { background:rgba(34,219,174,.2); }
+    /* Botón Reparar (solo modal instderiv) */
+    .btn-reparar {
+      padding:8px 16px; border-radius:6px;
+      background:rgba(248,113,113,.12); border:1px solid rgba(248,113,113,.4);
+      color:var(--red); font-size:11px; letter-spacing:2px;
+      text-transform:uppercase; cursor:pointer; font-family:'Inter',sans-serif;
+      transition:all .2s; white-space:nowrap;
+    }
+    .btn-reparar:hover { background:rgba(248,113,113,.22); }
+    /* Overlay de instrucciones del bot */
+    .reparar-overlay {
+      display:none; position:fixed; inset:0; z-index:1100;
+      background:rgba(2,6,16,.82); align-items:center; justify-content:center; padding:24px;
+    }
+    .reparar-overlay.open { display:flex; }
+    .reparar-box {
+      width:100%; max-width:560px; background:#0a1424;
+      border:1px solid rgba(248,113,113,.35); border-radius:12px;
+      box-shadow:0 24px 60px rgba(0,0,0,.6); overflow:hidden;
+    }
+    .reparar-box-head {
+      display:flex; align-items:center; gap:10px;
+      padding:16px 20px; border-bottom:1px solid var(--border);
+    }
+    .reparar-box-head .rb-title { flex:1; font-weight:700; letter-spacing:1px; color:var(--red); font-size:14px; text-transform:uppercase; }
+    .reparar-box-head .rb-close { background:transparent; border:none; color:var(--muted); font-size:20px; cursor:pointer; }
+    .reparar-box-body { padding:20px; font-size:13px; color:var(--text); line-height:1.55; }
+    .reparar-step { display:flex; gap:10px; margin-bottom:14px; }
+    .reparar-step .rs-num {
+      flex-shrink:0; width:22px; height:22px; border-radius:50%;
+      background:rgba(248,113,113,.18); border:1px solid rgba(248,113,113,.4);
+      color:var(--red); font-size:12px; font-weight:700;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .reparar-cmd {
+      position:relative; margin-top:8px; background:#060d18;
+      border:1px solid var(--border); border-radius:8px;
+      padding:12px 12px; font-family:'Rajdhani','Consolas',monospace;
+      font-size:12px; color:var(--cyan); white-space:pre-wrap; word-break:break-all;
+    }
+    .reparar-copy {
+      margin-top:10px; padding:9px 16px; border-radius:6px;
+      background:rgba(34,219,174,.12); border:1px solid rgba(34,219,174,.35);
+      color:var(--cyan); font-size:11px; letter-spacing:1.5px; text-transform:uppercase;
+      cursor:pointer; font-family:'Inter',sans-serif; transition:all .2s;
+    }
+    .reparar-copy:hover { background:rgba(34,219,174,.22); }
+    .reparar-note { margin-top:14px; font-size:11.5px; color:var(--muted); }
+    /* Export dropdown */
+    .export-group { position:relative; display:flex; }
+    .btn-csv-arrow {
+      padding:8px 8px; border-radius:0 6px 6px 0;
+      background:rgba(34,219,174,.1); border:1px solid rgba(34,219,174,.3); border-left:none;
+      color:var(--cyan); font-size:11px; cursor:pointer; transition:all .2s;
+      display:flex; align-items:center;
+    }
+    .btn-csv-arrow:hover { background:rgba(34,219,174,.2); }
+    .export-group .btn-csv { border-radius:6px 0 0 6px; }
+    .export-menu {
+      display:none; position:absolute; top:100%; right:0; margin-top:4px;
+      background:#0b1321; border:1px solid rgba(34,219,174,.3); border-radius:8px;
+      min-width:260px; z-index:10; overflow:hidden;
+      box-shadow:0 8px 30px rgba(0,0,0,.5);
+      max-height:320px; overflow-y:auto;
+    }
+    .export-menu.open { display:block; }
+    .export-menu-item {
+      padding:9px 16px; font-size:11px; letter-spacing:1px; color:var(--text);
+      cursor:pointer; transition:background .15s; border-bottom:1px solid rgba(30,58,138,.2);
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    .export-menu-item:last-child { border-bottom:none; }
+    .export-menu-item:hover { background:rgba(34,219,174,.08); }
+    .export-menu-item .em-count {
+      font-family:'Rajdhani',sans-serif; font-size:12px; font-weight:700; color:var(--cyan);
+    }
+    .export-menu-sep {
+      padding:6px 16px; font-size:9px; letter-spacing:2px; color:var(--muted);
+      text-transform:uppercase; background:rgba(10,15,20,.5); border-bottom:1px solid rgba(30,58,138,.3);
+    }
+    .export-menu-row { display:flex; border-bottom:1px solid rgba(30,58,138,.2); }
+    .export-menu-row:last-child { border-bottom:none; }
+    .export-menu-row .em-part {
+      border:none; background:transparent; color:var(--text);
+      font-family:'Inter',sans-serif; font-size:11px; letter-spacing:1px;
+      cursor:pointer; transition:background .15s; padding:9px 14px;
+      display:flex; align-items:center; gap:8px;
+    }
+    .export-menu-row .em-part.em-dl {
+      flex:1; justify-content:space-between; border-right:1px solid rgba(30,58,138,.2);
+    }
+    .export-menu-row .em-part.em-dl:hover { background:rgba(34,219,174,.08); }
+    .export-menu-row .em-part.em-sh { padding:9px 14px; font-size:14px; color:var(--cyan); }
+    .export-menu-row .em-part.em-sh:hover { background:var(--cyan); color:var(--navy); }
+    .export-menu-row.em-all .em-part.em-dl { color:var(--cyan); font-weight:700; }
+    .export-menu-row .em-count {
+      font-family:'Rajdhani',sans-serif; font-size:12px; font-weight:700; color:var(--cyan);
+    }
+    .modal-body { flex:1; overflow:auto; }
+    .modal-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .modal-table thead { position:sticky; top:0; background:#080f1c; z-index:2; }
+    .modal-table th {
+      padding:10px 14px; text-align:left; font-size:10px; letter-spacing:2px;
+      color:var(--muted); text-transform:uppercase; font-weight:600; white-space:nowrap;
+      border-bottom:1px solid var(--border);
+    }
+    .modal-table td {
+      padding:9px 14px; border-bottom:1px solid rgba(30,58,138,.15);
+      white-space:nowrap; color:var(--text); max-width:220px;
+      overflow:hidden; text-overflow:ellipsis;
+    }
+    .modal-table tr:hover td { background:rgba(59,130,246,.06); }
+    .modal-footer {
+      padding:9px 22px; border-top:1px solid var(--border);
+      font-size:11px; color:var(--muted); flex-shrink:0;
+      display:flex; align-items:center; justify-content:space-between;
+    }
+
+    /* ── CHARTS ── */
+    .charts-row   { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px; }
+    .charts-row-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:24px; }
+    @media(max-width:900px){ .charts-row-3{ grid-template-columns:1fr 1fr; } }
+    @media(max-width:700px){ .charts-row,.charts-row-3{ grid-template-columns:1fr; } }
+    .chart-card {
+      background:var(--glass); border:1px solid var(--border);
+      border-radius:10px; padding:20px;
+    }
+    .chart-title {
+      font-family:'Rajdhani',sans-serif; font-size:13px; letter-spacing:2px;
+      color:var(--blue); text-transform:uppercase; margin-bottom:16px;
+      display:flex; align-items:center; gap:8px;
+    }
+    .chart-title::before { content:''; width:3px; height:14px; background:var(--blue); border-radius:2px; }
+    canvas { max-height:220px; }
+
+    /* ── RANK LIST ── */
+    .rank-list { display:flex; flex-direction:column; gap:9px; }
+    .rank-item { display:flex; align-items:center; gap:10px; }
+    .rank-num  { width:20px; font-family:'Rajdhani',sans-serif; font-size:14px; font-weight:700; color:var(--muted); flex-shrink:0; text-align:right; }
+    .rank-label{ flex:1; font-size:12px; color:var(--text); min-width:0; }
+    .rank-label span { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .rank-bar-wrap { flex:1; height:6px; background:rgba(30,58,138,.4); border-radius:3px; overflow:hidden; min-width:50px; }
+    .rank-bar  { height:100%; border-radius:3px; transition:width .6s ease; }
+    .rank-val  { font-family:'Rajdhani',sans-serif; font-size:14px; font-weight:700; flex-shrink:0; width:46px; text-align:right; }
+
+    /* ── TABLA ── */
+    .table-card { background:var(--glass); border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:20px; }
+    .table-header {
+      padding:16px 20px; display:flex; align-items:center; justify-content:space-between;
+      border-bottom:1px solid var(--border);
+    }
+    .table-header-title {
+      font-family:'Rajdhani',sans-serif; font-size:13px; letter-spacing:2px;
+      color:var(--blue); text-transform:uppercase; display:flex; align-items:center; gap:8px;
+    }
+    .table-header-title::before { content:''; width:3px; height:14px; background:var(--blue); border-radius:2px; }
+    .table-count { font-size:11px; color:var(--muted); }
+    .table-wrap  { overflow-x:auto; max-height:400px; overflow-y:auto; }
+    table { width:100%; border-collapse:collapse; }
+    thead { position:sticky; top:0; background:var(--surface); z-index:2; }
+    th {
+      padding:10px 14px; text-align:left; font-size:10px; letter-spacing:2px;
+      color:var(--muted); text-transform:uppercase; font-weight:600; white-space:nowrap;
+      border-bottom:1px solid var(--border);
+    }
+    td { padding:10px 14px; font-size:12px; border-bottom:1px solid rgba(30,58,138,.2); white-space:nowrap; }
+    tr:hover td { background:rgba(59,130,246,.04); }
+
+    .badge {
+      display:inline-block; padding:2px 8px; border-radius:3px;
+      font-size:10px; letter-spacing:1px; font-weight:600; text-transform:uppercase;
+    }
+    .badge-obl  { background:rgba(59,130,246,.15); color:var(--blue); }
+    .badge-part { background:rgba(167,139,250,.15); color:var(--purple); }
+    .badge-priv { background:rgba(34,219,174,.15);  color:var(--cyan); }
+    .badge-other{ background:rgba(148,163,184,.1);  color:var(--muted); }
+
+    /* ── EMPTY ── */
+    .empty-state { text-align:center; padding:50px 20px; color:var(--muted); }
+    .empty-state .e-icon { font-size:36px; margin-bottom:10px; }
+    .empty-state .e-text { font-size:12px; letter-spacing:1px; }
+
+    ::-webkit-scrollbar { width:4px; height:4px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:rgba(59,130,246,.2); border-radius:2px; }
+
+    .fade-in { animation:fadeIn .4s ease both; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);} }
+  </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <a href="app.html" class="topbar-logo" style="text-decoration:none; display:inline-flex; align-items:center; gap:8px; font-family:'Inter',sans-serif; font-weight:500; letter-spacing:-0.028em; color:var(--pyralis-text);"><svg class="firefly-svg" width="28" height="28" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" aria-label="Lumen by Pyralis" style="flex-shrink:0;"><rect x="3" y="3" width="54" height="54" rx="13" fill="#0A0F14" stroke="#1F2937" stroke-width="0.8"/><path d="M16 14 L16 46 L44 46" fill="none" stroke="#F1F5F9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="22" r="9" fill="none" stroke="#F59E0B" stroke-width="0.6" opacity="0.4"/><circle cx="38" cy="22" r="4" fill="#F59E0B"/><circle cx="38" cy="22" r="1.8" fill="#FEF3C7"/></svg><span style="font-size:18px;">L<span class="firefly-o">u</span>men</span></a>
+  <div class="topbar-sep"></div>
+  <div class="topbar-crumbs">
+    <a href="app.html" title="Volver al inicio">Inicio</a><span>›</span>
+    <a href="index.html?screen=roles" id="bc-sede" title="Volver a selección de módulo">Sede</a><span>›</span>
+    <span class="crumb-active">ADMINISTRATIVO</span>
+  </div>
+  <div class="topbar-right">
+    <button id="btn-top-permisos"
+            onclick="abrirPanelPermisosModal()"
+            style="display:none; background:linear-gradient(135deg, rgba(167,139,250,.2), rgba(59,130,246,.2)); border:1px solid rgba(167,139,250,.5); color:#A78BFA; padding:7px 14px; border-radius:6px; cursor:pointer; font-family:'Rajdhani',sans-serif; font-weight:700; letter-spacing:2px; font-size:12px; text-transform:uppercase; transition:all .2s;"
+            onmouseover="this.style.background='linear-gradient(135deg, rgba(167,139,250,.35), rgba(59,130,246,.35))'"
+            onmouseout="this.style.background='linear-gradient(135deg, rgba(167,139,250,.2), rgba(59,130,246,.2))'">
+      👥 Permisos
+    </button>
+    <div class="sede-chip" id="top-sede">—</div>
+    <button class="btn-back-top" onclick="spcdVolverAtras('index.html?screen=roles')" style="cursor:pointer; font-family:inherit;">← Atrás</button>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ESTADO DATOS -->
+  <div id="upload-zone">
+    <svg viewBox="0 0 200 230" width="120" height="138" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:8px">
+      <rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/>
+      <path d="M82 52 L82 44 Q82 38 88 38 L112 38 Q118 38 118 44 L118 52" fill="none" stroke="#3B82F6" stroke-width="3.5" stroke-linecap="round"/>
+      <rect x="45" y="52" width="110" height="72" rx="8" fill="none" stroke="#3B82F6" stroke-width="3.5"/>
+      <line x1="45" y1="75" x2="155" y2="75" stroke="#3B82F6" stroke-width="2" stroke-opacity="0.5"/>
+      <rect x="93" y="69" width="14" height="12" rx="2" fill="none" stroke="#3B82F6" stroke-width="2.5"/>
+      <text x="100" y="200" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">MÓDULO</text>
+      <text x="100" y="222" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="1">ADMINISTRATIVO</text>
+    </svg>
+    <div class="upload-sub" id="upload-sub-text">Cargando datos...</div>
+    <div id="data-status"></div>
+  </div>
+
+  <!-- SUMMARY BAR (análisis) -->
+  <div class="summary-bar" id="summary-bar">
+    <div class="summary-item" onclick="openModal('sumturnos')">
+      <div class="summary-item-label">Total Turnos</div>
+      <div class="summary-item-val" id="sum-total" style="color:var(--blue)">—</div>
+    </div>
+    <div class="summary-item" onclick="openModal('sumpracticas')">
+      <div class="summary-item-label">Prácticas Realizadas</div>
+      <div class="summary-item-val" id="sum-rea" style="color:var(--cyan)">—</div>
+    </div>
+    <div class="summary-item" onclick="openModal('sumaseg')">
+      <div class="summary-item-label">Aseguradoras</div>
+      <div class="summary-item-val" id="sum-aseg" style="color:var(--purple)">—</div>
+    </div>
+    <div class="summary-item" onclick="openModal('sumderiv')">
+      <div class="summary-item-label">Derivantes</div>
+      <div class="summary-item-val" id="sum-deriv" style="color:var(--green)">—</div>
+    </div>
+    <div class="summary-item" onclick="openModal('sumerrores')">
+      <div class="summary-item-label">Cantidad de Errores</div>
+      <div class="summary-item-val" id="sum-errores" style="color:var(--red)">—</div>
+    </div>
+  </div>
+
+  <!-- FILTROS -->
+  <div class="filters-bar" id="filters-bar">
+    <div class="filter-group">
+      <span class="filter-label">Fecha desde</span>
+      <input type="date" id="f-desde" class="filter-input"/>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Fecha hasta</span>
+      <input type="date" id="f-hasta" class="filter-input"/>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Aseguradora</span>
+      <select id="f-aseguradora" class="filter-select"><option value="">Todas</option></select>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Equipo (Consola)</span>
+      <select id="f-consola" class="filter-select"><option value="">Todos</option></select>
+    </div>
+    <button class="btn-apply" onclick="applyFilters()">Aplicar</button>
+    <button class="btn-reset"  onclick="resetFilters()">Limpiar</button>
+  </div>
+
+  <!-- KPIs · Grupo 1: Errores de carga -->
+  <div class="kpi-section-label sec-errores">Errores de carga</div>
+  <div class="kpi-grid fade-in">
+    <div class="kpi-card red" onclick="openModal('instderiv')">
+      <div class="kpi-icon">⚠️</div>
+      <div class="kpi-label">Institución Derivante</div>
+      <div class="kpi-val" id="kpi-instderiv">—</div>
+      <div class="kpi-sub" id="kpi-instderiv-sub">Probable error</div>
+      <div class="kpi-hint">ver detalle →</div>
+    </div>
+    <div class="kpi-card red" onclick="openModal('derivantes')">
+      <div class="kpi-icon">⚠️</div>
+      <div class="kpi-label">Sin Derivantes</div>
+      <div class="kpi-val" id="kpi-derivantes">—</div>
+      <div class="kpi-sub" id="kpi-deriv-sub">sin dato o "A CONFIRMAR"</div>
+      <div class="kpi-hint">ver detalle →</div>
+    </div>
+    <div class="kpi-card red" onclick="openModal('coseguros')">
+      <div class="kpi-icon">⚠️</div>
+      <div class="kpi-label">Coseguros</div>
+      <div class="kpi-val" id="kpi-coseguros">—</div>
+      <div class="kpi-sub" id="kpi-coseg-sub">errores de coseguro</div>
+      <div class="kpi-hint">ver detalle →</div>
+    </div>
+    <div class="kpi-card red" onclick="openModal('sinreferencia')">
+      <div class="kpi-icon">⚠️</div>
+      <div class="kpi-label">Sin Nº Referencia</div>
+      <div class="kpi-val" id="kpi-referencia">—</div>
+      <div class="kpi-sub" id="kpi-ref-sub">ID 1665: vacío o dígitos inválidos</div>
+      <div class="kpi-hint">ver detalle →</div>
+    </div>
+    <div style="grid-column:1/-1; height:0; margin:0; padding:0;"></div>
+    <div class="kpi-card amber" onclick="openModal('cobertura')">
+      <div class="kpi-icon">⚠️</div>
+      <div class="kpi-label">Tipo Cobertura</div>
+      <div class="kpi-val" id="kpi-cobertura">—</div>
+      <div class="kpi-sub" id="kpi-cobertura-sub">ID 3075/1665 sin OBL</div>
+      <div class="kpi-hint">ver detalle →</div>
+    </div>
+    <div class="kpi-card amber" onclick="openModal('fuerafecha')">
+      <div class="kpi-icon">⚠️</div>
+      <div class="kpi-label">Fuera Fecha Facturación</div>
+      <div class="kpi-val" id="kpi-fuerafecha">—</div>
+      <div class="kpi-sub" id="kpi-fuerafecha-sub">ID 3075/1665 mes distinto</div>
+      <div class="kpi-hint">ver detalle →</div>
+    </div>
+  </div>
+
+  <!-- KPIs · Grupo 2: Trámites incompletos -->
+  <div class="kpi-section-label sec-tramites">Trámites incompletos · a recepcionar</div>
+  <div class="kpi-grid kpi-grid-tramites fade-in">
+    <div class="kpi-card purple" onclick="openModal('tramites')">
+      <div class="kpi-icon">⚠️</div>
+      <div class="kpi-label">Trámites Incompletos OS/Prepagas</div>
+      <div class="kpi-val" id="kpi-tramites">—</div>
+      <div class="kpi-sub" id="kpi-tramites-sub">Factura o N° Orden en 0</div>
+      <div class="kpi-hint">ver detalle →</div>
+    </div>
+    <div class="kpi-card purple" onclick="openModal('tramitesharefield')">
+      <div class="kpi-icon">⚠️</div>
+      <div class="kpi-label">Trámites Incompletos Harefield</div>
+      <div class="kpi-val" id="kpi-tramites-harefield">—</div>
+      <div class="kpi-sub" id="kpi-tramites-harefield-sub">a recepcionar</div>
+      <div class="kpi-hint">ver detalle →</div>
+    </div>
+    <div class="kpi-card purple" onclick="openModal('tramitesfinamed')">
+      <div class="kpi-icon">⚠️</div>
+      <div class="kpi-label">Trámites Incompletos Finamed</div>
+      <div class="kpi-val" id="kpi-tramites-finamed">—</div>
+      <div class="kpi-sub" id="kpi-tramites-finamed-sub">a recepcionar</div>
+      <div class="kpi-hint">ver detalle →</div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('tab-resumen',this)">Resumen</button>
+    <button class="tab-btn"        onclick="switchTab('tab-derivantes',this)">Derivantes</button>
+    <button class="tab-btn"        onclick="switchTab('tab-detalle',this)">Detalle</button>
+    <button class="tab-btn"        onclick="switchTab('tab-tramites-inc',this)">Trámites Incompletos</button>
+  </div>
+
+  <!-- TAB TRÁMITES INCOMPLETOS (dashboard desde Supabase · tabla ti_snapshot) -->
+  <div class="tab-pane" id="tab-tramites-inc">
+    <div class="kpi-section-label sec-tramites">Trámites incompletos · a recepcionar (por aseguradora)</div>
+    <div class="kpi-grid kpi-grid-tramites fade-in">
+      <div class="kpi-card purple"><div class="kpi-icon">📋</div><div class="kpi-label">Total trámites</div><div class="kpi-val" id="ti-total">—</div><div class="kpi-sub" id="ti-total-sub">turnos únicos</div></div>
+      <div class="kpi-card blue"><div class="kpi-icon">🏢</div><div class="kpi-label">FINAMED</div><div class="kpi-val" id="ti-FINAMED">—</div><div class="kpi-sub" id="ti-FINAMED-sub">a recepcionar</div></div>
+      <div class="kpi-card amber"><div class="kpi-icon">🏢</div><div class="kpi-label">PAMI (INSSJYP)</div><div class="kpi-val" id="ti-PAMI">—</div><div class="kpi-sub" id="ti-PAMI-sub">a recepcionar</div></div>
+      <div class="kpi-card cyan"><div class="kpi-icon">🏢</div><div class="kpi-label">Harefield</div><div class="kpi-val" id="ti-HAREFIELD">—</div><div class="kpi-sub" id="ti-HAREFIELD-sub">a recepcionar</div></div>
+      <div class="kpi-card green"><div class="kpi-icon">🏢</div><div class="kpi-label">Otras OS / Prepagas</div><div class="kpi-val" id="ti-OSOTRAS">—</div><div class="kpi-sub" id="ti-OSOTRAS-sub">a recepcionar</div></div>
+      <div class="kpi-card red"><div class="kpi-icon">🧾</div><div class="kpi-label">Particular</div><div class="kpi-val" id="ti-PARTICULAR">—</div><div class="kpi-sub" id="ti-PARTICULAR-sub">a recepcionar</div></div>
+    </div>
+    <div class="charts-row fade-in">
+      <div class="chart-card">
+        <div class="chart-title">Detalle por aseguradora</div>
+        <div id="ti-aseg"><div class="empty-state"><div class="e-icon">🏢</div><div class="e-text">Sin datos — corré la sincronización local</div></div></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Por servicio</div>
+        <div id="ti-serv"><div class="empty-state"><div class="e-icon">📊</div><div class="e-text">Sin datos</div></div></div>
+      </div>
+    </div>
+    <div id="ti-meta" style="color:var(--muted);font-size:11px;margin-top:-12px"></div>
+  </div>
+
+  <!-- TAB RESUMEN -->
+  <div class="tab-pane active" id="tab-resumen">
+    <div class="charts-row fade-in">
+      <div class="chart-card">
+        <div class="chart-title">Tipo de Turno</div>
+        <canvas id="chart-tipoturno"></canvas>
+      </div>
+    </div>
+    <div class="charts-row-3 fade-in">
+      <div class="chart-card">
+        <div class="chart-title">Top Aseguradoras</div>
+        <div class="rank-list" id="rank-aseguradoras">
+          <div class="empty-state"><div class="e-icon">🏢</div><div class="e-text">Sin datos</div></div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Top Médicos Derivantes</div>
+        <div class="rank-list" id="rank-derivantes-top">
+          <div class="empty-state"><div class="e-icon">👨‍⚕️</div><div class="e-text">Sin datos</div></div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Top Instituciones Derivantes</div>
+        <div class="rank-list" id="rank-instituciones">
+          <div class="empty-state"><div class="e-icon">🏥</div><div class="e-text">Sin datos</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB DERIVANTES -->
+  <div class="tab-pane" id="tab-derivantes">
+    <div class="charts-row fade-in">
+      <div class="chart-card">
+        <div class="chart-title">Derivaciones por Día</div>
+        <canvas id="chart-deriv-dias"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Top 10 Derivantes</div>
+        <canvas id="chart-deriv-top"></canvas>
+      </div>
+    </div>
+    <div class="table-card fade-in">
+      <div class="table-header">
+        <div class="table-header-title">Médicos Derivantes</div>
+        <div class="table-count" id="count-derivantes">—</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>#</th>
+            <th>Médico Derivante</th>
+            <th>Matrícula</th>
+            <th>Inst. Derivante</th>
+            <th>Derivaciones</th>
+            <th>Coseguros Generados</th>
+            <th>Prestación más frecuente</th>
+          </tr></thead>
+          <tbody id="tbody-derivantes"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB DETALLE -->
+  <div class="tab-pane" id="tab-detalle">
+    <div class="table-card fade-in">
+      <div class="table-header">
+        <div class="table-header-title">Detalle Completo</div>
+        <div class="table-count" id="count-detalle">—</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Fecha</th>
+            <th>Turno N°</th>
+            <th>Paciente</th>
+            <th>Tipo Turno</th>
+            <th>Tipo Cobertura</th>
+            <th>Aseguradora</th>
+            <th>Nº Afiliado</th>
+            <th>Médico Derivante</th>
+            <th>Inst. Derivante</th>
+            <th>Nº Referencia</th>
+            <th>Coseguro $</th>
+            <th>Estado</th>
+          </tr></thead>
+          <tbody id="tbody-detalle"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL PERMISOS - MODAL OVERLAY (solo abierto via botón topbar 👥 Permisos) -->
+  <div id="modal-panel-permisos" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:900; padding:24px; overflow-y:auto;">
+    <div style="max-width:1400px; margin:0 auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <div style="font-weight:700; font-size:18px; letter-spacing:3px; text-transform:uppercase; color:#A78BFA;">
+          👥 PANEL DE PERMISOS
+        </div>
+        <button onclick="cerrarPanelPermisosModal()" style="background:rgba(248,113,113,.15); border:1px solid rgba(248,113,113,.4); color:#F87171; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:600;">
+          ✕ Cerrar
+        </button>
+      </div>
+    <div class="table-card fade-in" style="margin-bottom:16px;">
+      <div class="table-header" style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between;">
+        <div>
+          <div class="table-header-title">👥 Gestión de Usuarios y Permisos</div>
+          <div style="font-size:12px; color:var(--muted); margin-top:4px;">
+            Crear, editar roles, permisos por módulo, activar/desactivar y resetear PIN.
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn-action btn-primary" onclick="abrirModalCrearUsuario()" style="background:rgba(59,130,246,.2); border:1px solid rgba(59,130,246,.5); color:var(--blue); padding:8px 14px; border-radius:6px; cursor:pointer; font-weight:600;">
+            ➕ Nuevo usuario
+          </button>
+          <button class="btn-action" onclick="cargarUsuariosPanel()" style="background:rgba(59,130,246,.1); border:1px solid var(--border); color:var(--muted); padding:8px 14px; border-radius:6px; cursor:pointer;">
+            🔄 Recargar
+          </button>
+        </div>
+      </div>
+      <div id="permisos-info" style="padding:10px 16px; font-size:12px; color:var(--muted);"></div>
+      <div class="table-wrap">
+        <table id="tabla-usuarios">
+          <thead><tr>
+            <th>Usuario</th>
+            <th>Nombre</th>
+            <th>Email</th>
+            <th>Rol</th>
+            <th>Sedes</th>
+            <th>Módulos</th>
+            <th>Login</th>
+            <th>Activo</th>
+            <th>Acciones</th>
+          </tr></thead>
+          <tbody id="tbody-usuarios">
+            <tr><td colspan="9" style="text-align:center; padding:24px; color:var(--muted);">Cargando usuarios...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Instrucciones de invite (Approach A) -->
+    <div class="table-card" style="padding:16px; border-left:3px solid var(--amber);">
+      <div style="font-weight:700; color:var(--amber); margin-bottom:8px;">📨 Cómo invitar un usuario nuevo (paso a paso)</div>
+      <ol style="font-size:13px; line-height:1.8; color:var(--text); padding-left:20px; margin:0;">
+        <li>Crear el usuario acá con <b>➕ Nuevo usuario</b> (cargar username, nombre, email, rol y permisos).</li>
+        <li>Ir al <a href="https://supabase.com/dashboard/project/erjdncsnomwymjiaslpx/auth/users" target="_blank" style="color:var(--blue);">Dashboard de Supabase → Authentication → Users</a>.</li>
+        <li>Click en <b>Add user → Send invitation</b>. Pegar el email del usuario. Enviar.</li>
+        <li>El usuario recibe el magic link, hace click y queda creado en <code>auth.users</code>.</li>
+        <li>Volvé acá, hacé click en <b>🔗 Vincular auth</b> en la fila del usuario y pegá el <code>auth.users.id</code> que aparece en el Dashboard.</li>
+        <li>Listo: el usuario ya puede loguearse con su email desde la pantalla de login.</li>
+      </ol>
+    </div>
+    </div><!-- /max-width wrapper -->
+  </div><!-- /modal-panel-permisos -->
+
+  <!-- MODAL CREAR/EDITAR USUARIO -->
+  <div id="modal-usuario" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:var(--bg, #0F172A); border:1px solid var(--border-a); border-radius:12px; padding:24px; max-width:540px; width:100%; max-height:90vh; overflow-y:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <div style="font-weight:700; font-size:16px; letter-spacing:2px; text-transform:uppercase; color:var(--blue);" id="modal-usuario-titulo">Editar usuario</div>
+        <button onclick="cerrarModalUsuario()" style="background:transparent; border:none; color:var(--muted); font-size:22px; cursor:pointer;">×</button>
+      </div>
+      <input type="hidden" id="mu-id"/>
+      <div style="display:grid; gap:14px;">
+        <div>
+          <label style="font-size:11px; letter-spacing:1px; color:var(--muted); display:block; margin-bottom:4px;">USERNAME</label>
+          <input type="text" id="mu-username" style="width:100%; padding:8px 10px; background:rgba(59,130,246,.05); border:1px solid var(--border); border-radius:6px; color:var(--text); text-transform:uppercase;"/>
+        </div>
+        <div>
+          <label style="font-size:11px; letter-spacing:1px; color:var(--muted); display:block; margin-bottom:4px;">NOMBRE COMPLETO</label>
+          <input type="text" id="mu-nombre" style="width:100%; padding:8px 10px; background:rgba(59,130,246,.05); border:1px solid var(--border); border-radius:6px; color:var(--text);"/>
+        </div>
+        <div>
+          <label style="font-size:11px; letter-spacing:1px; color:var(--muted); display:block; margin-bottom:4px;">EMAIL (para magic link)</label>
+          <input type="email" id="mu-email" placeholder="usuario@hospital.com" style="width:100%; padding:8px 10px; background:rgba(59,130,246,.05); border:1px solid var(--border); border-radius:6px; color:var(--text);"/>
+        </div>
+        <div>
+          <label style="font-size:11px; letter-spacing:1px; color:var(--muted); display:block; margin-bottom:4px;">ROL</label>
+          <select id="mu-rol" style="width:100%; padding:8px 10px; background:rgba(59,130,246,.05); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+            <option value="admin">admin</option>
+            <option value="consultor">consultor</option>
+            <option value="mixto">mixto</option>
+            <option value="solicitante">solicitante</option>
+            <option value="licencias">licencias</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px; letter-spacing:1px; color:var(--muted); display:block; margin-bottom:4px;">SEDES (separadas por coma: NEURO, RESONANCIA, etc.)</label>
+          <input type="text" id="mu-sedes" placeholder="NEURO, RESONANCIA, TC" style="width:100%; padding:8px 10px; background:rgba(59,130,246,.05); border:1px solid var(--border); border-radius:6px; color:var(--text);"/>
+        </div>
+        <div>
+          <label style="font-size:11px; letter-spacing:1px; color:var(--muted); display:block; margin-bottom:8px;">MÓDULOS Y NIVELES</label>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <div>
+              <span style="font-size:11px; color:var(--muted);">operativo</span>
+              <select id="mu-mod-operativo" style="width:100%; padding:6px 8px; background:rgba(59,130,246,.05); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+                <option value="">(sin acceso)</option>
+                <option value="view">view</option>
+                <option value="edit">edit</option>
+                <option value="pedidos">pedidos</option>
+                <option value="admin">admin</option>
+              </select>
+            </div>
+            <div>
+              <span style="font-size:11px; color:var(--muted);">medico</span>
+              <select id="mu-mod-medico" style="width:100%; padding:6px 8px; background:rgba(59,130,246,.05); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+                <option value="">(sin acceso)</option>
+                <option value="view">view</option>
+                <option value="edit">edit</option>
+                <option value="admin">admin</option>
+              </select>
+            </div>
+            <div>
+              <span style="font-size:11px; color:var(--muted);">admin</span>
+              <select id="mu-mod-admin" style="width:100%; padding:6px 8px; background:rgba(59,130,246,.05); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+                <option value="">(sin acceso)</option>
+                <option value="view">view</option>
+                <option value="edit">edit</option>
+                <option value="admin">admin</option>
+              </select>
+            </div>
+            <div>
+              <span style="font-size:11px; color:var(--muted);">licencias</span>
+              <select id="mu-mod-licencias" style="width:100%; padding:6px 8px; background:rgba(59,130,246,.05); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+                <option value="">(sin acceso)</option>
+                <option value="view">view</option>
+                <option value="edit">edit</option>
+                <option value="admin">admin</option>
+              </select>
+            </div>
+            <div>
+              <span style="font-size:11px; color:var(--muted);">mensajeria</span>
+              <select id="mu-mod-mensajeria" style="width:100%; padding:6px 8px; background:rgba(59,130,246,.05); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+                <option value="">(sin acceso)</option>
+                <option value="view">view</option>
+                <option value="edit">edit</option>
+                <option value="admin">admin</option>
+              </select>
+            </div>
+            <div>
+              <span style="font-size:11px; color:var(--muted);">stats</span>
+              <select id="mu-mod-stats" style="width:100%; padding:6px 8px; background:rgba(59,130,246,.05); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+                <option value="">(sin acceso)</option>
+                <option value="view">view</option>
+                <option value="edit">edit</option>
+                <option value="admin">admin</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <input type="checkbox" id="mu-activo" style="width:18px; height:18px;"/>
+          <label for="mu-activo" style="color:var(--text); cursor:pointer;">Usuario activo</label>
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:24px;">
+        <button onclick="cerrarModalUsuario()" style="padding:10px 18px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer;">Cancelar</button>
+        <button onclick="guardarUsuario()" style="padding:10px 18px; border-radius:6px; border:1px solid rgba(59,130,246,.5); background:rgba(59,130,246,.2); color:var(--blue); cursor:pointer; font-weight:600;">💾 Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ERRORES POR OPERADOR (gráfico principal) -->
+  <div class="fade-in" id="chart-operadores-section" style="display:none; margin-top:24px;">
+    <div class="table-card" style="padding:24px;">
+      <div class="table-header" style="margin-bottom:16px;">
+        <div class="table-header-title" style="font-size:14px; letter-spacing:2px;">Errores por Operador</div>
+      </div>
+      <div style="height:380px; position:relative;">
+        <canvas id="chart-errores-operador"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMPARATIVO MENSUAL POR OPERADOR -->
+  <div class="fade-in" id="chart-comparativo-section" style="display:none; margin-top:24px;">
+    <div class="table-card" style="padding:24px;">
+      <div class="table-header" style="margin-bottom:16px; display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end; justify-content:space-between;">
+        <div class="table-header-title" style="font-size:14px; letter-spacing:2px;">Comparativo Mensual por Operador</div>
+        <div style="display:flex; flex-wrap:wrap; gap:12px;">
+          <div class="filter-group">
+            <span class="filter-label">Mes desde</span>
+            <input type="month" id="cmp-mes-desde" class="filter-input" onchange="renderComparativoMensual()"/>
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">Mes hasta</span>
+            <input type="month" id="cmp-mes-hasta" class="filter-input" onchange="renderComparativoMensual()"/>
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">Vista</span>
+            <select id="cmp-vista" class="filter-select" onchange="renderComparativoMensual()">
+              <option value="totales">Cantidad de errores</option>
+              <option value="variacion">Variación % vs mes anterior</option>
+            </select>
+          </div>
+          <button class="btn-reset" onclick="resetComparativoMensual()">Limpiar</button>
+        </div>
+      </div>
+
+      <!-- Chart 1: total por operador mes a mes -->
+      <div style="height:360px; position:relative; margin-bottom:8px;">
+        <canvas id="chart-cmp-total"></canvas>
+      </div>
+
+      <!-- KPIs de comparación entre meses -->
+      <div id="cmp-kpi-row" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin:20px 0 12px;"></div>
+
+      <!-- Sub-header con selector de operador -->
+      <div style="display:flex; flex-wrap:wrap; gap:16px; align-items:center; justify-content:space-between; margin:16px 0 12px;">
+        <div class="table-header-title" style="font-size:13px; letter-spacing:2px;">Evolución Mensual del Operador</div>
+        <div class="filter-group" style="min-width:200px;">
+          <span class="filter-label">Operador</span>
+          <select id="cmp-operador" class="filter-select" onchange="onCmpOperadorChange()"></select>
+        </div>
+      </div>
+
+      <!-- Chart 2: desglose por tipo para el operador seleccionado -->
+      <div style="height:340px; position:relative;">
+        <canvas id="chart-cmp-tipos"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- INFORME DE RENDIMIENTO (sólo al click en tarjeta) -->
+  <div class="fade-in" id="informe-rendimiento-section" style="display:none; margin-top:24px;">
+    <div class="table-card" style="padding:24px;">
+      <div id="informe-rendimiento-body"></div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- ══════ MODAL DRAWER ══════ -->
+<div class="modal-overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal-drawer" id="modal-drawer">
+    <div class="modal-head">
+      <div class="modal-bar" id="modal-bar"></div>
+      <div class="modal-head-info">
+        <div class="modal-head-title" id="modal-title">Detalle</div>
+        <div class="modal-head-count" id="modal-count"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-toolbar">
+      <input class="modal-search" id="modal-search" type="text"
+             placeholder="🔍  Buscar por paciente, DNI, derivante…"
+             oninput="filterModal(this.value)"/>
+      <div class="export-group">
+        <button class="btn-csv" onclick="exportExcel()">⬇ Exportar Excel</button>
+        <button class="btn-csv-arrow" onclick="toggleExportMenu(event)">▾</button>
+        <div class="export-menu" id="export-menu"></div>
+      </div>
+      <button id="btn-reparar-instderiv" class="btn-reparar" style="display:none"
+              onclick="repararConBot()" title="Genera el Excel y lanza el bot FUESMEN">🔧 Reparar automáticamente</button>
+    </div>
+    <div class="modal-body">
+      <table class="modal-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Turno N°</th>
+            <th>Paciente</th>
+            <th>Tipo Doc.</th>
+            <th>DNI / Doc.</th>
+            <th>Nº Afiliado</th>
+            <th>Sexo</th>
+            <th>Edad</th>
+            <th>Localidad</th>
+            <th>Aseguradora</th>
+            <th>Tipo Cobertura</th>
+            <th>Tipo Turno</th>
+            <th>Derivante</th>
+            <th>Institución Deriv.</th>
+            <th>Operador</th>
+            <th>Matrícula</th>
+            <th>Nº Referencia</th>
+            <th>F/ Facturación</th>
+            <th>Prestación</th>
+            <th>Coseguro $</th>
+            <th>ID Aseguradora</th>
+            <th>Cuenta</th>
+            <th>Neto Unitario</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody id="modal-tbody"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <span id="modal-footer-count"></span>
+      <span>Presioná <kbd style="background:var(--glass);padding:1px 6px;border-radius:3px;border:1px solid var(--border)">Esc</kbd> para cerrar</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ OVERLAY: INSTRUCCIONES BOT REPARAR (Institución Derivante) ══════ -->
+<div class="reparar-overlay" id="reparar-overlay" onclick="if(event.target===this)cerrarReparar()">
+  <div class="reparar-box">
+    <div class="reparar-box-head">
+      <span class="rb-title" id="reparar-title">🔧 Reparar</span>
+      <button class="rb-close" onclick="cerrarReparar()">✕</button>
+    </div>
+    <div class="reparar-box-body">
+      <div class="reparar-step">
+        <span class="rs-num">1</span>
+        <div><b id="reparar-count-txt">Generando Excel…</b> Se descargó en tu carpeta <b>Descargas</b> con el nombre que el bot ya espera. No lo renombres ni lo muevas.</div>
+      </div>
+      <div class="reparar-step">
+        <span class="rs-num">2</span>
+        <div>Se está abriendo <b>PowerShell</b> y arrancando el bot. Si el navegador pregunta <i>"¿Abrir LumenBot?"</i>, dale <b>Abrir</b> (tildá "Permitir siempre" para que no vuelva a preguntar).</div>
+      </div>
+      <div class="reparar-step">
+        <span class="rs-num">3</span>
+        <div>Logueate en FUESMEN en la ventana que abre el bot, volvé a PowerShell y apretá <b>ENTER</b>. El bot procesa los turnos solo.</div>
+      </div>
+      <details style="margin-top:6px">
+        <summary style="cursor:pointer;color:var(--muted);font-size:12px">¿No se abrió PowerShell?</summary>
+        <div style="margin-top:10px;font-size:12.5px;line-height:1.5">
+          La primera vez hay que registrar el protocolo: ejecutá <b>una sola vez</b> el archivo
+          <code style="color:var(--cyan)">lumenbot_install.reg</code> (doble clic → "Sí"). Después, este botón abre PowerShell solo.
+          <div style="margin-top:8px">O corré el comando a mano:</div>
+          <div class="reparar-cmd" id="reparar-cmd">cd "C:\Users\pitre\OneDrive\Documentos\Claude\Projects\Automatización tareas adm\fuesmen_bot"; .\.venv\Scripts\Activate.ps1; python lumen-fix-instderivante.py</div>
+          <button class="reparar-copy" onclick="copiarComandoReparar()">📋 Copiar comando</button>
+        </div>
+      </details>
+      <div class="reparar-note">El bot pregunta cuántos turnos procesar (ENTER = todos). Solo cambia los que siguen como error; los ya reparados se saltean por historial.</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="spcd-utils.js"></script>
+<script src="spcd-dialog.js"></script>
+<script>
+/* ══════════════════════════════════
+   AUTH GUARD — requiere sesión activa
+══════════════════════════════════ */
+(function() {
+  const SK = 'spcd_session', TO = 8*60*60*1000;
+  const DEFAULTS = { admin:{admin:'edit',tecnico:'edit',medico:'edit',operativo:'admin'}, consultor:{admin:'view',tecnico:'view',medico:'view',operativo:'view'}, mixto:{medico:'edit',operativo:'admin'}, solicitante:{operativo:'pedidos'} };
+  const SOLICITANTES_FORZADOS = ['TRUMBO','VFORNI','ISKAMLEC','MWSANCHEZ','JAVILA','LBASTIAS'];
+  try {
+    const s = JSON.parse(localStorage.getItem(SK));
+    if (!s || Date.now() - s.ts >= TO) throw 0;
+    // Bloqueo explícito: usuarios solo-pedidos no pueden entrar a admin
+    if (s.user && s.user.username && SOLICITANTES_FORZADOS.includes(s.user.username.toUpperCase())) {
+      window.location.href = 'operativo.html'; return;
+    }
+    const pm = (s.user.permisos && s.user.permisos.modulos) ? s.user.permisos.modulos : (DEFAULTS[s.user.rol]||{});
+    if (!pm.admin) throw 0;
+    window.__spcd_user = s.user;
+    window.__spcd_perm = pm.admin;
+  } catch(e) {
+    window.location.href = 'app.html';
+  }
+})();
+
+/* ══════════════════════════════════
+   STORAGE (IndexedDB)
+══════════════════════════════════ */
+/* SPCD_DB, SPCD_STORE, openDB, dbLoad, dbSave viven ahora en spcd-utils.js */
+
+/* ══════════════════════════════════
+   ESTADO
+══════════════════════════════════ */
+let rawData  = [];
+let filtered = [];
+let charts   = {};
+// Set de turnos ya reparados por los bots: claves "tipo:turnoN" (estado OK/YA_OK).
+let REPARADOS = new Set();
+
+/* ══════════════════════════════════
+   INIT
+══════════════════════════════════ */
+window.addEventListener('DOMContentLoaded', () => {
+  // ── RECUPERACIÓN: si un modal falló antes y dejó la página bloqueada,
+  // limpiar overflow del body y cerrar overlays huérfanos al cargar.
+  document.body.style.overflow = '';
+  try { document.getElementById('modal-overlay').classList.remove('open'); } catch(e){}
+  try { document.getElementById('export-menu').classList.remove('open'); } catch(e){}
+
+  // Capturar errores globales para que nunca dejen la página bloqueada.
+  window.addEventListener('error', (ev) => {
+    console.error('[GLOBAL ERROR]', ev.message, 'en', ev.filename, ':', ev.lineno, ev.error);
+    document.body.style.overflow = '';
+  });
+  window.addEventListener('unhandledrejection', (ev) => {
+    console.error('[UNHANDLED REJECTION]', ev.reason);
+    document.body.style.overflow = '';
+  });
+
+  // WATCHDOG: cada 500ms verifica que no estemos en estado fantasma
+  // (body bloqueado pero sin modal visible). Si lo detecta, libera.
+  setInterval(() => {
+    const ov = document.getElementById('modal-overlay');
+    if (!ov) return;
+    if (document.body.style.overflow === 'hidden' && !ov.classList.contains('open')) {
+      console.warn('[WATCHDOG] Estado fantasma detectado: body bloqueado sin modal abierto. Liberando.');
+      document.body.style.overflow = '';
+    }
+  }, 500);
+
+  console.log('%c[Lumen ADMIN] versión fix-kpi-dedup-turno-2026-05-04', 'color:#22DBAE;font-weight:700');
+
+  // Al volver a la pestaña (p.ej. después de que el bot terminó de reparar),
+  // re-consultar el contador de "arreglados" sin recargar la página.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') { cargarReparaciones(false); cargarTramitesInc(false); }
+  });
+  window.addEventListener('focus', () => { cargarReparaciones(false); cargarTramitesInc(false); });
+  cargarTramitesInc();   // pestaña Trámites Incompletos: lee de Supabase (ti_snapshot), independiente del Excel
+
+  const sede = localStorage.getItem('spcd_sede') || '';
+  document.getElementById('bc-sede').textContent  = sede || 'Sede';
+  document.getElementById('top-sede').textContent = sede || '—';
+
+  dbLoad('spcd_data_full').then(data => {
+    if (data && data.length > 0) {
+      rawData = data;
+      onDataLoaded(rawData);
+    } else {
+      document.getElementById('upload-sub-text').textContent = '⚠️ No hay datos cargados. Volvé a Inicio y cargá el archivo Excel.';
+    }
+  }).catch(e => {
+    document.getElementById('upload-sub-text').textContent = '⚠️ Error al leer datos. Volvé a cargar el Excel desde Inicio.';
+  });
+});
+
+/* ══════════════════════════════════
+   ON DATA LOADED
+══════════════════════════════════ */
+function onDataLoaded(data) {
+  document.getElementById('upload-zone').classList.add('has-data');
+  const uploadDate = localStorage.getItem('spcd_upload_date') || '';
+  document.getElementById('upload-sub-text').textContent = `✅  ${data.length.toLocaleString()} registros cargados`;
+  document.getElementById('data-status').textContent = uploadDate ? `Última actualización: ${uploadDate}` : '';
+  populateFilters(data);
+  document.getElementById('filters-bar').style.display  = 'flex';
+  document.getElementById('summary-bar').style.display  = 'flex';
+  filtered = [...data];
+  render(filtered);
+  cargarReparaciones();   // async: al volver, re-renderiza con el contador de arreglados
+}
+
+/* ══════════════════════════════════
+   REPARACIONES (contador "arreglados")
+   Lee la tabla `reparaciones` (poblada por los bots) y rearma el render.
+══════════════════════════════════ */
+let _reparadosSig = '';        // firma del Set para detectar cambios
+let _reparadosLastFetch = 0;   // throttle de los refrescos por foco
+
+async function cargarReparaciones(force = true) {
+  try {
+    if (typeof sbQuery !== 'function') return;
+    const ahora = Date.now();
+    if (!force && ahora - _reparadosLastFetch < 8000) return; // evita spamear al alternar pestañas
+    _reparadosLastFetch = ahora;
+    const rows = await sbQuery('reparaciones', 'select=turno_n,tipo&estado=in.(OK,YA_OK)');
+    const nuevo = new Set((rows || []).map(r => `${r.tipo}:${String(r.turno_n).trim()}`));
+    const sig = [...nuevo].sort().join('|');
+    if (sig === _reparadosSig) return;   // sin cambios → no re-renderizar
+    _reparadosSig = sig;
+    REPARADOS = nuevo;
+    if (filtered && filtered.length) render(filtered);  // refresca sin recargar datos
+  } catch (e) {
+    console.warn('[reparaciones] no se pudo cargar el contador de arreglados:', e);
+  }
+}
+
+/* ══════════════════════════════════
+   TRÁMITES INCOMPLETOS (pestaña) — lee el último snapshot de `ti_snapshot`
+   Poblada por el script local sync_tramites.py. Solo conteos agregados (sin PII).
+══════════════════════════════════ */
+let _tiSig = '', _tiLast = 0;
+function tiNum(x){ return (Number(x)||0).toLocaleString('es-AR'); }
+function tiEsc(s){ return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+async function cargarTramitesInc(force = true) {
+  try {
+    if (typeof sbQuery !== 'function') return;
+    const ahora = Date.now();
+    if (!force && ahora - _tiLast < 8000) return;   // throttle al alternar pestañas
+    _tiLast = ahora;
+    const rows = await sbQuery('ti_snapshot', 'select=payload,generado_en&order=generado_en.desc&limit=1');
+    if (!rows || !rows.length) return;
+    const p = rows[0].payload || {};
+    const sig = String(rows[0].generado_en) + ':' + String(p.total_incompletos);
+    if (sig === _tiSig) return;                     // sin cambios → no re-render
+    _tiSig = sig;
+    renderTramitesInc(p, rows[0].generado_en);
+  } catch (e) {
+    console.warn('[tramites-inc] no se pudo cargar el snapshot:', e);
+  }
+}
+
+function renderTramitesInc(p, generado) {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('ti-total', tiNum(p.total_incompletos));
+  set('ti-total-sub', tiNum(p.total_lineas_incompletas) + ' estudios');
+  (p.buckets || []).forEach(b => { set('ti-' + b.key, tiNum(b.turnos)); set('ti-' + b.key + '-sub', tiNum(b.lineas) + ' estudios'); });
+
+  const aseg = p.por_aseguradora || [];
+  const cont = document.getElementById('ti-aseg');
+  if (cont) cont.innerHTML = aseg.length ? (
+    '<table style="width:100%;border-collapse:collapse;font-size:12.5px">' +
+    '<thead><tr>' +
+    '<th style="text-align:left;padding:6px 4px;color:var(--muted);font-size:11px;text-transform:uppercase">Aseguradora</th>' +
+    '<th style="text-align:right;padding:6px 4px;color:var(--muted);font-size:11px;text-transform:uppercase">Turnos</th>' +
+    '<th style="text-align:right;padding:6px 4px;color:var(--muted);font-size:11px;text-transform:uppercase">Estudios</th>' +
+    '</tr></thead><tbody>' +
+    aseg.map(a => '<tr>' +
+      '<td style="padding:6px 4px;border-top:1px solid rgba(255,255,255,.05)">' + tiEsc(a.aseguradora) + '</td>' +
+      '<td style="padding:6px 4px;text-align:right;border-top:1px solid rgba(255,255,255,.05);font-family:Rajdhani,Inter,sans-serif;font-weight:700">' + tiNum(a.turnos) + '</td>' +
+      '<td style="padding:6px 4px;text-align:right;border-top:1px solid rgba(255,255,255,.05);color:var(--muted)">' + tiNum(a.lineas) + '</td></tr>').join('') +
+    '</tbody></table>'
+  ) : '<div class="empty-state"><div class="e-icon">🏢</div><div class="e-text">Sin datos</div></div>';
+
+  const serv = p.por_servicio || {}; const keys = Object.keys(serv); const max = Math.max(1, ...keys.map(k => serv[k]));
+  const sc = document.getElementById('ti-serv');
+  if (sc) sc.innerHTML = keys.length ? keys.map(k =>
+    '<div style="display:flex;justify-content:space-between;font-size:12.5px;margin:2px 0 4px"><span>' + tiEsc(k) + '</span><b>' + tiNum(serv[k]) + '</b></div>' +
+    '<div style="height:8px;border-radius:6px;background:rgba(255,255,255,.06);overflow:hidden;margin-bottom:8px"><span style="display:block;height:100%;width:' + Math.round(serv[k] / max * 100) + '%;background:var(--blue)"></span></div>'
+  ).join('') : '<div class="empty-state"><div class="e-icon">📊</div><div class="e-text">Sin datos</div></div>';
+
+  const meta = document.getElementById('ti-meta');
+  if (meta) meta.textContent = 'Actualizado ' + (generado || p.generado_en || '') + ' · archivo ' + (p.archivo || '—') + ' · el detalle por paciente se ve en la herramienta local (no se sube a la nube)';
+}
+
+/* ══════════════════════════════════
+   FILTROS
+══════════════════════════════════ */
+function populateFilters(data) {
+  const fechas = data.map(r => parseDate(r['Turno Fecha'])).filter(Boolean)
+    .map(d => d.toISOString().slice(0,10)).sort();
+  if (fechas.length) {
+    document.getElementById('f-desde').value = fechas[0];
+    document.getElementById('f-hasta').value = fechas[fechas.length-1];
+  }
+  fillSelect('f-aseguradora', [...new Set(data.map(r => r['Aseguradora']).filter(Boolean))].sort());
+  fillSelect('f-consola',     [...new Set(data.map(r => r['Consola']).filter(Boolean))].sort());
+}
+
+function fillSelect(id, values) {
+  const sel = document.getElementById(id);
+  sel.innerHTML = '<option value="">Todos</option>';
+  values.forEach(v => { const o=document.createElement('option'); o.value=v; o.textContent=v.slice(0,50); sel.appendChild(o); });
+}
+
+function applyFilters() {
+  const desde   = document.getElementById('f-desde').value;
+  const hasta   = document.getElementById('f-hasta').value;
+  const aseg    = document.getElementById('f-aseguradora').value;
+  const consola = document.getElementById('f-consola').value;
+  filtered = rawData.filter(r => {
+    const fd = parseDate(r['Turno Fecha']); if (!fd) return false;
+    const ds = fd.toISOString().slice(0,10);
+    if (desde && ds < desde) return false;
+    if (hasta && ds > hasta) return false;
+    if (aseg && r['Aseguradora']    !== aseg) return false;
+    if (consola && r['Consola']     !== consola) return false;
+    return true;
+  });
+  render(filtered);
+}
+
+function resetFilters() {
+  populateFilters(rawData);
+  ['f-aseguradora','f-consola']
+    .forEach(id => document.getElementById(id).value = '');
+  filtered = [...rawData];
+  render(filtered);
+}
+
+/* ══════════════════════════════════
+   RENDER
+══════════════════════════════════ */
+function render(data) {
+  calcKPIs(data);
+  calcSummaryBar(data);
+  renderChartTipoTurno(data);
+  renderRankAseguradoras(data);
+  renderRankDerivantes(data);
+  renderRankInstituciones(data);
+  renderChartDerivDias(data);
+  renderChartDerivTop(data);
+  renderTablaDerivantes(data);
+  renderTabDetalle(data);
+  renderChartErroresOperador(data);
+  populateComparativoSelectors(data);
+  renderComparativoMensual();
+}
+
+/* ══════════════════════════════════
+   SUMMARY BAR
+══════════════════════════════════ */
+function calcSummaryBar(data) {
+  const reaData = data.filter(r => r['Estado']==='REA');
+
+  // Total Turnos: contar Turno N° únicos (duplicados cuentan como 1)
+  const turnosUnicos = new Set(reaData.map(r => r['Turno N°']).filter(Boolean)).size;
+
+  // Prácticas Realizadas: excluir prestaciones que no son prácticas
+  const noEsPractica = ['MATERIAL','SET DE BOMBA','COSEGURO','RADIOFARMACO','NC/ND','AGUJAS','NOTA'];
+  const practicas = reaData.filter(r => {
+    const prest = (r['Prestación']||r['Prestacion']||'').trim().toUpperCase();
+    return !noEsPractica.some(excl => prest.startsWith(excl));
+  });
+
+  const aseg  = new Set(reaData.map(r=>r['Aseguradora']).filter(Boolean)).size;
+  const deriv = new Set(reaData.map(r=>r['Derivante']).filter(Boolean)).size;
+
+  // Cantidad de Errores: turnos únicos con AL MENOS UN error (no doble-cuenta
+  // turnos con varios errores ni líneas múltiples del mismo turno). Coincide
+  // con el modal "Total Errores" que se abre al hacer click en esta tarjeta.
+  const reaUniq = dedupByTurno(reaData);
+  // NO suma los tipos automatizados (Inst. Derivante, Tipo Cobertura, Fuera Fecha
+  // Fact.): tienen bot Reparar y se muestran aparte como "✓ Automatizado".
+  const totalErrores = reaUniq.filter(r =>
+    (()=>{ const d=(r['Derivante']||'').trim().toUpperCase(); return !d || d==='A CONFIRMAR'; })() ||
+    (()=>{ const id=String(r['ID Aseguradora']||'').trim(); const cu=(r['Cuenta']||'').trim().toUpperCase(); const pr=(r['Prestación']||r['Prestacion']||'').trim().toUpperCase(); const ne=parseFloat(r['Neto Unitario']||0); return id==='1665'&&cu.includes('OSEP')&&pr==='COSEGURO'&&ne===0; })() ||
+    esErrorReferencia(r) ||
+    esErrorTramiteIncompleto(r)
+  ).length;
+
+  document.getElementById('sum-total').textContent  = turnosUnicos.toLocaleString();
+  document.getElementById('sum-rea').textContent    = practicas.length.toLocaleString();
+  document.getElementById('sum-aseg').textContent   = aseg;
+  document.getElementById('sum-deriv').textContent  = deriv;
+  document.getElementById('sum-errores').textContent = totalErrores.toLocaleString();
+}
+
+/* ══════════════════════════════════
+   ERROR INSTITUCIÓN DERIVANTE
+   Si Inst Derivante = FUESMEN y Operador está en lista → error
+══════════════════════════════════ */
+const OPERADORES_FUESMEN = new Set([
+  'EGRANADO','JAVILA','ZABRAHAM','JMONICA','ITORRES','MBENITEZ',
+  'ISKAMLEC','FSTEINBERG','FBATTISTELLA','MCANEVA','FCORNEJO',
+  'YJOFRE','SPITRELLA','VFORNI','MOROSCO'
+]);
+
+function esErrorInstDerivante(r) {
+  const inst = (r['Inst Derivante']||'').trim().toUpperCase();
+  if (inst !== 'FUESMEN') return false;
+  const op = (r['Operador']||'').trim().toUpperCase();
+  return OPERADORES_FUESMEN.has(op);
+}
+
+/* ══════════════════════════════════
+   ERROR DE REFERENCIA
+   Solo ID Aseguradora = 1665.
+   Error si: vacío, o dígitos no son 5, 9, 12 o 13.
+══════════════════════════════════ */
+function esErrorReferencia(r) {
+  const idAseg = String(r['ID Aseguradora']||'').trim();
+  if (idAseg !== '1665') return false; // solo mirar ID 1665
+  const ref = String(r['Nº Referencia']||'').trim();
+  if (!ref) return true; // vacío → error
+  const digits = ref.replace(/\D/g, ''); // solo dígitos
+  const len = digits.length;
+  if (len === 1 && digits === '1') return false; // "1" es válido
+  if (len !== 5 && len !== 9 && len !== 12 && len !== 13) return true; // largo inválido → error
+  return false;
+}
+
+/* ══════════════════════════════════
+   ERROR TIPO COBERTURA
+   Si ID Aseguradora es 3075 o 1665 y Tipo Cobertura NO es OBL → error
+══════════════════════════════════ */
+function esErrorCobertura(r) {
+  const idAseg = String(r['ID Aseguradora']||'').trim();
+  if (idAseg !== '3075' && idAseg !== '1665') return false;
+  const tipo = (r['Tipo Cobertura']||'').trim().toUpperCase();
+  return tipo !== 'OBL';
+}
+
+/* ══════════════════════════════════
+   ERROR FUERA FECHA FACTURACIÓN
+   Si ID Aseguradora es 3075 o 1665, y F/ Facturación no está
+   dentro del mismo mes/año que Turno Fecha → error
+══════════════════════════════════ */
+function esErrorFueraFechaFact(r) {
+  const idAseg = String(r['ID Aseguradora']||'').trim();
+  if (idAseg !== '3075' && idAseg !== '1665') return false;
+  const turnoFecha = parseDate(r['Turno Fecha']);
+  // Buscar columna con variantes posibles del nombre
+  const fFact = r['F/ Facturación'] ?? r['F/Facturación'] ?? r['F/ Facturacion'] ?? r['F/Facturacion'] ?? '';
+  const factFecha = parseDate(fFact);
+  if (!turnoFecha || !factFecha) return !!turnoFecha; // si hay turno pero no fact → error
+  // Comparar mes y año
+  return turnoFecha.getMonth() !== factFecha.getMonth() ||
+         turnoFecha.getFullYear() !== factFecha.getFullYear();
+}
+
+/* ══════════════════════════════════
+   ERROR TRÁMITES INCOMPLETOS
+   - PARTICULAR con N° Factura = 0
+   - No PARTICULAR con N° Orden = 0
+══════════════════════════════════ */
+function esErrorTramiteIncompleto(r) {
+  const aseg = (r['Aseguradora']||'').trim().toUpperCase();
+  if (aseg === 'PARTICULAR') {
+    const factura = String(r['N° Factura'] ?? r['Nº Factura'] ?? r['N Factura'] ?? '').trim();
+    return factura === '0';
+  } else {
+    const orden = String(r['N° Orden'] ?? r['Nº Orden'] ?? r['N Orden'] ?? '').trim();
+    return orden === '0';
+  }
+}
+
+/* ══════════════════════════════════
+   ERROR TRÁMITES INCOMPLETOS HAREFIELD
+   - ID Aseguradora = 3075 (HAREFIELD S.A., ID estable)
+   - N° Orden = 0  → "a recepcionar"
+   (Estado = REA se aplica aguas arriba, igual que el resto de KPIs)
+══════════════════════════════════ */
+function esErrorTramiteHarefield(r) {
+  const idAseg = String(r['ID Aseguradora']||'').trim();
+  if (idAseg !== '3075') return false;
+  const orden = String(r['N° Orden'] ?? r['Nº Orden'] ?? r['N Orden'] ?? '').trim();
+  return orden === '0';
+}
+
+/* ══════════════════════════════════
+   ERROR TRÁMITES INCOMPLETOS FINAMED
+   - ID Aseguradora = 1665 (FINAMED SA - HOSP ITAL (PROV), ID estable)
+   - N° Orden = 0  → "a recepcionar"
+   (Estado = REA se aplica aguas arriba, igual que el resto de KPIs)
+══════════════════════════════════ */
+function esErrorTramiteFinamed(r) {
+  const idAseg = String(r['ID Aseguradora']||'').trim();
+  if (idAseg !== '1665') return false;
+  const orden = String(r['N° Orden'] ?? r['Nº Orden'] ?? r['N Orden'] ?? '').trim();
+  return orden === '0';
+}
+
+/* ══════════════════════════════════
+   KPIs
+══════════════════════════════════ */
+function calcKPIs(data) {
+  // Solo considerar registros con Estado = REA (excluye AUS y otros)
+  // y deduplicar por Turno N° → cada turno cuenta una sola vez aunque tenga
+  // múltiples líneas (prestación + materiales + contraste + coseguro). Esto
+  // mantiene el KPI alineado con lo que se ve al abrir el detalle / Excel.
+  const rea = dedupByTurno(data.filter(r => r['Estado'] === 'REA'));
+
+  // Institución Derivante: error si Inst Derivante = FUESMEN y Operador está en la lista
+  const instDerivErr = rea.filter(r => esErrorInstDerivante(r));
+  document.getElementById('kpi-instderiv').textContent = instDerivErr.length.toLocaleString();
+  document.getElementById('kpi-instderiv-sub').textContent = `Probable error`;
+
+  const derivErr = rea.filter(r => {
+    const d = (r['Derivante']||'').trim().toUpperCase();
+    return !d || d === 'A CONFIRMAR';
+  });
+  document.getElementById('kpi-derivantes').textContent = derivErr.length.toLocaleString();
+  document.getElementById('kpi-deriv-sub').textContent  = `${rea.length ? ((derivErr.length/rea.length)*100).toFixed(1) : 0}% de REA`;
+
+  // Error coseguro: ID Aseguradora=1665, Cuenta contiene OSEP, Prestación=COSEGURO, Neto Unitario=0
+  const cosegErr = rea.filter(r => {
+    const idAseg = String(r['ID Aseguradora']||'').trim();
+    const cuenta = (r['Cuenta']||'').trim().toUpperCase();
+    const prest  = (r['Prestación']||r['Prestacion']||'').trim().toUpperCase();
+    const neto   = parseFloat(r['Neto Unitario']||0);
+    return idAseg === '1665' && cuenta.includes('OSEP') && prest === 'COSEGURO' && neto === 0;
+  });
+  document.getElementById('kpi-coseguros').textContent = cosegErr.length.toLocaleString();
+  document.getElementById('kpi-coseg-sub').textContent = `${rea.length ? ((cosegErr.length/rea.length)*100).toFixed(1) : 0}% de REA`;
+
+  const sinRef = rea.filter(r => esErrorReferencia(r)).length;
+  document.getElementById('kpi-referencia').textContent = sinRef.toLocaleString();
+  const total1665 = rea.filter(r => String(r['ID Aseguradora']||'').trim()==='1665').length;
+  document.getElementById('kpi-ref-sub').textContent = `${total1665 ? ((sinRef/total1665)*100).toFixed(1) : 0}% de ID 1665`;
+
+  // Tipo Cobertura: error si ID 3075 o 1665 y Tipo Cobertura ≠ OBL
+  const cobErr = rea.filter(r => esErrorCobertura(r));
+  document.getElementById('kpi-cobertura').textContent = cobErr.length.toLocaleString();
+  const reaOblIds = rea.filter(r => { const id=String(r['ID Aseguradora']||'').trim(); return id==='3075'||id==='1665'; });
+  const totalOblIds = reaOblIds.length;
+  // Nombres de aseguradoras para IDs 3075/1665
+  const asegNombres3075_1665 = [...new Set(reaOblIds.map(r => r['Aseguradora']).filter(Boolean))].slice(0,3).join(', ') || 'ID 3075/1665';
+  const pctCob = totalOblIds ? ((cobErr.length/totalOblIds)*100).toFixed(1) : 0;
+  document.getElementById('kpi-cobertura-sub').textContent = `${pctCob}% — ${asegNombres3075_1665}`;
+
+  // Fuera Fecha Facturación: ID 3075 o 1665 con F/ Facturación en mes distinto a Turno Fecha
+  const fueraFechaErr = rea.filter(r => esErrorFueraFechaFact(r));
+  document.getElementById('kpi-fuerafecha').textContent = fueraFechaErr.length.toLocaleString();
+  const pctFuera = totalOblIds ? ((fueraFechaErr.length/totalOblIds)*100).toFixed(1) : 0;
+  document.getElementById('kpi-fuerafecha-sub').textContent = `${pctFuera}% — ${asegNombres3075_1665}`;
+
+  // Trámites Incompletos (excluye Harefield y Finamed, que tienen su propio cuadro)
+  const tramitesErr = rea.filter(r => esErrorTramiteIncompleto(r) && !esErrorTramiteHarefield(r) && !esErrorTramiteFinamed(r));
+  document.getElementById('kpi-tramites').textContent = tramitesErr.length.toLocaleString();
+  const partCount = tramitesErr.filter(r => (r['Aseguradora']||'').trim().toUpperCase() === 'PARTICULAR').length;
+  const obraCount = tramitesErr.length - partCount;
+  document.getElementById('kpi-tramites-sub').textContent = `${partCount} Part. sin fact. / ${obraCount} O.S. sin orden`;
+
+  // Trámites Incompletos Harefield (subconjunto: HAREFIELD S.A. + N° Orden = 0)
+  const harefieldErr = rea.filter(r => esErrorTramiteHarefield(r));
+  document.getElementById('kpi-tramites-harefield').textContent = harefieldErr.length.toLocaleString();
+  document.getElementById('kpi-tramites-harefield-sub').textContent = `${harefieldErr.length.toLocaleString()} a recepcionar`;
+
+  // Trámites Incompletos Finamed (subconjunto: ID 1665 + N° Orden = 0)
+  const finamedErr = rea.filter(r => esErrorTramiteFinamed(r));
+  document.getElementById('kpi-tramites-finamed').textContent = finamedErr.length.toLocaleString();
+  document.getElementById('kpi-tramites-finamed-sub').textContent = `${finamedErr.length.toLocaleString()} a recepcionar`;
+
+  // KPIs cuyo flujo ya está automatizado (bot Reparar): se atenúan, llevan badge
+  // "✓ Automatizado", muestran cuántos ya se arreglaron y NO suman al total.
+  ['kpi-instderiv','kpi-cobertura','kpi-fuerafecha'].forEach(marcarKpiAutomatizado);
+  mostrarArreglados('kpi-instderiv', instDerivErr,  'instderiv');
+  mostrarArreglados('kpi-cobertura', cobErr,        'cobertura');
+  mostrarArreglados('kpi-fuerafecha', fueraFechaErr, 'fuerafecha');
+}
+
+/* Atenúa la tarjeta del KPI y le agrega el badge "Automatizado" (idempotente). */
+function marcarKpiAutomatizado(valId) {
+  const val = document.getElementById(valId);
+  const card = val && val.closest('.kpi-card');
+  if (!card) return;
+  card.classList.add('automatizado');
+  if (!card.querySelector('.kpi-auto-badge')) {
+    const b = document.createElement('div');
+    b.className = 'kpi-auto-badge';
+    b.textContent = '✓ Automatizado';
+    card.appendChild(b);
+  }
+}
+
+/* Muestra "✓ N arreglados · M pend." debajo del número, cruzando los turnos
+   en error contra el Set REPARADOS (poblado desde Supabase). Si todavía no
+   cargó nada, no muestra el renglón. */
+function mostrarArreglados(valId, rows, tipo) {
+  const val = document.getElementById(valId);
+  const card = val && val.closest('.kpi-card');
+  if (!card) return;
+  let el = card.querySelector('.kpi-arr');
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'kpi-arr';
+    val.insertAdjacentElement('afterend', el);
+  }
+  if (!REPARADOS || !REPARADOS.size) { el.textContent = ''; return; }
+  let arr = 0;
+  for (const r of rows) {
+    const tn = _safe(r['Turno N°'] ?? r['Turno N'] ?? r['Turno No']);
+    if (tn && REPARADOS.has(tipo + ':' + tn)) arr++;
+  }
+  const pend = Math.max(0, rows.length - arr);
+  el.innerHTML = `<span class="arr-ok">✓ ${arr.toLocaleString('es-AR')} arreglados</span>` +
+                 (pend ? ` <span class="arr-pend">· ${pend.toLocaleString('es-AR')} pend.</span>` : '');
+}
+
+/* ══════════════════════════════════
+   CHART TIPO TURNO (Bar)
+══════════════════════════════════ */
+function renderChartTipoTurno(data) {
+  const byTipo = groupBy(data, r => r['Tipo Turno']||'Sin datos');
+  const sorted = Object.entries(byTipo).sort((a,b)=>b[1].length-a[1].length);
+  makeChart('chart-tipoturno','bar',
+    sorted.map(([k])=>k), sorted.map(([,v])=>v.length),
+    sorted.map((_,i) => `hsla(${210+i*40},70%,60%,.7)`));
+}
+
+/* ══════════════════════════════════
+   RANKS RESUMEN
+══════════════════════════════════ */
+function renderRankAseguradoras(data) {
+  const rea = data.filter(r => r['Estado'] === 'REA');
+  const by = groupBy(rea, r=>r['Aseguradora']||'Sin datos');
+  const byTurnos = {};
+  for (const [k, rows] of Object.entries(by)) {
+    byTurnos[k] = new Set(rows.map(r => r['Turno N°']).filter(Boolean)).size;
+  }
+  buildRankByCount('rank-aseguradoras', byTurnos, 8, 'var(--purple)');
+}
+function renderRankDerivantes(data) {
+  const rea = data.filter(r => r['Estado'] === 'REA');
+  const by = groupBy(rea, r=>r['Derivante']||'Sin datos');
+  const byTurnos = {};
+  for (const [k, rows] of Object.entries(by)) {
+    byTurnos[k] = new Set(rows.map(r => r['Turno N°']).filter(Boolean)).size;
+  }
+  buildRankByCount('rank-derivantes-top', byTurnos, 8, 'var(--cyan)');
+}
+function renderRankInstituciones(data) {
+  const rea = data.filter(r => r['Estado'] === 'REA');
+  const by = groupBy(rea, r=>r['Inst Derivante']||'Sin datos');
+  // Contar turnos únicos por institución (no filas/prácticas)
+  const byTurnos = {};
+  for (const [inst, rows] of Object.entries(by)) {
+    const turnosUnicos = new Set(rows.map(r => r['Turno N°']).filter(Boolean));
+    byTurnos[inst] = turnosUnicos.size;
+  }
+  buildRankByCount('rank-instituciones', byTurnos, 8, 'var(--green)');
+}
+
+function buildRankByCount(containerId, dataObj, maxItems, color) {
+  const container = document.getElementById(containerId);
+  const sorted = Object.entries(dataObj).sort((a,b) => b[1] - a[1]).slice(0, maxItems);
+  if (!sorted.length) { container.innerHTML = emptyState('—','Sin datos'); return; }
+  const maxVal = sorted[0][1];
+  container.innerHTML = sorted.map(([label, count], i) => `
+    <div class="rank-item">
+      <div class="rank-num">${i+1}</div>
+      <div class="rank-label"><span title="${label}">${label.slice(0,28)}</span></div>
+      <div class="rank-bar-wrap"><div class="rank-bar" style="width:${(count/maxVal*100).toFixed(0)}%;background:${color}60"></div></div>
+      <div class="rank-val" style="color:${color}">${count.toLocaleString()}</div>
+    </div>`).join('');
+}
+
+/* ══════════════════════════════════
+   TAB DERIVANTES — charts
+══════════════════════════════════ */
+function renderChartDerivDias(data) {
+  const byDay = groupBy(data, r=>toDateStr(parseDate(r['Turno Fecha'])));
+  const labels = Object.keys(byDay).filter(Boolean).sort().slice(-30);
+  makeChart('chart-deriv-dias','bar',
+    labels.map(l=>l.slice(5)),
+    labels.map(d=>byDay[d].length),
+    'rgba(59,130,246,.65)');
+}
+
+function renderChartDerivTop(data) {
+  const by = groupBy(data, r=>r['Derivante']||'Sin datos');
+  const sorted = Object.entries(by).sort((a,b)=>b[1].length-a[1].length).slice(0,10);
+  makeChart('chart-deriv-top','bar',
+    sorted.map(([k])=>k.split(',')[0].slice(0,18)),
+    sorted.map(([,v])=>v.length),
+    'rgba(34,219,174,.65)',
+    {indexAxis:'y'});
+}
+
+/* ══════════════════════════════════
+   TABLA DERIVANTES
+══════════════════════════════════ */
+function renderTablaDerivantes(data) {
+  const byDeriv = groupBy(data, r=>r['Derivante']||'');
+  const sorted  = Object.entries(byDeriv).filter(([k])=>k).sort((a,b)=>b[1].length-a[1].length);
+  document.getElementById('count-derivantes').textContent = `${sorted.length} derivantes`;
+  document.getElementById('tbody-derivantes').innerHTML = sorted.slice(0,100).map(([med,rows],i) => {
+    const matricula  = rows[0]?.['Matrícula'] || '—';
+    const inst       = rows[0]?.['Inst Derivante'] || '—';
+    const cosegTotal = rows.reduce((s,r)=>s+(parseFloat(r['Coseguro'])||0),0);
+    const prestCount = groupBy(rows, r=>r['Prestación']||'');
+    const topPrest   = Object.entries(prestCount).sort((a,b)=>b[1].length-a[1].length)[0]?.[0]||'—';
+    return `<tr>
+      <td style="color:var(--muted);font-family:'Rajdhani',sans-serif">${i+1}</td>
+      <td style="color:var(--cyan);font-weight:600">${med.slice(0,28)}</td>
+      <td style="color:var(--muted)">${matricula}</td>
+      <td>${inst.slice(0,22)}</td>
+      <td style="font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;color:var(--blue)">${rows.length}</td>
+      <td style="color:var(--amber)">${cosegTotal > 0 ? '$'+cosegTotal.toLocaleString('es-AR',{maximumFractionDigits:0}) : '—'}</td>
+      <td style="color:var(--muted)" title="${topPrest}">${topPrest.slice(0,30)}…</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════
+   TAB COSEGUROS
+══════════════════════════════════ */
+/* ══════════════════════════════════
+   TAB DETALLE
+══════════════════════════════════ */
+function renderTabDetalle(data) {
+  document.getElementById('count-detalle').textContent =
+    `${data.length.toLocaleString()} registros${data.length>300?' (mostrando 300)':''}`;
+  document.getElementById('tbody-detalle').innerHTML = data.slice(0,300).map(r => {
+    const fecha  = parseDate(r['Turno Fecha']);
+    const cobCls = r['Tipo Cobertura']==='OBL'?'badge-obl':r['Tipo Cobertura']==='PART'?'badge-part':'badge-other';
+    const estCls = r['Estado']==='REA'?'badge-ok':r['Estado']==='SUS'?'badge-pend':'badge-other';
+    const coseg  = parseFloat(r['Coseguro'])||0;
+    return `<tr>
+      <td>${fecha ? fecha.toLocaleDateString('es-AR') : '—'}</td>
+      <td style="color:var(--muted)">${r['Turno N°']||'—'}</td>
+      <td>${(r['Paciente']||'').slice(0,20)}</td>
+      <td style="color:var(--muted)">${r['Tipo Turno']||'—'}</td>
+      <td><span class="badge ${cobCls}">${r['Tipo Cobertura']||'—'}</span></td>
+      <td>${(r['Aseguradora']||'—').slice(0,18)}</td>
+      <td style="color:var(--muted)">${r['Nº Afiliado']||'—'}</td>
+      <td style="color:var(--cyan)">${(r['Derivante']||'—').slice(0,20)}</td>
+      <td style="color:var(--muted)">${(r['Inst Derivante']||'—').slice(0,18)}</td>
+      <td style="color:var(--muted)">${r['Nº Referencia']||'—'}</td>
+      <td style="color:${coseg>0?'var(--amber)':'var(--muted)'}">${coseg>0?'$'+coseg.toLocaleString('es-AR'):'—'}</td>
+      <td><span class="badge ${estCls}">${r['Estado']||'—'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════
+   CHART ERRORES POR OPERADOR (line)
+══════════════════════════════════ */
+function renderChartErroresOperador(data) {
+  const section = document.getElementById('chart-operadores-section');
+  const rea = data.filter(r => r['Estado'] === 'REA');
+  if (!rea.length) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+
+  const ops = [...OPERADORES_EXPORT, 'OTROS'];
+  const errorTypes = [
+    { label: 'Inst. Derivante', fn: esErrorInstDerivante, color: '#f87171' },
+    { label: 'Sin Derivante',   fn: r => { const d=(r['Derivante']||'').trim().toUpperCase(); return !d || d==='A CONFIRMAR'; }, color: '#fb923c' },
+    { label: 'Coseguros',       fn: r => { const id=String(r['ID Aseguradora']||'').trim(); const cu=(r['Cuenta']||'').trim().toUpperCase(); const pr=(r['Prestación']||r['Prestacion']||'').trim().toUpperCase(); const ne=parseFloat(r['Neto Unitario']||0); return id==='1665'&&cu.includes('OSEP')&&pr==='COSEGURO'&&ne===0; }, color: '#fbbf24' },
+    { label: 'Sin Referencia',  fn: esErrorReferencia, color: '#a78bfa' },
+    { label: 'Trám. Incompletos', fn: esErrorTramiteIncompleto, color: '#f472b6' },
+    { label: 'Tipo Cobertura',  fn: esErrorCobertura, color: '#38bdf8' },
+    { label: 'Fuera Fecha',     fn: esErrorFueraFechaFact, color: '#34d399' },
+  ];
+
+  // Agrupar por operador
+  const byOp = {};
+  ops.forEach(op => { byOp[op] = []; });
+  rea.forEach(r => {
+    const op = (r['Operador']||'').trim().toUpperCase();
+    if (OPERADORES_EXPORT.includes(op)) {
+      byOp[op].push(r);
+    } else {
+      byOp['OTROS'].push(r);
+    }
+  });
+
+  // Total errores por operador (para el dataset principal)
+  const totalErrors = ops.map(op => {
+    const rows = byOp[op];
+    return rows.filter(r =>
+      esErrorInstDerivante(r) ||
+      (()=>{ const d=(r['Derivante']||'').trim().toUpperCase(); return !d || d==='A CONFIRMAR'; })() ||
+      (()=>{ const id=String(r['ID Aseguradora']||'').trim(); const cu=(r['Cuenta']||'').trim().toUpperCase(); const pr=(r['Prestación']||r['Prestacion']||'').trim().toUpperCase(); const ne=parseFloat(r['Neto Unitario']||0); return id==='1665'&&cu.includes('OSEP')&&pr==='COSEGURO'&&ne===0; })() ||
+      esErrorReferencia(r) || esErrorTramiteIncompleto(r) || esErrorCobertura(r) || esErrorFueraFechaFact(r)
+    ).length;
+  });
+
+  // Datasets por tipo de error
+  const datasets = errorTypes.map(et => ({
+    label: et.label,
+    data: ops.map(op => byOp[op].filter(et.fn).length),
+    borderColor: et.color,
+    backgroundColor: et.color + '30',
+    pointBackgroundColor: et.color,
+    pointBorderColor: '#fff',
+    pointBorderWidth: 2,
+    pointRadius: 6,
+    pointHoverRadius: 9,
+    borderWidth: 2.5,
+    tension: 0.3,
+    fill: false
+  }));
+
+  // Agregar total como línea gruesa
+  datasets.unshift({
+    label: 'TOTAL ERRORES',
+    data: totalErrors,
+    borderColor: '#ef4444',
+    backgroundColor: 'rgba(239,68,68,.1)',
+    pointBackgroundColor: '#ef4444',
+    pointBorderColor: '#fff',
+    pointBorderWidth: 3,
+    pointRadius: 8,
+    pointHoverRadius: 11,
+    borderWidth: 3.5,
+    tension: 0.3,
+    fill: true
+  });
+
+  const canvasId = 'chart-errores-operador';
+  if (charts[canvasId]) charts[canvasId].destroy();
+  const ctx = document.getElementById(canvasId)?.getContext('2d');
+  if (!ctx) return;
+
+  charts[canvasId] = new Chart(ctx, {
+    type: 'line',
+    data: { labels: ops, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: '#94A3B8', font: { size: 11 }, padding: 14, boxWidth: 14, usePointStyle: true, pointStyle: 'circle' }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(10,15,20,.95)',
+          titleColor: '#e2e8f0',
+          bodyColor: '#94a3b8',
+          borderColor: 'rgba(30,58,138,.5)',
+          borderWidth: 1,
+          padding: 12,
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}`
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#94A3B8', font: { size: 12, weight: '600' } }, grid: { color: 'rgba(30,58,138,.2)' } },
+        y: { beginAtZero: true, ticks: { color: '#64748B', font: { size: 10 } }, grid: { color: 'rgba(30,58,138,.15)' } }
+      }
+    }
+  });
+}
+
+/* ══════════════════════════════════
+   COMPARATIVO MENSUAL POR OPERADOR
+══════════════════════════════════ */
+const CMP_OP_COLORS = {
+  'SPITRELLA': '#22DBAE',
+  'JAVILA'   : '#3B82F6',
+  'JMONICA'  : '#f472b6',
+  'ZABRAHAM' : '#fbbf24',
+  'ITORRES'  : '#a78bfa',
+  'OTROS'    : '#64748B'
+};
+let cmpSelectedOp = '__ALL__'; // '__ALL__' = informe general; 'SPITRELLA' etc = operador específico; null = oculto
+
+const CMP_ERROR_TYPES = [
+  { key:'instderiv', label:'Inst. Derivante',  fn: r => esErrorInstDerivante(r),                           color:'#f87171' },
+  { key:'sinderiv',  label:'Sin Derivante',    fn: r => { const d=(r['Derivante']||'').trim().toUpperCase(); return !d || d==='A CONFIRMAR'; }, color:'#fb923c' },
+  { key:'coseg',     label:'Coseguros',        fn: r => { const id=String(r['ID Aseguradora']||'').trim(); const cu=(r['Cuenta']||'').trim().toUpperCase(); const pr=(r['Prestación']||r['Prestacion']||'').trim().toUpperCase(); const ne=parseFloat(r['Neto Unitario']||0); return id==='1665'&&cu.includes('OSEP')&&pr==='COSEGURO'&&ne===0; }, color:'#fbbf24' },
+  { key:'sinref',    label:'Sin Referencia',   fn: r => esErrorReferencia(r),                              color:'#a78bfa' },
+  { key:'tram',      label:'Trám. Incompletos',fn: r => esErrorTramiteIncompleto(r),                        color:'#f472b6' },
+  { key:'cob',       label:'Tipo Cobertura',   fn: r => esErrorCobertura(r),                                color:'#38bdf8' },
+  { key:'fuera',     label:'Fuera Fecha',      fn: r => esErrorFueraFechaFact(r),                           color:'#34d399' }
+];
+
+function monthKey(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+function monthLabel(k) {
+  const [y,m] = k.split('-');
+  const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return meses[parseInt(m,10)-1] + " '" + y.slice(2);
+}
+function opOf(r) {
+  const op = (r['Operador']||'').trim().toUpperCase();
+  return OPERADORES_EXPORT.includes(op) ? op : 'OTROS';
+}
+function esErrorAnyBySet(r) {
+  return CMP_ERROR_TYPES.some(t => t.fn(r));
+}
+
+function populateComparativoSelectors(data) {
+  // poblar selector de operador
+  const sel = document.getElementById('cmp-operador');
+  if (!sel) return;
+  const ops = [...OPERADORES_EXPORT, 'OTROS'];
+  sel.innerHTML = '<option value="__ALL__">Todos los operadores</option>' +
+    ops.map(op => `<option value="${op}">${op}</option>`).join('');
+  sel.value = cmpSelectedOp || '__ALL__';
+
+  // defaults de mes desde/hasta si están vacíos
+  const rea = data.filter(r => r['Estado']==='REA');
+  const keys = [...new Set(rea.map(r => { const d = parseDate(r['Turno Fecha']); return d?monthKey(d):null; }).filter(Boolean))].sort();
+  if (!keys.length) return;
+  const mdi = document.getElementById('cmp-mes-desde');
+  const mha = document.getElementById('cmp-mes-hasta');
+  if (mdi && !mdi.value) mdi.value = keys[0];
+  if (mha && !mha.value) mha.value = keys[keys.length-1];
+}
+
+function resetComparativoMensual() {
+  document.getElementById('cmp-mes-desde').value = '';
+  document.getElementById('cmp-mes-hasta').value = '';
+  document.getElementById('cmp-vista').value = 'totales';
+  cmpSelectedOp = '__ALL__';
+  document.getElementById('cmp-operador').value = '__ALL__';
+  populateComparativoSelectors(filtered);
+  renderComparativoMensual();
+}
+
+function renderComparativoMensual() {
+  const data = filtered || [];
+  const section = document.getElementById('chart-comparativo-section');
+  if (!section) return;
+
+  const rea = data.filter(r => r['Estado']==='REA');
+  if (!rea.length) {
+    section.style.display='none';
+    const info = document.getElementById('informe-rendimiento-section');
+    if (info) info.style.display='none';
+    return;
+  }
+  section.style.display='block';
+
+  // asegurar selectores poblados
+  if (!document.getElementById('cmp-operador').options.length) {
+    populateComparativoSelectors(data);
+  }
+
+  const mdiVal = document.getElementById('cmp-mes-desde').value; // yyyy-mm
+  const mhaVal = document.getElementById('cmp-mes-hasta').value;
+  const vista  = document.getElementById('cmp-vista').value;
+  const opSel  = document.getElementById('cmp-operador').value || '__ALL__';
+
+  // Agrupar por mes y operador, contando errores (cualquiera)
+  const byMonthOp = {}; // { 'yyyy-mm': { OP: count, _types: {type:count} } }
+  rea.forEach(r => {
+    const d = parseDate(r['Turno Fecha']); if (!d) return;
+    const k = monthKey(d);
+    if (mdiVal && k < mdiVal) return;
+    if (mhaVal && k > mhaVal) return;
+    if (!esErrorAnyBySet(r)) return;
+    const op = opOf(r);
+    byMonthOp[k] = byMonthOp[k] || { _ops:{}, _types:{} };
+    byMonthOp[k]._ops[op] = (byMonthOp[k]._ops[op]||0)+1;
+    // por tipo SOLO para el operador filtrado (o todos)
+    if (opSel === '__ALL__' || op === opSel) {
+      CMP_ERROR_TYPES.forEach(t => {
+        if (t.fn(r)) {
+          byMonthOp[k]._types[t.key] = (byMonthOp[k]._types[t.key]||0)+1;
+        }
+      });
+    }
+  });
+
+  const months = Object.keys(byMonthOp).sort();
+  const labels = months.map(monthLabel);
+  const ops    = [...OPERADORES_EXPORT, 'OTROS'];
+
+  // ═══ CHART 1: TOTAL POR OPERADOR MES A MES ═══
+  const rawSeries = ops.map(op => months.map(k => (byMonthOp[k]._ops[op]||0)));
+
+  let datasetValues;
+  let yTitle;
+  if (vista === 'variacion') {
+    datasetValues = rawSeries.map(arr => arr.map((v,i) => {
+      if (i === 0) return 0;
+      const prev = arr[i-1];
+      if (!prev) return v > 0 ? 100 : 0;
+      return +(((v - prev)/prev)*100).toFixed(1);
+    }));
+    yTitle = 'Variación %';
+  } else {
+    datasetValues = rawSeries;
+    yTitle = 'Errores';
+  }
+
+  const hasSpecificSelected = cmpSelectedOp && cmpSelectedOp !== '__ALL__';
+  const datasetsTotal = ops.map((op, i) => {
+    const isSel = cmpSelectedOp === op;
+    const isDimmed = hasSpecificSelected && !isSel;
+    const alpha = isDimmed ? '25' : 'FF';
+    return {
+      label: op,
+      data: datasetValues[i],
+      borderColor: CMP_OP_COLORS[op] + (alpha==='FF'?'':alpha),
+      backgroundColor: CMP_OP_COLORS[op] + (isSel?'40':'15'),
+      pointBackgroundColor: CMP_OP_COLORS[op] + (alpha==='FF'?'':alpha),
+      pointBorderColor: isDimmed ? 'rgba(255,255,255,.3)' : '#fff',
+      pointBorderWidth: isSel ? 3 : 2,
+      pointRadius: isSel ? 7 : (isDimmed ? 3 : 5),
+      pointHoverRadius: isSel ? 10 : 8,
+      borderWidth: isSel ? 4 : (isDimmed ? 1.2 : 2.5),
+      tension: 0.3,
+      fill: isSel,
+      order: isSel ? 0 : 1
+    };
+  });
+
+  if (charts['chart-cmp-total']) charts['chart-cmp-total'].destroy();
+  const ctx1 = document.getElementById('chart-cmp-total')?.getContext('2d');
+  if (ctx1) {
+    charts['chart-cmp-total'] = new Chart(ctx1, {
+      type: 'line',
+      data: { labels, datasets: datasetsTotal },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        interaction:{ mode:'index', intersect:false },
+        plugins:{
+          legend:{ position:'bottom', labels:{ color:'#94A3B8', font:{size:11}, padding:14, boxWidth:14, usePointStyle:true, pointStyle:'circle' } },
+          tooltip:{
+            backgroundColor:'rgba(10,15,20,.95)', titleColor:'#e2e8f0', bodyColor:'#94a3b8',
+            borderColor:'rgba(30,58,138,.5)', borderWidth:1, padding:12,
+            callbacks:{ label: c => `${c.dataset.label}: ${c.parsed.y}${vista==='variacion'?'%':''}` }
+          }
+        },
+        scales:{
+          x:{ ticks:{ color:'#94A3B8', font:{ size:11, weight:'600' } }, grid:{ color:'rgba(30,58,138,.2)' } },
+          y:{ beginAtZero: vista!=='variacion', ticks:{ color:'#64748B', font:{ size:10 }, callback:v => vista==='variacion'?v+'%':v }, grid:{ color:'rgba(30,58,138,.15)' }, title:{ display:true, text:yTitle, color:'#64748B', font:{ size:11 } } }
+        }
+      }
+    });
+  }
+
+  // ═══ KPI ROW: COMPARACIÓN ENTRE PRIMER Y ÚLTIMO MES DEL RANGO ═══
+  const kpiRow = document.getElementById('cmp-kpi-row');
+  if (kpiRow) {
+    if (months.length >= 1) {
+      const first = months[0], last = months[months.length-1];
+      const htmlCards = ops.map((op, i) => {
+        const v1 = byMonthOp[first]?._ops[op] || 0;
+        const v2 = byMonthOp[last]?._ops[op] || 0;
+        const diff = v2 - v1;
+        const pct  = v1 ? ((diff/v1)*100).toFixed(1) : (v2>0?'+∞':'0');
+        const arrow = diff>0?'▲':diff<0?'▼':'·';
+        const color = diff>0?'#ef4444':diff<0?'#22DBAE':'#64748B';
+        const isSel = cmpSelectedOp === op;
+        const bg = isSel ? `linear-gradient(135deg, ${CMP_OP_COLORS[op]}25, rgba(10,15,20,.8))` : 'rgba(10,15,20,.5)';
+        const border = isSel ? `2px solid ${CMP_OP_COLORS[op]}` : '1px solid rgba(30,58,138,.3)';
+        const shadow = isSel ? `0 0 0 1px ${CMP_OP_COLORS[op]}55, 0 4px 20px ${CMP_OP_COLORS[op]}30` : 'none';
+        return `<div class="cmp-kpi-card" data-op="${op}" onclick="toggleOperadorSeleccionado('${op}')" style="cursor:pointer; background:${bg}; border:${border}; border-radius:8px; padding:10px 12px; box-shadow:${shadow}; transition:all .2s; position:relative;">
+          ${isSel ? `<div style="position:absolute; top:6px; right:8px; font-size:10px; color:${CMP_OP_COLORS[op]};">●</div>` : ''}
+          <div style="font-size:10px; letter-spacing:1.5px; color:${CMP_OP_COLORS[op]}; font-weight:600;">${op}</div>
+          <div style="font-size:20px; font-weight:700; color:#e2e8f0; margin:2px 0;">${v2.toLocaleString('es-AR')}</div>
+          <div style="font-size:11px; color:${color}; font-weight:600;">${arrow} ${diff>=0?'+':''}${diff} (${diff>=0?'+':''}${pct}%)</div>
+          <div style="font-size:9px; color:#64748B; margin-top:2px;">${monthLabel(first)} → ${monthLabel(last)}</div>
+        </div>`;
+      }).join('');
+      kpiRow.innerHTML = htmlCards;
+    } else {
+      kpiRow.innerHTML = '';
+    }
+  }
+
+  // ═══ CHART 2: EVOLUCIÓN TOTAL DEL OPERADOR SELECCIONADO (una sola línea) ═══
+  const evolOp = opSel === '__ALL__' ? null : opSel;
+  const serieEvol = months.map(k => {
+    if (!evolOp) {
+      // total de todos los operadores ese mes
+      return ops.reduce((sum, o) => sum + (byMonthOp[k]._ops[o]||0), 0);
+    }
+    return byMonthOp[k]._ops[evolOp] || 0;
+  });
+  const evolColor = evolOp ? CMP_OP_COLORS[evolOp] : '#ef4444';
+  const evolLabel = evolOp ? evolOp : 'Todos los operadores';
+
+  if (charts['chart-cmp-tipos']) charts['chart-cmp-tipos'].destroy();
+  const ctx2 = document.getElementById('chart-cmp-tipos')?.getContext('2d');
+  if (ctx2) {
+    charts['chart-cmp-tipos'] = new Chart(ctx2, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: evolLabel,
+          data: serieEvol,
+          borderColor: evolColor,
+          backgroundColor: evolColor + '30',
+          pointBackgroundColor: evolColor,
+          pointBorderColor: '#fff',
+          pointBorderWidth: 3,
+          pointRadius: 7,
+          pointHoverRadius: 10,
+          borderWidth: 3.5,
+          tension: 0.3,
+          fill: true
+        }]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        interaction:{ mode:'index', intersect:false },
+        plugins:{
+          title:{ display:true, text: evolLabel + ' — total de errores por mes', color:'#94A3B8', font:{ size:13, weight:'600' } },
+          legend:{ display:false },
+          tooltip:{
+            backgroundColor:'rgba(10,15,20,.95)', titleColor:'#e2e8f0', bodyColor:'#94a3b8',
+            borderColor:'rgba(30,58,138,.5)', borderWidth:1, padding:12,
+            callbacks:{ label: c => `${c.parsed.y.toLocaleString('es-AR')} errores` }
+          }
+        },
+        scales:{
+          x:{ ticks:{ color:'#94A3B8', font:{ size:11, weight:'600' } }, grid:{ color:'rgba(30,58,138,.2)' } },
+          y:{ beginAtZero:true, ticks:{ color:'#64748B', font:{ size:10 } }, grid:{ color:'rgba(30,58,138,.15)' } }
+        }
+      }
+    });
+  }
+
+  // ═══ INFORME DE RENDIMIENTO (sólo si hay operador seleccionado) ═══
+  renderInformeRendimiento(months, byMonthOp);
+}
+
+/* ══════════════════════════════════
+   TOGGLE OPERADOR SELECCIONADO + INFORME
+══════════════════════════════════ */
+function toggleOperadorSeleccionado(op) {
+  // Si ya está ese mismo operador seleccionado → volver al informe general
+  cmpSelectedOp = (cmpSelectedOp === op) ? '__ALL__' : op;
+  // Sincronizar dropdown
+  const sel = document.getElementById('cmp-operador');
+  if (sel) sel.value = cmpSelectedOp;
+  renderComparativoMensual();
+  setTimeout(() => {
+    document.getElementById('informe-rendimiento-section')?.scrollIntoView({ behavior:'smooth', block:'start' });
+  }, 150);
+}
+
+function onCmpOperadorChange() {
+  cmpSelectedOp = document.getElementById('cmp-operador').value || '__ALL__';
+  renderComparativoMensual();
+  setTimeout(() => {
+    document.getElementById('informe-rendimiento-section')?.scrollIntoView({ behavior:'smooth', block:'start' });
+  }, 150);
+}
+
+function renderInformeRendimiento(months, byMonthOp) {
+  const section = document.getElementById('informe-rendimiento-section');
+  const body = document.getElementById('informe-rendimiento-body');
+  if (!section || !body) return;
+  if (!cmpSelectedOp || !months.length) { section.style.display='none'; return; }
+  section.style.display='block';
+
+  const isGeneral = cmpSelectedOp === '__ALL__';
+  const isOtros   = cmpSelectedOp === 'OTROS';
+  const op = cmpSelectedOp;
+  const color = isGeneral ? '#22DBAE' : CMP_OP_COLORS[op];
+  const opsAll = [...OPERADORES_EXPORT, 'OTROS'];
+
+  // Serie según modo
+  const serie = months.map(k => {
+    if (isGeneral) return opsAll.reduce((s,o) => s + (byMonthOp[k]._ops[o]||0), 0);
+    return byMonthOp[k]._ops[op] || 0;
+  });
+  const total = serie.reduce((a,b)=>a+b, 0);
+  const prom  = +(total / serie.length).toFixed(1);
+  const maxIdx = serie.reduce((best,v,i,a)=> v>a[best]?i:best, 0);
+  const minIdx = serie.reduce((best,v,i,a)=> v<a[best]?i:best, 0);
+  const first = serie[0];
+  const last  = serie[serie.length-1];
+  const tendenciaDiff = last - first;
+  const tendenciaPct  = first ? ((tendenciaDiff/first)*100).toFixed(1) : (last>0?'+∞':'0');
+  const tendenciaLabel = tendenciaDiff < 0 ? 'MEJORA' : (tendenciaDiff > 0 ? 'EMPEORA' : 'ESTABLE');
+  const tendenciaColor = tendenciaDiff < 0 ? '#22DBAE' : (tendenciaDiff > 0 ? '#ef4444' : '#94A3B8');
+
+  // Filtrado base según modo (general = todos; específico = solo ese op; OTROS = los que caen en OTROS)
+  const mdiVal = document.getElementById('cmp-mes-desde').value;
+  const mhaVal = document.getElementById('cmp-mes-hasta').value;
+  const reaBase = (filtered||[]).filter(r => {
+    if (r['Estado']!=='REA') return false;
+    if (!isGeneral && opOf(r) !== op) return false;
+    return true;
+  });
+  const reaRango = reaBase.filter(r => {
+    const d = parseDate(r['Turno Fecha']); if (!d) return false;
+    const k = monthKey(d);
+    if (mdiVal && k < mdiVal) return false;
+    if (mhaVal && k > mhaVal) return false;
+    return true;
+  });
+
+  const totalesTipo = CMP_ERROR_TYPES.map(t => ({
+    label: t.label, color: t.color,
+    total: reaRango.filter(t.fn).length,
+    serie: months.map(k => {
+      const rowsMes = reaRango.filter(r => {
+        const d = parseDate(r['Turno Fecha']); return d && monthKey(d)===k;
+      });
+      return rowsMes.filter(t.fn).length;
+    })
+  })).sort((a,b)=>b.total-a.total);
+
+  const topTipo = totalesTipo.find(t => t.total > 0);
+  const variacionTipos = totalesTipo.filter(t => t.total>0).map(t => {
+    const f = t.serie[0], l = t.serie[t.serie.length-1];
+    const d = l - f;
+    const pct = f ? ((d/f)*100).toFixed(0) : (l>0?'+∞':'0');
+    return { ...t, first:f, last:l, diff:d, pct };
+  });
+
+  const variacionesMensuales = serie.map((v,i) => {
+    if (i === 0) return null;
+    const prev = serie[i-1];
+    const d = v - prev;
+    const pct = prev ? ((d/prev)*100).toFixed(1) : (v>0?'+∞':'0');
+    return { mes: monthLabel(months[i]), prev, curr:v, diff:d, pct };
+  }).filter(Boolean);
+
+  // Ranking por operador (solo en informe general)
+  let rankingOps = null;
+  if (isGeneral) {
+    rankingOps = opsAll.map(o => {
+      const t = months.reduce((s,k) => s + (byMonthOp[k]._ops[o]||0), 0);
+      const serieO = months.map(k => byMonthOp[k]._ops[o]||0);
+      const fO = serieO[0], lO = serieO[serieO.length-1];
+      const dO = lO - fO;
+      const pctO = fO ? +((dO/fO)*100).toFixed(0) : (lO>0?100:0);
+      const shareO = total ? +((t/total)*100).toFixed(1) : 0;
+      return { op:o, total:t, color: CMP_OP_COLORS[o], diff:dO, pct:pctO, share:shareO };
+    }).filter(r => r.total > 0).sort((a,b)=>b.total-a.total);
+  }
+
+  // Detalle de operadores dentro de OTROS
+  let otrosDetalle = null;
+  if (isOtros) {
+    const byIndividual = {};
+    reaRango.forEach(r => {
+      const name = (r['Operador']||'').trim().toUpperCase() || '(SIN OPERADOR)';
+      if (!OPERADORES_EXPORT.includes(name)) {
+        byIndividual[name] = byIndividual[name] || { count:0, tipos:{} };
+        if (esErrorAnyBySet(r)) {
+          byIndividual[name].count += 1;
+          CMP_ERROR_TYPES.forEach(t => {
+            if (t.fn(r)) byIndividual[name].tipos[t.label] = (byIndividual[name].tipos[t.label]||0)+1;
+          });
+        }
+      }
+    });
+    otrosDetalle = Object.entries(byIndividual)
+      .filter(([_,v]) => v.count > 0)
+      .sort((a,b) => b[1].count - a[1].count)
+      .map(([name,v]) => {
+        const topT = Object.entries(v.tipos).sort((a,b)=>b[1]-a[1])[0];
+        return { name, count: v.count, topTipo: topT ? topT[0] : '—', topCount: topT ? topT[1] : 0 };
+      });
+  }
+
+  // Recomendaciones automáticas (contextualizadas)
+  const recomendaciones = [];
+  if (isGeneral) {
+    recomendaciones.push(`Análisis consolidado de <b>${rankingOps?.length || 0}</b> operadores con un total de <b>${total.toLocaleString('es-AR')}</b> errores en el período.`);
+    if (rankingOps && rankingOps.length) {
+      const top = rankingOps[0];
+      recomendaciones.push(`<b style="color:${top.color}">${top.op}</b> concentra el <b>${top.share}%</b> de los errores (${top.total.toLocaleString('es-AR')}). Foco prioritario para acciones correctivas.`);
+    }
+    if (tendenciaDiff > 0) {
+      recomendaciones.push(`<b style="color:#ef4444">Tendencia global negativa</b> del ${tendenciaPct}%. Revisar procesos generales, capacitación y controles cruzados.`);
+    } else if (tendenciaDiff < 0) {
+      recomendaciones.push(`<b style="color:#22DBAE">Mejora global sostenida</b> del ${Math.abs(+tendenciaPct)}%. Documentar buenas prácticas para replicar.`);
+    }
+    if (topTipo) {
+      recomendaciones.push(`Tipo de error más frecuente en todo el equipo: <b style="color:${topTipo.color}">${topTipo.label}</b> (${total?((topTipo.total/total)*100).toFixed(0):0}% del total). Priorizar auditoría sobre este tipo.`);
+    }
+  } else if (isOtros) {
+    recomendaciones.push(`Este informe agrupa <b>${otrosDetalle?.length || 0}</b> operadores externos o no asignados como principales, con un total de <b>${total.toLocaleString('es-AR')}</b> errores.`);
+    if (otrosDetalle && otrosDetalle.length) {
+      const topInd = otrosDetalle[0];
+      recomendaciones.push(`<b>${topInd.name}</b> genera el <b>${total?((topInd.count/total)*100).toFixed(0):0}%</b> (${topInd.count.toLocaleString('es-AR')}) de los errores de OTROS. Evaluar si corresponde incorporarlo a los operadores principales.`);
+    }
+    if (tendenciaDiff > 0) {
+      recomendaciones.push(`Se detecta una <b style="color:#ef4444">tendencia negativa</b> del ${tendenciaPct}%. Reforzar supervisión y capacitación sobre operadores externos.`);
+    } else if (tendenciaDiff < 0) {
+      recomendaciones.push(`<b style="color:#22DBAE">Mejora</b> del ${Math.abs(+tendenciaPct)}% en el grupo OTROS.`);
+    }
+  } else {
+    if (tendenciaDiff > 0) {
+      recomendaciones.push(`Se detecta una <b style="color:#ef4444">tendencia negativa</b> del ${tendenciaPct}%. Revisar capacitación en el tipo de error predominante: <b style="color:${topTipo?.color||'#fff'}">${topTipo?.label||'—'}</b>.`);
+    } else if (tendenciaDiff < 0) {
+      recomendaciones.push(`<b style="color:#22DBAE">Excelente evolución</b>: ${Math.abs(+tendenciaPct)}% menos errores que al inicio del período. Mantener las prácticas actuales.`);
+    } else {
+      recomendaciones.push(`Rendimiento <b>estable</b> en el período. Buscar reducir el tipo de error principal: <b style="color:${topTipo?.color||'#fff'}">${topTipo?.label||'—'}</b>.`);
+    }
+    if (topTipo && topTipo.total >= total * 0.5) {
+      recomendaciones.push(`El tipo <b style="color:${topTipo.color}">${topTipo.label}</b> concentra el ${total?((topTipo.total/total)*100).toFixed(0):0}% de los errores. <b>Foco prioritario</b> para reducción.`);
+    }
+    if (serie[maxIdx] > prom * 1.5) {
+      recomendaciones.push(`Pico atípico en <b>${monthLabel(months[maxIdx])}</b> (${serie[maxIdx].toLocaleString('es-AR')}). Investigar causas puntuales de ese mes.`);
+    }
+    if (variacionTipos.some(v => v.diff < 0 && Math.abs(+v.pct) >= 50)) {
+      const mejoras = variacionTipos.filter(v => v.diff < 0 && Math.abs(+v.pct) >= 50);
+      recomendaciones.push(`Fuerte mejora en: ${mejoras.map(m=>`<b style="color:${m.color}">${m.label}</b> (${m.pct}%)`).join(', ')}.`);
+    }
+  }
+
+  const titulo     = isGeneral ? 'Informe General de Rendimiento' : 'Informe de Rendimiento';
+  const subtitulo  = isGeneral ? 'TODOS LOS OPERADORES' : op;
+  const closeBtn   = isGeneral ? '' : `<button class="btn-reset" onclick="toggleOperadorSeleccionado('${op}')">← Ver general</button>`;
+
+  body.innerHTML = `
+    <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid rgba(30,58,138,.3);">
+      <div>
+        <div style="font-size:11px; letter-spacing:2px; color:var(--muted); text-transform:uppercase;">${titulo}</div>
+        <div style="font-size:28px; font-weight:700; color:${color}; margin-top:4px; letter-spacing:1px;">${subtitulo}</div>
+        <div style="font-size:12px; color:#94A3B8; margin-top:2px;">${monthLabel(months[0])} — ${monthLabel(months[months.length-1])} · ${months.length} mes${months.length!==1?'es':''}${isOtros && otrosDetalle ? ' · ' + otrosDetalle.length + ' operadores externos' : ''}</div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn-csv" onclick="exportarInformeOperador(false)">⬇ Exportar Excel</button>
+        <button class="btn-csv" onclick="exportarInformeOperador(true)" title="Descargar y compartir por email/WhatsApp">📤 Compartir</button>
+        ${closeBtn}
+      </div>
+    </div>
+
+    <!-- Hero KPIs -->
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px,1fr)); gap:12px; margin-bottom:24px;">
+      <div style="background:rgba(10,15,20,.5); border:1px solid rgba(30,58,138,.3); border-radius:10px; padding:14px;">
+        <div style="font-size:10px; letter-spacing:1.5px; color:#94A3B8;">TOTAL ERRORES</div>
+        <div style="font-size:26px; font-weight:700; color:#e2e8f0; margin-top:4px;">${total.toLocaleString('es-AR')}</div>
+      </div>
+      <div style="background:rgba(10,15,20,.5); border:1px solid rgba(30,58,138,.3); border-radius:10px; padding:14px;">
+        <div style="font-size:10px; letter-spacing:1.5px; color:#94A3B8;">PROMEDIO MENSUAL</div>
+        <div style="font-size:26px; font-weight:700; color:#e2e8f0; margin-top:4px;">${prom.toLocaleString('es-AR')}</div>
+      </div>
+      <div style="background:rgba(10,15,20,.5); border:1px solid rgba(30,58,138,.3); border-radius:10px; padding:14px;">
+        <div style="font-size:10px; letter-spacing:1.5px; color:#22DBAE;">MEJOR MES</div>
+        <div style="font-size:22px; font-weight:700; color:#e2e8f0; margin-top:4px;">${monthLabel(months[minIdx])}</div>
+        <div style="font-size:11px; color:#22DBAE; margin-top:2px;">${serie[minIdx].toLocaleString('es-AR')} errores</div>
+      </div>
+      <div style="background:rgba(10,15,20,.5); border:1px solid rgba(30,58,138,.3); border-radius:10px; padding:14px;">
+        <div style="font-size:10px; letter-spacing:1.5px; color:#ef4444;">PEOR MES</div>
+        <div style="font-size:22px; font-weight:700; color:#e2e8f0; margin-top:4px;">${monthLabel(months[maxIdx])}</div>
+        <div style="font-size:11px; color:#ef4444; margin-top:2px;">${serie[maxIdx].toLocaleString('es-AR')} errores</div>
+      </div>
+      <div style="background:rgba(10,15,20,.5); border:2px solid ${tendenciaColor}; border-radius:10px; padding:14px;">
+        <div style="font-size:10px; letter-spacing:1.5px; color:${tendenciaColor};">TENDENCIA</div>
+        <div style="font-size:22px; font-weight:700; color:${tendenciaColor}; margin-top:4px;">${tendenciaLabel}</div>
+        <div style="font-size:11px; color:#94A3B8; margin-top:2px;">${tendenciaDiff>=0?'+':''}${tendenciaDiff} (${tendenciaDiff>=0?'+':''}${tendenciaPct}%)</div>
+      </div>
+    </div>
+
+    <!-- Variación mensual + Desglose por tipo -->
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px,1fr)); gap:20px; margin-bottom:24px;">
+      <div>
+        <div style="font-size:12px; letter-spacing:2px; color:#94A3B8; margin-bottom:10px;">VARIACIÓN MES A MES</div>
+        ${variacionesMensuales.length ? `<table style="width:100%; border-collapse:collapse; font-size:12px;">
+          <thead><tr style="border-bottom:1px solid rgba(30,58,138,.3);">
+            <th style="text-align:left; padding:8px 4px; color:#64748B; font-weight:600;">Mes</th>
+            <th style="text-align:right; padding:8px 4px; color:#64748B; font-weight:600;">Prev.</th>
+            <th style="text-align:right; padding:8px 4px; color:#64748B; font-weight:600;">Actual</th>
+            <th style="text-align:right; padding:8px 4px; color:#64748B; font-weight:600;">Δ</th>
+            <th style="text-align:right; padding:8px 4px; color:#64748B; font-weight:600;">%</th>
+          </tr></thead>
+          <tbody>${variacionesMensuales.map(v => {
+            const c = v.diff<0?'#22DBAE':v.diff>0?'#ef4444':'#94A3B8';
+            const arr = v.diff<0?'▼':v.diff>0?'▲':'·';
+            return `<tr style="border-bottom:1px solid rgba(30,58,138,.15);">
+              <td style="padding:8px 4px; color:#e2e8f0;">${v.mes}</td>
+              <td style="padding:8px 4px; text-align:right; color:#64748B;">${v.prev.toLocaleString('es-AR')}</td>
+              <td style="padding:8px 4px; text-align:right; color:#e2e8f0; font-weight:600;">${v.curr.toLocaleString('es-AR')}</td>
+              <td style="padding:8px 4px; text-align:right; color:${c}; font-weight:600;">${arr} ${v.diff>=0?'+':''}${v.diff}</td>
+              <td style="padding:8px 4px; text-align:right; color:${c}; font-weight:600;">${v.diff>=0?'+':''}${v.pct}%</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>` : `<div style="color:#64748B; font-size:12px; padding:20px 0;">Se necesitan al menos 2 meses para ver variación.</div>`}
+      </div>
+
+      <div>
+        <div style="font-size:12px; letter-spacing:2px; color:#94A3B8; margin-bottom:10px;">DESGLOSE POR TIPO DE ERROR</div>
+        ${variacionTipos.length ? variacionTipos.map(t => {
+          const maxV = variacionTipos[0].total;
+          const w = maxV ? (t.total/maxV*100).toFixed(0) : 0;
+          const c = t.diff<0?'#22DBAE':t.diff>0?'#ef4444':'#94A3B8';
+          const arr = t.diff<0?'▼':t.diff>0?'▲':'·';
+          return `<div style="margin-bottom:10px;">
+            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
+              <span style="color:${t.color}; font-weight:600;">${t.label}</span>
+              <span style="color:#e2e8f0;"><b>${t.total.toLocaleString('es-AR')}</b> <span style="color:${c};">${arr} ${t.diff>=0?'+':''}${t.pct}%</span></span>
+            </div>
+            <div style="background:rgba(10,15,20,.6); height:6px; border-radius:3px; overflow:hidden;">
+              <div style="background:${t.color}; height:100%; width:${w}%;"></div>
+            </div>
+          </div>`;
+        }).join('') : `<div style="color:#64748B; font-size:12px; padding:20px 0;">No hay errores registrados en el rango seleccionado.</div>`}
+      </div>
+    </div>
+
+    ${rankingOps && rankingOps.length ? `
+    <!-- Ranking por operador (solo informe general) -->
+    <div style="margin-bottom:24px;">
+      <div style="font-size:12px; letter-spacing:2px; color:#94A3B8; margin-bottom:10px;">🏆 RANKING POR OPERADOR</div>
+      <table style="width:100%; border-collapse:collapse; font-size:12px;">
+        <thead><tr style="border-bottom:1px solid rgba(30,58,138,.3);">
+          <th style="text-align:left; padding:8px; color:#64748B; font-weight:600;">#</th>
+          <th style="text-align:left; padding:8px; color:#64748B; font-weight:600;">Operador</th>
+          <th style="text-align:right; padding:8px; color:#64748B; font-weight:600;">Total</th>
+          <th style="text-align:right; padding:8px; color:#64748B; font-weight:600;">Share %</th>
+          <th style="padding:8px; color:#64748B; font-weight:600;">Distribución</th>
+          <th style="text-align:right; padding:8px; color:#64748B; font-weight:600;">Tendencia</th>
+        </tr></thead>
+        <tbody>${rankingOps.map((r, i) => {
+          const c = r.diff<0?'#22DBAE':r.diff>0?'#ef4444':'#94A3B8';
+          const arr = r.diff<0?'▼':r.diff>0?'▲':'·';
+          return `<tr style="border-bottom:1px solid rgba(30,58,138,.15);">
+            <td style="padding:8px; color:#64748B; font-weight:700;">${i+1}</td>
+            <td style="padding:8px;"><span style="color:${r.color}; font-weight:700; letter-spacing:1px;">${r.op}</span></td>
+            <td style="padding:8px; text-align:right; color:#e2e8f0; font-weight:700;">${r.total.toLocaleString('es-AR')}</td>
+            <td style="padding:8px; text-align:right; color:${r.color}; font-weight:600;">${r.share}%</td>
+            <td style="padding:8px; min-width:180px;">
+              <div style="background:rgba(10,15,20,.6); height:8px; border-radius:4px; overflow:hidden;">
+                <div style="background:${r.color}; height:100%; width:${r.share}%;"></div>
+              </div>
+            </td>
+            <td style="padding:8px; text-align:right; color:${c}; font-weight:600;">${arr} ${r.diff>=0?'+':''}${r.diff} (${r.diff>=0?'+':''}${r.pct}%)</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>` : ''}
+
+    ${otrosDetalle && otrosDetalle.length ? `
+    <!-- Detalle de operadores dentro de OTROS -->
+    <div style="margin-bottom:24px;">
+      <div style="font-size:12px; letter-spacing:2px; color:#94A3B8; margin-bottom:10px;">👥 OPERADORES AGRUPADOS EN "OTROS" (${otrosDetalle.length})</div>
+      <table style="width:100%; border-collapse:collapse; font-size:12px;">
+        <thead><tr style="border-bottom:1px solid rgba(30,58,138,.3);">
+          <th style="text-align:left; padding:8px; color:#64748B; font-weight:600;">#</th>
+          <th style="text-align:left; padding:8px; color:#64748B; font-weight:600;">Operador</th>
+          <th style="text-align:right; padding:8px; color:#64748B; font-weight:600;">Errores</th>
+          <th style="text-align:right; padding:8px; color:#64748B; font-weight:600;">Share OTROS</th>
+          <th style="padding:8px; color:#64748B; font-weight:600;">Distribución</th>
+          <th style="text-align:left; padding:8px; color:#64748B; font-weight:600;">Tipo principal</th>
+        </tr></thead>
+        <tbody>${otrosDetalle.map((r, i) => {
+          const share = total ? ((r.count/total)*100).toFixed(1) : 0;
+          return `<tr style="border-bottom:1px solid rgba(30,58,138,.15);">
+            <td style="padding:8px; color:#64748B; font-weight:700;">${i+1}</td>
+            <td style="padding:8px; color:#e2e8f0; font-weight:600;">${r.name}</td>
+            <td style="padding:8px; text-align:right; color:#e2e8f0; font-weight:700;">${r.count.toLocaleString('es-AR')}</td>
+            <td style="padding:8px; text-align:right; color:#64748B; font-weight:600;">${share}%</td>
+            <td style="padding:8px; min-width:180px;">
+              <div style="background:rgba(10,15,20,.6); height:8px; border-radius:4px; overflow:hidden;">
+                <div style="background:#64748B; height:100%; width:${share}%;"></div>
+              </div>
+            </td>
+            <td style="padding:8px; color:#94A3B8; font-size:11px;">${r.topTipo} <span style="color:#64748B;">(${r.topCount})</span></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>` : ''}
+
+    <!-- Recomendaciones -->
+    <div>
+      <div style="font-size:12px; letter-spacing:2px; color:#94A3B8; margin-bottom:10px;">💡 ANÁLISIS Y RECOMENDACIONES</div>
+      <div style="background:rgba(10,15,20,.5); border-left:3px solid ${color}; border-radius:6px; padding:14px 18px;">
+        ${recomendaciones.map(r => `<div style="color:#cbd5e1; font-size:13px; line-height:1.7; margin-bottom:8px;">• ${r}</div>`).join('')}
+      </div>
+    </div>
+  `;
+
+  // guardar datos para export (versión plain-text de recomendaciones, sin HTML)
+  const stripHtml = s => s.replace(/<[^>]+>/g, '');
+  window.__informeExport = {
+    op, isGeneral, isOtros,
+    subtitulo,
+    months, serie, totalesTipo, variacionesMensuales,
+    rankingOps, otrosDetalle,
+    mdi: mdiVal, mha: mhaVal, total, prom,
+    mejorMes: monthLabel(months[minIdx]), peorMes: monthLabel(months[maxIdx]),
+    tendenciaLabel, tendenciaDiff, tendenciaPct,
+    recomendacionesPlain: recomendaciones.map(stripHtml)
+  };
+}
+
+async function exportarInformeOperador(share) {
+  const inf = window.__informeExport;
+  if (!inf) return;
+
+  try {
+    // Paleta corporativa (mismo que exportExcel)
+    // Paleta Lumen: bandas oscuras + acento firefly dorado
+    const NAVY='FF0A0F14', BLUED='FF243049', BLUE='FFF59E0B', WHITE='FFF1F5F9',
+          INK='FF0A0F14', RED='FFF87171', SURF='FF0A0F14', CYAN='FFF59E0B', GREEN='FF10B981',
+          AMBER='FFFBBF24', MUTED='FF94A3B8', ALT='FF0E1521';
+
+    const sede = localStorage.getItem('spcd_sede') || 'General';
+    const fecha = new Date().toLocaleDateString('es-AR');
+    const periodo = `${inf.months[0]} a ${inf.months[inf.months.length-1]}`;
+    const totalCols = 5; // A-E
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Lumen by Pyralis';
+    const ws = wb.addWorksheet('Informe');
+
+    // Anchos de columna
+    [22,18,16,16,18].forEach((w,i) => { ws.getColumn(i+1).width = w; });
+
+    // ─── Logo (fila 1) ───
+    try {
+      const logoB64 = SpcdExcel.generateLogoPNG();
+      const logoId = wb.addImage({base64:logoB64, extension:'png'});
+      ws.addImage(logoId, { tl:{col:0,row:0}, ext:{width:220,height:46} });
+    } catch(e) { console.warn('Logo omitido:', e); }
+
+    // ─── Fila 1: Título ───
+    ws.mergeCells(1, 3, 1, totalCols);
+    const t1 = ws.getCell(1, 3);
+    t1.value = inf.isGeneral ? 'INFORME GENERAL DE RENDIMIENTO' : 'INFORME DE RENDIMIENTO';
+    t1.font = { name:'Calibri', size:14, bold:true, color:{argb:WHITE} };
+    t1.alignment = { horizontal:'center', vertical:'middle' };
+    for (let i=1;i<=totalCols;i++) ws.getCell(1,i).fill = { type:'pattern', pattern:'solid', fgColor:{argb:NAVY} };
+    ws.getRow(1).height = 38;
+
+    // ─── Fila 2: Línea decorativa ───
+    for (let i=1;i<=totalCols;i++) {
+      const c = ws.getCell(2,i);
+      c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:NAVY} };
+      c.border = { bottom:{style:'medium', color:{argb:BLUE}} };
+    }
+    ws.getRow(2).height = 4;
+
+    // ─── Fila 3: Info ───
+    ws.mergeCells(3,1,3,totalCols);
+    const t2 = ws.getCell('A3');
+    const opLabel = inf.isGeneral ? 'Todos los operadores' : inf.op;
+    t2.value = `  Sede: ${sede}   |   ${fecha}   |   ${inf.isGeneral?'Alcance':'Operador'}: ${opLabel}   |   Período: ${periodo}   |   ${inf.months.length} mes(es)`;
+    t2.font = { name:'Calibri', size:9, bold:true, color:{argb:RED} };
+    t2.fill = { type:'pattern', pattern:'solid', fgColor:{argb:BLUED} };
+    t2.alignment = { horizontal:'center', vertical:'middle' };
+    ws.getRow(3).height = 20;
+
+    // ─── Fila 4: Espacio ───
+    for (let i=1;i<=totalCols;i++) ws.getCell(4,i).fill = { type:'pattern', pattern:'solid', fgColor:{argb:NAVY} };
+    ws.getRow(4).height = 4;
+
+    let r = 5;
+
+    // Helper para título de sección
+    function sectionTitle(row, text, color=BLUE) {
+      ws.mergeCells(row,1,row,totalCols);
+      const c = ws.getCell(row,1);
+      c.value = text;
+      c.font = { name:'Calibri', size:10, bold:true, color:{argb:INK} };
+      c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:color} };
+      c.alignment = { horizontal:'left', vertical:'middle', indent:1 };
+      c.border = { top:{style:'thin',color:{argb:CYAN}}, bottom:{style:'thin',color:{argb:CYAN}} };
+      ws.getRow(row).height = 18;
+    }
+    function headerRow(row, headers) {
+      headers.forEach((h,i) => {
+        const c = ws.getCell(row, i+1);
+        c.value = h;
+        c.font = { name:'Calibri', size:8, bold:true, color:{argb:INK} };
+        c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:BLUE} };
+        c.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
+        c.border = { bottom:{style:'thin',color:{argb:CYAN}}, top:{style:'thin',color:{argb:BLUE}} };
+      });
+      ws.getRow(row).height = 18;
+    }
+    const dataBorder = {
+      bottom:{style:'hair',color:{argb:'FF334155'}},
+      left:{style:'hair',color:{argb:'FF1E293B'}},
+      right:{style:'hair',color:{argb:'FF1E293B'}}
+    };
+    function dataCell(cell, value, opts={}) {
+      cell.value = value;
+      cell.font = { name:'Calibri', size:9, color:{argb: opts.color || WHITE}, bold: !!opts.bold };
+      cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb: opts.bg || SURF} };
+      cell.border = dataBorder;
+      cell.alignment = { vertical:'middle', horizontal: opts.align || 'left', indent: opts.align==='left'?1:0 };
+      if (opts.numFmt) cell.numFmt = opts.numFmt;
+    }
+
+    // ═══ SECCIÓN 1: RESUMEN EJECUTIVO ═══
+    sectionTitle(r++, '▍ RESUMEN EJECUTIVO');
+    headerRow(r++, ['Indicador','Valor','','','']);
+    const resumen = [
+      ['Total de errores', inf.total.toLocaleString('es-AR')],
+      ['Promedio mensual', inf.prom.toLocaleString('es-AR')],
+      ['Mejor mes (menos errores)', inf.mejorMes],
+      ['Peor mes (más errores)', inf.peorMes],
+      ['Tendencia', `${inf.tendenciaLabel}  (${inf.tendenciaDiff>=0?'+':''}${inf.tendenciaDiff} / ${inf.tendenciaDiff>=0?'+':''}${inf.tendenciaPct}%)`]
+    ];
+    resumen.forEach(([k,v], idx) => {
+      const bg = idx%2===0 ? SURF : ALT;
+      ws.mergeCells(r, 2, r, totalCols);
+      dataCell(ws.getCell(r,1), k, { bg, bold:true, color: MUTED });
+      let valColor = WHITE;
+      if (k === 'Tendencia') valColor = inf.tendenciaDiff < 0 ? GREEN : inf.tendenciaDiff > 0 ? RED : WHITE;
+      dataCell(ws.getCell(r,2), v, { bg, bold:true, color: valColor });
+      ws.getRow(r).height = 16;
+      r++;
+    });
+    r++; // espacio
+
+    // ═══ SECCIÓN 2: VARIACIÓN MES A MES ═══
+    sectionTitle(r++, '▍ VARIACIÓN MES A MES');
+    headerRow(r++, ['Mes','Mes anterior','Mes actual','Δ (absoluto)','Δ (%)']);
+    // Primera fila (sin previo)
+    inf.months.forEach((m, i) => {
+      const bg = i%2===0 ? SURF : ALT;
+      const curr = inf.serie[i];
+      const prev = i===0 ? null : inf.serie[i-1];
+      const diff = prev===null ? null : curr - prev;
+      const pct  = prev===null ? null : (prev ? +(((curr - prev)/prev)*100).toFixed(1) : (curr>0?100:0));
+      const color = diff === null ? WHITE : (diff < 0 ? GREEN : diff > 0 ? RED : WHITE);
+      dataCell(ws.getCell(r,1), m, { bg, bold:true });
+      dataCell(ws.getCell(r,2), prev===null?'—':prev, { bg, align:'right', color: MUTED, numFmt: prev===null?undefined:'#,##0' });
+      dataCell(ws.getCell(r,3), curr, { bg, bold:true, align:'right', numFmt:'#,##0' });
+      dataCell(ws.getCell(r,4), diff===null?'—':(diff>=0?'+':'')+diff, { bg, bold:true, align:'right', color });
+      dataCell(ws.getCell(r,5), pct===null?'—':(pct>=0?'+':'')+pct+'%', { bg, bold:true, align:'right', color });
+      ws.getRow(r).height = 15;
+      r++;
+    });
+    r++;
+
+    // ═══ SECCIÓN 3: DESGLOSE POR TIPO DE ERROR ═══
+    sectionTitle(r++, '▍ DESGLOSE POR TIPO DE ERROR');
+    headerRow(r++, ['Tipo','Mes inicial','Mes final','Total','Variación']);
+    const tipos = inf.totalesTipo || [];
+    tipos.forEach((t, idx) => {
+      const bg = idx%2===0 ? SURF : ALT;
+      const f = t.serie ? t.serie[0] : 0;
+      const l = t.serie ? t.serie[t.serie.length-1] : 0;
+      const d = l - f;
+      const pct = f ? +((d/f)*100).toFixed(0) : (l>0?'+∞':0);
+      const color = d < 0 ? GREEN : d > 0 ? RED : WHITE;
+      dataCell(ws.getCell(r,1), t.label, { bg, bold:true });
+      dataCell(ws.getCell(r,2), f, { bg, align:'right', color: MUTED, numFmt:'#,##0' });
+      dataCell(ws.getCell(r,3), l, { bg, align:'right', bold:true, numFmt:'#,##0' });
+      dataCell(ws.getCell(r,4), t.total, { bg, bold:true, align:'right', numFmt:'#,##0' });
+      const pctStr = typeof pct === 'number' ? (pct>=0?'+':'')+pct+'%' : pct;
+      dataCell(ws.getCell(r,5), (d>=0?'+':'')+d+' ('+pctStr+')', { bg, bold:true, align:'right', color });
+      ws.getRow(r).height = 15;
+      r++;
+    });
+    if (!tipos.length) {
+      ws.mergeCells(r,1,r,totalCols);
+      dataCell(ws.getCell(r,1), 'Sin errores registrados en el período.', { color: MUTED, align:'center' });
+      ws.getRow(r).height = 18;
+      r++;
+    }
+    r++;
+
+    // ═══ SECCIÓN 4: RANKING POR OPERADOR (solo informe general) ═══
+    if (inf.isGeneral && inf.rankingOps && inf.rankingOps.length) {
+      sectionTitle(r++, '▍ RANKING POR OPERADOR');
+      headerRow(r++, ['#','Operador','Total errores','Share %','Tendencia']);
+      inf.rankingOps.forEach((rk, idx) => {
+        const bg = idx%2===0 ? SURF : ALT;
+        const clr = rk.diff < 0 ? GREEN : rk.diff > 0 ? RED : WHITE;
+        dataCell(ws.getCell(r,1), idx+1, { bg, bold:true, align:'center', color: MUTED });
+        dataCell(ws.getCell(r,2), rk.op, { bg, bold:true });
+        dataCell(ws.getCell(r,3), rk.total, { bg, bold:true, align:'right', numFmt:'#,##0' });
+        dataCell(ws.getCell(r,4), rk.share+'%', { bg, bold:true, align:'right' });
+        dataCell(ws.getCell(r,5), (rk.diff>=0?'+':'')+rk.diff+' ('+(rk.pct>=0?'+':'')+rk.pct+'%)', { bg, bold:true, align:'right', color: clr });
+        ws.getRow(r).height = 15;
+        r++;
+      });
+      r++;
+    }
+
+    // ═══ SECCIÓN 4b: DETALLE DE OPERADORES DENTRO DE "OTROS" ═══
+    if (inf.isOtros && inf.otrosDetalle && inf.otrosDetalle.length) {
+      sectionTitle(r++, `▍ OPERADORES AGRUPADOS EN "OTROS" (${inf.otrosDetalle.length})`);
+      headerRow(r++, ['#','Operador','Errores','Share OTROS %','Tipo principal']);
+      inf.otrosDetalle.forEach((od, idx) => {
+        const bg = idx%2===0 ? SURF : ALT;
+        const share = inf.total ? ((od.count/inf.total)*100).toFixed(1) : 0;
+        dataCell(ws.getCell(r,1), idx+1, { bg, bold:true, align:'center', color: MUTED });
+        dataCell(ws.getCell(r,2), od.name, { bg, bold:true });
+        dataCell(ws.getCell(r,3), od.count, { bg, bold:true, align:'right', numFmt:'#,##0' });
+        dataCell(ws.getCell(r,4), share+'%', { bg, align:'right', color: MUTED });
+        dataCell(ws.getCell(r,5), od.topTipo + '  (' + od.topCount + ')', { bg });
+        ws.getRow(r).height = 15;
+        r++;
+      });
+      r++;
+    }
+
+    // ═══ SECCIÓN 5: ANÁLISIS Y RECOMENDACIONES ═══
+    sectionTitle(r++, '▍ ANÁLISIS Y RECOMENDACIONES');
+    const recs = (inf.recomendacionesPlain && inf.recomendacionesPlain.length) ? inf.recomendacionesPlain : ['Sin recomendaciones automáticas.'];
+    recs.forEach((rec, idx) => {
+      ws.mergeCells(r,1,r,totalCols);
+      const bg = idx%2===0 ? SURF : ALT;
+      dataCell(ws.getCell(r,1), '•  ' + rec, { bg, color: WHITE });
+      ws.getRow(r).height = 24;
+      ws.getCell(r,1).alignment = { vertical:'middle', wrapText:true, indent:1 };
+      r++;
+    });
+    r++;
+
+    // ─── Footer ───
+    for (let i=1;i<=totalCols;i++) {
+      const fc = ws.getCell(r,i);
+      fc.fill = { type:'pattern', pattern:'solid', fgColor:{argb:NAVY} };
+      fc.border = { top:{style:'thin',color:{argb:BLUE}} };
+    }
+    ws.mergeCells(r,1,r,totalCols);
+    const footer = ws.getCell(r,1);
+    footer.value = `Lumen by Pyralis — ${new Date().toLocaleString('es-AR')}`;
+    footer.font = { name:'Calibri', size:7, italic:true, color:{argb:MUTED} };
+    footer.alignment = { horizontal:'right', vertical:'middle', indent:1 };
+    ws.getRow(r).height = 16;
+
+    // ─── Descargar ───
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const opTag = inf.isGeneral ? 'GENERAL' : inf.op;
+    const fileName = `LUMEN_Informe_${opTag}_${inf.months[0]}_${inf.months[inf.months.length-1]}_${SpcdExcel.makeReportHash()}.xlsx`;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    // ─── Ofrecer compartir por email/WhatsApp (solo si share=true) ───
+    if (share && window.SpcdShare) {
+      window.SpcdShare.showShareDialog(blob, fileName, {
+        titulo: 'Informe de Rendimiento — ' + (inf.isGeneral ? 'Todos los operadores' : inf.op),
+        periodo: inf.months[0] + ' a ' + inf.months[inf.months.length-1],
+        cantidad: inf.total,
+        modulo: 'admin',
+        tipoExport: 'informe-rendimiento'
+      });
+    }
+  } catch(e) {
+    console.error('Error exportando informe:', e);
+    spcdAlert('No se pudo exportar el informe. Revisá la consola.', { type:'error', title:'Error al exportar' });
+  }
+}
+
+/* ══════════════════════════════════
+   TABS
+══════════════════════════════════ */
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+
+/* ══════════════════════════════════
+   HELPERS — CHARTS
+══════════════════════════════════ */
+function makeChart(canvasId, type, labels, values, colors, extraOpts={}) {
+  if (charts[canvasId]) charts[canvasId].destroy();
+  const ctx = document.getElementById(canvasId)?.getContext('2d');
+  if (!ctx) return;
+  const isSingle = typeof colors === 'string';
+  charts[canvasId] = new Chart(ctx, {
+    type,
+    data:{
+      labels,
+      datasets:[{
+        data: values,
+        backgroundColor: isSingle ? values.map(()=>colors) : colors,
+        borderWidth: 0,
+        borderRadius: type==='bar'?3:0,
+        hoverOffset: type==='doughnut'?6:0,
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:true,
+      plugins:{
+        legend: type==='doughnut'
+          ? {position:'bottom', labels:{color:'#94A3B8',font:{size:11},padding:10,boxWidth:12}}
+          : {display:false}
+      },
+      scales: type!=='doughnut' ? {
+        x:{ ticks:{color:'#64748B',font:{size:10}}, grid:{color:'rgba(30,58,138,.2)'} },
+        y:{ ticks:{color:'#64748B',font:{size:10}}, grid:{color:'rgba(30,58,138,.2)'} }
+      } : undefined,
+      ...extraOpts
+    }
+  });
+}
+
+/* ══════════════════════════════════
+   HELPERS — RANK
+══════════════════════════════════ */
+function buildRank(containerId, dataObj, maxItems, color) {
+  const container = document.getElementById(containerId);
+  const sorted = Object.entries(dataObj).sort((a,b)=>b[1].length-a[1].length).slice(0,maxItems);
+  if (!sorted.length) { container.innerHTML=emptyState('—','Sin datos'); return; }
+  const maxVal = sorted[0][1].length;
+  container.innerHTML = sorted.map(([label,rows],i)=>`
+    <div class="rank-item">
+      <div class="rank-num">${i+1}</div>
+      <div class="rank-label"><span title="${label}">${label.slice(0,28)}</span></div>
+      <div class="rank-bar-wrap"><div class="rank-bar" style="width:${(rows.length/maxVal*100).toFixed(0)}%;background:${color}60"></div></div>
+      <div class="rank-val" style="color:${color}">${rows.length}</div>
+    </div>`).join('');
+}
+
+/* ══════════════════════════════════
+   UTILS
+══════════════════════════════════ */
+function parseDate(val) {
+  if (!val) return null;
+  if (val instanceof Date) return isNaN(val)?null:val;
+  const d = new Date(val); return isNaN(d)?null:d;
+}
+function toDateStr(d) { return d ? d.toISOString().slice(0,10) : null; }
+function groupBy(arr, keyFn) {
+  return arr.reduce((acc,item) => {
+    const k = keyFn(item)||'Sin datos';
+    (acc[k]=acc[k]||[]).push(item); return acc;
+  },{});
+}
+/* ══════════════════════════════════
+   MODAL — LÓGICA COMPLETA
+══════════════════════════════════ */
+let modalRows     = [];   // registros completos del modal activo
+let modalFiltered = [];   // después del buscador interno
+let modalTitle    = '';
+let modalTipo     = '';   // tipo de KPI activo (para condicionar export)
+
+const MODAL_COLORS = {
+  instderiv:     'var(--red)',
+  derivantes:    'var(--red)',
+  coseguros:     'var(--red)',
+  aseguradoras:  'var(--purple)',
+  sinreferencia: 'var(--red)',
+  cobertura:     'var(--amber)',
+  fuerafecha:    'var(--amber)',
+  tramites:      'var(--red)',
+  tramitesharefield: 'var(--red)',
+  tramitesfinamed: 'var(--red)',
+  sumerrores:    'var(--red)',
+  sumturnos:     'var(--blue)',
+  sumpracticas:  'var(--cyan)',
+  sumcoseg:      'var(--red)',
+  sumaseg:       'var(--purple)',
+  sumderiv:      'var(--green)'
+};
+
+const MODAL_LABELS = {
+  instderiv:     'Institución Derivante — Probable Error (FUESMEN + Operador)',
+  derivantes:    'Sin Derivantes — Vacío o "A CONFIRMAR"',
+  coseguros:     'Coseguros — Error de Carga (OSEP / Neto $0)',
+  aseguradoras:  'Turnos por Aseguradora',
+  sinreferencia: 'Nº Referencia — Error (ID 1665: vacío o dígitos inválidos)',
+  cobertura:     'Tipo Cobertura — Error (ID 3075/1665 sin OBL)',
+  fuerafecha:    'Fuera Fecha Facturación — Error (ID 3075/1665 mes distinto)',
+  tramites:      'Trámites Incompletos OS/Prepagas — Factura o N° Orden en 0',
+  tramitesharefield: 'Trámites Incompletos Harefield — ID 3075 (HAREFIELD S.A.) con N° Orden en 0 (a recepcionar)',
+  tramitesfinamed: 'Trámites Incompletos Finamed — ID 1665 (FINAMED SA - HOSP ITAL (PROV)) con N° Orden en 0 (a recepcionar)',
+  sumerrores:    'Todos los Errores Detectados',
+  sumturnos:     'Total Turnos (Únicos)',
+  sumpracticas:  'Prácticas Realizadas',
+  sumcoseg:      'Coseguros — Errores de Carga',
+  sumaseg:       'Turnos por Aseguradora',
+  sumderiv:      'Turnos por Derivante'
+};
+
+// Helper: convierte cualquier valor (string, número, Date, null, undefined) a string seguro
+function _safe(v) { return String(v == null ? '' : v).trim(); }
+
+// Helper: deduplica registros por Turno N° (un turno = una unidad, aunque tenga varias líneas)
+// Las filas sin Turno N° se conservan todas (no se pueden agrupar).
+function dedupByTurno(rows) {
+  const vistos = new Set();
+  return rows.filter(r => {
+    const tn = _safe(r['Turno N°'] ?? r['Turno N'] ?? r['Turno No']);
+    if (!tn) return true;
+    if (vistos.has(tn)) return false;
+    vistos.add(tn);
+    return true;
+  });
+}
+
+function openModal(tipo) {
+  if (!filtered.length) {
+    console.warn('[openModal] No hay datos filtrados.');
+    return;
+  }
+  try {
+    _openModalInternal(tipo);
+  } catch (err) {
+    console.error('[openModal] Error al abrir modal:', err);
+    try { document.getElementById('modal-overlay').classList.remove('open'); } catch(e){}
+    try { document.getElementById('export-menu').classList.remove('open'); } catch(e){}
+    document.body.style.overflow = '';
+    alert('No se pudo abrir el detalle.\n\nMotivo: ' + (err && err.message ? err.message : err) +
+          '\n\nProbable causa: el Excel cargado tiene una columna con formato inesperado. ' +
+          'Probá descargar el Excel original y volver a cargarlo desde Inicio.');
+  }
+}
+
+function _openModalInternal(tipo) {
+  // Seleccionar registros según el tipo de KPI
+  switch (tipo) {
+    case 'instderiv':    modalRows = filtered.filter(r => esErrorInstDerivante(r)); break;
+    case 'derivantes':   modalRows = filtered.filter(r => { const d=_safe(r['Derivante']).toUpperCase(); return !d || d==='A CONFIRMAR'; }); break;
+    case 'coseguros':    modalRows = filtered.filter(r => { const id=_safe(r['ID Aseguradora']); const cu=_safe(r['Cuenta']).toUpperCase(); const pr=_safe(r['Prestación']||r['Prestacion']).toUpperCase(); const ne=parseFloat(r['Neto Unitario']||0); return id==='1665'&&cu.includes('OSEP')&&pr==='COSEGURO'&&ne===0; }); break;
+    case 'aseguradoras': modalRows = filtered.filter(r => _safe(r['Aseguradora']) !== ''); break;
+    case 'sinreferencia':modalRows = filtered.filter(r => esErrorReferencia(r)); break;
+    case 'cobertura':   modalRows = filtered.filter(r => esErrorCobertura(r)); break;
+    case 'fuerafecha':  modalRows = filtered.filter(r => esErrorFueraFechaFact(r)); break;
+    case 'tramites':    modalRows = filtered.filter(r => esErrorTramiteIncompleto(r) && !esErrorTramiteHarefield(r)); break;
+    case 'tramitesharefield': modalRows = filtered.filter(r => esErrorTramiteHarefield(r)); break;
+    case 'tramitesfinamed': modalRows = filtered.filter(r => esErrorTramiteFinamed(r)); break;
+    case 'sumerrores':  modalRows = filtered.filter(r =>
+      // Excluye tipos automatizados (Inst. Derivante, Tipo Cobertura, Fuera Fecha Fact.)
+      (()=>{ const d=_safe(r['Derivante']).toUpperCase(); return !d || d==='A CONFIRMAR'; })() ||
+      (()=>{ const id=_safe(r['ID Aseguradora']); const cu=_safe(r['Cuenta']).toUpperCase(); const pr=_safe(r['Prestación']||r['Prestacion']).toUpperCase(); const ne=parseFloat(r['Neto Unitario']||0); return id==='1665'&&cu.includes('OSEP')&&pr==='COSEGURO'&&ne===0; })() ||
+      esErrorReferencia(r) ||
+      esErrorTramiteIncompleto(r)
+    ); break;
+    case 'sumturnos':    modalRows = [...filtered]; break;
+    case 'sumpracticas': {
+      const noEsPractica = ['MATERIAL','SET DE BOMBA','COSEGURO','RADIOFARMACO','NC/ND','AGUJAS','NOTA'];
+      modalRows = filtered.filter(r => {
+        const prest = _safe(r['Prestación']||r['Prestacion']).toUpperCase();
+        return !noEsPractica.some(excl => prest.startsWith(excl));
+      }); break;
+    }
+    case 'sumcoseg':     modalRows = filtered.filter(r => { const id=_safe(r['ID Aseguradora']); const cu=_safe(r['Cuenta']).toUpperCase(); const pr=_safe(r['Prestación']||r['Prestacion']).toUpperCase(); const ne=parseFloat(r['Neto Unitario']||0); return id==='1665'&&cu.includes('OSEP')&&pr==='COSEGURO'&&ne===0; }); break;
+    case 'sumaseg':      modalRows = filtered.filter(r => _safe(r['Aseguradora']) !== ''); break;
+    case 'sumderiv':     modalRows = filtered.filter(r => { const d=_safe(r['Derivante']).toUpperCase(); return d !== '' && d !== 'A CONFIRMAR'; }); break;
+    default:             modalRows = [...filtered];
+  }
+
+  // Solo Estado = REA
+  modalRows = modalRows.filter(r => r['Estado'] === 'REA');
+
+  // Ordenar por fecha descendente
+  modalRows.sort((a, b) => {
+    const da = parseDate(a['Turno Fecha']);
+    const db = parseDate(b['Turno Fecha']);
+    return (db || 0) - (da || 0);
+  });
+
+  // ── DEDUP por 'Turno N°': si un turno aparece más de una vez, dejar solo la primera ocurrencia.
+  // Aplica a modal y a la exportación Excel (ambos usan modalRows).
+  {
+    const vistos = new Set();
+    modalRows = modalRows.filter(r => {
+      const tn = _safe(r['Turno N°'] ?? r['Turno N'] ?? r['Turno No']);
+      if (!tn) return true; // sin Turno N° → no se puede dedupear, lo dejamos pasar
+      if (vistos.has(tn)) return false;
+      vistos.add(tn);
+      return true;
+    });
+  }
+
+  modalTipo  = tipo;
+  modalTitle = MODAL_LABELS[tipo] || 'Detalle';
+  const color = MODAL_COLORS[tipo] || 'var(--blue)';
+
+  document.getElementById('modal-title').textContent = modalTitle;
+  document.getElementById('modal-bar').style.background = color;
+  document.getElementById('modal-search').value = '';
+
+  // Botón "Reparar" para los KPIs que tienen bot (Inst. Derivante y Tipo Cobertura)
+  const btnRep = document.getElementById('btn-reparar-instderiv');
+  if (btnRep) btnRep.style.display = (tipo === 'instderiv' || tipo === 'cobertura' || tipo === 'fuerafecha') ? 'inline-block' : 'none';
+
+  modalFiltered = [...modalRows];
+  renderModalTable(modalFiltered);
+
+  // populate menu ANTES de bloquear scroll: si falla, no quedamos trabados
+  try { populateExportMenu(); } catch(e) { console.warn('[populateExportMenu] error (no crítico):', e); }
+
+  // Abrir modal con clase + INLINE STYLES (los inline ganan contra cualquier CSS externo)
+  const ov = document.getElementById('modal-overlay');
+  const dr = document.getElementById('modal-drawer');
+  ov.classList.add('open');
+  ov.style.opacity = '1';
+  ov.style.pointerEvents = 'all';
+  ov.style.visibility = 'visible';
+  ov.style.display = 'block';
+  if (dr) {
+    dr.style.transform = 'translateX(0)';
+    dr.style.opacity = '1';
+    dr.style.visibility = 'visible';
+    dr.style.display = 'flex';
+  }
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => { try { document.getElementById('modal-search').focus(); } catch(e){} }, 400);
+}
+
+function closeModal() {
+  const ov = document.getElementById('modal-overlay');
+  const dr = document.getElementById('modal-drawer');
+  ov.classList.remove('open');
+  ov.style.opacity = '';
+  ov.style.pointerEvents = '';
+  ov.style.visibility = '';
+  ov.style.display = '';
+  if (dr) {
+    dr.style.transform = '';
+    dr.style.opacity = '';
+    dr.style.visibility = '';
+    dr.style.display = '';
+  }
+  document.getElementById('export-menu').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const rep = document.getElementById('reparar-overlay');
+    if (rep && rep.classList.contains('open')) { rep.classList.remove('open'); return; }
+    const em = document.getElementById('export-menu');
+    if (em.classList.contains('open')) { em.classList.remove('open'); return; }
+    closeModal();
+  }
+});
+
+// ── Export Menu (por aseguradora) ──
+function toggleExportMenu(e) {
+  e.stopPropagation();
+  document.getElementById('export-menu').classList.toggle('open');
+}
+
+const OPERADORES_EXPORT = ['SPITRELLA','JAVILA','JMONICA','ZABRAHAM','ITORRES'];
+
+function populateExportMenu() {
+  const menu = document.getElementById('export-menu');
+
+  // Contar por operador
+  const opMap = {};
+  let otrosCount = 0;
+  modalRows.forEach(r => {
+    const op = (r['Operador']||'').trim().toUpperCase();
+    if (OPERADORES_EXPORT.includes(op)) {
+      opMap[op] = (opMap[op] || 0) + 1;
+    } else {
+      otrosCount++;
+    }
+  });
+
+  // Helper: construye una fila con 2 botones (Descargar / Compartir)
+  const rowHtml = (label, count, onClickDl, onClickSh, extraClass = '') => `
+    <div class="export-menu-row ${extraClass}">
+      <button class="em-part em-dl" onclick="${onClickDl}; document.getElementById('export-menu').classList.remove('open');">
+        <span class="em-label">${label}</span>${count !== null ? `<span class="em-count">${count}</span>` : ''}
+      </button>
+      <button class="em-part em-sh" title="Descargar y compartir por email/WhatsApp" onclick="${onClickSh}; document.getElementById('export-menu').classList.remove('open');">📤</button>
+    </div>`;
+
+  let html = '';
+  html += rowHtml('⬇ Exportar TODO', modalRows.length, 'exportExcel(undefined, false)', 'exportExcel(undefined, true)', 'em-all');
+
+  // Por operador
+  html += `<div class="export-menu-sep">Por operador</div>`;
+  OPERADORES_EXPORT.forEach(op => {
+    const count = opMap[op] || 0;
+    if (count > 0) html += rowHtml(op, count, `exportExcelByOperador('${op}', false)`, `exportExcelByOperador('${op}', true)`);
+  });
+  if (otrosCount > 0) html += rowHtml('OTROS', otrosCount, `exportExcelByOperador('OTROS', false)`, `exportExcelByOperador('OTROS', true)`);
+
+  menu.innerHTML = html;
+}
+
+// Cerrar menu al hacer click fuera
+document.addEventListener('click', e => {
+  const menu = document.getElementById('export-menu');
+  if (menu && !e.target.closest('.export-group')) menu.classList.remove('open');
+});
+
+function filterModal(query) {
+  const q = query.toLowerCase().trim();
+  if (!q) {
+    modalFiltered = [...modalRows];
+  } else {
+    modalFiltered = modalRows.filter(r => {
+      const paciente  = (r['Paciente']   || '').toLowerCase();
+      const doc       = String(r['Documento'] || '').toLowerCase();
+      const afiliado  = String(r['Nº Afiliado'] || '').toLowerCase();
+      const derivante = (r['Derivante']  || '').toLowerCase();
+      const aseg      = (r['Aseguradora']|| '').toLowerCase();
+      const ref       = String(r['Nº Referencia'] || '').toLowerCase();
+      const turno     = String(r['Turno N°'] || '').toLowerCase();
+      const loc       = (r['Localidad']  || '').toLowerCase();
+      return paciente.includes(q) || doc.includes(q) || afiliado.includes(q)
+          || derivante.includes(q)|| aseg.includes(q) || ref.includes(q)
+          || turno.includes(q)    || loc.includes(q);
+    });
+  }
+  renderModalTable(modalFiltered);
+}
+
+function renderModalTable(rows) {
+  const MAX = 500;
+  const display = rows.slice(0, MAX);
+
+  document.getElementById('modal-count').textContent =
+    `${rows.length.toLocaleString()} registros` + (rows.length > MAX ? ` (mostrando ${MAX})` : '');
+  document.getElementById('modal-footer-count').textContent =
+    `${rows.length.toLocaleString()} registros` + (rows.length !== modalRows.length ? ` filtrados de ${modalRows.length.toLocaleString()}` : '');
+
+  document.getElementById('modal-tbody').innerHTML = display.map(r => {
+    const fecha   = parseDate(r['Turno Fecha']);
+    const fechaStr = fecha ? fecha.toLocaleDateString('es-AR') : '—';
+    const coseg   = parseFloat(r['Coseguro']) || 0;
+    const estCls  = r['Estado']==='REA' ? 'color:var(--cyan)' :
+                    r['Estado']==='SUS' ? 'color:var(--red)'  : 'color:var(--muted)';
+    return `<tr>
+      <td>${fechaStr}</td>
+      <td style="color:var(--muted)">${r['Turno N°'] || '—'}</td>
+      <td style="font-weight:600;color:var(--text)">${r['Paciente'] || '—'}</td>
+      <td style="color:var(--muted)">${r['Tipo Documento'] || '—'}</td>
+      <td style="font-family:'Rajdhani',sans-serif;font-size:13px">${r['Documento'] || '—'}</td>
+      <td style="color:var(--muted)">${r['Nº Afiliado'] || '—'}</td>
+      <td style="color:var(--muted)">${r['Sexo'] ? r['Sexo'].slice(0,1) : '—'}</td>
+      <td style="color:var(--muted)">${r['Edad'] || '—'}</td>
+      <td>${r['Localidad'] || '—'}</td>
+      <td>${(r['Aseguradora'] || '—').slice(0, 20)}</td>
+      <td style="color:var(--blue)">${r['Tipo Cobertura'] || '—'}</td>
+      <td style="color:var(--muted)">${r['Tipo Turno'] || '—'}</td>
+      <td style="color:var(--cyan)">${(r['Derivante'] || '—').slice(0, 22)}</td>
+      <td style="color:var(--muted)">${(r['Inst Derivante'] || '—').slice(0, 20)}</td>
+      <td style="color:var(--muted)">${(r['Operador'] || '—').slice(0, 15)}</td>
+      <td style="color:var(--muted)">${r['Matrícula'] || '—'}</td>
+      <td style="color:var(--green)">${r['Nº Referencia'] || '—'}</td>
+      <td style="color:var(--muted)">${(()=>{ const ff=r['F/ Facturación']??r['F/Facturación']??r['F/ Facturacion']??r['F/Facturacion']??''; const d=parseDate(ff); return d?d.toLocaleDateString('es-AR'):'—'; })()}</td>
+      <td style="color:var(--muted)" title="${r['Prestación']}">${(r['Prestación'] || '—').slice(0, 28)}…</td>
+      <td style="font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;color:${coseg>0?'var(--amber)':'var(--muted)'}">
+        ${coseg > 0 ? '$' + coseg.toLocaleString('es-AR') : '—'}
+      </td>
+      <td style="color:var(--muted)">${r['ID Aseguradora'] || '—'}</td>
+      <td style="color:var(--muted)">${(r['Cuenta'] || '—').slice(0,20)}</td>
+      <td style="font-family:'Rajdhani',sans-serif;color:${parseFloat(r['Neto Unitario']||0)===0?'var(--red)':'var(--muted)'}">
+        ${r['Neto Unitario'] != null ? '$'+Number(r['Neto Unitario']).toLocaleString('es-AR') : '—'}
+      </td>
+      <td style="${estCls};font-weight:600">${r['Estado'] || '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════
+   GENERAR LOGO (canvas → base64)
+══════════════════════════════════ */
+function generateLogoPNG() {
+  const c = document.createElement('canvas');
+  c.width = 480; c.height = 100;
+  const ctx = c.getContext('2d');
+  const dpr = 2;
+
+  // Background
+  ctx.fillStyle = '#0F172A';
+  ctx.fillRect(0,0,c.width,c.height);
+
+  const cx = 50, cy = 50, r = 34;
+
+  // Outer glow
+  const glow = ctx.createRadialGradient(cx,cy,r-2,cx,cy,r+12);
+  glow.addColorStop(0,'rgba(59,130,246,.25)');
+  glow.addColorStop(1,'rgba(59,130,246,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(cx-r-14,cy-r-14,(r+14)*2,(r+14)*2);
+
+  // Main ring
+  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+  ctx.strokeStyle = '#3B82F6'; ctx.lineWidth = 2.5; ctx.stroke();
+
+  // Inner ring
+  ctx.beginPath(); ctx.arc(cx,cy,r-5,0,Math.PI*2);
+  ctx.strokeStyle = 'rgba(59,130,246,.3)'; ctx.lineWidth = 0.8; ctx.stroke();
+
+  // Dark fill
+  ctx.beginPath(); ctx.arc(cx,cy,r-6,0,Math.PI*2);
+  const innerFill = ctx.createLinearGradient(cx-r,cy-r,cx+r,cy+r);
+  innerFill.addColorStop(0,'#1E3A8A');
+  innerFill.addColorStop(1,'#0F172A');
+  ctx.fillStyle = innerFill; ctx.fill();
+
+  // Accent arc (top-right, cyan)
+  ctx.beginPath(); ctx.arc(cx,cy,r,-1.2,0.3);
+  ctx.strokeStyle = '#22DBAE'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke();
+
+  // Accent arc (bottom-left, blue)
+  ctx.beginPath(); ctx.arc(cx,cy,r,2.0,3.2);
+  ctx.strokeStyle = '#3B82F6'; ctx.lineWidth = 1.5; ctx.lineCap = 'round'; ctx.stroke();
+
+  // Tech dots on ring
+  const dots = [[-1.2,'#22DBAE',3],[0.3,'#3B82F6',2.5],[-Math.PI/2,'#22DBAE',2.5],[2.0,'#3B82F6',2],[3.2,'#22DBAE',1.8]];
+  dots.forEach(([ang,color,sz]) => {
+    ctx.beginPath();
+    ctx.arc(cx+Math.cos(ang)*(r),cy+Math.sin(ang)*(r),sz,0,Math.PI*2);
+    ctx.fillStyle = color; ctx.fill();
+  });
+
+  // Tech lines radiating from dots
+  [[-1.2,10,'#22DBAE'],[0.3,8,'#3B82F6'],[-Math.PI/2,8,'#22DBAE']].forEach(([ang,len,color]) => {
+    const x1=cx+Math.cos(ang)*r, y1=cy+Math.sin(ang)*r;
+    const x2=cx+Math.cos(ang)*(r+len), y2=cy+Math.sin(ang)*(r+len);
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+    ctx.strokeStyle = color; ctx.lineWidth = 0.8; ctx.globalAlpha=0.6; ctx.stroke(); ctx.globalAlpha=1;
+  });
+
+  // Small particle dots
+  [[cx+r+12,cy-8,1,'#22DBAE',0.5],[cx+r+6,cy+14,0.8,'#3B82F6',0.4],[cx-r-8,cy-12,0.8,'#3B82F6',0.4]].forEach(([x,y,sz,col,a]) => {
+    ctx.beginPath(); ctx.arc(x,y,sz,0,Math.PI*2);
+    ctx.fillStyle=col; ctx.globalAlpha=a; ctx.fill(); ctx.globalAlpha=1;
+  });
+
+  // SP text
+  const spGrad = ctx.createLinearGradient(cx-14,cy-12,cx+14,cy+12);
+  spGrad.addColorStop(0,'#B8D4F0');
+  spGrad.addColorStop(1,'#3B82F6');
+  ctx.font = 'bold 32px Rajdhani, Calibri, Arial';
+  ctx.fillStyle = spGrad;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('SP',cx,cy+1);
+
+  // CONTROL text
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.font = 'bold 28px Rajdhani, Calibri, Arial';
+  ctx.fillStyle = '#B8D4F0';
+  ctx.fillText('CONTROL',100,40);
+
+  // DATA text
+  ctx.font = 'bold 28px Rajdhani, Calibri, Arial';
+  ctx.fillStyle = '#3B82F6';
+  ctx.fillText('DATA',100,68);
+
+  // Subtle line between CONTROL and DATA area
+  ctx.beginPath();
+  ctx.moveTo(100,48); ctx.lineTo(260,48);
+  ctx.strokeStyle = 'rgba(59,130,246,.2)'; ctx.lineWidth = 0.5; ctx.stroke();
+
+  return c.toDataURL('image/png').split(',')[1];
+}
+
+/* ══════════════════════════════════
+   DEDUPLICAR POR TURNO N°
+══════════════════════════════════ */
+function deduplicarPorTurno(rows) {
+  const seen = new Set();
+  return rows.filter(r => {
+    const turno = r['Turno N°'];
+    if (!turno || turno === '') return true; // sin turno → incluir
+    if (seen.has(turno)) return false;
+    seen.add(turno);
+    return true;
+  });
+}
+
+/* ══════════════════════════════════
+   EXPORT EXCEL (ExcelJS — compacto)
+══════════════════════════════════ */
+async function exportExcelByAseg(asegName, share) {
+  const original = modalFiltered;
+  modalFiltered = original.filter(r => (r['Aseguradora']||'Sin Aseguradora').trim() === asegName);
+  await exportExcel(asegName, share);
+  modalFiltered = original;
+}
+
+async function exportExcelByOperador(opName, share) {
+  const original = modalFiltered;
+  if (opName === 'OTROS') {
+    modalFiltered = original.filter(r => {
+      const op = (r['Operador']||'').trim().toUpperCase();
+      return !OPERADORES_EXPORT.includes(op);
+    });
+  } else {
+    modalFiltered = original.filter(r => (r['Operador']||'').trim().toUpperCase() === opName);
+  }
+  await exportExcel(opName, share);
+  modalFiltered = original;
+}
+
+async function exportExcel(asegSuffix, share) {
+  if (!modalFiltered.length) return;
+
+  try {
+    await SpcdExcel.ready();
+
+    /* ─── Columnas (mismas reglas que antes — filtradas por modalTipo) ─── */
+    const allCols = ['Turno Fecha','Turno N°','Paciente','Tipo Documento','Documento',
+                     'Nº Afiliado','Sexo','Edad','Localidad','Aseguradora','Tipo Cobertura',
+                     'Tipo Turno','Derivante','Inst Derivante','Operador','Matrícula',
+                     'Nº Referencia','F/ Facturación','Prestación','Coseguro','ID Aseguradora','Cuenta','Neto Unitario','Estado'];
+    const allShortH = ['Fecha','T.N°','Paciente','T.Doc','DNI','Afiliad','S','Ed','Localidad',
+                       'Aseguradora','Cobertura','T.Turno','Derivante','Inst.Deriv','Operador','Matr.',
+                       'N°Ref','F/Fact','Prestación','Coseg$','ID Aseg','Cuenta','Neto$','Est'];
+    const allColW = [10,6,20,6,10,10,3,4,12,16,12,8,18,16,12,8,8,10,24,8,8,14,8,5];
+    const excludeMap = {
+      derivantes:    ['Neto Unitario','Coseguro','Localidad','Sexo','Edad'],
+      sinreferencia: ['Neto Unitario','Coseguro','Localidad','Sexo','Edad'],
+      tramites:      ['Neto Unitario','Coseguro','Sexo','Edad','Localidad']
+    };
+    const exclude = new Set(excludeMap[modalTipo] || []);
+    const indices = [];
+    allCols.forEach((c,i) => { if (!exclude.has(c)) indices.push(i); });
+    const cols   = indices.map(i => allCols[i]);
+    const shortH = indices.map(i => allShortH[i]);
+    const colW   = indices.map(i => allColW[i]);
+
+    const dataRows = deduplicarPorTurno(modalFiltered);
+
+    /* ─── Filas de la tabla (transformadas con la lógica de admin) ─── */
+    const rowsForTable = dataRows.map(r => {
+      const row = {};
+      cols.forEach(c => {
+        if (c === 'F/ Facturación') {
+          row[c] = r['F/ Facturación'] ?? r['F/Facturación'] ?? r['F/ Facturacion'] ?? r['F/Facturacion'] ?? '';
+        } else if (c === 'Coseguro' || c === 'Neto Unitario') {
+          row[c] = parseFloat(r[c]) || 0;
+        } else {
+          row[c] = r[c] ?? '';
+        }
+      });
+      row.__raw = r;
+      return row;
+    });
+
+    /* ─── KPIs dinámicos según modalTipo ─── */
+    const totRegs = dataRows.length;
+    const totNeto = dataRows.reduce((s,r) => s + (parseFloat(r['Neto Unitario']) || 0), 0);
+    const errCount = dataRows.filter(r => {
+      return (modalTipo==='instderiv' && esErrorInstDerivante(r))
+          || (modalTipo==='cobertura' && esErrorCobertura(r))
+          || (modalTipo==='fuerafecha' && esErrorFueraFechaFact(r))
+          || (modalTipo==='derivantes' && (!r['Derivante']||(r['Derivante']||'').trim().toUpperCase()==='A CONFIRMAR'))
+          || (modalTipo==='sinreferencia' && esErrorReferencia(r));
+    }).length;
+    const asegSet = new Set(dataRows.map(r => (r['Aseguradora']||'—').trim()));
+
+    const kpis = [
+      { label:'Registros',      value: totRegs.toLocaleString('es-AR'), tone:'cyan' },
+      { label:'Aseguradoras',   value: asegSet.size,                    tone:'silver' }
+    ];
+    if (errCount > 0) {
+      kpis.push({ label:'Errores detect.', value: errCount, tone:'rose', hint:'Requieren revisión' });
+    } else {
+      kpis.push({ label:'Tipo modal',      value:(modalTipo||'detalle').toUpperCase(), tone:'cyan' });
+    }
+
+    /* ─── Construir el libro con SpcdExcel ─── */
+    const subtitle = `INFORME ADMINISTRATIVO · ${modalTitle.toUpperCase()}` + (asegSuffix ? ` · ${asegSuffix.toUpperCase()}` : '');
+    const { wb, ws } = SpcdExcel.createBook({ subtitle, sheetName:'Detalle' });
+
+    const h = SpcdExcel.buildHeader(ws, {
+      subtitle,
+      totalCols: cols.length,
+      meta:{
+        modulo:'ADMIN',
+        sede: SpcdExcel.getCurrentSede(),
+        usuario: SpcdExcel.getCurrentUser(),
+        registros: totRegs,
+        extra: asegSuffix ? `ASEGURADORA: ${asegSuffix.toUpperCase()}` : null
+      }
+    });
+
+    const k = SpcdExcel.buildKPIs(ws, kpis, { startRow: h.nextRow, totalCols: cols.length });
+    const s = SpcdExcel.buildSection(ws, { startRow: k.nextRow, totalCols: cols.length, title: `DETALLE · ${modalTitle.toUpperCase()}` });
+
+    const t = SpcdExcel.buildTable(ws, {
+      columns: shortH,
+      widths:  colW,
+      rows:    rowsForTable.map(rd => shortH.map((_, i) => rd[cols[i]])),
+      startRow: s.nextRow,
+      totalCols: cols.length,
+      formatter: (cell, val, rowDataArr, idx, ci, shortName) => {
+        const c = cols[ci];                // nombre largo
+        const r = dataRows[idx];           // raw original
+        if (c === 'Coseguro' || c === 'Neto Unitario') {
+          SpcdExcel.Fmt.money(cell);
+        }
+        if (c === 'Estado') SpcdExcel.Fmt.center(cell);
+
+        const isErr = (c==='Derivante' && (!r[c]||(r[c]||'').trim().toUpperCase()==='A CONFIRMAR'))
+                   || (c==='Neto Unitario' && parseFloat(r[c]||0)===0)
+                   || (c==='Nº Referencia' && esErrorReferencia(r))
+                   || (c==='Inst Derivante' && modalTipo==='instderiv' && esErrorInstDerivante(r))
+                   || (c==='Operador'       && modalTipo==='instderiv' && esErrorInstDerivante(r))
+                   || (c==='Tipo Cobertura' && modalTipo==='cobertura' && esErrorCobertura(r))
+                   || (c==='F/ Facturación' && modalTipo==='fuerafecha' && esErrorFueraFechaFact(r))
+                   || (c==='Estado' && r[c]==='SUS');
+        if (isErr) SpcdExcel.Fmt.error(cell);
+      }
+    });
+
+    const tot = SpcdExcel.buildTotals(ws, {
+      startRow: t.nextRow,
+      totalCols: cols.length,
+      items: [
+        { label:'Registros',     value: totRegs.toLocaleString('es-AR') },
+        totNeto>0 ? { label:'Neto acumulado', value:'$ '+Math.round(totNeto).toLocaleString('es-AR') } : null,
+        errCount>0 ? { label:'Errores', value: errCount } : null
+      ].filter(Boolean)
+    });
+
+    SpcdExcel.buildFooter(ws, { startRow: tot.nextRow, totalCols: cols.length, hash: h.hash });
+
+    /* ─── Nombre y descarga ─── */
+    const asegTag  = asegSuffix ? `_${asegSuffix.replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ\s]/g,'').replace(/\s+/g,'_').slice(0,30)}` : '';
+    const fileName = `${modalTitle.replace(/\s+/g,'_')}${asegTag}_${SpcdExcel.nowIsoDate()}.xlsx`;
+
+    await SpcdExcel.exportAndShare(wb, fileName, share ? {
+      titulo:   modalTitle + (asegSuffix ? ' — ' + asegSuffix : ''),
+      periodo:  SpcdExcel.dateAr(),
+      cantidad: totRegs,
+      modulo:   'admin',
+      tipoExport: modalTipo || 'detalle'
+    } : null);
+
+  } catch (err) {
+    console.error('Error exportando Excel:', err);
+    if (typeof spcdAlert === 'function') {
+      spcdAlert('Error al generar el Excel: ' + err.message, { type:'error', title:'Error al exportar' });
+    } else {
+      alert('Error al generar el Excel: ' + err.message);
+    }
+  }
+}
+
+/* ══════════════════════════════════
+   REPARAR — Institución Derivante (bot FUESMEN)
+   Exporta el Excel con el nombre que el bot ya espera y muestra el comando.
+══════════════════════════════════ */
+// Config por tipo de KPI que tiene bot asociado.
+const REPARAR_CFG = {
+  instderiv: {
+    titulo:    '🔧 Reparar Institución Derivante',
+    protocolo: 'lumenbot://reparar',
+    cmd:       'cd "C:\\Users\\pitre\\OneDrive\\Documentos\\Claude\\Projects\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe lumen-fix-instderivante.py'
+  },
+  cobertura: {
+    titulo:    '🔧 Reparar Tipo Cobertura',
+    protocolo: 'lumenbot://cobertura',
+    cmd:       'cd "C:\\Users\\pitre\\OneDrive\\Documentos\\Claude\\Projects\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe lumen-fix-tipocobertura.py'
+  },
+  fuerafecha: {
+    titulo:    '🔧 Reparar Fuera Fecha Facturación',
+    protocolo: 'lumenbot://fuerafecha',
+    cmd:       'cd "C:\\Users\\pitre\\OneDrive\\Documentos\\Claude\\Projects\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe lumen-fix-fuerafecha.py'
+  }
+};
+
+async function repararConBot() {
+  const tipo = modalTipo;
+  const cfg = REPARAR_CFG[tipo];
+  if (!cfg) return;
+
+  const cantidad = modalRows.length;
+  const overlay  = document.getElementById('reparar-overlay');
+  const countTxt = document.getElementById('reparar-count-txt');
+  const titleEl  = document.getElementById('reparar-title');
+  const cmdEl    = document.getElementById('reparar-cmd');
+
+  if (titleEl) titleEl.textContent = cfg.titulo;
+  if (cmdEl)   cmdEl.textContent   = cfg.cmd;          // comando manual de fallback correcto
+  if (countTxt) countTxt.textContent = 'Generando Excel…';
+  if (overlay)  overlay.classList.add('open');
+
+  try {
+    // Reutiliza el export del modal activo. El nombre del archivo coincide con el
+    // patrón que cada bot busca en Descargas (instderiv → excel_reader; cobertura → buscar_excel_cobertura).
+    await exportExcel(undefined, false);
+    if (countTxt) countTxt.textContent = `${cantidad.toLocaleString('es-AR')} turno(s) exportado(s).`;
+
+    // Dispara el protocolo correcto → el lanzador elige qué bot correr según la URI.
+    try { window.location.href = cfg.protocolo; } catch (e) { console.warn('protocolo lumenbot no disponible:', e); }
+  } catch (err) {
+    console.error('[repararConBot] error al exportar:', err);
+    if (countTxt) countTxt.textContent = 'No se pudo generar el Excel.';
+    if (typeof spcdAlert === 'function') {
+      spcdAlert('No se pudo generar el Excel para el bot: ' + (err && err.message ? err.message : err),
+                { type:'error', title:'Error al reparar' });
+    }
+  }
+}
+
+function cerrarReparar() {
+  const overlay = document.getElementById('reparar-overlay');
+  if (overlay) overlay.classList.remove('open');
+  // Por si el bot ya terminó: re-consultar el contador de arreglados.
+  if (typeof cargarReparaciones === 'function') cargarReparaciones(false);
+}
+
+function copiarComandoReparar() {
+  const cmd = document.getElementById('reparar-cmd');
+  if (!cmd) return;
+  const texto = cmd.textContent;
+  const ok = () => {
+    if (typeof showToast === 'function') showToast('Comando copiado al portapapeles');
+    else if (typeof spcdAlert === 'function') spcdAlert('Comando copiado', { type:'success' });
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(texto).then(ok).catch(() => fallbackCopiar(texto, ok));
+  } else {
+    fallbackCopiar(texto, ok);
+  }
+}
+
+function fallbackCopiar(texto, ok) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = texto;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    if (ok) ok();
+  } catch (e) {
+    console.warn('No se pudo copiar el comando:', e);
+  }
+}
+
+function emptyState(icon, text) {
+  return `<div class="empty-state"><div class="e-icon">${icon}</div><div class="e-text">${text}</div></div>`;
+}
+</script>
+<!-- Toast de notificaciones (para showToast de spcd-utils.js) -->
+<div class="toast" id="toast"></div>
+
+<script src="spcd-bg.js?v=2"></script>
+<script src="spcd-share.js?v=4"></script>
+<script src="spcd-excel-template.js?v=2026060802"></script>
+
+<!-- Supabase SDK + cliente JWT (Fase 2.D.5 · panel Permisos) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="spcd-supabase.js?v=2026-05-16-v5"></script>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     PANEL DE PERMISOS (Fase 2.D.5)
+     Solo se muestra si auth_es_admin() devuelve true para el user actual.
+     ═══════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+  function ready(fn) {
+    if (document.readyState !== 'loading') fn();
+    else document.addEventListener('DOMContentLoaded', fn);
+  }
+
+  // Chequea sesión OTP + auth_es_admin y muestra el botón Permisos del topbar.
+  async function chequearYMostrarTab() {
+    try {
+      if (!window.sbAuth || !window.sbAuth.auth) return false;
+      const { data: sess } = await window.sbAuth.auth.getSession();
+      if (!sess || !sess.session) return false;
+      const esAdmin = await sbRpc('auth_es_admin', {});
+      if (esAdmin === true) {
+        const btn = document.getElementById('btn-top-permisos');
+        if (btn) btn.style.display = '';
+        return true;
+      }
+    } catch (e) {
+      console.warn('[panel-permisos] check falló:', e.message);
+    }
+    return false;
+  }
+
+  // Abrir / cerrar el modal del panel
+  window.abrirPanelPermisosModal = function() {
+    document.getElementById('modal-panel-permisos').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    cargarUsuariosPanel();
+  };
+  window.cerrarPanelPermisosModal = function() {
+    document.getElementById('modal-panel-permisos').style.display = 'none';
+    document.body.style.overflow = '';
+  };
+
+  ready(async function() {
+    // 1) Intento inmediato
+    if (await chequearYMostrarTab()) return;
+
+    // 2) Escuchar cambios de auth (SIGNED_IN, TOKEN_REFRESHED, etc.)
+    if (window.sbAuth && window.sbAuth.auth) {
+      window.sbAuth.auth.onAuthStateChange(async (event, session) => {
+        if (session) await chequearYMostrarTab();
+      });
+    }
+
+    // 3) Fallback: reintentar cada 500ms hasta 5 veces (por si el SDK no dispara evento)
+    for (let i = 0; i < 5; i++) {
+      await new Promise(r => setTimeout(r, 500));
+      if (await chequearYMostrarTab()) return;
+    }
+  });
+})();
+
+// Cache de usuarios para uso del modal
+window._spcdUsuarios = [];
+
+async function cargarUsuariosPanel() {
+  const tbody = document.getElementById('tbody-usuarios');
+  const info  = document.getElementById('permisos-info');
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:24px; color:var(--muted);">⏳ Cargando...</td></tr>';
+  try {
+    const usuarios = await sbRpc('admin_listar_usuarios', {});
+    window._spcdUsuarios = usuarios || [];
+    if (info) info.textContent = `${usuarios.length} usuarios · ${usuarios.filter(u=>u.activo).length} activos · ${usuarios.filter(u=>u.auth_user_id).length} con login OTP habilitado`;
+    renderTablaUsuarios(usuarios);
+  } catch (e) {
+    console.error('[cargarUsuariosPanel]', e);
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:24px; color:var(--red);">❌ Error: ${e.message}</td></tr>`;
+  }
+}
+
+function renderTablaUsuarios(usuarios) {
+  const tbody = document.getElementById('tbody-usuarios');
+  if (!usuarios || !usuarios.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:24px; color:var(--muted);">No hay usuarios</td></tr>';
+    return;
+  }
+  const rolColor = {
+    'admin':'#A78BFA', 'consultor':'#60A5FA', 'mixto':'#34D399',
+    'solicitante':'#FBBF24', 'licencias':'#FB7185'
+  };
+  tbody.innerHTML = usuarios.map(u => {
+    const perm     = u.permisos || {};
+    const sedes    = (perm.sedes || []).join(', ') || '<span style="color:var(--muted);">—</span>';
+    const modulos  = Object.entries(perm.modulos || {})
+                     .filter(([_,v]) => v && v !== '')
+                     .map(([k,v]) => `${k}:${v}`).join(' · ') || '<span style="color:var(--muted);">—</span>';
+    const loginIcon = u.auth_user_id
+                    ? '<span title="Login OTP" style="color:#34D399;">📧 OTP</span>'
+                    : (u.email
+                       ? `<span title="Pendiente invitar" style="color:#FBBF24;">⏳ pendiente</span>`
+                       : '<span title="Solo PIN legacy" style="color:var(--muted);">🔑 PIN</span>');
+    const activoChip = u.activo
+                     ? '<span style="color:#34D399; font-weight:600;">✓ activo</span>'
+                     : '<span style="color:var(--red);">✗ inactivo</span>';
+    return `<tr>
+      <td style="font-weight:600; color:var(--text);">${escapeHtml(u.username)}</td>
+      <td>${escapeHtml(u.nombre || '—')}</td>
+      <td style="font-size:12px; color:var(--muted);">${escapeHtml(u.email || '—')}</td>
+      <td><span style="color:${rolColor[u.rol]||'#94A3B8'}; font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:1px;">${escapeHtml(u.rol)}</span></td>
+      <td style="font-size:12px;">${sedes}</td>
+      <td style="font-size:11px; color:var(--muted);">${modulos}</td>
+      <td>${loginIcon}</td>
+      <td>${activoChip}</td>
+      <td style="white-space:nowrap;">
+        <button onclick="editarUsuarioPanel('${u.id}')" title="Editar" style="background:rgba(59,130,246,.15); border:1px solid rgba(59,130,246,.4); color:var(--blue); padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin-right:4px;">✏️</button>
+        <button onclick="resetearPinPanel('${u.id}','${escapeHtml(u.username)}')" title="Reset PIN a 1234" style="background:rgba(251,191,36,.15); border:1px solid rgba(251,191,36,.4); color:#FBBF24; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin-right:4px;">🔑</button>
+        ${!u.auth_user_id && u.email ? `<button onclick="vincularAuthPanel('${u.id}','${escapeHtml(u.username)}')" title="Vincular auth.users.id" style="background:rgba(167,139,250,.15); border:1px solid rgba(167,139,250,.4); color:#A78BFA; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px;">🔗</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+function abrirModalCrearUsuario() {
+  document.getElementById('modal-usuario-titulo').textContent = '➕ Crear usuario nuevo';
+  document.getElementById('mu-id').value = '';
+  document.getElementById('mu-username').value = '';
+  document.getElementById('mu-username').disabled = false;
+  document.getElementById('mu-nombre').value = '';
+  document.getElementById('mu-email').value = '';
+  document.getElementById('mu-rol').value = 'consultor';
+  document.getElementById('mu-sedes').value = '';
+  ['operativo','medico','admin','licencias','mensajeria','stats'].forEach(m => {
+    document.getElementById('mu-mod-' + m).value = '';
+  });
+  document.getElementById('mu-activo').checked = true;
+  document.getElementById('modal-usuario').style.display = 'flex';
+}
+
+function editarUsuarioPanel(id) {
+  const u = window._spcdUsuarios.find(x => x.id === id);
+  if (!u) return;
+  document.getElementById('modal-usuario-titulo').textContent = '✏️ Editar: ' + u.username;
+  document.getElementById('mu-id').value = u.id;
+  document.getElementById('mu-username').value = u.username;
+  document.getElementById('mu-username').disabled = true; // no permitir cambiar username
+  document.getElementById('mu-nombre').value = u.nombre || '';
+  document.getElementById('mu-email').value = u.email || '';
+  document.getElementById('mu-rol').value = u.rol;
+  const perm = u.permisos || {};
+  document.getElementById('mu-sedes').value = (perm.sedes || []).join(', ');
+  const mods = perm.modulos || {};
+  ['operativo','medico','admin','licencias','mensajeria','stats'].forEach(m => {
+    document.getElementById('mu-mod-' + m).value = mods[m] || '';
+  });
+  document.getElementById('mu-activo').checked = !!u.activo;
+  document.getElementById('modal-usuario').style.display = 'flex';
+}
+
+function cerrarModalUsuario() {
+  document.getElementById('modal-usuario').style.display = 'none';
+}
+
+async function guardarUsuario() {
+  const id = document.getElementById('mu-id').value.trim();
+  const username = document.getElementById('mu-username').value.trim().toUpperCase();
+  const nombre   = document.getElementById('mu-nombre').value.trim();
+  const email    = document.getElementById('mu-email').value.trim();
+  const rol      = document.getElementById('mu-rol').value;
+  const sedes    = document.getElementById('mu-sedes').value
+                
+
