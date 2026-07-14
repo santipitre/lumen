@@ -143,9 +143,66 @@
     }
 
     .sedes-grid {
+      display: flex; flex-direction: column; align-items: stretch;
+      gap: 14px; width: 100%; max-width: 720px;
+    }
+    .sedes-grid-inner {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 12px; width: 100%; max-width: 720px;
+      gap: 12px; width: 100%;
+    }
+
+    /* --- Sede principal (modo neo) --- */
+    .sedes-section-label {
+      width: 100%; font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+      color: var(--muted); font-weight: 700; margin: 8px 2px -2px;
+    }
+    .sede-hero {
+      width: 100%; text-align: left; cursor: pointer;
+      display: flex; align-items: center; gap: 22px;
+      padding: 24px 26px; border-radius: 18px;
+      background: linear-gradient(145deg, rgba(30,58,138,.30), rgba(10,15,20,.55));
+      border: 1px solid rgba(34,219,174,.35);
+      box-shadow: 0 -1px 0 rgba(148,197,255,.10) inset,
+                  8px 8px 24px rgba(0,0,0,.55),
+                  -8px -8px 22px rgba(52,86,160,.10),
+                  0 0 34px rgba(34,219,174,.10);
+      transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+      animation: fadeUp .5s ease both; position: relative; overflow: hidden;
+    }
+    .sede-hero::after {
+      content: ''; position: absolute; inset: 0; border-radius: 18px; pointer-events: none;
+      background: radial-gradient(120% 140% at 12% 0%, rgba(34,219,174,.08), transparent 55%);
+    }
+    .sede-hero:hover {
+      transform: translateY(-3px); border-color: var(--cyan);
+      box-shadow: 0 -1px 0 rgba(148,197,255,.12) inset,
+                  10px 12px 30px rgba(0,0,0,.6),
+                  -8px -8px 24px rgba(52,86,160,.12),
+                  0 0 44px rgba(34,219,174,.22);
+    }
+    .sede-hero-plate {
+      flex-shrink: 0; width: 176px; min-height: 96px;
+      border-radius: 14px; padding: 6px 8px;
+      display: flex; align-items: center; justify-content: center;
+      background: transparent;
+    }
+    .sede-hero-plate img { max-width: 100%; max-height: 92px; object-fit: contain; display: block; }
+    .sede-hero-body { flex: 1; min-width: 0; }
+    .sede-hero-kicker { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--cyan); font-weight: 700; }
+    .sede-hero-name { font-family: 'Rajdhani', sans-serif; font-size: 26px; font-weight: 700; letter-spacing: 1px; color: var(--text); line-height: 1.05; margin: 3px 0 6px; }
+    .sede-hero-sub { font-size: 11px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
+    .sede-hero-cta {
+      margin-left: auto; flex-shrink: 0; display: flex; align-items: center; gap: 8px;
+      font-family: 'Rajdhani', sans-serif; font-weight: 700; letter-spacing: 2px; font-size: 12px;
+      color: var(--cyan); border: 1px solid rgba(34,219,174,.35); border-radius: 10px; padding: 10px 14px;
+      transition: background .25s ease;
+    }
+    .sede-hero:hover .sede-hero-cta { background: rgba(34,219,174,.12); }
+    @media (max-width: 560px) {
+      .sede-hero { flex-wrap: wrap; gap: 16px; }
+      .sede-hero-cta { margin-left: 0; }
+      .sede-hero-plate { width: 100%; }
     }
 
     .sede-btn {
@@ -1107,18 +1164,58 @@ function afterLogin() {
   showScreen('screen-sedes');
 }
 
-function renderSedes(sedes) {
-  const grid = document.getElementById('sedes-grid');
-  grid.innerHTML = sedes.map((s, i) =>
-    `<button class="sede-btn" onclick="selectSede('${s.nombre}')" style="animation-delay:${(i+1)*0.05}s">
+/* Logo identificador de la Sede Hospital Italiano (Hospital Italiano de Mendoza + FUESMEN).
+   PLACEHOLDER de texto — se reemplaza por la imagen real (data URI) cuando Santiago la provea. */
+const SEDE_HI_LOGO_SRC = 'sede-hitaliano-fuesmen.png';   // archivo transparente en la raíz del repo
+const SEDE_HI_LOGO_HTML = `
+  <img src="${SEDE_HI_LOGO_SRC}" alt="Hospital Italiano de Mendoza · FUESMEN"
+       onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+  <div style="display:none;text-align:center;font-family:'Rajdhani',sans-serif;line-height:1.05">
+    <div style="font-weight:800;font-size:14px;color:#E7EEF8;letter-spacing:.5px">HOSPITAL ITALIANO</div>
+    <div style="font-size:8px;color:#9db4d4;letter-spacing:3px;margin-top:1px">DE MENDOZA</div>
+    <div style="height:1px;background:rgba(148,197,255,.25);margin:7px 6px"></div>
+    <div style="font-weight:800;font-size:15px;color:#22DBAE;letter-spacing:1px">FUESMEN</div>
+    <div style="font-size:6.5px;color:#94A3B8;letter-spacing:1px;margin-top:1px">FUND. ESCUELA MEDICINA NUCLEAR</div>
+  </div>`;
+
+const SEDE_PRINCIPAL = 'Sede Hospital Italiano';
+
+function sedeBtnHtml(s, i) {
+  return `<button class="sede-btn" onclick="selectSede('${s.nombre}')" style="animation-delay:${(i+1)*0.05}s">
       <span class="sede-icon">${s.icon}</span>
       <div class="sede-info">
         <div class="sede-name">${s.nombre.toUpperCase()}</div>
         <div class="sede-type">${s.tipo}</div>
       </div>
       <span class="sede-arrow">&#8250;</span>
-    </button>`
-  ).join('');
+    </button>`;
+}
+
+function sedeHeroHtml(s) {
+  return `<button class="sede-hero" onclick="selectSede('${s.nombre}')">
+      <div class="sede-hero-plate">${SEDE_HI_LOGO_HTML}</div>
+      <div class="sede-hero-body">
+        <div class="sede-hero-kicker">Sede principal</div>
+        <div class="sede-hero-name">SEDE HOSPITAL ITALIANO</div>
+        <div class="sede-hero-sub">Hospital Italiano de Mendoza &middot; FUESMEN</div>
+      </div>
+      <span class="sede-hero-cta">ENTRAR &#8250;</span>
+    </button>`;
+}
+
+function renderSedes(sedes) {
+  const grid = document.getElementById('sedes-grid');
+  const hero = sedes.find(s => s.nombre === SEDE_PRINCIPAL);
+  const rest = sedes.filter(s => s.nombre !== SEDE_PRINCIPAL);
+  let html = '';
+  if (hero) {
+    html += sedeHeroHtml(hero);
+    if (rest.length) html += `<div class="sedes-section-label">Otras sedes</div>`;
+  }
+  if (rest.length) {
+    html += `<div class="sedes-grid-inner">` + rest.map((s, i) => sedeBtnHtml(s, i)).join('') + `</div>`;
+  }
+  grid.innerHTML = html;
 }
 
 function selectSede(nombre) {
