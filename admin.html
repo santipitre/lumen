@@ -1416,6 +1416,34 @@ const tiDrop = {
 
   bucket(aseg){ const A=this.normH(aseg); if(!A) return 'OSOTRAS'; if(A.includes('PARTICULAR')) return 'PARTICULAR'; if(A.includes('FINAMED')) return 'FINAMED'; if(A.includes('INSSJYP')||A.includes('PAMI')) return 'PAMI'; if(A.includes('HAREFIELD')) return 'HAREFIELD'; return 'OSOTRAS'; },
 
+  /* ── Persistencia en IndexedDB (base propia 'lumen_ti', separada de la del dashboard) ──
+     El Excel subido queda guardado y se restaura al recargar/volver a la página,
+     hasta que el usuario apriete "quitar" o suba otro archivo. ── */
+  _idb(){ return new Promise((res,rej)=>{ try{ const rq=indexedDB.open('lumen_ti',1); rq.onupgradeneeded=()=>{ try{ rq.result.createObjectStore('kv'); }catch(e){} }; rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error); }catch(e){ rej(e); } }); },
+  async _idbSet(key,val){ try{ const db=await this._idb(); await new Promise((res,rej)=>{ const tx=db.transaction('kv','readwrite'); tx.objectStore('kv').put(val,key); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); }); }catch(e){ console.warn('[tiDrop] idbSet',e); } },
+  async _idbGet(key){ try{ const db=await this._idb(); return await new Promise((res,rej)=>{ const tx=db.transaction('kv','readonly'); const r=tx.objectStore('kv').get(key); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }catch(e){ console.warn('[tiDrop] idbGet',e); return null; } },
+  async _idbDel(key){ try{ const db=await this._idb(); await new Promise((res)=>{ const tx=db.transaction('kv','readwrite'); tx.objectStore('kv').delete(key); tx.oncomplete=()=>res(); tx.onerror=()=>res(); }); }catch(e){} },
+
+  async persist(){ await this._idbSet('current', { v:1, fileName:this.fileName, colTurno:this.colTurno, colAseg:this.colAseg, colServ:this.colServ, headers:this.headers, rows:this.rows }); },
+
+  async restore(){
+    try{
+      const saved=await this._idbGet('current');
+      if(!saved || !Array.isArray(saved.rows) || !saved.rows.length) return;
+      if(this.active) return;   // ya hay algo cargado en esta sesión → no pisar
+      this.rows=saved.rows; this.headers=saved.headers||this.collectHeaders(saved.rows);
+      this.colTurno=saved.colTurno; this.colAseg=saved.colAseg; this.colServ=saved.colServ||null;
+      this.fileName=saved.fileName||'archivo guardado';
+      if(!this.colTurno||!this.colAseg){ this._idbDel('current'); return; }
+      this.active=true; this.compute();
+      const dz=document.getElementById('ti-dropzone'); if(dz) dz.classList.add('has-file');
+      const set=(id,t)=>{ const e=document.getElementById(id); if(e) e.textContent=t; };
+      set('ti-drop-icon','✅'); set('ti-drop-title','Archivo cargado');
+      set('ti-drop-sub', this.fileName+' · '+tiNum(this.rawRows.length)+' filas · guardado ✓');
+      const clr=document.getElementById('ti-drop-clear'); if(clr) clr.style.display='inline-block';
+    }catch(e){ console.warn('[tiDrop] restore',e); }
+  },
+
   setup(){
     const dz=document.getElementById('ti-dropzone'); if(!dz) return;
     ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{ e.preventDefault(); e.stopPropagation(); dz.classList.add('dragover'); }));
@@ -1425,6 +1453,8 @@ const tiDrop = {
     ['dragover','drop'].forEach(ev=>document.addEventListener(ev,e=>{ if(!dz.contains(e.target)) e.preventDefault(); }, false));
     // Escape cierra el modal de detalle local (antes que el handler global)
     document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ const ov=document.getElementById('ti-detail-overlay'); if(ov&&ov.classList.contains('open')){ e.stopPropagation(); this.closeDetail(); } } }, true);
+    // Restaurar el Excel guardado (si lo hay) — persiste entre recargas hasta "quitar" o subir otro.
+    this.restore();
   },
 
   pick(){ const fi=document.getElementById('ti-file-input'); if(fi) fi.click(); },
@@ -1454,8 +1484,9 @@ const tiDrop = {
       this.compute();
       dz.classList.add('has-file');
       setIcon('✅'); setTitle('Archivo cargado');
-      setSub(file.name+' · '+tiNum(this.rawRows.length)+' filas');
+      setSub(file.name+' · '+tiNum(this.rawRows.length)+' filas · guardado ✓');
       document.getElementById('ti-drop-clear').style.display='inline-block';
+      this.persist();   // queda guardado hasta "quitar" o subir otro archivo
     }catch(err){
       console.error('[tiDrop] read', err);
       this.active=false; if(dz) dz.classList.remove('has-file');
@@ -1556,19 +1587,124 @@ const tiDrop = {
 
   closeDetail(){ const ov=document.getElementById('ti-detail-overlay'); if(ov) ov.classList.remove('open'); },
 
-  exportCurrent(){
+  // Columnas que NO deben ir al Excel exportable (normalizadas con normH).
+  EXPORT_EXCLUDE:['APELLIDOMATERNO','TELEFONOFIJO','EMAIL','RECEPORDEN','TECNICOIN','TECNICOOUT','INICIOESTUDIO','REPROGRAMAR','ACCESSIONNUMBER','INFORMEFINALIZADO','CENTRO','MOTIVORECITADO'],
+
+  // Logo Lumen (réplica del SVG del nav: cuadro redondeado + "L" + luciérnaga dorada + wordmark) → base64 PNG.
+  lumenLogoPNG(){
+    const W=210, H=48, dpr=2;
+    const c=document.createElement('canvas'); c.width=W*dpr; c.height=H*dpr;
+    const x=c.getContext('2d'); x.scale(dpr,dpr);
+    const rr=(X,Y,w,h,rad)=>{ x.beginPath(); x.moveTo(X+rad,Y); x.arcTo(X+w,Y,X+w,Y+h,rad); x.arcTo(X+w,Y+h,X,Y+h,rad); x.arcTo(X,Y+h,X,Y,rad); x.arcTo(X,Y,X+w,Y,rad); x.closePath(); };
+    const MX=4,MY=3,MS=42, sc=MS/54;
+    const map=(px,py)=>[MX+((px-3)/54)*MS, MY+((py-3)/54)*MS];
+    rr(MX,MY,MS,MS,10); x.fillStyle='#0A0F14'; x.fill(); x.lineWidth=0.8; x.strokeStyle='#1F2937'; x.stroke();
+    let p; x.beginPath();
+    p=map(16,14); x.moveTo(p[0],p[1]); p=map(16,46); x.lineTo(p[0],p[1]); p=map(44,46); x.lineTo(p[0],p[1]);
+    x.strokeStyle='#F1F5F9'; x.lineWidth=3*sc; x.lineCap='round'; x.lineJoin='round'; x.stroke();
+    const fc=map(38,22);
+    x.beginPath(); x.arc(fc[0],fc[1],9*sc,0,Math.PI*2); x.strokeStyle='rgba(245,158,11,.4)'; x.lineWidth=0.7; x.stroke();
+    x.beginPath(); x.arc(fc[0],fc[1],4*sc,0,Math.PI*2); x.fillStyle='#F59E0B'; x.fill();
+    x.beginPath(); x.arc(fc[0],fc[1],1.8*sc,0,Math.PI*2); x.fillStyle='#FEF3C7'; x.fill();
+    x.textBaseline='middle'; const wy=H/2-2; let wx=MX+MS+10;
+    x.font='700 26px Inter, Calibri, Arial';
+    [['L','#F1F5F9'],['u','#F59E0B'],['men','#F1F5F9']].forEach(([t,col])=>{ x.fillStyle=col; x.fillText(t,wx,wy); wx+=x.measureText(t).width; });
+    x.font='600 8px Inter, Calibri, Arial'; x.fillStyle='#94A3B8';
+    x.fillText('by Pyralis', MX+MS+11, wy+15);
+    return c.toDataURL('image/png').split(',')[1];
+  },
+
+  async exportCurrent(){
     try{
-      const key=this.detailKey||'TOTAL'; const rows=this.detailAll||[]; const heads=this.orderedHeads();
-      const aoa=[heads].concat(rows.map(r=>heads.map(h=>{ const v=r[h]; return v==null?'':v; })));
-      const ws=XLSX.utils.aoa_to_sheet(aoa);
-      const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, (this.LABEL[key]||'Detalle').replace(/[\\\/\?\*\[\]:]/g,' ').slice(0,28)||'Detalle');
-      const d=new Date(); const stamp=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-      XLSX.writeFile(wb, 'Tramites_Incompletos_'+key+'_'+stamp+'.xlsx');
+      const key=this.detailKey||'TOTAL'; const rows=this.detailAll||[];
+      const excl=new Set(this.EXPORT_EXCLUDE);
+      const heads=this.orderedHeads().filter(h=>!excl.has(this.normH(h)));
+      const d=new Date();
+      const stamp=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      const fname='Lumen_TI_'+key+'_'+stamp+'.xlsx';
+
+      // Sin ExcelJS no hay diseño posible → fallback plano con SheetJS (no debería pasar en producción).
+      if(typeof ExcelJS==='undefined'){
+        const aoa=[heads].concat(rows.map(r=>heads.map(h=>{ const v=r[h]; return v==null?'':v; })));
+        const ws=XLSX.utils.aoa_to_sheet(aoa); const wb=XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Detalle'); XLSX.writeFile(wb, fname); return;
+      }
+
+      // Paleta Lumen (fondo oscuro + acento dorado firefly) — igual que el informe por operador.
+      const NAVY='FF0A0F14', BLUED='FF243049', GOLD='FFF59E0B', WHITE='FFF1F5F9',
+            INK='FF0A0F14', SURF='FF0A0F14', ALT='FF0E1521', MUTED='FF94A3B8', CYAN='FF22DBAE';
+      const turnos=(key==='TOTAL')?this.dedupRows.length:(this.byTurnos[key]||0);
+      const sede=(typeof localStorage!=='undefined' && localStorage.getItem('spcd_sede'))||'Hospital Italiano';
+      const fecha=d.toLocaleDateString('es-AR');
+      const totalCols=Math.max(1, heads.length);
+
+      const wb=new ExcelJS.Workbook(); wb.creator='Lumen by Pyralis';
+      const ws=wb.addWorksheet('Detalle', { views:[{ showGridLines:false }] });
+      heads.forEach((h,i)=>{ const n=this.normH(h); let w=Math.min(34,Math.max(10,String(h).length+4));
+        if(h===this.colTurno)w=12; if(h===this.colAseg)w=30; if(n.includes('PACIENTE'))w=26; if(n.includes('PRESTACION')||n.includes('SERVICIO'))w=24;
+        ws.getColumn(i+1).width=w; });
+
+      // Fila 1: logo + título
+      for(let i=1;i<=totalCols;i++) ws.getCell(1,i).fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}};
+      ws.getRow(1).height=46;
+      try{ const logo=this.lumenLogoPNG(); const id=wb.addImage({base64:logo,extension:'png'}); ws.addImage(id,{ tl:{col:0,row:0}, ext:{width:210,height:44} }); }catch(e){ console.warn('[tiDrop] logo',e); }
+      const tCol=totalCols>=4?3:1; ws.mergeCells(1,tCol,1,totalCols);
+      const tt=ws.getCell(1,tCol); tt.value='TRÁMITES INCOMPLETOS · '+(this.LABEL[key]||'DETALLE').toUpperCase();
+      tt.font={name:'Calibri',size:13,bold:true,color:{argb:WHITE}}; tt.alignment={horizontal:'right',vertical:'middle',indent:1};
+
+      // Fila 2: regla dorada
+      ws.getRow(2).height=4;
+      for(let i=1;i<=totalCols;i++){ const c=ws.getCell(2,i); c.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}}; c.border={bottom:{style:'medium',color:{argb:GOLD}}}; }
+
+      // Fila 3: info
+      ws.mergeCells(3,1,3,totalCols);
+      const t2=ws.getCell(3,1);
+      t2.value='  Sede: '+sede+'   |   '+fecha+'   |   '+turnos.toLocaleString('es-AR')+' turnos   |   '+rows.length.toLocaleString('es-AR')+' estudios';
+      t2.font={name:'Calibri',size:9,bold:true,color:{argb:GOLD}}; t2.fill={type:'pattern',pattern:'solid',fgColor:{argb:BLUED}};
+      t2.alignment={horizontal:'center',vertical:'middle'}; ws.getRow(3).height=20;
+
+      // Fila 4: espacio
+      ws.getRow(4).height=4; for(let i=1;i<=totalCols;i++) ws.getCell(4,i).fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}};
+
+      // Fila 5: encabezados
+      let r=5; const headerRow=r;
+      heads.forEach((h,i)=>{ const c=ws.getCell(r,i+1); c.value=h;
+        c.font={name:'Calibri',size:8.5,bold:true,color:{argb:INK}}; c.fill={type:'pattern',pattern:'solid',fgColor:{argb:GOLD}};
+        c.alignment={horizontal:'center',vertical:'middle',wrapText:true}; c.border={bottom:{style:'thin',color:{argb:CYAN}},top:{style:'thin',color:{argb:GOLD}}}; });
+      ws.getRow(r).height=20; r++;
+
+      const dataBorder={ bottom:{style:'hair',color:{argb:'FF334155'}}, left:{style:'hair',color:{argb:'FF1E293B'}}, right:{style:'hair',color:{argb:'FF1E293B'}} };
+      rows.forEach((row,idx)=>{ const bg=idx%2===0?SURF:ALT;
+        heads.forEach((h,i)=>{ const c=ws.getCell(r,i+1); let v=row[h]; if(v==null)v='';
+          const isAseg=(h===this.colAseg);
+          c.value=v;
+          c.font={name:'Calibri',size:9,color:{argb:isAseg?INK:WHITE},bold:isAseg};
+          c.fill={type:'pattern',pattern:'solid',fgColor:{argb:isAseg?CYAN:bg}};
+          c.border=dataBorder;
+          c.alignment={vertical:'middle',horizontal:(h===this.colTurno)?'center':'left',indent:1};
+        });
+        ws.getRow(r).height=15; r++;
+      });
+      ws.views=[{ state:'frozen', ySplit:headerRow, showGridLines:false }];
+
+      // Footer
+      for(let i=1;i<=totalCols;i++){ const fc=ws.getCell(r,i); fc.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}}; fc.border={top:{style:'thin',color:{argb:GOLD}}}; }
+      ws.mergeCells(r,1,r,totalCols);
+      const footer=ws.getCell(r,1);
+      footer.value='Lumen by Pyralis — '+d.toLocaleString('es-AR')+'  ·  '+turnos.toLocaleString('es-AR')+' turnos / '+rows.length.toLocaleString('es-AR')+' estudios';
+      footer.font={name:'Calibri',size:7,italic:true,color:{argb:MUTED}}; footer.alignment={horizontal:'right',vertical:'middle',indent:1};
+      ws.getRow(r).height=16;
+
+      const buffer=await wb.xlsx.writeBuffer();
+      const blob=new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      const url=URL.createObjectURL(blob); const a=document.createElement('a');
+      a.href=url; a.download=fname; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
     }catch(err){ console.error('[tiDrop] export', err); alert('No se pudo exportar el detalle: '+((err&&err.message)||err)); }
   },
 
   clear(){
     this.active=false; this.rows=[]; this.rawRows=[]; this.dedupRows=[]; this.byBucket={}; this.byTurnos={}; this.colServ=null;
+    this._idbDel('current');   // borrar lo guardado: la próxima recarga NO restaura
     const dz=document.getElementById('ti-dropzone'); if(dz) dz.classList.remove('has-file','dragover');
     const setTxt=(id,t)=>{ const el=document.getElementById(id); if(el) el.textContent=t; };
     setTxt('ti-drop-icon','📥'); setTxt('ti-drop-title','Subí el Excel'); setTxt('ti-drop-sub','Click o arrastrá el archivo acá');
