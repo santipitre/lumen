@@ -603,6 +603,13 @@
       <div class="kpi-sub" id="kpi-fuerafecha-sub">ID 3075/1665 mes distinto</div>
       <div class="kpi-hint">ver detalle →</div>
     </div>
+    <div class="kpi-card amber" onclick="openModal('aseguradora')">
+      <div class="kpi-icon">⚠️</div>
+      <div class="kpi-label">TC RM PAMI en FINAMED</div>
+      <div class="kpi-val" id="kpi-aseguradora">—</div>
+      <div class="kpi-sub" id="kpi-aseguradora-sub">FINAMED → INSSJYP</div>
+      <div class="kpi-hint">ver detalle →</div>
+    </div>
   </div>
 
   <!-- KPIs · Grupo 2: Trámites incompletos -->
@@ -1461,6 +1468,19 @@ function esErrorFueraFechaFact(r) {
          turnoFecha.getFullYear() !== factFecha.getFullYear();
 }
 
+// TC RM PAMI en FINAMED: REA + FINAMED SA - HOSP ITAL (PROV) + Cuenta PAMI/PAMI INTERNADOS
+// + Servicio TOMOGRAFÍA/RESONANCIA MAGNÉTICA. Se reasigna a INSSJYP (cuenta 53) con el bot.
+function esErrorAseguradora(r) {
+  const estado = (r['Estado']||'').trim().toUpperCase();
+  if (estado !== 'REA') return false;
+  const aseg = (r['Aseguradora']||'').trim().toUpperCase();
+  if (aseg !== 'FINAMED SA - HOSP ITAL (PROV)') return false;
+  const cuenta = (r['Cuenta']||'').trim().toUpperCase();
+  if (cuenta !== 'PAMI' && cuenta !== 'PAMI INTERNADOS') return false;
+  const serv = (r['Servicio']||'').trim().toUpperCase();
+  return serv === 'TOMOGRAFÍA' || serv === 'RESONANCIA MAGNÉTICA';
+}
+
 /* ══════════════════════════════════
    ERROR TRÁMITES INCOMPLETOS
    - PARTICULAR con N° Factura = 0
@@ -1557,6 +1577,11 @@ function calcKPIs(data) {
   const pctFuera = totalOblIds ? ((fueraFechaErr.length/totalOblIds)*100).toFixed(1) : 0;
   document.getElementById('kpi-fuerafecha-sub').textContent = `${pctFuera}% — ${asegNombres3075_1665}`;
 
+  // TC RM PAMI en FINAMED (reasignación de aseguradora FINAMED→INSSJYP)
+  const aseguradoraErr = rea.filter(r => esErrorAseguradora(r));
+  document.getElementById('kpi-aseguradora').textContent = aseguradoraErr.length.toLocaleString();
+  document.getElementById('kpi-aseguradora-sub').textContent = 'FINAMED → INSSJYP';
+
   // Trámites Incompletos (excluye Harefield y Finamed, que tienen su propio cuadro)
   const tramitesErr = rea.filter(r => esErrorTramiteIncompleto(r) && !esErrorTramiteHarefield(r) && !esErrorTramiteFinamed(r));
   document.getElementById('kpi-tramites').textContent = tramitesErr.length.toLocaleString();
@@ -1576,10 +1601,11 @@ function calcKPIs(data) {
 
   // KPIs cuyo flujo ya está automatizado (bot Reparar): se atenúan, llevan badge
   // "✓ Automatizado", muestran cuántos ya se arreglaron y NO suman al total.
-  ['kpi-instderiv','kpi-cobertura','kpi-fuerafecha'].forEach(marcarKpiAutomatizado);
+  ['kpi-instderiv','kpi-cobertura','kpi-fuerafecha','kpi-aseguradora'].forEach(marcarKpiAutomatizado);
   mostrarArreglados('kpi-instderiv', instDerivErr,  'instderiv');
   mostrarArreglados('kpi-cobertura', cobErr,        'cobertura');
   mostrarArreglados('kpi-fuerafecha', fueraFechaErr, 'fuerafecha');
+  mostrarArreglados('kpi-aseguradora', aseguradoraErr, 'aseguradora');
 }
 
 /* Atenúa la tarjeta del KPI y le agrega el badge "Automatizado" (idempotente). */
@@ -2852,6 +2878,7 @@ const MODAL_COLORS = {
   sinreferencia: 'var(--red)',
   cobertura:     'var(--amber)',
   fuerafecha:    'var(--amber)',
+  aseguradora:   'var(--amber)',
   tramites:      'var(--red)',
   tramitesharefield: 'var(--red)',
   tramitesfinamed: 'var(--red)',
@@ -2871,6 +2898,7 @@ const MODAL_LABELS = {
   sinreferencia: 'Nº Referencia — Error (ID 1665: vacío o dígitos inválidos)',
   cobertura:     'Tipo Cobertura — Error (ID 3075/1665 sin OBL)',
   fuerafecha:    'Fuera Fecha Facturación — Error (ID 3075/1665 mes distinto)',
+  aseguradora:   'Aseguradora FINAMED INSSJYP',
   tramites:      'Trámites Incompletos OS/Prepagas — Factura o N° Orden en 0',
   tramitesharefield: 'Trámites Incompletos Harefield — ID 3075 (HAREFIELD S.A.) con N° Orden en 0 (a recepcionar)',
   tramitesfinamed: 'Trámites Incompletos Finamed — ID 1665 (FINAMED SA - HOSP ITAL (PROV)) con N° Orden en 0 (a recepcionar)',
@@ -2926,6 +2954,7 @@ function _openModalInternal(tipo) {
     case 'sinreferencia':modalRows = filtered.filter(r => esErrorReferencia(r)); break;
     case 'cobertura':   modalRows = filtered.filter(r => esErrorCobertura(r)); break;
     case 'fuerafecha':  modalRows = filtered.filter(r => esErrorFueraFechaFact(r)); break;
+    case 'aseguradora': modalRows = filtered.filter(r => esErrorAseguradora(r)); break;
     case 'tramites':    modalRows = filtered.filter(r => esErrorTramiteIncompleto(r) && !esErrorTramiteHarefield(r)); break;
     case 'tramitesharefield': modalRows = filtered.filter(r => esErrorTramiteHarefield(r)); break;
     case 'tramitesfinamed': modalRows = filtered.filter(r => esErrorTramiteFinamed(r)); break;
@@ -2983,7 +3012,7 @@ function _openModalInternal(tipo) {
 
   // Botón "Reparar" para los KPIs que tienen bot (Inst. Derivante y Tipo Cobertura)
   const btnRep = document.getElementById('btn-reparar-instderiv');
-  if (btnRep) btnRep.style.display = (tipo === 'instderiv' || tipo === 'cobertura' || tipo === 'fuerafecha') ? 'inline-block' : 'none';
+  if (btnRep) btnRep.style.display = (tipo === 'instderiv' || tipo === 'cobertura' || tipo === 'fuerafecha' || tipo === 'aseguradora') ? 'inline-block' : 'none';
 
   modalFiltered = [...modalRows];
   renderModalTable(modalFiltered);
@@ -3462,6 +3491,11 @@ const REPARAR_CFG = {
     titulo:    '🔧 Reparar Fuera Fecha Facturación',
     protocolo: 'lumenbot://fuerafecha',
     cmd:       'cd "C:\\Users\\pitre\\OneDrive\\Documentos\\Claude\\Projects\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe lumen-fix-fuerafecha.py'
+  },
+  aseguradora: {
+    titulo:    '🔧 Reparar Aseguradora FINAMED→INSSJYP (TC/RM PAMI)',
+    protocolo: 'lumenbot://aseguradora',
+    cmd:       'cd "C:\\Users\\pitre\\OneDrive\\Documentos\\Claude\\Projects\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe lumen-fix-aseguradora.py'
   }
 };
 
