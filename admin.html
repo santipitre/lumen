@@ -1,4 +1,4 @@
-[Resource from GitHub at repo://santipitre/lumen/sha/c7e263a00747fcd37997276ef1988e3a656eb323/contents/admin.html] <!DOCTYPE html>
+[Resource from GitHub at repo://santipitre/lumen/sha/a7053ab8bf97656f3beb4daa74a6201cd8a8355f/contents/admin.html] [Resource from GitHub at repo://santipitre/lumen/sha/c7e263a00747fcd37997276ef1988e3a656eb323/contents/admin.html] <!DOCTYPE html>
 <html lang="es">
 <head>
 <script>
@@ -612,31 +612,8 @@
     </div>
   </div>
 
-  <!-- KPIs · Grupo 2: Trámites incompletos -->
-  <div class="kpi-section-label sec-tramites">Trámites incompletos · a recepcionar</div>
-  <div class="kpi-grid kpi-grid-tramites fade-in">
-    <div class="kpi-card purple" onclick="openModal('tramites')">
-      <div class="kpi-icon">⚠️</div>
-      <div class="kpi-label">Trámites Incompletos OS/Prepagas</div>
-      <div class="kpi-val" id="kpi-tramites">—</div>
-      <div class="kpi-sub" id="kpi-tramites-sub">Factura o N° Orden en 0</div>
-      <div class="kpi-hint">ver detalle →</div>
-    </div>
-    <div class="kpi-card purple" onclick="openModal('tramitesharefield')">
-      <div class="kpi-icon">⚠️</div>
-      <div class="kpi-label">Trámites Incompletos Harefield</div>
-      <div class="kpi-val" id="kpi-tramites-harefield">—</div>
-      <div class="kpi-sub" id="kpi-tramites-harefield-sub">a recepcionar</div>
-      <div class="kpi-hint">ver detalle →</div>
-    </div>
-    <div class="kpi-card purple" onclick="openModal('tramitesfinamed')">
-      <div class="kpi-icon">⚠️</div>
-      <div class="kpi-label">Trámites Incompletos Finamed</div>
-      <div class="kpi-val" id="kpi-tramites-finamed">—</div>
-      <div class="kpi-sub" id="kpi-tramites-finamed-sub">a recepcionar</div>
-      <div class="kpi-hint">ver detalle →</div>
-    </div>
-  </div>
+  <!-- KPIs · Grupo 2 (Trámites incompletos · a recepcionar) — bloque removido:
+       el detalle por aseguradora vive ahora en la pestaña "Trámites Incompletos". -->
 
   <!-- TABS -->
   <div class="tabs">
@@ -650,12 +627,12 @@
   <div class="tab-pane" id="tab-tramites-inc">
     <div class="kpi-section-label sec-tramites">Trámites incompletos · a recepcionar (por aseguradora)</div>
     <div class="kpi-grid kpi-grid-tramites fade-in">
-      <div class="kpi-card purple"><div class="kpi-icon">📋</div><div class="kpi-label">Total trámites</div><div class="kpi-val" id="ti-total">—</div><div class="kpi-sub" id="ti-total-sub">turnos únicos</div></div>
-      <div class="kpi-card blue"><div class="kpi-icon">🏢</div><div class="kpi-label">FINAMED</div><div class="kpi-val" id="ti-FINAMED">—</div><div class="kpi-sub" id="ti-FINAMED-sub">a recepcionar</div></div>
-      <div class="kpi-card amber"><div class="kpi-icon">🏢</div><div class="kpi-label">PAMI (INSSJYP)</div><div class="kpi-val" id="ti-PAMI">—</div><div class="kpi-sub" id="ti-PAMI-sub">a recepcionar</div></div>
-      <div class="kpi-card cyan"><div class="kpi-icon">🏢</div><div class="kpi-label">Harefield</div><div class="kpi-val" id="ti-HAREFIELD">—</div><div class="kpi-sub" id="ti-HAREFIELD-sub">a recepcionar</div></div>
-      <div class="kpi-card green"><div class="kpi-icon">🏢</div><div class="kpi-label">Otras OS / Prepagas</div><div class="kpi-val" id="ti-OSOTRAS">—</div><div class="kpi-sub" id="ti-OSOTRAS-sub">a recepcionar</div></div>
-      <div class="kpi-card red"><div class="kpi-icon">🧾</div><div class="kpi-label">Particular</div><div class="kpi-val" id="ti-PARTICULAR">—</div><div class="kpi-sub" id="ti-PARTICULAR-sub">a recepcionar</div></div>
+      <div class="kpi-card purple" onclick="openModal('ti_total')"><div class="kpi-icon">📋</div><div class="kpi-label">Total trámites</div><div class="kpi-val" id="ti-total">—</div><div class="kpi-sub" id="ti-total-sub">turnos únicos</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card blue" onclick="openModal('ti_finamed')"><div class="kpi-icon">🏢</div><div class="kpi-label">FINAMED</div><div class="kpi-val" id="ti-FINAMED">—</div><div class="kpi-sub" id="ti-FINAMED-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card amber" onclick="openModal('ti_pami')"><div class="kpi-icon">🏢</div><div class="kpi-label">PAMI (INSSJYP)</div><div class="kpi-val" id="ti-PAMI">—</div><div class="kpi-sub" id="ti-PAMI-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card cyan" onclick="openModal('ti_harefield')"><div class="kpi-icon">🏢</div><div class="kpi-label">Harefield</div><div class="kpi-val" id="ti-HAREFIELD">—</div><div class="kpi-sub" id="ti-HAREFIELD-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card green" onclick="openModal('ti_osotras')"><div class="kpi-icon">🏢</div><div class="kpi-label">Otras OS / Prepagas</div><div class="kpi-val" id="ti-OSOTRAS">—</div><div class="kpi-sub" id="ti-OSOTRAS-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card red" onclick="openModal('ti_particular')"><div class="kpi-icon">🧾</div><div class="kpi-label">Particular</div><div class="kpi-val" id="ti-PARTICULAR">—</div><div class="kpi-sub" id="ti-PARTICULAR-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
     </div>
     <div class="charts-row fade-in">
       <div class="chart-card">
@@ -1253,6 +1230,10 @@ function tiEsc(s){ return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;'
 
 async function cargarTramitesInc(force = true) {
   try {
+    // Opción A: si hay un Excel cargado, la pestaña la llena renderTITab() con
+    // detalle real (clickeable/exportable). El snapshot agregado de Supabase
+    // queda sólo como fallback cuando todavía no se cargó ningún Excel.
+    if (Array.isArray(rawData) && rawData.length) return;
     if (typeof sbQuery !== 'function') return;
     const ahora = Date.now();
     if (!force && ahora - _tiLast < 8000) return;   // throttle al alternar pestañas
@@ -1300,6 +1281,70 @@ function renderTramitesInc(p, generado) {
 
   const meta = document.getElementById('ti-meta');
   if (meta) meta.textContent = 'Actualizado ' + (generado || p.generado_en || '') + ' · archivo ' + (p.archivo || '—') + ' · el detalle por paciente se ve en la herramienta local (no se sube a la nube)';
+}
+
+/* ══════════════════════════════════
+   TRÁMITES INCOMPLETOS (pestaña) — versión Excel local (Opción A)
+   Cuando hay un Excel cargado, la pestaña se alimenta de `filtered` (mismo
+   dataset que el resto del dashboard), de modo que las 6 tarjetas sean
+   CLICKEABLES (openModal ti_*) y EXPORTABLES a Excel con detalle real.
+   Sustituye al snapshot de Supabase mientras haya datos locales.
+══════════════════════════════════ */
+function renderTITab(data) {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  const reaAll    = (data || []).filter(r => r['Estado'] === 'REA' && esErrorTramiteIncompleto(r)); // estudios (líneas)
+  const reaTurnos = dedupByTurno(reaAll);                                                            // turnos únicos
+  const T = { FINAMED:0, PAMI:0, HAREFIELD:0, OSOTRAS:0, PARTICULAR:0 };
+  const L = { FINAMED:0, PAMI:0, HAREFIELD:0, OSOTRAS:0, PARTICULAR:0 };
+  reaTurnos.forEach(r => { T[tiBucket(r)]++; });
+  reaAll.forEach(r => { L[tiBucket(r)]++; });
+
+  set('ti-total', tiNum(reaTurnos.length));
+  set('ti-total-sub', tiNum(reaAll.length) + ' estudios');
+  const card = (id, k) => { set('ti-' + id, tiNum(T[k])); set('ti-' + id + '-sub', tiNum(L[k]) + ' estudios'); };
+  card('FINAMED','FINAMED'); card('PAMI','PAMI'); card('HAREFIELD','HAREFIELD');
+  card('OSOTRAS','OSOTRAS'); card('PARTICULAR','PARTICULAR');
+
+  // Tabla "Detalle por aseguradora" (nombre real, turnos + estudios)
+  const porAseg = {};
+  reaAll.forEach(r => {
+    const nombre = ((r['Aseguradora']||'—').trim()) || '—';
+    if (!porAseg[nombre]) porAseg[nombre] = { turnos:new Set(), sinTurno:0, lineas:0 };
+    porAseg[nombre].lineas++;
+    const tn = _safe(r['Turno N°'] ?? r['Turno N'] ?? r['Turno No']);
+    if (tn) porAseg[nombre].turnos.add(tn); else porAseg[nombre].sinTurno++;
+  });
+  const asegArr = Object.entries(porAseg)
+    .map(([k,v]) => ({ aseguradora:k, turnos:(v.turnos.size + v.sinTurno), lineas:v.lineas }))
+    .sort((a,b) => b.turnos - a.turnos);
+  const cont = document.getElementById('ti-aseg');
+  if (cont) cont.innerHTML = asegArr.length ? (
+    '<table style="width:100%;border-collapse:collapse;font-size:12.5px">' +
+    '<thead><tr>' +
+    '<th style="text-align:left;padding:6px 4px;color:var(--muted);font-size:11px;text-transform:uppercase">Aseguradora</th>' +
+    '<th style="text-align:right;padding:6px 4px;color:var(--muted);font-size:11px;text-transform:uppercase">Turnos</th>' +
+    '<th style="text-align:right;padding:6px 4px;color:var(--muted);font-size:11px;text-transform:uppercase">Estudios</th>' +
+    '</tr></thead><tbody>' +
+    asegArr.map(a => '<tr>' +
+      '<td style="padding:6px 4px;border-top:1px solid rgba(255,255,255,.05)">' + tiEsc(a.aseguradora) + '</td>' +
+      '<td style="padding:6px 4px;text-align:right;border-top:1px solid rgba(255,255,255,.05);font-family:Rajdhani,Inter,sans-serif;font-weight:700">' + tiNum(a.turnos) + '</td>' +
+      '<td style="padding:6px 4px;text-align:right;border-top:1px solid rgba(255,255,255,.05);color:var(--muted)">' + tiNum(a.lineas) + '</td></tr>').join('') +
+    '</tbody></table>'
+  ) : '<div class="empty-state"><div class="e-icon">🏢</div><div class="e-text">Sin trámites incompletos en el Excel cargado</div></div>';
+
+  // "Por servicio" (barras)
+  const serv = {};
+  reaAll.forEach(r => { const s = ((r['Servicio'] || r['Prestación'] || r['Prestacion'] || '—').trim()) || '—'; serv[s] = (serv[s]||0) + 1; });
+  const keys = Object.keys(serv).sort((a,b) => serv[b] - serv[a]);
+  const max = Math.max(1, ...keys.map(k => serv[k]));
+  const sc = document.getElementById('ti-serv');
+  if (sc) sc.innerHTML = keys.length ? keys.map(k =>
+    '<div style="display:flex;justify-content:space-between;font-size:12.5px;margin:2px 0 4px"><span>' + tiEsc(k) + '</span><b>' + tiNum(serv[k]) + '</b></div>' +
+    '<div style="height:8px;border-radius:6px;background:rgba(255,255,255,.06);overflow:hidden;margin-bottom:8px"><span style="display:block;height:100%;width:' + Math.round(serv[k]/max*100) + '%;background:var(--blue)"></span></div>'
+  ).join('') : '<div class="empty-state"><div class="e-icon">📊</div><div class="e-text">Sin datos</div></div>';
+
+  const meta = document.getElementById('ti-meta');
+  if (meta) meta.textContent = 'Detalle calculado desde el Excel cargado · ' + tiNum(reaTurnos.length) + ' turnos / ' + tiNum(reaAll.length) + ' estudios incompletos (Estado REA) · click en cada tarjeta para ver y exportar el detalle';
 }
 
 /* ══════════════════════════════════
@@ -1364,6 +1409,7 @@ function render(data) {
   renderChartErroresOperador(data);
   populateComparativoSelectors(data);
   renderComparativoMensual();
+  renderTITab(data);   // pestaña Trámites Incompletos: detalle por aseguradora desde el Excel (Opción A)
 }
 
 /* ══════════════════════════════════
@@ -1524,6 +1570,27 @@ function esErrorTramiteFinamed(r) {
 }
 
 /* ══════════════════════════════════
+   BUCKET POR ASEGURADORA (pestaña Trámites Incompletos)
+   Clasifica cada trámite incompleto en uno de 5 grupos, mutuamente
+   excluyentes → la suma de los 5 = Total. Se usa tanto para los contadores
+   de las tarjetas como para el filtrado del detalle/export (openModal ti_*).
+     · FINAMED    → ID Aseguradora 1665
+     · HAREFIELD  → ID Aseguradora 3075
+     · PARTICULAR → Aseguradora = PARTICULAR
+     · PAMI       → nombre contiene INSSJYP o PAMI
+     · OSOTRAS    → cualquier otra OS / Prepaga
+══════════════════════════════════ */
+function tiBucket(r) {
+  const id   = String(r['ID Aseguradora']||'').trim();
+  const aseg = (r['Aseguradora']||'').trim().toUpperCase();
+  if (id === '1665') return 'FINAMED';
+  if (id === '3075') return 'HAREFIELD';
+  if (aseg === 'PARTICULAR') return 'PARTICULAR';
+  if (aseg.includes('INSSJYP') || aseg.includes('PAMI')) return 'PAMI';
+  return 'OSOTRAS';
+}
+
+/* ══════════════════════════════════
    KPIs
 ══════════════════════════════════ */
 function calcKPIs(data) {
@@ -1582,22 +1649,8 @@ function calcKPIs(data) {
   document.getElementById('kpi-aseguradora').textContent = aseguradoraErr.length.toLocaleString();
   document.getElementById('kpi-aseguradora-sub').textContent = 'FINAMED → INSSJYP';
 
-  // Trámites Incompletos (excluye Harefield y Finamed, que tienen su propio cuadro)
-  const tramitesErr = rea.filter(r => esErrorTramiteIncompleto(r) && !esErrorTramiteHarefield(r) && !esErrorTramiteFinamed(r));
-  document.getElementById('kpi-tramites').textContent = tramitesErr.length.toLocaleString();
-  const partCount = tramitesErr.filter(r => (r['Aseguradora']||'').trim().toUpperCase() === 'PARTICULAR').length;
-  const obraCount = tramitesErr.length - partCount;
-  document.getElementById('kpi-tramites-sub').textContent = `${partCount} Part. sin fact. / ${obraCount} O.S. sin orden`;
-
-  // Trámites Incompletos Harefield (subconjunto: HAREFIELD S.A. + N° Orden = 0)
-  const harefieldErr = rea.filter(r => esErrorTramiteHarefield(r));
-  document.getElementById('kpi-tramites-harefield').textContent = harefieldErr.length.toLocaleString();
-  document.getElementById('kpi-tramites-harefield-sub').textContent = `${harefieldErr.length.toLocaleString()} a recepcionar`;
-
-  // Trámites Incompletos Finamed (subconjunto: ID 1665 + N° Orden = 0)
-  const finamedErr = rea.filter(r => esErrorTramiteFinamed(r));
-  document.getElementById('kpi-tramites-finamed').textContent = finamedErr.length.toLocaleString();
-  document.getElementById('kpi-tramites-finamed-sub').textContent = `${finamedErr.length.toLocaleString()} a recepcionar`;
+  // Trámites incompletos: el detalle por aseguradora se renderiza en la pestaña
+  // "Trámites Incompletos" (renderTITab), desde el Excel cargado. Ver más abajo.
 
   // KPIs cuyo flujo ya está automatizado (bot Reparar): se atenúan, llevan badge
   // "✓ Automatizado", muestran cuántos ya se arreglaron y NO suman al total.
@@ -2882,6 +2935,12 @@ const MODAL_COLORS = {
   tramites:      'var(--red)',
   tramitesharefield: 'var(--red)',
   tramitesfinamed: 'var(--red)',
+  ti_total:      'var(--purple)',
+  ti_finamed:    'var(--blue)',
+  ti_pami:       'var(--amber)',
+  ti_harefield:  'var(--cyan)',
+  ti_osotras:    'var(--green)',
+  ti_particular: 'var(--red)',
   sumerrores:    'var(--red)',
   sumturnos:     'var(--blue)',
   sumpracticas:  'var(--cyan)',
@@ -2902,6 +2961,12 @@ const MODAL_LABELS = {
   tramites:      'Trámites Incompletos OS/Prepagas — Factura o N° Orden en 0',
   tramitesharefield: 'Trámites Incompletos Harefield — ID 3075 (HAREFIELD S.A.) con N° Orden en 0 (a recepcionar)',
   tramitesfinamed: 'Trámites Incompletos Finamed — ID 1665 (FINAMED SA - HOSP ITAL (PROV)) con N° Orden en 0 (a recepcionar)',
+  ti_total:      'Trámites Incompletos — Total (a recepcionar)',
+  ti_finamed:    'Trámites Incompletos — FINAMED (a recepcionar)',
+  ti_pami:       'Trámites Incompletos — PAMI / INSSJYP (a recepcionar)',
+  ti_harefield:  'Trámites Incompletos — Harefield (a recepcionar)',
+  ti_osotras:    'Trámites Incompletos — Otras OS / Prepagas (a recepcionar)',
+  ti_particular: 'Trámites Incompletos — Particular (a recepcionar)',
   sumerrores:    'Todos los Errores Detectados',
   sumturnos:     'Total Turnos (Únicos)',
   sumpracticas:  'Prácticas Realizadas',
@@ -2958,6 +3023,12 @@ function _openModalInternal(tipo) {
     case 'tramites':    modalRows = filtered.filter(r => esErrorTramiteIncompleto(r) && !esErrorTramiteHarefield(r)); break;
     case 'tramitesharefield': modalRows = filtered.filter(r => esErrorTramiteHarefield(r)); break;
     case 'tramitesfinamed': modalRows = filtered.filter(r => esErrorTramiteFinamed(r)); break;
+    case 'ti_total':      modalRows = filtered.filter(r => esErrorTramiteIncompleto(r)); break;
+    case 'ti_finamed':    modalRows = filtered.filter(r => esErrorTramiteIncompleto(r) && tiBucket(r)==='FINAMED'); break;
+    case 'ti_pami':       modalRows = filtered.filter(r => esErrorTramiteIncompleto(r) && tiBucket(r)==='PAMI'); break;
+    case 'ti_harefield':  modalRows = filtered.filter(r => esErrorTramiteIncompleto(r) && tiBucket(r)==='HAREFIELD'); break;
+    case 'ti_osotras':    modalRows = filtered.filter(r => esErrorTramiteIncompleto(r) && tiBucket(r)==='OSOTRAS'); break;
+    case 'ti_particular': modalRows = filtered.filter(r => esErrorTramiteIncompleto(r) && tiBucket(r)==='PARTICULAR'); break;
     case 'sumerrores':  modalRows = filtered.filter(r =>
       // Excluye tipos automatizados (Inst. Derivante, Tipo Cobertura, Fuera Fecha Fact.)
       (()=>{ const d=_safe(r['Derivante']).toUpperCase(); return !d || d==='A CONFIRMAR'; })() ||
@@ -3345,7 +3416,8 @@ async function exportExcel(asegSuffix, share) {
       sinreferencia: ['Neto Unitario','Coseguro','Localidad','Sexo','Edad'],
       tramites:      ['Neto Unitario','Coseguro','Sexo','Edad','Localidad']
     };
-    const exclude = new Set(excludeMap[modalTipo] || []);
+    const exclude = new Set(excludeMap[modalTipo] ||
+      (String(modalTipo).startsWith('ti_') ? ['Neto Unitario','Coseguro','Sexo','Edad','Localidad'] : []));
     const indices = [];
     allCols.forEach((c,i) => { if (!exclude.has(c)) indices.push(i); });
     const cols   = indices.map(i => allCols[i]);
@@ -3434,8 +3506,25 @@ async function exportExcel(asegSuffix, share) {
                    || (c==='F/ Facturación' && modalTipo==='fuerafecha' && esErrorFueraFechaFact(r))
                    || (c==='Estado' && r[c]==='SUS');
         if (isErr) SpcdExcel.Fmt.error(cell);
+
+        // Trámites Incompletos por aseguradora: resaltar la columna ASEGURADORA
+        // con un color distinto (cian eléctrico) para leerla de un vistazo.
+        if (c === 'Aseguradora' && String(modalTipo).startsWith('ti_')) {
+          SpcdExcel.fillCell(cell, SpcdExcel.P.ACCENT2);
+          cell.font = { ...(cell.font||{}), bold:true, color:{ argb: SpcdExcel.P.INK } };
+        }
       }
     });
+
+    // Resaltar también el encabezado de la columna ASEGURADORA (mismo color)
+    if (String(modalTipo).startsWith('ti_')) {
+      const ai = cols.indexOf('Aseguradora');
+      if (ai >= 0) {
+        const hc = ws.getCell(t.headerRow, ai + 1);
+        SpcdExcel.fillCell(hc, SpcdExcel.P.ACCENT2);
+        hc.font = { ...(hc.font||{}), color:{ argb: SpcdExcel.P.INK }, bold:true };
+      }
+    }
 
     const tot = SpcdExcel.buildTotals(ws, {
       startRow: t.nextRow,
