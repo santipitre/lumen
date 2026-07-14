@@ -1,4 +1,4 @@
-[Resource from GitHub at repo://santipitre/lumen/sha/a7053ab8bf97656f3beb4daa74a6201cd8a8355f/contents/admin.html] [Resource from GitHub at repo://santipitre/lumen/sha/c7e263a00747fcd37997276ef1988e3a656eb323/contents/admin.html] <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <script>
@@ -195,6 +195,68 @@
       color:var(--muted); opacity:0; transition:opacity .2s; pointer-events:none;
     }
     .kpi-card:hover .kpi-hint { opacity:.7; }
+    /* ── Recuadro de carga de Excel (pestaña Trámites Incompletos) ── */
+    .kpi-card.ti-drop {
+      border:1.5px dashed rgba(148,163,184,.45); background:rgba(148,163,184,.05);
+      display:flex; align-items:center; justify-content:center; text-align:center;
+    }
+    .kpi-card.ti-drop::after { display:none; }
+    .kpi-card.ti-drop:hover { transform:translateY(-3px); border-color:var(--blue); background:rgba(59,130,246,.06); box-shadow:0 8px 28px rgba(59,130,246,.15); }
+    .kpi-card.ti-drop.dragover { border-color:var(--blue); border-style:solid; background:rgba(59,130,246,.14); box-shadow:0 0 0 2px rgba(59,130,246,.35) inset; }
+    .kpi-card.ti-drop.has-file { border-style:solid; border-color:rgba(85,231,139,.5); background:rgba(85,231,139,.06); }
+    .ti-drop-inner { pointer-events:none; }
+    .ti-drop-clear { pointer-events:auto; }
+    .ti-drop-icon  { font-size:30px; opacity:.85; margin-bottom:6px; }
+    .ti-drop-title { font-family:'Rajdhani',sans-serif; font-size:15px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--blue); }
+    .kpi-card.ti-drop.has-file .ti-drop-title { color:var(--green); }
+    .ti-drop-sub   { font-size:10.5px; color:var(--muted); margin-top:5px; line-height:1.35; max-width:170px; }
+    .ti-drop-clear {
+      margin-top:9px; font-size:10px; letter-spacing:1px; text-transform:uppercase;
+      background:rgba(248,113,113,.12); border:1px solid rgba(248,113,113,.35); color:#fca5a5;
+      border-radius:6px; padding:4px 10px; cursor:pointer; transition:background .15s;
+    }
+    .ti-drop-clear:hover { background:rgba(248,113,113,.22); }
+    /* ── Modal de detalle local (líneas leídas del Excel subido) ── */
+    #ti-detail-overlay {
+      display:none; position:fixed; inset:0; z-index:1200;
+      background:rgba(0,0,0,.66); backdrop-filter:blur(4px);
+      align-items:center; justify-content:center; padding:24px;
+    }
+    #ti-detail-overlay.open { display:flex; }
+    .ti-detail-box {
+      background:#0c1420; border:1px solid var(--border); border-radius:12px;
+      width:min(1100px,96vw); max-height:88vh; display:flex; flex-direction:column;
+      box-shadow:0 24px 70px rgba(0,0,0,.6); overflow:hidden;
+    }
+    .ti-detail-head { padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:14px; }
+    .ti-detail-bar  { width:6px; align-self:stretch; border-radius:4px; background:var(--blue); }
+    .ti-detail-title{ font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#e5eefb; }
+    .ti-detail-count{ font-size:12px; color:var(--muted); margin-top:2px; }
+    .ti-detail-actions { margin-left:auto; display:flex; gap:8px; align-items:center; }
+    .ti-btn {
+      font-family:'Rajdhani',sans-serif; font-size:12.5px; font-weight:700; letter-spacing:1px;
+      border-radius:7px; padding:8px 14px; cursor:pointer; border:1px solid var(--border);
+      background:rgba(59,130,246,.12); color:var(--blue); transition:background .15s;
+    }
+    .ti-btn:hover { background:rgba(59,130,246,.24); }
+    .ti-btn.ghost { background:transparent; color:var(--muted); }
+    .ti-btn.ghost:hover { background:rgba(255,255,255,.06); color:#fff; }
+    .ti-detail-search { margin:12px 20px 0; }
+    .ti-detail-search input {
+      width:100%; box-sizing:border-box; background:rgba(255,255,255,.04); border:1px solid var(--border);
+      border-radius:8px; padding:9px 12px; color:#e5eefb; font-size:13px;
+    }
+    .ti-detail-body { flex:1; overflow:auto; margin:12px 0 0; }
+    .ti-detail-body table { border-collapse:collapse; width:100%; font-size:12px; }
+    .ti-detail-body th {
+      position:sticky; top:0; background:#101c2c; text-align:left; padding:8px 10px;
+      color:var(--muted); font-size:10.5px; text-transform:uppercase; letter-spacing:.5px;
+      border-bottom:1px solid var(--border); white-space:nowrap; z-index:1;
+    }
+    .ti-detail-body td { padding:7px 10px; border-bottom:1px solid rgba(255,255,255,.05); white-space:nowrap; color:#cdd8e6; }
+    .ti-detail-body tr:hover td { background:rgba(59,130,246,.06); }
+    .ti-detail-body td.ti-col-aseg { color:var(--cyan); font-weight:600; }
+    .ti-detail-foot { padding:10px 20px; border-top:1px solid var(--border); font-size:11px; color:var(--muted); }
     /* KPIs automatizados (bot Reparar): NO atenuados — se distinguen por el badge
        + el contador de arreglados. El badge va en el flujo (no absoluto) para no
        superponerse con el subtexto. */
@@ -627,12 +689,23 @@
   <div class="tab-pane" id="tab-tramites-inc">
     <div class="kpi-section-label sec-tramites">Trámites incompletos · a recepcionar (por aseguradora)</div>
     <div class="kpi-grid kpi-grid-tramites fade-in">
-      <div class="kpi-card purple" onclick="openModal('ti_total')"><div class="kpi-icon">📋</div><div class="kpi-label">Total trámites</div><div class="kpi-val" id="ti-total">—</div><div class="kpi-sub" id="ti-total-sub">turnos únicos</div><div class="kpi-hint">ver detalle →</div></div>
-      <div class="kpi-card blue" onclick="openModal('ti_finamed')"><div class="kpi-icon">🏢</div><div class="kpi-label">FINAMED</div><div class="kpi-val" id="ti-FINAMED">—</div><div class="kpi-sub" id="ti-FINAMED-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
-      <div class="kpi-card amber" onclick="openModal('ti_pami')"><div class="kpi-icon">🏢</div><div class="kpi-label">PAMI (INSSJYP)</div><div class="kpi-val" id="ti-PAMI">—</div><div class="kpi-sub" id="ti-PAMI-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
-      <div class="kpi-card cyan" onclick="openModal('ti_harefield')"><div class="kpi-icon">🏢</div><div class="kpi-label">Harefield</div><div class="kpi-val" id="ti-HAREFIELD">—</div><div class="kpi-sub" id="ti-HAREFIELD-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
-      <div class="kpi-card green" onclick="openModal('ti_osotras')"><div class="kpi-icon">🏢</div><div class="kpi-label">Otras OS / Prepagas</div><div class="kpi-val" id="ti-OSOTRAS">—</div><div class="kpi-sub" id="ti-OSOTRAS-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
-      <div class="kpi-card red" onclick="openModal('ti_particular')"><div class="kpi-icon">🧾</div><div class="kpi-label">Particular</div><div class="kpi-val" id="ti-PARTICULAR">—</div><div class="kpi-sub" id="ti-PARTICULAR-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card purple" onclick="tiCardClick('TOTAL')"><div class="kpi-icon">📋</div><div class="kpi-label">Total trámites</div><div class="kpi-val" id="ti-total">—</div><div class="kpi-sub" id="ti-total-sub">turnos únicos</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card blue" onclick="tiCardClick('FINAMED')"><div class="kpi-icon">🏢</div><div class="kpi-label">FINAMED</div><div class="kpi-val" id="ti-FINAMED">—</div><div class="kpi-sub" id="ti-FINAMED-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card amber" onclick="tiCardClick('PAMI')"><div class="kpi-icon">🏢</div><div class="kpi-label">PAMI (INSSJYP)</div><div class="kpi-val" id="ti-PAMI">—</div><div class="kpi-sub" id="ti-PAMI-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card cyan" onclick="tiCardClick('HAREFIELD')"><div class="kpi-icon">🏢</div><div class="kpi-label">Harefield</div><div class="kpi-val" id="ti-HAREFIELD">—</div><div class="kpi-sub" id="ti-HAREFIELD-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card green" onclick="tiCardClick('OSOTRAS')"><div class="kpi-icon">🏢</div><div class="kpi-label">Otras OS / Prepagas</div><div class="kpi-val" id="ti-OSOTRAS">—</div><div class="kpi-sub" id="ti-OSOTRAS-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card red" onclick="tiCardClick('PARTICULAR')"><div class="kpi-icon">🧾</div><div class="kpi-label">Particular</div><div class="kpi-val" id="ti-PARTICULAR">—</div><div class="kpi-sub" id="ti-PARTICULAR-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
+
+      <!-- Recuadro de carga de Excel: alimenta los 6 cuadros de arriba -->
+      <div class="kpi-card ti-drop" id="ti-dropzone" onclick="tiDrop.pick()" title="Click o arrastrá el Excel acá para alimentar los 6 cuadros">
+        <input type="file" id="ti-file-input" accept=".xlsx,.xlsm,.xls,.csv" style="display:none" onchange="tiDrop.onInput(event)">
+        <div class="ti-drop-inner">
+          <div class="ti-drop-icon" id="ti-drop-icon">📥</div>
+          <div class="ti-drop-title" id="ti-drop-title">Subí el Excel</div>
+          <div class="ti-drop-sub" id="ti-drop-sub">Click o arrastrá el archivo acá</div>
+          <button class="ti-drop-clear" id="ti-drop-clear" style="display:none" onclick="event.stopPropagation(); tiDrop.clear()">✕ quitar</button>
+        </div>
+      </div>
     </div>
     <div class="charts-row fade-in">
       <div class="chart-card">
@@ -981,6 +1054,28 @@
 
 </div><!-- /main -->
 
+<!-- ══════ MODAL DETALLE LOCAL (Trámites Incompletos · Excel subido) ══════ -->
+<div id="ti-detail-overlay" onclick="if(event.target===this) tiDrop.closeDetail()">
+  <div class="ti-detail-box">
+    <div class="ti-detail-head">
+      <div class="ti-detail-bar" id="ti-detail-bar"></div>
+      <div>
+        <div class="ti-detail-title" id="ti-detail-title">Detalle</div>
+        <div class="ti-detail-count" id="ti-detail-count"></div>
+      </div>
+      <div class="ti-detail-actions">
+        <button class="ti-btn" onclick="tiDrop.exportCurrent()">⬇ Exportar a Excel</button>
+        <button class="ti-btn ghost" onclick="tiDrop.closeDetail()">✕ Cerrar</button>
+      </div>
+    </div>
+    <div class="ti-detail-search">
+      <input type="text" id="ti-detail-search" placeholder="Buscar en el detalle…" oninput="tiDrop.filterDetail(this.value)">
+    </div>
+    <div class="ti-detail-body" id="ti-detail-body"></div>
+    <div class="ti-detail-foot" id="ti-detail-foot"></div>
+  </div>
+</div>
+
 <!-- ══════ MODAL DRAWER ══════ -->
 <div class="modal-overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
   <div class="modal-drawer" id="modal-drawer">
@@ -1251,6 +1346,7 @@ async function cargarTramitesInc(force = true) {
 }
 
 function renderTramitesInc(p, generado) {
+  if (typeof tiDrop !== 'undefined' && tiDrop.active) return;   // el Excel subido en la pestaña manda sobre estos 6 cuadros
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   set('ti-total', tiNum(p.total_incompletos));
   set('ti-total-sub', tiNum(p.total_lineas_incompletas) + ' estudios');
@@ -1283,6 +1379,219 @@ function renderTramitesInc(p, generado) {
   if (meta) meta.textContent = 'Actualizado ' + (generado || p.generado_en || '') + ' · archivo ' + (p.archivo || '—') + ' · el detalle por paciente se ve en la herramienta local (no se sube a la nube)';
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   TRÁMITES INCOMPLETOS · CARGA LOCAL DE EXCEL (recuadro en la pestaña)
+   ----------------------------------------------------------------------
+   El usuario sube/arrastra un Excel al recuadro que está al lado de los 6
+   cuadros. Con esas filas se alimentan los 6 cuadros según estas reglas:
+     1. Quitar duplicados por "N° Turno".
+     2. Total trámites = cantidad de turnos (líneas deduplicadas).
+     3. FINAMED    = ASEGURADORA contiene "FINAMED".
+     4. PAMI       = ASEGURADORA contiene "INSSJYP"/"PAMI".
+     5. HAREFIELD  = ASEGURADORA contiene "HAREFIELD".
+     6. PARTICULAR = ASEGURADORA contiene "PARTICULAR".
+     7. OTRAS OS/PREPAGAS = todo lo que no cae en las anteriores.
+   Los buckets son mutuamente excluyentes → suman el Total.
+   "estudios" (subtítulo) = líneas ANTES de deduplicar por turno.
+   Al clickear cada cuadro se ve el detalle de las líneas leídas + export.
+   Es un módulo autónomo: no toca el pipeline del dashboard. Mientras haya
+   un Excel subido acá, estos 6 cuadros lo respetan (tiDrop.active).
+══════════════════════════════════════════════════════════════════════ */
+const tiDrop = {
+  active:false, rows:[], headers:[], colTurno:null, colAseg:null, colServ:null,
+  fileName:'', rawRows:[], dedupRows:[], byBucket:{}, byTurnos:{},
+  detailKey:null, detailAll:[],
+
+  LABEL:{ TOTAL:'Total trámites', FINAMED:'FINAMED', PAMI:'PAMI (INSSJYP)', HAREFIELD:'Harefield', OSOTRAS:'Otras OS / Prepagas', PARTICULAR:'Particular' },
+  COLOR:{ TOTAL:'var(--purple)', FINAMED:'var(--blue)', PAMI:'var(--amber)', HAREFIELD:'var(--cyan)', OSOTRAS:'var(--green)', PARTICULAR:'var(--red)' },
+  BUCKETS:['FINAMED','PAMI','HAREFIELD','OSOTRAS','PARTICULAR'],
+
+  S(v){ return String(v==null?'':v).trim(); },
+  normH(s){ return String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,''); },
+
+  collectHeaders(rows){ const out=[], seen=new Set(); rows.slice(0,50).forEach(r=>Object.keys(r).forEach(k=>{ if(!seen.has(k)){ seen.add(k); out.push(k); } })); return out; },
+  findTurno(hs){ const ex=['NTURNO','NROTURNO','NUMEROTURNO','NUMERODETURNO','TURNON','TURNONRO','TURNONUMERO','TURNONO']; let c=hs.find(h=>ex.includes(this.normH(h))); if(!c) c=hs.find(h=>{const n=this.normH(h); return n.includes('TURNO')&&!n.includes('FECHA')&&!n.includes('HORA')&&!n.includes('ESTADO')&&!n.includes('TIPO')&&!n.includes('ORIGEN');}); return c||null; },
+  findAseg(hs){ let c=hs.find(h=>this.normH(h)==='ASEGURADORA'); if(!c) c=hs.find(h=>{const n=this.normH(h); return n.includes('ASEGURAD')||n.includes('OBRASOCIAL')||n==='OS';}); return c||null; },
+  findServicio(hs){ const ex=['SERVICIO','PRESTACION','PRACTICA','MODALIDAD','ESTUDIO','TIPOESTUDIO','TIPODEESTUDIO']; let c=hs.find(h=>ex.includes(this.normH(h))); if(!c) c=hs.find(h=>{const n=this.normH(h); return n.includes('SERVICIO')||n.includes('PRESTACION')||n.includes('MODALIDAD');}); return c||null; },
+
+  bucket(aseg){ const A=this.normH(aseg); if(!A) return 'OSOTRAS'; if(A.includes('PARTICULAR')) return 'PARTICULAR'; if(A.includes('FINAMED')) return 'FINAMED'; if(A.includes('INSSJYP')||A.includes('PAMI')) return 'PAMI'; if(A.includes('HAREFIELD')) return 'HAREFIELD'; return 'OSOTRAS'; },
+
+  setup(){
+    const dz=document.getElementById('ti-dropzone'); if(!dz) return;
+    ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{ e.preventDefault(); e.stopPropagation(); dz.classList.add('dragover'); }));
+    ['dragleave','dragend'].forEach(ev=>dz.addEventListener(ev,e=>{ e.preventDefault(); e.stopPropagation(); if(ev==='dragleave'&&dz.contains(e.relatedTarget)) return; dz.classList.remove('dragover'); }));
+    dz.addEventListener('drop',e=>{ e.preventDefault(); e.stopPropagation(); dz.classList.remove('dragover'); const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) this.read(f); });
+    // Evitar que el navegador abra un archivo soltado fuera del recuadro
+    ['dragover','drop'].forEach(ev=>document.addEventListener(ev,e=>{ if(!dz.contains(e.target)) e.preventDefault(); }, false));
+    // Escape cierra el modal de detalle local (antes que el handler global)
+    document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ const ov=document.getElementById('ti-detail-overlay'); if(ov&&ov.classList.contains('open')){ e.stopPropagation(); this.closeDetail(); } } }, true);
+  },
+
+  pick(){ const fi=document.getElementById('ti-file-input'); if(fi) fi.click(); },
+  onInput(e){ const f=e.target.files&&e.target.files[0]; if(f) this.read(f); e.target.value=''; },
+
+  async read(file){
+    const setIcon=t=>{ const el=document.getElementById('ti-drop-icon'); if(el) el.textContent=t; };
+    const setTitle=t=>{ const el=document.getElementById('ti-drop-title'); if(el) el.textContent=t; };
+    const setSub=t=>{ const el=document.getElementById('ti-drop-sub'); if(el) el.textContent=t; };
+    const dz=document.getElementById('ti-dropzone');
+    try{
+      setIcon('⏳'); setTitle('Leyendo…'); setSub(file.name);
+      const buf=await file.arrayBuffer();
+      const wb=XLSX.read(buf,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      if(!ws) throw new Error('El archivo no tiene hojas.');
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
+      if(!rows.length) throw new Error('La hoja está vacía.');
+      const headers=this.collectHeaders(rows);
+      const colTurno=this.findTurno(headers), colAseg=this.findAseg(headers);
+      if(!colTurno||!colAseg){
+        const falta=[]; if(!colTurno) falta.push('"N° Turno"'); if(!colAseg) falta.push('"Aseguradora"');
+        throw new Error('No encontré la columna '+falta.join(' ni ')+'. Encabezados detectados: '+headers.slice(0,14).join(', '));
+      }
+      this.rows=rows; this.headers=headers; this.colTurno=colTurno; this.colAseg=colAseg;
+      this.colServ=this.findServicio(headers); this.fileName=file.name; this.active=true;
+      this.compute();
+      dz.classList.add('has-file');
+      setIcon('✅'); setTitle('Archivo cargado');
+      setSub(file.name+' · '+tiNum(this.rawRows.length)+' filas');
+      document.getElementById('ti-drop-clear').style.display='inline-block';
+    }catch(err){
+      console.error('[tiDrop] read', err);
+      this.active=false; if(dz) dz.classList.remove('has-file');
+      setIcon('⚠️'); setTitle('No se pudo leer');
+      setSub((err&&err.message)?err.message:'Error al leer el archivo');
+      document.getElementById('ti-drop-clear').style.display='inline-block';
+    }
+  },
+
+  compute(){
+    const S=this.S.bind(this);
+    const raw=this.rows.filter(r=> S(r[this.colTurno])!=='' || S(r[this.colAseg])!=='');
+    this.rawRows=raw;
+    const seen=new Set(), dedup=[];
+    raw.forEach(r=>{ const t=S(r[this.colTurno]).toUpperCase(); if(t){ if(seen.has(t)) return; seen.add(t); } dedup.push(r); });
+    this.dedupRows=dedup;
+    const by={ FINAMED:[], PAMI:[], HAREFIELD:[], OSOTRAS:[], PARTICULAR:[] };
+    raw.forEach(r=>{ by[this.bucket(r[this.colAseg])].push(r); });
+    const byT={};
+    Object.keys(by).forEach(k=>{ const s=new Set(); let t=0; by[k].forEach(r=>{ const tn=S(r[this.colTurno]).toUpperCase(); if(tn){ if(s.has(tn)) return; s.add(tn); } t++; }); byT[k]=t; });
+    this.byBucket=by; this.byTurnos=byT;
+
+    const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+    set('ti-total', tiNum(dedup.length)); set('ti-total-sub', tiNum(raw.length)+' estudios');
+    this.BUCKETS.forEach(k=>{ set('ti-'+k, tiNum(byT[k])); set('ti-'+k+'-sub', tiNum(by[k].length)+' estudios'); });
+    this.renderPanels();
+    const meta=document.getElementById('ti-meta');
+    if(meta) meta.textContent='Detalle calculado desde el Excel subido ('+this.fileName+') · '+tiNum(dedup.length)+' turnos / '+tiNum(raw.length)+' estudios · click en cada tarjeta para ver y exportar el detalle';
+  },
+
+  renderPanels(){
+    const S=this.S.bind(this), raw=this.rawRows;
+    const g={};
+    raw.forEach(r=>{ const name=S(r[this.colAseg])||'—'; if(!g[name]) g[name]={t:new Set(),blank:0,l:0}; g[name].l++; const tn=S(r[this.colTurno]).toUpperCase(); if(tn) g[name].t.add(tn); else g[name].blank++; });
+    const arr=Object.entries(g).map(([k,v])=>({aseg:k,turnos:v.t.size+v.blank,lineas:v.l})).sort((a,b)=>b.turnos-a.turnos);
+    const cont=document.getElementById('ti-aseg');
+    if(cont) cont.innerHTML = arr.length ? (
+      '<table style="width:100%;border-collapse:collapse;font-size:12.5px">' +
+      '<thead><tr>' +
+      '<th style="text-align:left;padding:6px 4px;color:var(--muted);font-size:11px;text-transform:uppercase">Aseguradora</th>' +
+      '<th style="text-align:right;padding:6px 4px;color:var(--muted);font-size:11px;text-transform:uppercase">Turnos</th>' +
+      '<th style="text-align:right;padding:6px 4px;color:var(--muted);font-size:11px;text-transform:uppercase">Estudios</th>' +
+      '</tr></thead><tbody>' +
+      arr.map(a => '<tr>' +
+        '<td style="padding:6px 4px;border-top:1px solid rgba(255,255,255,.05)">' + tiEsc(a.aseg) + '</td>' +
+        '<td style="padding:6px 4px;text-align:right;border-top:1px solid rgba(255,255,255,.05);font-family:Rajdhani,Inter,sans-serif;font-weight:700">' + tiNum(a.turnos) + '</td>' +
+        '<td style="padding:6px 4px;text-align:right;border-top:1px solid rgba(255,255,255,.05);color:var(--muted)">' + tiNum(a.lineas) + '</td></tr>').join('') +
+      '</tbody></table>'
+    ) : '<div class="empty-state"><div class="e-icon">🏢</div><div class="e-text">Sin filas en el Excel subido</div></div>';
+
+    const sc=document.getElementById('ti-serv');
+    if(sc){
+      if(this.colServ){
+        const serv={}; raw.forEach(r=>{ const s=S(r[this.colServ])||'—'; serv[s]=(serv[s]||0)+1; });
+        const keys=Object.keys(serv).sort((a,b)=>serv[b]-serv[a]); const max=Math.max(1,...keys.map(k=>serv[k]));
+        sc.innerHTML = keys.length ? keys.map(k =>
+          '<div style="display:flex;justify-content:space-between;font-size:12.5px;margin:2px 0 4px"><span>' + tiEsc(k) + '</span><b>' + tiNum(serv[k]) + '</b></div>' +
+          '<div style="height:8px;border-radius:6px;background:rgba(255,255,255,.06);overflow:hidden;margin-bottom:8px"><span style="display:block;height:100%;width:' + Math.round(serv[k]/max*100) + '%;background:var(--blue)"></span></div>'
+        ).join('') : '<div class="empty-state"><div class="e-icon">📊</div><div class="e-text">Sin datos</div></div>';
+      } else {
+        sc.innerHTML = '<div class="empty-state"><div class="e-icon">📊</div><div class="e-text">El Excel subido no tiene columna de servicio</div></div>';
+      }
+    }
+  },
+
+  orderedHeads(){ const front=[this.colTurno,this.colAseg].filter(Boolean); const rest=this.headers.filter(h=>h!==this.colTurno&&h!==this.colAseg); return front.concat(rest); },
+
+  openDetail(key){
+    if(!this.active) return;
+    const rows = (key==='TOTAL') ? this.rawRows : (this.byBucket[key]||[]);
+    const turnos = (key==='TOTAL') ? this.dedupRows.length : (this.byTurnos[key]||0);
+    this.detailKey=key; this.detailAll=rows;
+    document.getElementById('ti-detail-title').textContent = this.LABEL[key]||'Detalle';
+    document.getElementById('ti-detail-count').textContent = tiNum(turnos)+' turnos · '+tiNum(rows.length)+' estudios';
+    document.getElementById('ti-detail-bar').style.background = this.COLOR[key]||'var(--blue)';
+    const srch=document.getElementById('ti-detail-search'); if(srch) srch.value='';
+    this.renderDetail(rows);
+    document.getElementById('ti-detail-overlay').classList.add('open');
+  },
+
+  renderDetail(rows, total){
+    const heads=this.orderedHeads();
+    let html='<table><thead><tr>'+heads.map(h=>'<th>'+tiEsc(h)+'</th>').join('')+'</tr></thead><tbody>';
+    html+=rows.map(r=>'<tr>'+heads.map(h=>{ const cls=(h===this.colAseg)?' class="ti-col-aseg"':''; return '<td'+cls+'>'+tiEsc(r[h])+'</td>'; }).join('')+'</tr>').join('');
+    html+='</tbody></table>';
+    const body=document.getElementById('ti-detail-body'); if(body) body.innerHTML=html;
+    const foot=document.getElementById('ti-detail-foot');
+    if(foot) foot.textContent = (total!=null) ? (tiNum(rows.length)+' de '+tiNum(total)+' líneas') : (tiNum(rows.length)+' líneas');
+  },
+
+  filterDetail(q){
+    const s=String(q||'').toLowerCase().trim();
+    if(!s){ this.renderDetail(this.detailAll); return; }
+    const heads=this.orderedHeads();
+    const f=this.detailAll.filter(r=>heads.some(h=>String(r[h]==null?'':r[h]).toLowerCase().includes(s)));
+    this.renderDetail(f, this.detailAll.length);
+  },
+
+  closeDetail(){ const ov=document.getElementById('ti-detail-overlay'); if(ov) ov.classList.remove('open'); },
+
+  exportCurrent(){
+    try{
+      const key=this.detailKey||'TOTAL'; const rows=this.detailAll||[]; const heads=this.orderedHeads();
+      const aoa=[heads].concat(rows.map(r=>heads.map(h=>{ const v=r[h]; return v==null?'':v; })));
+      const ws=XLSX.utils.aoa_to_sheet(aoa);
+      const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, (this.LABEL[key]||'Detalle').replace(/[\\\/\?\*\[\]:]/g,' ').slice(0,28)||'Detalle');
+      const d=new Date(); const stamp=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      XLSX.writeFile(wb, 'Tramites_Incompletos_'+key+'_'+stamp+'.xlsx');
+    }catch(err){ console.error('[tiDrop] export', err); alert('No se pudo exportar el detalle: '+((err&&err.message)||err)); }
+  },
+
+  clear(){
+    this.active=false; this.rows=[]; this.rawRows=[]; this.dedupRows=[]; this.byBucket={}; this.byTurnos={}; this.colServ=null;
+    const dz=document.getElementById('ti-dropzone'); if(dz) dz.classList.remove('has-file','dragover');
+    const setTxt=(id,t)=>{ const el=document.getElementById(id); if(el) el.textContent=t; };
+    setTxt('ti-drop-icon','📥'); setTxt('ti-drop-title','Subí el Excel'); setTxt('ti-drop-sub','Click o arrastrá el archivo acá');
+    const clr=document.getElementById('ti-drop-clear'); if(clr) clr.style.display='none';
+    const fi=document.getElementById('ti-file-input'); if(fi) fi.value='';
+    // Reset visual de los cuadros y revertir a la fuente original (dashboard o snapshot)
+    ['ti-total','ti-FINAMED','ti-PAMI','ti-HAREFIELD','ti-OSOTRAS','ti-PARTICULAR'].forEach(id=>setTxt(id,'—'));
+    setTxt('ti-total-sub','turnos únicos'); ['FINAMED','PAMI','HAREFIELD','OSOTRAS','PARTICULAR'].forEach(k=>setTxt('ti-'+k+'-sub','a recepcionar'));
+    if(Array.isArray(rawData)&&rawData.length){ try{ renderTITab(filtered); }catch(e){} }
+    else { _tiSig=''; try{ cargarTramitesInc(true); }catch(e){} }
+  }
+};
+
+function tiCardClick(key){
+  if(typeof tiDrop !== 'undefined' && tiDrop.active){ tiDrop.openDetail(key); return; }
+  const map={ TOTAL:'ti_total', FINAMED:'ti_finamed', PAMI:'ti_pami', HAREFIELD:'ti_harefield', OSOTRAS:'ti_osotras', PARTICULAR:'ti_particular' };
+  openModal(map[key]||'ti_total');
+}
+
+// Auto-init del recuadro (drag&drop) apenas el DOM esté listo.
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>{ try{ tiDrop.setup(); }catch(e){ console.warn('[tiDrop] setup',e); } });
+else { try{ tiDrop.setup(); }catch(e){ console.warn('[tiDrop] setup',e); } }
+
 /* ══════════════════════════════════
    TRÁMITES INCOMPLETOS (pestaña) — versión Excel local (Opción A)
    Cuando hay un Excel cargado, la pestaña se alimenta de `filtered` (mismo
@@ -1291,6 +1600,7 @@ function renderTramitesInc(p, generado) {
    Sustituye al snapshot de Supabase mientras haya datos locales.
 ══════════════════════════════════ */
 function renderTITab(data) {
+  if (typeof tiDrop !== 'undefined' && tiDrop.active) return;   // el Excel subido en la pestaña manda sobre estos 6 cuadros
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   const reaAll    = (data || []).filter(r => r['Estado'] === 'REA' && esErrorTramiteIncompleto(r)); // estudios (líneas)
   const reaTurnos = dedupByTurno(reaAll);                                                            // turnos únicos
