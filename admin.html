@@ -655,7 +655,7 @@
       <div class="kpi-icon">⚠️</div>
       <div class="kpi-label">Tipo Cobertura</div>
       <div class="kpi-val" id="kpi-cobertura">—</div>
-      <div class="kpi-sub" id="kpi-cobertura-sub">ID 3075/1665 sin OBL</div>
+      <div class="kpi-sub" id="kpi-cobertura-sub">≠ OBL (excl. Particular)</div>
       <div class="kpi-hint">ver detalle →</div>
     </div>
     <div class="kpi-card amber" onclick="openModal('fuerafecha')">
@@ -1881,11 +1881,14 @@ function calcSummaryBar(data) {
   // turnos con varios errores ni líneas múltiples del mismo turno). Coincide
   // con el modal "Total Errores" que se abre al hacer click en esta tarjeta.
   const reaUniq = dedupByTurno(reaData);
+  // Coseguro se evalúa a NIVEL LÍNEA → marcamos los Turno N° que tienen alguna
+  // línea con error de coseguro (si no, el dedup lo borra y nunca suma).
+  const cosegTurnos = new Set(reaData.filter(esErrorCoseguro).map(r => _safe(r['Turno N°'])));
   // NO suma los tipos automatizados (Inst. Derivante, Tipo Cobertura, Fuera Fecha
   // Fact.): tienen bot Reparar y se muestran aparte como "✓ Automatizado".
   const totalErrores = reaUniq.filter(r =>
     (()=>{ const d=(r['Derivante']||'').trim().toUpperCase(); return !d || d==='A CONFIRMAR'; })() ||
-    (()=>{ const id=String(r['ID Aseguradora']||'').trim(); const cu=(r['Cuenta']||'').trim().toUpperCase(); const pr=(r['Prestación']||r['Prestacion']||'').trim().toUpperCase(); const ne=parseFloat(r['Neto Unitario']||0); return id==='1665'&&cu.includes('OSEP')&&pr==='COSEGURO'&&ne===0; })() ||
+    cosegTurnos.has(_safe(r['Turno N°'])) ||
     esErrorReferencia(r) ||
     esErrorTramiteIncompleto(r)
   ).length;
@@ -1908,10 +1911,29 @@ const OPERADORES_FUESMEN = new Set([
 ]);
 
 function esErrorInstDerivante(r) {
+  // 2026-07-15: la whitelist OPERADORES_FUESMEN quedó obsoleta (0 matches sobre
+  // 331 turnos con Inst Derivante = FUESMEN). Ahora se marca TODO turno FUESMEN
+  // para revisión manual. Para volver a acotar por operador, restaurar el filtro
+  // comentado usando la lista actualizada de operadores.
   const inst = (r['Inst Derivante']||'').trim().toUpperCase();
   if (inst !== 'FUESMEN') return false;
-  const op = (r['Operador']||'').trim().toUpperCase();
-  return OPERADORES_FUESMEN.has(op);
+  // const op = (r['Operador']||'').trim().toUpperCase();
+  // return OPERADORES_FUESMEN.has(op);
+  return true;
+}
+
+/* ══════════════════════════════════
+   ERROR COSEGURO  (2026-07-15)
+   Coseguro cargado en $0 sobre cuenta OSEP → error de carga.
+   Se evalúa a NIVEL LÍNEA: el coseguro es una línea aparte dentro del turno,
+   así que NO debe pasar por dedupByTurno (si no, se pierde). Antes exigía
+   ID Aseguradora = 1665 (FINAMED) — bug: OSEP es ID 745/869, nunca matcheaba.
+══════════════════════════════════ */
+function esErrorCoseguro(r) {
+  const cuenta = (r['Cuenta']||'').trim().toUpperCase();
+  const prest  = (r['Prestación']||r['Prestacion']||'').trim().toUpperCase();
+  const neto   = parseFloat(r['Neto Unitario']||0);
+  return cuenta.includes('OSEP') && prest === 'COSEGURO' && neto === 0;
 }
 
 /* ══════════════════════════════════
@@ -1936,8 +1958,11 @@ function esErrorReferencia(r) {
    Si ID Aseguradora es 3075 o 1665 y Tipo Cobertura NO es OBL → error
 ══════════════════════════════════ */
 function esErrorCobertura(r) {
-  const idAseg = String(r['ID Aseguradora']||'').trim();
-  if (idAseg !== '3075' && idAseg !== '1665') return false;
+  // 2026-07-15: ampliado más allá de ID 3075/1665. Marca cualquier Tipo
+  // Cobertura ≠ OBL, salvo PARTICULAR (donde OPT es legítimo). Para volver al
+  // alcance viejo, restaurar el filtro por ID 3075/1665.
+  const aseg = (r['Aseguradora']||'').trim().toUpperCase();
+  if (aseg === 'PARTICULAR') return false;
   const tipo = (r['Tipo Cobertura']||'').trim().toUpperCase();
   return tipo !== 'OBL';
 }
@@ -2058,31 +2083,30 @@ function calcKPIs(data) {
   document.getElementById('kpi-derivantes').textContent = derivErr.length.toLocaleString();
   document.getElementById('kpi-deriv-sub').textContent  = `${rea.length ? ((derivErr.length/rea.length)*100).toFixed(1) : 0}% de REA`;
 
-  // Error coseguro: ID Aseguradora=1665, Cuenta contiene OSEP, Prestación=COSEGURO, Neto Unitario=0
-  const cosegErr = rea.filter(r => {
-    const idAseg = String(r['ID Aseguradora']||'').trim();
-    const cuenta = (r['Cuenta']||'').trim().toUpperCase();
-    const prest  = (r['Prestación']||r['Prestacion']||'').trim().toUpperCase();
-    const neto   = parseFloat(r['Neto Unitario']||0);
-    return idAseg === '1665' && cuenta.includes('OSEP') && prest === 'COSEGURO' && neto === 0;
-  });
+  // Error coseguro: cuenta OSEP + Prestación COSEGURO + Neto $0. A NIVEL LÍNEA
+  // (no dedup): el coseguro es una línea aparte y el dedup por turno lo borraba.
+  const reaLineas = data.filter(r => r['Estado'] === 'REA');
+  const cosegErr = reaLineas.filter(esErrorCoseguro);
   document.getElementById('kpi-coseguros').textContent = cosegErr.length.toLocaleString();
-  document.getElementById('kpi-coseg-sub').textContent = `${rea.length ? ((cosegErr.length/rea.length)*100).toFixed(1) : 0}% de REA`;
+  document.getElementById('kpi-coseg-sub').textContent = `${reaLineas.length ? ((cosegErr.length/reaLineas.length)*100).toFixed(1) : 0}% de líneas REA`;
 
   const sinRef = rea.filter(r => esErrorReferencia(r)).length;
   document.getElementById('kpi-referencia').textContent = sinRef.toLocaleString();
   const total1665 = rea.filter(r => String(r['ID Aseguradora']||'').trim()==='1665').length;
   document.getElementById('kpi-ref-sub').textContent = `${total1665 ? ((sinRef/total1665)*100).toFixed(1) : 0}% de ID 1665`;
 
-  // Tipo Cobertura: error si ID 3075 o 1665 y Tipo Cobertura ≠ OBL
+  // Tipo Cobertura: error si Tipo Cobertura ≠ OBL (cualquier aseguradora salvo PARTICULAR)
   const cobErr = rea.filter(r => esErrorCobertura(r));
   document.getElementById('kpi-cobertura').textContent = cobErr.length.toLocaleString();
   const reaOblIds = rea.filter(r => { const id=String(r['ID Aseguradora']||'').trim(); return id==='3075'||id==='1665'; });
   const totalOblIds = reaOblIds.length;
   // Nombres de aseguradoras para IDs 3075/1665
   const asegNombres3075_1665 = [...new Set(reaOblIds.map(r => r['Aseguradora']).filter(Boolean))].slice(0,3).join(', ') || 'ID 3075/1665';
-  const pctCob = totalOblIds ? ((cobErr.length/totalOblIds)*100).toFixed(1) : 0;
-  document.getElementById('kpi-cobertura-sub').textContent = `${pctCob}% — ${asegNombres3075_1665}`;
+  // Denominador: REA no-PARTICULAR (el alcance nuevo de la regla).
+  const reaNoPart = rea.filter(r => (r['Aseguradora']||'').trim().toUpperCase() !== 'PARTICULAR').length;
+  const pctCob = reaNoPart ? ((cobErr.length/reaNoPart)*100).toFixed(1) : 0;
+  const asegCobTop = [...new Set(cobErr.map(r => r['Aseguradora']).filter(Boolean))].slice(0,3).join(', ') || '≠ OBL';
+  document.getElementById('kpi-cobertura-sub').textContent = `${pctCob}% ≠ OBL — ${asegCobTop}`;
 
   // Fuera Fecha Facturación: ID 3075 o 1665 con F/ Facturación en mes distinto a Turno Fecha
   const fueraFechaErr = rea.filter(r => esErrorFueraFechaFact(r));
@@ -2294,7 +2318,7 @@ function renderChartErroresOperador(data) {
   const errorTypes = [
     { label: 'Inst. Derivante', fn: esErrorInstDerivante, color: '#f87171' },
     { label: 'Sin Derivante',   fn: r => { const d=(r['Derivante']||'').trim().toUpperCase(); return !d || d==='A CONFIRMAR'; }, color: '#fb923c' },
-    { label: 'Coseguros',       fn: r => { const id=String(r['ID Aseguradora']||'').trim(); const cu=(r['Cuenta']||'').trim().toUpperCase(); const pr=(r['Prestación']||r['Prestacion']||'').trim().toUpperCase(); const ne=parseFloat(r['Neto Unitario']||0); return id==='1665'&&cu.includes('OSEP')&&pr==='COSEGURO'&&ne===0; }, color: '#fbbf24' },
+    { label: 'Coseguros',       fn: esErrorCoseguro, color: '#fbbf24' },
     { label: 'Sin Referencia',  fn: esErrorReferencia, color: '#a78bfa' },
     { label: 'Trám. Incompletos', fn: esErrorTramiteIncompleto, color: '#f472b6' },
     { label: 'Tipo Cobertura',  fn: esErrorCobertura, color: '#38bdf8' },
@@ -2319,7 +2343,7 @@ function renderChartErroresOperador(data) {
     return rows.filter(r =>
       esErrorInstDerivante(r) ||
       (()=>{ const d=(r['Derivante']||'').trim().toUpperCase(); return !d || d==='A CONFIRMAR'; })() ||
-      (()=>{ const id=String(r['ID Aseguradora']||'').trim(); const cu=(r['Cuenta']||'').trim().toUpperCase(); const pr=(r['Prestación']||r['Prestacion']||'').trim().toUpperCase(); const ne=parseFloat(r['Neto Unitario']||0); return id==='1665'&&cu.includes('OSEP')&&pr==='COSEGURO'&&ne===0; })() ||
+      esErrorCoseguro(r) ||
       esErrorReferencia(r) || esErrorTramiteIncompleto(r) || esErrorCobertura(r) || esErrorFueraFechaFact(r)
     ).length;
   });
@@ -2409,7 +2433,7 @@ let cmpSelectedOp = '__ALL__'; // '__ALL__' = informe general; 'SPITRELLA' etc =
 const CMP_ERROR_TYPES = [
   { key:'instderiv', label:'Inst. Derivante',  fn: r => esErrorInstDerivante(r),                           color:'#f87171' },
   { key:'sinderiv',  label:'Sin Derivante',    fn: r => { const d=(r['Derivante']||'').trim().toUpperCase(); return !d || d==='A CONFIRMAR'; }, color:'#fb923c' },
-  { key:'coseg',     label:'Coseguros',        fn: r => { const id=String(r['ID Aseguradora']||'').trim(); const cu=(r['Cuenta']||'').trim().toUpperCase(); const pr=(r['Prestación']||r['Prestacion']||'').trim().toUpperCase(); const ne=parseFloat(r['Neto Unitario']||0); return id==='1665'&&cu.includes('OSEP')&&pr==='COSEGURO'&&ne===0; }, color:'#fbbf24' },
+  { key:'coseg',     label:'Coseguros',        fn: r => esErrorCoseguro(r),                                 color:'#fbbf24' },
   { key:'sinref',    label:'Sin Referencia',   fn: r => esErrorReferencia(r),                              color:'#a78bfa' },
   { key:'tram',      label:'Trám. Incompletos',fn: r => esErrorTramiteIncompleto(r),                        color:'#f472b6' },
   { key:'cob',       label:'Tipo Cobertura',   fn: r => esErrorCobertura(r),                                color:'#38bdf8' },
@@ -3396,12 +3420,12 @@ const MODAL_COLORS = {
 };
 
 const MODAL_LABELS = {
-  instderiv:     'Institución Derivante — Probable Error (FUESMEN + Operador)',
+  instderiv:     'Institución Derivante — FUESMEN (todos los turnos, revisión manual)',
   derivantes:    'Sin Derivantes — Vacío o "A CONFIRMAR"',
-  coseguros:     'Coseguros — Error de Carga (OSEP / Neto $0)',
+  coseguros:     'Coseguros — Error de Carga (cuenta OSEP · Neto $0 · por línea)',
   aseguradoras:  'Turnos por Aseguradora',
   sinreferencia: 'Nº Referencia — Error (ID 1665: vacío o dígitos inválidos)',
-  cobertura:     'Tipo Cobertura — Error (ID 3075/1665 sin OBL)',
+  cobertura:     'Tipo Cobertura — Error (≠ OBL, excluye Particular)',
   fuerafecha:    'Fuera Fecha Facturación — Error (ID 3075/1665 mes distinto)',
   aseguradora:   'Aseguradora FINAMED INSSJYP',
   tramites:      'Trámites Incompletos OS/Prepagas — Factura o N° Orden en 0',
@@ -3460,7 +3484,7 @@ function _openModalInternal(tipo) {
   switch (tipo) {
     case 'instderiv':    modalRows = filtered.filter(r => esErrorInstDerivante(r)); break;
     case 'derivantes':   modalRows = filtered.filter(r => { const d=_safe(r['Derivante']).toUpperCase(); return !d || d==='A CONFIRMAR'; }); break;
-    case 'coseguros':    modalRows = filtered.filter(r => { const id=_safe(r['ID Aseguradora']); const cu=_safe(r['Cuenta']).toUpperCase(); const pr=_safe(r['Prestación']||r['Prestacion']).toUpperCase(); const ne=parseFloat(r['Neto Unitario']||0); return id==='1665'&&cu.includes('OSEP')&&pr==='COSEGURO'&&ne===0; }); break;
+    case 'coseguros':    modalRows = filtered.filter(esErrorCoseguro); break;
     case 'aseguradoras': modalRows = filtered.filter(r => _safe(r['Aseguradora']) !== ''); break;
     case 'sinreferencia':modalRows = filtered.filter(r => esErrorReferencia(r)); break;
     case 'cobertura':   modalRows = filtered.filter(r => esErrorCobertura(r)); break;
@@ -3478,7 +3502,7 @@ function _openModalInternal(tipo) {
     case 'sumerrores':  modalRows = filtered.filter(r =>
       // Excluye tipos automatizados (Inst. Derivante, Tipo Cobertura, Fuera Fecha Fact.)
       (()=>{ const d=_safe(r['Derivante']).toUpperCase(); return !d || d==='A CONFIRMAR'; })() ||
-      (()=>{ const id=_safe(r['ID Aseguradora']); const cu=_safe(r['Cuenta']).toUpperCase(); const pr=_safe(r['Prestación']||r['Prestacion']).toUpperCase(); const ne=parseFloat(r['Neto Unitario']||0); return id==='1665'&&cu.includes('OSEP')&&pr==='COSEGURO'&&ne===0; })() ||
+      esErrorCoseguro(r) ||
       esErrorReferencia(r) ||
       esErrorTramiteIncompleto(r)
     ); break;
@@ -3490,7 +3514,7 @@ function _openModalInternal(tipo) {
         return !noEsPractica.some(excl => prest.startsWith(excl));
       }); break;
     }
-    case 'sumcoseg':     modalRows = filtered.filter(r => { const id=_safe(r['ID Aseguradora']); const cu=_safe(r['Cuenta']).toUpperCase(); const pr=_safe(r['Prestación']||r['Prestacion']).toUpperCase(); const ne=parseFloat(r['Neto Unitario']||0); return id==='1665'&&cu.includes('OSEP')&&pr==='COSEGURO'&&ne===0; }); break;
+    case 'sumcoseg':     modalRows = filtered.filter(esErrorCoseguro); break;
     case 'sumaseg':      modalRows = filtered.filter(r => _safe(r['Aseguradora']) !== ''); break;
     case 'sumderiv':     modalRows = filtered.filter(r => { const d=_safe(r['Derivante']).toUpperCase(); return d !== '' && d !== 'A CONFIRMAR'; }); break;
     default:             modalRows = [...filtered];
