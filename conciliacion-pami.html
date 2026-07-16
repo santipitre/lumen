@@ -89,10 +89,11 @@
   /* Table */
   .tbl-wrap{border:1px solid var(--border);border-radius:12px;overflow:auto;max-height:60vh;display:none}
   .tbl-wrap.show{display:block}
-  table.recon{width:100%;border-collapse:collapse;font-size:12.5px;white-space:nowrap}
-  table.recon th{position:sticky;top:0;background:#0c1420;text-align:left;padding:10px 12px;
+  table.recon{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto}
+  table.recon th{position:sticky;top:0;background:#0c1420;text-align:left;padding:9px 10px;white-space:nowrap;
     font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);z-index:1}
-  table.recon td{padding:9px 12px;border-bottom:1px solid rgba(148,163,184,.08)}
+  table.recon td{padding:8px 10px;border-bottom:1px solid rgba(148,163,184,.08);vertical-align:middle}
+  table.recon td.nw{white-space:nowrap}
   table.recon tr:hover td{background:rgba(245,158,11,.04)}
   .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:middle}
   .badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.5px;padding:3px 8px;border-radius:5px;
@@ -108,6 +109,14 @@
   .mini-btn:hover{border-color:var(--border-a);color:var(--pyralis-firefly)}
   .muted{color:var(--muted)}
   .empty{padding:40px;text-align:center;color:var(--muted)}
+  .cp{display:inline-block;margin-left:6px;cursor:pointer;color:var(--muted);font-size:12px;opacity:.75;user-select:none}
+  .cp:hover{color:var(--pyralis-firefly);opacity:1}
+  .state-chips{display:none;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+  .state-chips.show{display:flex}
+  .chip{font-family:'Inter',sans-serif;font-size:11.5px;font-weight:600;letter-spacing:.5px;padding:7px 14px;border-radius:20px;
+    border:1px solid var(--border);background:var(--glass);color:var(--muted);cursor:pointer;transition:all .15s}
+  .chip:hover{border-color:var(--border-a);color:var(--pyralis-text)}
+  .chip.active{background:rgba(245,158,11,.15);border-color:var(--pyralis-firefly);color:var(--pyralis-firefly)}
 
   /* Review modal */
   .ov{position:fixed;inset:0;background:rgba(5,8,12,.72);backdrop-filter:blur(4px);z-index:100;
@@ -231,14 +240,24 @@
       <input id="f-q" placeholder="Escribí para filtrar…" oninput="renderTable()"/></div>
   </div>
 
+  <!-- Botones rápidos de estado -->
+  <div class="state-chips" id="chips">
+    <button class="chip active" data-e="">Todos</button>
+    <button class="chip" data-e="VALIDADO">Validado</button>
+    <button class="chip" data-e="PENDIENTE">Pendiente</button>
+    <button class="chip" data-e="TRANSMITIDO_SIN_VALIDAR">Transmitido s/validar</button>
+    <button class="chip" data-e="SIN_REGISTRO">Sin registro</button>
+    <button class="chip" data-e="__dudoso">Dudosos</button>
+  </div>
+
   <!-- Table -->
   <div class="tbl-wrap" id="tblw">
     <table class="recon">
       <thead><tr>
-        <th>Estado</th><th>N° Turno</th><th>Paciente</th><th>Afiliado</th><th>Fecha FUE</th>
-        <th>Estudio</th><th>Práctica PAMI</th><th>Match</th><th>Score</th><th>Operador</th><th></th>
+        <th>Estado</th><th>N° Turno</th><th>Paciente</th><th>DNI</th><th>Afiliado</th>
+        <th>Fecha</th><th>Estudio</th><th>Match</th><th></th>
       </tr></thead>
-      <tbody id="tbody"><tr><td colspan="11" class="empty">Cargá ambos archivos para ver la conciliación.</td></tr></tbody>
+      <tbody id="tbody"><tr><td colspan="9" class="empty">Cargá ambos archivos para ver la conciliación.</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -378,6 +397,7 @@ function recalcular(){
   renderKPIs();
   document.getElementById('kpis').style.display='grid';
   document.getElementById('filters').classList.add('show');
+  document.getElementById('chips').classList.add('show');
   document.getElementById('tblw').classList.add('show');
   document.getElementById('actions').classList.add('show');
   renderTable();
@@ -397,17 +417,31 @@ function renderKPIs(){
   document.getElementById('kp-sin').textContent=Math.round(100*(RES.SIN_REGISTRO||0)/t)+'% · auditar';
 }
 
-/* KPI como filtro */
+/* KPIs + chips: filtro de estado unificado */
+function applyEstado(v){ // '' | estado | '__dudoso'
+  const estSel=document.getElementById('f-estado'), confSel=document.getElementById('f-conf');
+  if(v==='__dudoso'){ estSel.value=''; confSel.value='dudoso'; }
+  else { estSel.value=v||''; confSel.value=''; }
+  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('active',(c.dataset.e||'')===(v||'')));
+  document.querySelectorAll('.kpi').forEach(k=>{const f=k.dataset.f; k.classList.toggle('active', f===v || (v==='__dudoso'&&f==='dudoso'));});
+  renderTable();
+}
 document.getElementById('kpis').addEventListener('click',e=>{
   const card=e.target.closest('.kpi'); if(!card) return;
-  curFilter=card.dataset.f;
-  document.querySelectorAll('.kpi').forEach(k=>k.classList.toggle('active',k===card&&curFilter!=='all'));
-  // sincronizar selects
-  const est=['VALIDADO','PENDIENTE','TRANSMITIDO_SIN_VALIDAR','SIN_REGISTRO'];
-  document.getElementById('f-estado').value=est.includes(curFilter)?curFilter:'';
-  document.getElementById('f-conf').value=(curFilter==='dudoso')?'dudoso':'';
-  renderTable();
+  const f=card.dataset.f;
+  applyEstado(f==='all'?'':(f==='dudoso'?'__dudoso':f));
 });
+document.getElementById('chips').addEventListener('click',e=>{
+  const b=e.target.closest('.chip'); if(!b) return;
+  applyEstado(b.dataset.e||'');
+});
+function copiar(txt){ if(!txt) return;
+  const done=()=>toast('Copiado: '+txt);
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(fb); }
+  else fb();
+  function fb(){ const ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select(); try{document.execCommand('copy')}catch(e){} ta.remove(); done(); }
+}
 
 function currentFiltered(){
   const est=document.getElementById('f-estado').value;
@@ -429,31 +463,30 @@ function currentFiltered(){
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 
 function renderTable(){
-  const rows=currentFiltered();
+  const rows=currentFiltered().slice().sort((a,b)=>b.score-a.score);
   const tb=document.getElementById('tbody');
-  if(!rows.length){tb.innerHTML='<tr><td colspan="11" class="empty">Sin resultados con estos filtros.</td></tr>';return;}
-  tb.innerHTML=rows.map((it,i)=>{
+  if(!rows.length){tb.innerHTML='<tr><td colspan="9" class="empty">Sin resultados con estos filtros.</td></tr>';return;}
+  const cp=(v,t)=>v?`<span class="cp" title="Copiar ${t}" onclick="copiar('${esc(v)}')">⧉</span>`:'';
+  tb.innerHTML=rows.map((it)=>{
     const em=ESTADO_META[it.estado]||{c:'var(--muted)',lbl:it.estado};
     const idx=ITEMS.indexOf(it);
     const estudio=it.turno.estudios[0]||'';
     const estMas=it.turno.estudios.length>1?` +${it.turno.estudios.length-1}`:'';
-    const prac=it.match?it.match.practica:'';
     const conf = it.confianza==='sin_match'?'<span class="badge b-SIN_REGISTRO">sin match</span>'
       : it.confianza==='dudoso'?'<span class="badge b-dudoso">dudoso '+it.nombre_sim+'</span>'
       : '<span class="badge b-fuerte">fuerte '+it.nombre_sim+'</span>';
     const decMark = it.decision_manual==='confirmado'?' ✓':it.decision_manual==='descartado'?' ✕':'';
+    const dni=it.turno.documento||'', afil=it.turno.afiliado_norm||'';
     return `<tr>
-      <td><span class="dot" style="background:${em.c}"></span><span class="badge b-${it.estado}">${em.lbl}</span>${decMark}</td>
-      <td>${esc(it.turno.nro_turno)}</td>
+      <td class="nw"><span class="dot" style="background:${em.c}"></span><span class="badge b-${it.estado}">${em.lbl}</span>${decMark}</td>
+      <td class="nw">${esc(it.turno.nro_turno)}${cp(it.turno.nro_turno,'turno')}</td>
       <td>${esc(it.turno.nombre_raw)}</td>
-      <td class="muted">${esc(it.turno.afiliado_norm||'—')}</td>
-      <td>${esc(it.turno.fecha_str)}</td>
-      <td title="${esc(it.turno.estudios.join(' · '))}">${esc(estudio.slice(0,34))}${estMas}</td>
-      <td class="muted" title="${esc(prac)}">${esc(prac.slice(0,32))}</td>
-      <td>${conf}</td>
-      <td>${it.score}</td>
-      <td class="muted">${it.operador==='mi_usuario'?'yo':it.operador==='otro_operador'?'otro':'—'}</td>
-      <td><button class="mini-btn" onclick="openReview(${idx})">Revisar</button></td>
+      <td class="nw muted">${esc(dni||'—')}${cp(dni,'DNI')}</td>
+      <td class="nw muted">${esc(afil||'—')}${cp(afil,'afiliado')}</td>
+      <td class="nw">${esc(it.turno.fecha_str)}</td>
+      <td title="${esc(it.turno.estudios.join(' · '))}">${esc(estudio.slice(0,32))}${estMas}</td>
+      <td class="nw">${conf} <span class="muted">${it.score}</span></td>
+      <td class="nw"><button class="mini-btn" onclick="openReview(${idx})">Ver</button></td>
     </tr>`;
   }).join('');
 }
