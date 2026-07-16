@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Conciliación PAMI · LUMEN</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml"/>
+<link rel="stylesheet" href="spcd-theme.css"/>
+<link rel="stylesheet" href="spcd-components.css"/>
+<link rel="stylesheet" href="spcd-dialog.css"/>
+<style>
+  :root{
+    --ok:#10B981; --warn:#FBBF24; --info:#60A5FA; --danger:#F87171; --dud:#A78BFA;
+    --glass:rgba(30,58,138,.14); --border:rgba(148,163,184,.16); --border-a:rgba(245,158,11,.35);
+  }
+  html,body{font-size:14px;line-height:1.5}
+  .main{max-width:1320px;margin:0 auto;padding:22px 22px 80px}
+
+  /* Topbar */
+  .topbar{position:sticky;top:0;z-index:50;background:rgba(10,15,20,.9);backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--border);padding:0 22px;display:flex;align-items:center;gap:14px;height:56px}
+  .tb-crumb{font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+    color:var(--pyralis-firefly);font-size:15px}
+  .tb-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+  .ses-chip{font-size:11px;letter-spacing:.5px;color:var(--muted);border:1px solid var(--border);
+    border-radius:20px;padding:5px 12px;background:var(--glass)}
+  .ses-chip b{color:var(--pyralis-text)}
+  .tb-back{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);text-decoration:none;
+    border:1px solid var(--border);border-radius:6px;padding:6px 12px}
+  .tb-back:hover{color:var(--pyralis-firefly);border-color:var(--border-a)}
+
+  h1.page{font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;letter-spacing:1px;margin:18px 0 4px}
+  .page-sub{color:var(--muted);font-size:12.5px;margin-bottom:20px;max-width:820px}
+
+  /* Config */
+  .cfg{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;background:var(--glass);
+    border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:20px}
+  .cfg .fld{display:flex;flex-direction:column;gap:4px}
+  .cfg label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+  .cfg input{width:130px;padding:8px 10px;border-radius:6px;background:var(--pyralis-bg-input);
+    border:1px solid var(--border);color:var(--pyralis-text);font-family:'Inter',sans-serif;font-size:13px}
+  .cfg input.small{width:78px}
+  .cfg input:focus{outline:none;border-color:var(--pyralis-firefly)}
+  .btn{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;
+    border-radius:7px;padding:10px 18px;cursor:pointer;border:1px solid transparent;transition:all .15s}
+  .btn-primary{background:linear-gradient(135deg,#B45309,var(--pyralis-firefly));color:#1a1206}
+  .btn-primary:hover{filter:brightness(1.08)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed;filter:none}
+  .btn-ghost{background:var(--glass);border-color:var(--border);color:var(--pyralis-text)}
+  .btn-ghost:hover{border-color:var(--border-a);color:var(--pyralis-firefly)}
+
+  /* Dropzones */
+  .drops{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:22px}
+  @media(max-width:760px){.drops{grid-template-columns:1fr}}
+  .drop{border:1.5px dashed var(--border-a);border-radius:14px;padding:26px 20px;text-align:center;
+    background:rgba(245,158,11,.03);transition:all .2s;cursor:pointer}
+  .drop.dragover{border-style:solid;background:rgba(245,158,11,.10);box-shadow:0 0 0 2px var(--border-a) inset}
+  .drop.loaded{border-color:var(--ok);background:rgba(16,185,129,.06)}
+  .drop.err{border-color:var(--danger);background:rgba(248,113,113,.06)}
+  .drop-ico{font-size:26px;margin-bottom:8px}
+  .drop-title{font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:2px;font-size:15px;color:var(--pyralis-firefly)}
+  .drop-sub{font-size:11.5px;color:var(--muted);margin-top:4px}
+  .drop-status{font-size:12px;margin-top:12px;min-height:18px}
+  .drop-status .cnt{font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;color:var(--pyralis-text)}
+  .drop-warn{font-size:11px;color:var(--warn);margin-top:6px;text-align:left;display:inline-block}
+  .drop input[type=file]{display:none}
+
+  /* KPIs */
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+  @media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{background:var(--glass);border:1px solid var(--border);border-radius:12px;padding:15px 16px;cursor:pointer;
+    position:relative;overflow:hidden;transition:all .15s}
+  .kpi:hover{transform:translateY(-2px)}
+  .kpi.active{border-color:var(--pyralis-firefly);box-shadow:0 0 0 1px var(--border-a) inset}
+  .kpi::after{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c,var(--muted))}
+  .kpi-lbl{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+  .kpi-val{font-family:'Rajdhani',sans-serif;font-size:32px;font-weight:700;line-height:1;margin-top:4px;color:var(--c,var(--pyralis-text))}
+  .kpi-pct{font-size:11px;color:var(--muted);margin-top:2px}
+
+  /* Filters */
+  .filters{display:none;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:16px}
+  .filters.show{display:flex}
+  .filters .fld{display:flex;flex-direction:column;gap:4px}
+  .filters label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+  .filters input,.filters select{padding:8px 10px;border-radius:6px;background:var(--pyralis-bg-input);
+    border:1px solid var(--border);color:var(--pyralis-text);font-size:13px;min-width:150px}
+  .filters input:focus,.filters select:focus{outline:none;border-color:var(--pyralis-firefly)}
+
+  /* Table */
+  .tbl-wrap{border:1px solid var(--border);border-radius:12px;overflow:auto;max-height:60vh;display:none}
+  .tbl-wrap.show{display:block}
+  table.recon{width:100%;border-collapse:collapse;font-size:12.5px;white-space:nowrap}
+  table.recon th{position:sticky;top:0;background:#0c1420;text-align:left;padding:10px 12px;
+    font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);z-index:1}
+  table.recon td{padding:9px 12px;border-bottom:1px solid rgba(148,163,184,.08)}
+  table.recon tr:hover td{background:rgba(245,158,11,.04)}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:middle}
+  .badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.5px;padding:3px 8px;border-radius:5px;
+    text-transform:uppercase}
+  .b-VALIDADO{background:rgba(16,185,129,.15);color:#34d399}
+  .b-PENDIENTE{background:rgba(251,191,36,.15);color:#fbbf24}
+  .b-TRANSMITIDO_SIN_VALIDAR{background:rgba(96,165,250,.15);color:#93c5fd}
+  .b-SIN_REGISTRO{background:rgba(248,113,113,.15);color:#f87171}
+  .b-dudoso{background:rgba(167,139,250,.15);color:#c4b5fd}
+  .b-fuerte{background:rgba(148,163,184,.12);color:#cbd5e1}
+  .mini-btn{font-size:11px;padding:5px 10px;border-radius:5px;border:1px solid var(--border);
+    background:var(--glass);color:var(--pyralis-text);cursor:pointer}
+  .mini-btn:hover{border-color:var(--border-a);color:var(--pyralis-firefly)}
+  .muted{color:var(--muted)}
+  .empty{padding:40px;text-align:center;color:var(--muted)}
+
+  /* Review modal */
+  .ov{position:fixed;inset:0;background:rgba(5,8,12,.72);backdrop-filter:blur(4px);z-index:100;
+    display:none;align-items:center;justify-content:center;padding:20px}
+  .ov.show{display:flex}
+  .modal{background:#0c1420;border:1px solid var(--border);border-radius:16px;max-width:960px;width:100%;
+    max-height:90vh;overflow:auto;box-shadow:0 24px 70px rgba(0,0,0,.6)}
+  .modal-head{padding:16px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+  .modal-head h3{font-family:'Rajdhani',sans-serif;font-size:18px;letter-spacing:1px;font-weight:700}
+  .modal-x{margin-left:auto;cursor:pointer;color:var(--muted);font-size:22px;line-height:1}
+  .cmp{display:grid;grid-template-columns:1fr 1fr;gap:0}
+  @media(max-width:720px){.cmp{grid-template-columns:1fr}}
+  .cmp-col{padding:18px 22px}
+  .cmp-col+.cmp-col{border-left:1px solid var(--border)}
+  .cmp-col h4{font-family:'Rajdhani',sans-serif;font-size:13px;letter-spacing:2px;text-transform:uppercase;
+    color:var(--pyralis-firefly);margin-bottom:12px}
+  .kv{display:flex;justify-content:space-between;gap:16px;padding:6px 0;border-bottom:1px dashed rgba(148,163,184,.1);font-size:12.5px}
+  .kv .k{color:var(--muted);letter-spacing:.3px}
+  .kv .v{text-align:right;color:var(--pyralis-text)}
+  .cmp-none{color:var(--muted);font-size:13px;padding:20px 0}
+  .alts{padding:14px 22px;border-top:1px solid var(--border)}
+  .alts h5{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+  .alt-row{display:flex;align-items:center;gap:12px;padding:8px 10px;border:1px solid var(--border);
+    border-radius:8px;margin-bottom:6px;font-size:12px}
+  .alt-row .grow{flex:1}
+  .modal-foot{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+  .btn-ok{background:rgba(16,185,129,.15);color:#34d399;border:1px solid rgba(16,185,129,.3)}
+  .btn-no{background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3)}
+  .btn-open{background:rgba(96,165,250,.15);color:#93c5fd;border:1px solid rgba(96,165,250,.3)}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#111a26;
+    border:1px solid var(--border-a);border-radius:10px;padding:12px 20px;font-size:13px;z-index:200;
+    opacity:0;transition:opacity .2s;pointer-events:none}
+  .toast.show{opacity:1}
+  .actions-bar{display:none;gap:10px;flex-wrap:wrap;margin:0 0 16px}
+  .actions-bar.show{display:flex}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="lumen-wordmark">L<span class="firefly-o">u</span>men</span>
+  <span class="tb-crumb">· Conciliación PAMI</span>
+  <div class="tb-right">
+    <span class="ses-chip" id="ses">sin sesión</span>
+    <a class="tb-back" href="admin.html">← Admin</a>
+  </div>
+</div>
+
+<div class="main">
+  <h1 class="page">Conciliación FUESMEN ↔ PAMI</h1>
+  <p class="page-sub">Soltá el export de turnos de FUESMEN (<code>Turno-####.xls</code>) y la bandeja de transmisión de PAMI
+    (<code>bandeja_transmision.xls</code>). El módulo cruza por afiliado + nombre + fecha y clasifica cada turno por su
+    <b>estado real en PAMI</b>: validado, pendiente, o sin registro. Todo el procesamiento ocurre en tu navegador.</p>
+
+  <!-- Config -->
+  <div class="cfg">
+    <div class="fld"><label>U. Acepto (tu usuario PAMI)</label><input id="cfg-ua" value="SU41752974"/></div>
+    <div class="fld"><label>Ventana días (±)</label><input id="cfg-vent" class="small" type="number" value="3" min="0"/></div>
+    <div class="fld"><label>Umbral nombre (candidato)</label><input id="cfg-umb" class="small" type="number" value="82" min="0" max="100"/></div>
+    <div class="fld"><label>Corte match fuerte</label><input id="cfg-cor" class="small" type="number" value="90" min="0" max="100"/></div>
+    <button class="btn btn-ghost" id="btn-recalc" onclick="recalcular()" disabled>↻ Recalcular</button>
+  </div>
+
+  <!-- Dropzones -->
+  <div class="drops">
+    <label class="drop" id="drop-fu">
+      <div class="drop-ico">📅</div>
+      <div class="drop-title">FUESMEN · Turnos</div>
+      <div class="drop-sub">Turno-####.xls — arrastrá o hacé clic</div>
+      <div class="drop-status" id="st-fu"></div>
+      <input type="file" id="in-fu" accept=".xls,.xlsx"/>
+    </label>
+    <label class="drop" id="drop-pa">
+      <div class="drop-ico">📨</div>
+      <div class="drop-title">PAMI · Bandeja transmisión</div>
+      <div class="drop-sub">bandeja_transmision.xls — arrastrá o hacé clic</div>
+      <div class="drop-status" id="st-pa"></div>
+      <input type="file" id="in-pa" accept=".xls,.xlsx"/>
+    </label>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpis" id="kpis" style="display:none">
+    <div class="kpi" data-f="all"          style="--c:var(--pyralis-firefly)"><div class="kpi-lbl">Turnos FUESMEN</div><div class="kpi-val" id="k-total">0</div><div class="kpi-pct">únicos · INSSJYP/PAMI</div></div>
+    <div class="kpi" data-f="VALIDADO"     style="--c:var(--ok)"><div class="kpi-lbl">Validado</div><div class="kpi-val" id="k-val">0</div><div class="kpi-pct" id="kp-val">cerrado</div></div>
+    <div class="kpi" data-f="PENDIENTE"    style="--c:var(--warn)"><div class="kpi-lbl">Pendiente / acción</div><div class="kpi-val" id="k-pend">0</div><div class="kpi-pct" id="kp-pend">falta validar</div></div>
+    <div class="kpi" data-f="SIN_REGISTRO" style="--c:var(--danger)"><div class="kpi-lbl">Sin registro PAMI</div><div class="kpi-val" id="k-sin">0</div><div class="kpi-pct" id="kp-sin">auditar</div></div>
+    <div class="kpi" data-f="dudoso"       style="--c:var(--dud)"><div class="kpi-lbl">Dudosos · revisar</div><div class="kpi-val" id="k-dud">0</div><div class="kpi-pct">match a confirmar</div></div>
+  </div>
+
+  <!-- Actions -->
+  <div class="actions-bar" id="actions">
+    <button class="btn btn-ghost" onclick="exportCSV()">⬇ Exportar CSV</button>
+    <button class="btn btn-primary" id="btn-save" onclick="guardarLote()">💾 Guardar lote en LUMEN</button>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters" id="filters">
+    <div class="fld"><label>Estado PAMI</label>
+      <select id="f-estado" onchange="renderTable()">
+        <option value="">Todos</option>
+        <option value="VALIDADO">Validado</option>
+        <option value="PENDIENTE">Pendiente</option>
+        <option value="TRANSMITIDO_SIN_VALIDAR">Transmitido s/validar</option>
+        <option value="SIN_REGISTRO">Sin registro</option>
+      </select></div>
+    <div class="fld"><label>Confianza</label>
+      <select id="f-conf" onchange="renderTable()">
+        <option value="">Todas</option>
+        <option value="fuerte">Fuerte</option>
+        <option value="dudoso">Dudoso</option>
+        <option value="sin_match">Sin match</option>
+      </select></div>
+    <div class="fld"><label>Operador</label>
+      <select id="f-op" onchange="renderTable()">
+        <option value="">Todos</option>
+        <option value="mi_usuario">Mi usuario</option>
+        <option value="otro_operador">Otro operador</option>
+      </select></div>
+    <div class="fld" style="flex:1"><label>Buscar (afiliado / nombre / turno)</label>
+      <input id="f-q" placeholder="Escribí para filtrar…" oninput="renderTable()"/></div>
+  </div>
+
+  <!-- Table -->
+  <div class="tbl-wrap" id="tblw">
+    <table class="recon">
+      <thead><tr>
+        <th>Estado</th><th>N° Turno</th><th>Paciente</th><th>Afiliado</th><th>Fecha FUE</th>
+        <th>Estudio</th><th>Práctica PAMI</th><th>Match</th><th>Score</th><th>Operador</th><th></th>
+      </tr></thead>
+      <tbody id="tbody"><tr><td colspan="11" class="empty">Cargá ambos archivos para ver la conciliación.</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Review modal -->
+<div class="ov" id="ov">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="dot" id="mv-dot"></span>
+      <h3 id="mv-title">Revisión</h3>
+      <span class="modal-x" onclick="closeReview()">✕</span>
+    </div>
+    <div class="cmp">
+      <div class="cmp-col" id="mv-fu"></div>
+      <div class="cmp-col" id="mv-pa"></div>
+    </div>
+    <div class="alts" id="mv-alts"></div>
+    <div class="modal-foot" id="mv-foot"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Libs -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="spcd-supabase.js"></script>
+<script src="conciliacion-engine.js"></script>
+<script>
+/* ── URLs de los sistemas (para "Abrir en…", Fase 3 autocompleta) ── */
+const URL_FUESMEN = 'http://his.fuesmen.edu.ar:8180/his/servlet/hturno';
+const URL_PAMI    = 'https://pe.pami.org.ar/controllers/transmision.php';
+
+let FU=null, PA=null, ITEMS=[], RES=null, curFilter='all', curItem=null;
+
+const ESTADO_META = {
+  VALIDADO:{c:'var(--ok)',lbl:'Validado'},
+  PENDIENTE:{c:'var(--warn)',lbl:'Pendiente'},
+  TRANSMITIDO_SIN_VALIDAR:{c:'var(--info)',lbl:'Transmitido s/validar'},
+  SIN_REGISTRO:{c:'var(--danger)',lbl:'Sin registro'}
+};
+
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2600);}
+function isoDate(d){if(!(d instanceof Date)||isNaN(d))return null;
+  const z=n=>(n<10?'0':'')+n;return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate());}
+
+/* ── Sesión (para habilitar guardar) ── */
+(async function initSes(){
+  try{
+    if(window.sbAuth&&window.sbAuth.auth){
+      const {data}=await window.sbAuth.auth.getSession();
+      if(data&&data.session&&data.session.user){
+        document.getElementById('ses').innerHTML='<b>'+(data.session.user.email||'sesión')+'</b>';
+        return;
+      }
+    }
+  }catch(e){}
+  document.getElementById('ses').textContent='sin sesión · guardado deshabilitado';
+})();
+
+/* ── Lectura de archivos ── */
+function readArrayBuffer(file){return new Promise((res,rej)=>{const r=new FileReader();
+  r.onload=()=>res(r.result);r.onerror=rej;r.readAsArrayBuffer(file);});}
+
+async function handleFuesmen(file){
+  const st=document.getElementById('st-fu'), zone=document.getElementById('drop-fu');
+  try{
+    const buf=await readArrayBuffer(file);
+    // FUESMEN debe ser binario BIFF (OLE2). Si es HTML, avisar.
+    const head=new Uint8Array(buf.slice(0,4));
+    const isOle=head[0]===0xD0&&head[1]===0xCF&&head[2]===0x11&&head[3]===0xE0;
+    const wb=XLSX.read(buf,{type:'array',raw:true,cellDates:true});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const aoa=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
+    const parsed=CP.parseFuesmen(aoa);
+    if(!parsed.turnos.length){throw new Error('No encontré turnos INSSJYP/PAMI. ¿Es el export correcto?');}
+    FU=parsed; zone.classList.remove('err'); zone.classList.add('loaded');
+    let warn = parsed.vacios>0 ? `<div class="drop-warn">⚠ ${parsed.vacios} turnos sin afiliado — el match usará nombre+fecha.</div>` : '';
+    if(!isOle) warn += `<div class="drop-warn">⚠ El archivo no parece .xls binario; verificá que sea el export de FUESMEN.</div>`;
+    st.innerHTML=`<span class="cnt">${parsed.turnos.length}</span> turnos · ${parsed.total}→${parsed.p1}→${parsed.p2} filas filtradas`+warn;
+    tryReconcile();
+  }catch(err){zone.classList.remove('loaded');zone.classList.add('err');
+    st.innerHTML=`<span style="color:var(--danger)">✕ ${err.message}</span>`;}
+}
+
+async function handlePami(file){
+  const st=document.getElementById('st-pa'), zone=document.getElementById('drop-pa');
+  try{
+    const buf=await readArrayBuffer(file);
+    const text=new TextDecoder('utf-8').decode(buf);
+    let aoa;
+    if(/^\s*<(!doctype|html|table)/i.test(text) || text.indexOf('<table')>-1){
+      // Tabla HTML con extensión .xls (export ASP/PHP)
+      const doc=new DOMParser().parseFromString(text,'text/html');
+      const table=doc.querySelector('table');
+      if(!table) throw new Error('No encontré una <table> en el archivo PAMI.');
+      aoa=[...table.querySelectorAll('tr')].map(tr=>
+        [...tr.querySelectorAll('td,th')].map(td=>td.textContent.replace(/ /g,' ').trim()));
+    }else{
+      // Fallback: binario real
+      const wb=XLSX.read(buf,{type:'array',raw:true});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      aoa=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''}).map(r=>r.map(String));
+    }
+    const cfg=readCfg();
+    const parsed=CP.parsePami(aoa,cfg);
+    if(!parsed.registros.length) throw new Error('No pude leer registros PAMI.');
+    PA=parsed; zone.classList.remove('err'); zone.classList.add('loaded');
+    st.innerHTML=`<span class="cnt">${parsed.total.toLocaleString('es')}</span> órdenes · ${parsed.delUsuario} tuyas · ${parsed.pendientes} pendientes`;
+    tryReconcile();
+  }catch(err){zone.classList.remove('loaded');zone.classList.add('err');
+    st.innerHTML=`<span style="color:var(--danger)">✕ ${err.message}</span>`;}
+}
+
+function readCfg(){
+  return {
+    uAcepto:document.getElementById('cfg-ua').value.trim(),
+    ventanaDias:Math.max(0,parseInt(document.getElementById('cfg-vent').value)||3),
+    umbralNombre:Math.max(0,parseInt(document.getElementById('cfg-umb').value)||82),
+    corteFuerte:Math.max(0,parseInt(document.getElementById('cfg-cor').value)||90)
+  };
+}
+
+function tryReconcile(){
+  document.getElementById('btn-recalc').disabled=!(FU&&PA);
+  if(!(FU&&PA)) return;
+  recalcular();
+}
+
+function recalcular(){
+  if(!(FU&&PA)) return;
+  const cfg=readCfg();
+  // re-parsear PAMI counts con uAcepto actual (para pendientes)
+  ITEMS=CP.reconcile(FU.turnos, PA.registros, cfg);
+  RES=CP.resumen(ITEMS);
+  renderKPIs();
+  document.getElementById('kpis').style.display='grid';
+  document.getElementById('filters').classList.add('show');
+  document.getElementById('tblw').classList.add('show');
+  document.getElementById('actions').classList.add('show');
+  renderTable();
+  toast(`Conciliados ${ITEMS.length} turnos`);
+}
+
+function renderKPIs(){
+  const t=RES.total||1;
+  const pend=(RES.PENDIENTE||0)+(RES.TRANSMITIDO_SIN_VALIDAR||0);
+  document.getElementById('k-total').textContent=RES.total;
+  document.getElementById('k-val').textContent=RES.VALIDADO||0;
+  document.getElementById('k-pend').textContent=pend;
+  document.getElementById('k-sin').textContent=RES.SIN_REGISTRO||0;
+  document.getElementById('k-dud').textContent=RES.dudoso||0;
+  document.getElementById('kp-val').textContent=Math.round(100*(RES.VALIDADO||0)/t)+'% · cerrado';
+  document.getElementById('kp-pend').textContent=Math.round(100*pend/t)+'% · falta validar';
+  document.getElementById('kp-sin').textContent=Math.round(100*(RES.SIN_REGISTRO||0)/t)+'% · auditar';
+}
+
+/* KPI como filtro */
+document.getElementById('kpis').addEventListener('click',e=>{
+  const card=e.target.closest('.kpi'); if(!card) return;
+  curFilter=card.dataset.f;
+  document.querySelectorAll('.kpi').forEach(k=>k.classList.toggle('active',k===card&&curFilter!=='all'));
+  // sincronizar selects
+  const est=['VALIDADO','PENDIENTE','TRANSMITIDO_SIN_VALIDAR','SIN_REGISTRO'];
+  document.getElementById('f-estado').value=est.includes(curFilter)?curFilter:'';
+  document.getElementById('f-conf').value=(curFilter==='dudoso')?'dudoso':'';
+  renderTable();
+});
+
+function currentFiltered(){
+  const est=document.getElementById('f-estado').value;
+  const conf=document.getElementById('f-conf').value;
+  const op=document.getElementById('f-op').value;
+  const q=document.getElementById('f-q').value.trim().toUpperCase();
+  return ITEMS.filter(it=>{
+    if(est&&it.estado!==est) return false;
+    if(conf&&it.confianza!==conf) return false;
+    if(op&&it.operador!==op) return false;
+    if(q){
+      const hay=(it.turno.nombre_raw+' '+it.turno.afiliado_norm+' '+it.turno.nro_turno+' '+(it.match?it.match.nombre_raw:'')).toUpperCase();
+      if(hay.indexOf(q)===-1) return false;
+    }
+    return true;
+  });
+}
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+function renderTable(){
+  const rows=currentFiltered();
+  const tb=document.getElementById('tbody');
+  if(!rows.length){tb.innerHTML='<tr><td colspan="11" class="empty">Sin resultados con estos filtros.</td></tr>';return;}
+  tb.innerHTML=rows.map((it,i)=>{
+    const em=ESTADO_META[it.estado]||{c:'var(--muted)',lbl:it.estado};
+    const idx=ITEMS.indexOf(it);
+    const estudio=it.turno.estudios[0]||'';
+    const estMas=it.turno.estudios.length>1?` +${it.turno.estudios.length-1}`:'';
+    const prac=it.match?it.match.practica:'';
+    const conf = it.confianza==='sin_match'?'<span class="badge b-SIN_REGISTRO">sin match</span>'
+      : it.confianza==='dudoso'?'<span class="badge b-dudoso">dudoso '+it.nombre_sim+'</span>'
+      : '<span class="badge b-fuerte">fuerte '+it.nombre_sim+'</span>';
+    const decMark = it.decision_manual==='confirmado'?' ✓':it.decision_manual==='descartado'?' ✕':'';
+    return `<tr>
+      <td><span class="dot" style="background:${em.c}"></span><span class="badge b-${it.estado}">${em.lbl}</span>${decMark}</td>
+      <td>${esc(it.turno.nro_turno)}</td>
+      <td>${esc(it.turno.nombre_raw)}</td>
+      <td class="muted">${esc(it.turno.afiliado_norm||'—')}</td>
+      <td>${esc(it.turno.fecha_str)}</td>
+      <td title="${esc(it.turno.estudios.join(' · '))}">${esc(estudio.slice(0,34))}${estMas}</td>
+      <td class="muted" title="${esc(prac)}">${esc(prac.slice(0,32))}</td>
+      <td>${conf}</td>
+      <td>${it.score}</td>
+      <td class="muted">${it.operador==='mi_usuario'?'yo':it.operador==='otro_operador'?'otro':'—'}</td>
+      <td><button class="mini-btn" onclick="openReview(${idx})">Revisar</button></td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── Revisión lado a lado ── */
+function kv(k,v){return `<div class="kv"><span class="k">${esc(k)}</span><span class="v">${esc(v||'—')}</span></div>`;}
+
+function openReview(idx){
+  const it=ITEMS[idx]; curItem=idx;
+  const em=ESTADO_META[it.estado]||{c:'var(--muted)',lbl:it.estado};
+  document.getElementById('mv-dot').style.background=em.c;
+  document.getElementById('mv-title').innerHTML=`Turno ${esc(it.turno.nro_turno)} · <span class="badge b-${it.estado}">${em.lbl}</span> · <span class="badge b-${it.confianza==='fuerte'?'fuerte':'dudoso'}">${it.confianza}</span>`;
+  // FUESMEN
+  const f=it.turno;
+  document.getElementById('mv-fu').innerHTML='<h4>FUESMEN · Turno</h4>'+
+    kv('Paciente',f.nombre_raw)+kv('Documento',f.documento)+kv('Afiliado',f.afiliado_norm)+
+    kv('Fecha turno',f.fecha_str)+kv('Cuenta',f.cuenta)+kv('Servicio',f.servicio)+
+    kv('Estudios',f.estudios.join(' · '))+kv('Recep. Orden',f.recep_orden)+kv('Estado',f.estado_fuesmen);
+  // PAMI
+  const p=it.match;
+  document.getElementById('mv-pa').innerHTML='<h4>PAMI · Transmisión</h4>'+
+    (p? kv('Paciente',p.nombre_raw)+kv('Afiliado',p.afiliado_norm)+kv('N° Orden',p.nro_orden)+
+        kv('Fecha turno',p.fecha_str)+kv('Práctica',p.practica)+kv('U. Acepto',p.u_acepto)+
+        kv('Trasmitida',p.trasmitida)+kv('Validada',p.validada||'(vacía)')+
+        kv('Similitud nombre',it.nombre_sim)+kv('Δ días',it.delta_dias==null?'—':it.delta_dias)
+      : '<div class="cmp-none">Sin registro en PAMI para este turno.<br>Candidato a auditar: estudio hecho sin transmisión localizada.</div>');
+  // Alternativas
+  const al=document.getElementById('mv-alts');
+  if(it.alternativas&&it.alternativas.length){
+    al.style.display='block';
+    al.innerHTML='<h5>Otros candidatos PAMI</h5>'+it.alternativas.map((a,k)=>{
+      const em2=ESTADO_META[CP.estadoPami(a.registro)]||{lbl:''};
+      return `<div class="alt-row"><span class="grow">${esc(a.registro.nombre_raw)} · orden ${esc(a.registro.nro_orden)} · ${esc(a.registro.fecha_str)} <span class="badge b-${CP.estadoPami(a.registro)}">${em2.lbl}</span></span>
+        <span class="muted">sim ${a.nombre_sim} · Δ${a.delta_dias==null?'—':a.delta_dias} · score ${a.score}</span>
+        <button class="mini-btn" onclick="elegirAlt(${idx},${k})">Elegir</button></div>`;
+    }).join('');
+  }else{al.style.display='none';al.innerHTML='';}
+  // Footer
+  document.getElementById('mv-foot').innerHTML=
+    `<button class="btn btn-open" onclick="abrirEn('pami',${idx})">Abrir en PAMI ↗</button>`+
+    `<button class="btn btn-open" onclick="abrirEn('fuesmen',${idx})">Abrir en FUESMEN ↗</button>`+
+    `<button class="btn btn-no" onclick="decidir(${idx},'descartado')">Descartar</button>`+
+    `<button class="btn btn-ok" onclick="decidir(${idx},'confirmado')">Confirmar match</button>`;
+  document.getElementById('ov').classList.add('show');
+}
+function closeReview(){document.getElementById('ov').classList.remove('show');curItem=null;}
+document.getElementById('ov').addEventListener('click',e=>{if(e.target.id==='ov')closeReview();});
+
+function decidir(idx,dec){ITEMS[idx].decision_manual=dec;renderTable();closeReview();
+  toast(dec==='confirmado'?'Match confirmado':'Match descartado');}
+
+function elegirAlt(idx,k){
+  const it=ITEMS[idx]; const alt=it.alternativas[k];
+  // intercambiar: el alternativo pasa a ser match
+  const nuevoMatch=alt.registro;
+  const viejo=it.match;
+  it.match=nuevoMatch; it.nombre_sim=alt.nombre_sim; it.delta_dias=alt.delta_dias; it.score=alt.score;
+  it.estado=CP.estadoPami(nuevoMatch);
+  it.confianza='dudoso'; it.decision_manual='confirmado';
+  const cfg=readCfg();
+  it.operador=(nuevoMatch.u_acepto===cfg.uAcepto)?'mi_usuario':'otro_operador';
+  // reconstruir alternativas (poner el viejo primero)
+  it.alternativas=[{registro:viejo,score:0,nombre_sim:0,delta_dias:null}].concat(
+    it.alternativas.filter((_,j)=>j!==k));
+  RES=CP.resumen(ITEMS); renderKPIs(); renderTable(); openReview(idx);
+  toast('Candidato reasignado y confirmado');
+}
+
+function abrirEn(sistema,idx){
+  const url = sistema==='pami'?URL_PAMI:URL_FUESMEN;
+  window.open(url,'_blank','noopener');
+  toast('Abriendo '+sistema.toUpperCase()+' (Fase 3: autocompletar pendiente)');
+}
+
+/* ── Export CSV ── */
+function exportCSV(){
+  const rows=currentFiltered();
+  const cols=['nro_turno','paciente','afiliado','fecha_fuesmen','estudio','estado_pami','confianza','nombre_sim','delta_dias','score','operador','nro_orden_pami','practica_pami','decision'];
+  const lines=[cols.join(';')];
+  rows.forEach(it=>{
+    const p=it.match||{};
+    lines.push([it.turno.nro_turno,it.turno.nombre_raw,it.turno.afiliado_norm,it.turno.fecha_str,
+      (it.turno.estudios[0]||''),it.estado,it.confianza,it.nombre_sim,it.delta_dias==null?'':it.delta_dias,
+      it.score,it.operador||'',p.nro_orden||'',(p.practica||''),it.decision_manual]
+      .map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(';'));
+  });
+  const blob=new Blob(['﻿'+lines.join('\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='conciliacion_pami_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+  toast('CSV exportado ('+rows.length+' filas)');
+}
+
+/* ── Guardar en LUMEN (Supabase) ── */
+async function guardarLote(){
+  if(typeof sbInsert!=='function'){toast('Supabase no disponible');return;}
+  let uid=null;
+  try{const {data}=await window.sbAuth.auth.getSession();uid=data&&data.session&&data.session.user?data.session.user.id:null;}catch(e){}
+  if(!uid){toast('Necesitás iniciar sesión en LUMEN para guardar');return;}
+  const cfg=readCfg();
+  const btn=document.getElementById('btn-save');btn.disabled=true;btn.textContent='Guardando…';
+  try{
+    const lote=await sbInsert('pami_conciliacion_lotes',{
+      usuario_id:uid, sede:'HOSPITAL ITALIANO',
+      archivo_fuesmen:(FU&&FU._name)||null, archivo_pami:(PA&&PA._name)||null,
+      u_acepto:cfg.uAcepto, ventana_dias:cfg.ventanaDias, umbral_nombre:cfg.umbralNombre,
+      total_fuesmen:FU.turnos.length, total_pami:PA.total
+    });
+    const loteId=lote[0].id;
+    const payload=ITEMS.map(it=>({
+      lote_id:loteId, usuario_asignado:uid,
+      datos_turno:it.turno, datos_transmision:it.match, candidatos_alt:it.alternativas,
+      nro_turno:it.turno.nro_turno, nro_orden:it.match?it.match.nro_orden:null,
+      afiliado_norm:it.turno.afiliado_norm, nombre_norm:it.turno.nombre_norm, fecha_turno:isoDate(it.turno.fecha),
+      score:it.score, semaforo:it.estado, confianza:it.confianza,
+      decision_manual:it.decision_manual, estado_proceso:'pendiente'
+    }));
+    // insertar en lotes de 200 para no pasar límites
+    for(let i=0;i<payload.length;i+=200){await sbInsert('pami_conciliacion_items',payload.slice(i,i+200));}
+    toast('Lote guardado: '+payload.length+' ítems');
+  }catch(err){toast('Error al guardar: '+err.message);}
+  finally{btn.disabled=false;btn.textContent='💾 Guardar lote en LUMEN';}
+}
+
+/* ── Wiring drag&drop ── */
+function wireDrop(zoneId,inputId,handler){
+  const z=document.getElementById(zoneId),inp=document.getElementById(inputId);
+  inp.addEventListener('change',e=>{if(e.target.files[0])handler(e.target.files[0]);});
+  ['dragover','dragenter'].forEach(ev=>z.addEventListener(ev,e=>{e.preventDefault();z.classList.add('dragover');}));
+  ['dragleave','drop'].forEach(ev=>z.addEventListener(ev,e=>{e.preventDefault();z.classList.remove('dragover');}));
+  z.addEventListener('drop',e=>{if(e.dataTransfer.files[0])handler(e.dataTransfer.files[0]);});
+}
+wireDrop('drop-fu','in-fu',f=>{FU&&(FU._name=null);handleFuesmen(f).then(()=>{if(FU)FU._name=f.name;});});
+wireDrop('drop-pa','in-pa',f=>{handlePami(f).then(()=>{if(PA)PA._name=f.name;});});
+</script>
+</body>
+</html>
