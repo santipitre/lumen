@@ -571,6 +571,10 @@
     </svg>
     <div class="upload-sub" id="upload-sub-text">Cargando datos...</div>
     <div id="data-status"></div>
+    <button id="btn-traer-nube" onclick="traerUltimaDataNube()" style="margin-top:14px; background:rgba(34,219,174,.12); border:1px solid rgba(34,219,174,.5); color:#22DBAE; padding:9px 18px; border-radius:8px; cursor:pointer; font-weight:600; letter-spacing:.5px;">
+      ☁️ Traer última data de la nube
+    </button>
+    <div id="traer-nube-status" style="margin-top:8px; font-size:12px; color:var(--muted);"></div>
   </div>
 
   <!-- SUMMARY BAR (análisis) -->
@@ -1319,6 +1323,55 @@ async function cargarReparaciones(force = true) {
     if (filtered && filtered.length) render(filtered);  // refresca sin recargar datos
   } catch (e) {
     console.warn('[reparaciones] no se pudo cargar el contador de arreglados:', e);
+  }
+}
+
+/* ══════════════════════════════════
+   TRAER ÚLTIMA DATA DE LA NUBE  (tabla lumen_estadistica)
+   La llena Actualizar-Todo.ps1 (detalle línea x línea, troceado en chunks por
+   'seq'). Acá se reensambla y se carga en el dashboard, sin arrastrar el Excel.
+══════════════════════════════════ */
+async function traerUltimaDataNube() {
+  const st  = document.getElementById('traer-nube-status');
+  const btn = document.getElementById('btn-traer-nube');
+  const setSt = (t) => { if (st) st.textContent = t; };
+  if (typeof sbQuery !== 'function') { setSt('⚠️ Sin conexión a la nube (sbQuery no disponible).'); return; }
+  try {
+    if (btn) { btn.disabled = true; btn.style.opacity = 0.6; }
+    setSt('⏳ Bajando de la nube...');
+    const chunks = await sbQuery('lumen_estadistica', 'select=seq,h,r,generado_en&order=seq.asc');
+    if (!chunks || !chunks.length) { setSt('⚠️ No hay data en la nube todavía. Corré Actualizar-Todo primero.'); return; }
+    // Encabezados: del primer chunk que los traiga (seq 0).
+    let headers = null;
+    for (const c of chunks) { if (Array.isArray(c.h) && c.h.length) { headers = c.h; break; } }
+    if (!headers) { setSt('⚠️ La data de la nube no trae encabezados.'); return; }
+    // Concatenar filas (arrays) en orden de seq y reconstruir objetos.
+    const data = [];
+    for (const c of chunks) {
+      const rr = Array.isArray(c.r) ? c.r : [];
+      for (const arr of rr) {
+        const o = {};
+        for (let i = 0; i < headers.length; i++) o[headers[i]] = arr[i] != null ? arr[i] : '';
+        data.push(o);
+      }
+    }
+    if (!data.length) { setSt('⚠️ La nube devolvió 0 filas.'); return; }
+    // Persistir + cargar por el mismo camino que la carga por Excel.
+    rawData = data;
+    try { await dbSave('spcd_data_full', data); } catch (e) { console.warn('[nube] no pude guardar en IndexedDB', e); }
+    const genRaw = (chunks[0] && chunks[0].generado_en) ? new Date(chunks[0].generado_en) : null;
+    const genStr = genRaw ? genRaw.toLocaleString('es-AR') : new Date().toLocaleString('es-AR');
+    try { localStorage.setItem('spcd_upload_date', genStr); } catch (e) {}
+    filtered = [...data];
+    onDataLoaded(rawData);
+    render(filtered);
+    cargarReparaciones();
+    setSt(`✅ ${data.length.toLocaleString('es-AR')} registros traídos de la nube (${genStr}).`);
+  } catch (e) {
+    console.error('[traerUltimaDataNube]', e);
+    setSt('⚠️ Error al traer de la nube: ' + (e && e.message ? e.message : e));
+  } finally {
+    if (btn) { btn.disabled = false; btn.style.opacity = 1; }
   }
 }
 
