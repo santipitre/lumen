@@ -650,6 +650,13 @@
       <div class="kpi-sub" id="kpi-ref-sub">ID 1665: vacío o dígitos inválidos</div>
       <div class="kpi-hint">ver detalle →</div>
     </div>
+    <div class="kpi-card red" onclick="openModal('cuentaint')">
+      <div class="kpi-icon">⚠️</div>
+      <div class="kpi-label">Cuenta sin INTERNADOS</div>
+      <div class="kpi-val" id="kpi-cuentaint">—</div>
+      <div class="kpi-sub" id="kpi-cuentaint-sub">INT FINAMED: OSEP/PAMI sin INTERNADOS</div>
+      <div class="kpi-hint">ver detalle →</div>
+    </div>
     <div style="grid-column:1/-1; height:0; margin:0; padding:0;"></div>
     <div class="kpi-card amber" onclick="openModal('cobertura')">
       <div class="kpi-icon">⚠️</div>
@@ -1890,6 +1897,7 @@ function calcSummaryBar(data) {
     (()=>{ const d=(r['Derivante']||'').trim().toUpperCase(); return !d || d==='A CONFIRMAR'; })() ||
     cosegTurnos.has(_safe(r['Turno N°'])) ||
     esErrorReferencia(r) ||
+    esErrorCuentaInternados(r) ||
     esErrorTramiteIncompleto(r)
   ).length;
 
@@ -1902,24 +1910,21 @@ function calcSummaryBar(data) {
 
 /* ══════════════════════════════════
    ERROR INSTITUCIÓN DERIVANTE
-   Si Inst Derivante = FUESMEN y Operador está en lista → error
+   Inst Derivante = FUESMEN cargado por un operador de H.ITALIANO → error.
+   2026-07-17: clasificación de operadores provista por Santiago. El Excel no
+   distingue sede (Centro es siempre HOSPITAL ITALIANO), así que la lista es
+   manual. Para actualizarla, editar OPERADORES_HITALIANO.
 ══════════════════════════════════ */
-const OPERADORES_FUESMEN = new Set([
-  'EGRANADO','JAVILA','ZABRAHAM','JMONICA','ITORRES','MBENITEZ',
-  'ISKAMLEC','FSTEINBERG','FBATTISTELLA','MCANEVA','FCORNEJO',
-  'YJOFRE','SPITRELLA','VFORNI','MOROSCO'
+const OPERADORES_HITALIANO = new Set([
+  'NRIOS','EGRANADO','MOROSCO','RMORENO','TRUMBO','ROROMERO','ITORRES',
+  'LFEDERICA','MBENITEZ','JAVILA','JMONICA','YJOFRE','SPITRELLA'
 ]);
 
 function esErrorInstDerivante(r) {
-  // 2026-07-15: la whitelist OPERADORES_FUESMEN quedó obsoleta (0 matches sobre
-  // 331 turnos con Inst Derivante = FUESMEN). Ahora se marca TODO turno FUESMEN
-  // para revisión manual. Para volver a acotar por operador, restaurar el filtro
-  // comentado usando la lista actualizada de operadores.
   const inst = (r['Inst Derivante']||'').trim().toUpperCase();
   if (inst !== 'FUESMEN') return false;
-  // const op = (r['Operador']||'').trim().toUpperCase();
-  // return OPERADORES_FUESMEN.has(op);
-  return true;
+  const op = (r['Operador']||'').trim().toUpperCase();
+  return OPERADORES_HITALIANO.has(op);
 }
 
 /* ══════════════════════════════════
@@ -1930,10 +1935,11 @@ function esErrorInstDerivante(r) {
    ID Aseguradora = 1665 (FINAMED) — bug: OSEP es ID 745/869, nunca matcheaba.
 ══════════════════════════════════ */
 function esErrorCoseguro(r) {
-  const cuenta = (r['Cuenta']||'').trim().toUpperCase();
+  // 2026-07-17: se quita la condición de cuenta (antes exigía OSEP). Ahora:
+  // cualquier línea con Prestación = COSEGURO y Neto Unitario = 0 → error de carga.
   const prest  = (r['Prestación']||r['Prestacion']||'').trim().toUpperCase();
   const neto   = parseFloat(r['Neto Unitario']||0);
-  return cuenta.includes('OSEP') && prest === 'COSEGURO' && neto === 0;
+  return prest === 'COSEGURO' && neto === 0;
 }
 
 /* ══════════════════════════════════
@@ -1958,11 +1964,10 @@ function esErrorReferencia(r) {
    Si ID Aseguradora es 3075 o 1665 y Tipo Cobertura NO es OBL → error
 ══════════════════════════════════ */
 function esErrorCobertura(r) {
-  // 2026-07-15: ampliado más allá de ID 3075/1665. Marca cualquier Tipo
-  // Cobertura ≠ OBL, salvo PARTICULAR (donde OPT es legítimo). Para volver al
-  // alcance viejo, restaurar el filtro por ID 3075/1665.
-  const aseg = (r['Aseguradora']||'').trim().toUpperCase();
-  if (aseg === 'PARTICULAR') return false;
+  // 2026-07-17: revertido al alcance por ID. Solo ID Aseguradora 3075 o 1665:
+  // esas prestaciones tienen que estar SIEMPRE en OBL; cualquier otro tipo → error.
+  const idAseg = String(r['ID Aseguradora']||'').trim();
+  if (idAseg !== '3075' && idAseg !== '1665') return false;
   const tipo = (r['Tipo Cobertura']||'').trim().toUpperCase();
   return tipo !== 'OBL';
 }
@@ -1973,6 +1978,14 @@ function esErrorCobertura(r) {
    dentro del mismo mes/año que Turno Fecha → error
 ══════════════════════════════════ */
 function esErrorFueraFechaFact(r) {
+  // Combina dos reglas (cualquiera de las dos marca error):
+  //  a) ID 3075/1665 con F/ Facturación en mes distinto a Turno Fecha (regla original)
+  //  b) 2026-07-17: cualquier línea COSEGURO con F/ Facturación en mes distinto a
+  //     Turno Fecha (ítem trasladado desde Coseguros a Fuera Fecha Facturación).
+  return esFueraFechaID(r) || esErrorCoseguroFueraMes(r);
+}
+
+function esFueraFechaID(r) {
   const idAseg = String(r['ID Aseguradora']||'').trim();
   if (idAseg !== '3075' && idAseg !== '1665') return false;
   const turnoFecha = parseDate(r['Turno Fecha']);
@@ -1983,6 +1996,34 @@ function esErrorFueraFechaFact(r) {
   // Comparar mes y año
   return turnoFecha.getMonth() !== factFecha.getMonth() ||
          turnoFecha.getFullYear() !== factFecha.getFullYear();
+}
+
+// 2026-07-17: coseguro cuya F/ Facturación cae en un mes/año distinto al Turno Fecha.
+// Se evalúa a NIVEL LÍNEA (el coseguro es una línea aparte del turno).
+function esErrorCoseguroFueraMes(r) {
+  const prest = (r['Prestación']||r['Prestacion']||'').trim().toUpperCase();
+  if (prest !== 'COSEGURO') return false;
+  const turnoFecha = parseDate(r['Turno Fecha']);
+  const fFact = r['F/ Facturación'] ?? r['F/Facturación'] ?? r['F/ Facturacion'] ?? r['F/Facturacion'] ?? '';
+  const factFecha = parseDate(fFact);
+  if (!turnoFecha || !factFecha) return !!turnoFecha;
+  return turnoFecha.getMonth() !== factFecha.getMonth() ||
+         turnoFecha.getFullYear() !== factFecha.getFullYear();
+}
+
+/* ══════════════════════════════════
+   ERROR CUENTA SIN INTERNADOS  (2026-07-17)
+   Turno internado (Tipo Turno = INT) en FINAMED (ID Aseguradora = 1665) cuya
+   Cuenta es OSEP o PAMI a secas → error: debería ser OSEP INTERNADOS o
+   PAMI INTERNADOS. Cuenta es a nivel turno, se evalúa sobre el dedup.
+══════════════════════════════════ */
+function esErrorCuentaInternados(r) {
+  const tt = (r['Tipo Turno']||'').trim().toUpperCase();
+  if (tt !== 'INT') return false;
+  const idAseg = String(r['ID Aseguradora']||'').trim();
+  if (idAseg !== '1665') return false;
+  const cuenta = (r['Cuenta']||'').trim().toUpperCase();
+  return cuenta === 'OSEP' || cuenta === 'PAMI';
 }
 
 // TC RM PAMI en FINAMED: REA + FINAMED SA - HOSP ITAL (PROV) + Cuenta PAMI/PAMI INTERNADOS
@@ -2074,7 +2115,7 @@ function calcKPIs(data) {
   // Institución Derivante: error si Inst Derivante = FUESMEN y Operador está en la lista
   const instDerivErr = rea.filter(r => esErrorInstDerivante(r));
   document.getElementById('kpi-instderiv').textContent = instDerivErr.length.toLocaleString();
-  document.getElementById('kpi-instderiv-sub').textContent = `Probable error`;
+  document.getElementById('kpi-instderiv-sub').textContent = `FUESMEN cargado por H.ITALIANO`;
 
   const derivErr = rea.filter(r => {
     const d = (r['Derivante']||'').trim().toUpperCase();
@@ -2102,14 +2143,16 @@ function calcKPIs(data) {
   const totalOblIds = reaOblIds.length;
   // Nombres de aseguradoras para IDs 3075/1665
   const asegNombres3075_1665 = [...new Set(reaOblIds.map(r => r['Aseguradora']).filter(Boolean))].slice(0,3).join(', ') || 'ID 3075/1665';
-  // Denominador: REA no-PARTICULAR (el alcance nuevo de la regla).
-  const reaNoPart = rea.filter(r => (r['Aseguradora']||'').trim().toUpperCase() !== 'PARTICULAR').length;
-  const pctCob = reaNoPart ? ((cobErr.length/reaNoPart)*100).toFixed(1) : 0;
-  const asegCobTop = [...new Set(cobErr.map(r => r['Aseguradora']).filter(Boolean))].slice(0,3).join(', ') || '≠ OBL';
-  document.getElementById('kpi-cobertura-sub').textContent = `${pctCob}% ≠ OBL — ${asegCobTop}`;
+  // Denominador: filas REA de ID 3075/1665 (alcance de la regla revertida).
+  const pctCob = totalOblIds ? ((cobErr.length/totalOblIds)*100).toFixed(1) : 0;
+  document.getElementById('kpi-cobertura-sub').textContent = `${pctCob}% ≠ OBL de ID 3075/1665`;
 
-  // Fuera Fecha Facturación: ID 3075 o 1665 con F/ Facturación en mes distinto a Turno Fecha
-  const fueraFechaErr = rea.filter(r => esErrorFueraFechaFact(r));
+  // Fuera Fecha Facturación: ID 3075/1665 con F/ Facturación en mes distinto a Turno
+  // Fecha, MÁS coseguros con F/ Facturación de otro mes (ítem 2026-07-17). El
+  // coseguro es una línea aparte → se evalúa a nivel línea y se cuenta por turno único.
+  const reaLineas2 = data.filter(r => r['Estado'] === 'REA');
+  const fueraLineas = reaLineas2.filter(r => esErrorFueraFechaFact(r));
+  const fueraFechaErr = dedupByTurno(fueraLineas);
   document.getElementById('kpi-fuerafecha').textContent = fueraFechaErr.length.toLocaleString();
   const pctFuera = totalOblIds ? ((fueraFechaErr.length/totalOblIds)*100).toFixed(1) : 0;
   document.getElementById('kpi-fuerafecha-sub').textContent = `${pctFuera}% — ${asegNombres3075_1665}`;
@@ -2118,6 +2161,11 @@ function calcKPIs(data) {
   const aseguradoraErr = rea.filter(r => esErrorAseguradora(r));
   document.getElementById('kpi-aseguradora').textContent = aseguradoraErr.length.toLocaleString();
   document.getElementById('kpi-aseguradora-sub').textContent = 'FINAMED → INSSJYP';
+
+  // Cuenta sin INTERNADOS: turno INT en FINAMED (1665) con Cuenta OSEP/PAMI a secas.
+  const cuentaIntErr = rea.filter(r => esErrorCuentaInternados(r));
+  document.getElementById('kpi-cuentaint').textContent = cuentaIntErr.length.toLocaleString();
+  document.getElementById('kpi-cuentaint-sub').textContent = 'INT FINAMED: OSEP/PAMI sin INTERNADOS';
 
   // Trámites incompletos: el detalle por aseguradora se renderiza en la pestaña
   // "Trámites Incompletos" (renderTITab), desde el Excel cargado. Ver más abajo.
@@ -3397,6 +3445,7 @@ const MODAL_COLORS = {
   instderiv:     'var(--red)',
   derivantes:    'var(--red)',
   coseguros:     'var(--red)',
+  cuentaint:     'var(--red)',
   aseguradoras:  'var(--purple)',
   sinreferencia: 'var(--red)',
   cobertura:     'var(--amber)',
@@ -3420,13 +3469,14 @@ const MODAL_COLORS = {
 };
 
 const MODAL_LABELS = {
-  instderiv:     'Institución Derivante — FUESMEN (todos los turnos, revisión manual)',
+  instderiv:     'Institución Derivante — FUESMEN cargado por operador de H.ITALIANO',
   derivantes:    'Sin Derivantes — Vacío o "A CONFIRMAR"',
-  coseguros:     'Coseguros — Error de Carga (cuenta OSEP · Neto $0 · por línea)',
+  coseguros:     'Coseguros — Error de Carga (Prestación COSEGURO · Neto $0 · por línea)',
+  cuentaint:     'Cuenta sin INTERNADOS — Turno INT en FINAMED (1665) con Cuenta OSEP/PAMI (debe ser OSEP/PAMI INTERNADOS)',
   aseguradoras:  'Turnos por Aseguradora',
   sinreferencia: 'Nº Referencia — Error (ID 1665: vacío o dígitos inválidos)',
-  cobertura:     'Tipo Cobertura — Error (≠ OBL, excluye Particular)',
-  fuerafecha:    'Fuera Fecha Facturación — Error (ID 3075/1665 mes distinto)',
+  cobertura:     'Tipo Cobertura — Error (ID 3075/1665 ≠ OBL)',
+  fuerafecha:    'Fuera Fecha Facturación — Error (ID 3075/1665 mes distinto · o coseguro fuera de mes)',
   aseguradora:   'Aseguradora FINAMED INSSJYP',
   tramites:      'Trámites Incompletos OS/Prepagas — Factura o N° Orden en 0',
   tramitesharefield: 'Trámites Incompletos Harefield — ID 3075 (HAREFIELD S.A.) con N° Orden en 0 (a recepcionar)',
@@ -3485,6 +3535,7 @@ function _openModalInternal(tipo) {
     case 'instderiv':    modalRows = filtered.filter(r => esErrorInstDerivante(r)); break;
     case 'derivantes':   modalRows = filtered.filter(r => { const d=_safe(r['Derivante']).toUpperCase(); return !d || d==='A CONFIRMAR'; }); break;
     case 'coseguros':    modalRows = filtered.filter(esErrorCoseguro); break;
+    case 'cuentaint':    modalRows = filtered.filter(esErrorCuentaInternados); break;
     case 'aseguradoras': modalRows = filtered.filter(r => _safe(r['Aseguradora']) !== ''); break;
     case 'sinreferencia':modalRows = filtered.filter(r => esErrorReferencia(r)); break;
     case 'cobertura':   modalRows = filtered.filter(r => esErrorCobertura(r)); break;
@@ -3504,6 +3555,7 @@ function _openModalInternal(tipo) {
       (()=>{ const d=_safe(r['Derivante']).toUpperCase(); return !d || d==='A CONFIRMAR'; })() ||
       esErrorCoseguro(r) ||
       esErrorReferencia(r) ||
+      esErrorCuentaInternados(r) ||
       esErrorTramiteIncompleto(r)
     ); break;
     case 'sumturnos':    modalRows = [...filtered]; break;
