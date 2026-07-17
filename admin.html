@@ -1977,11 +1977,21 @@ function esErrorCobertura(r) {
    Si ID Aseguradora es 3075 o 1665, y F/ Facturación no está
    dentro del mismo mes/año que Turno Fecha → error
 ══════════════════════════════════ */
+// 2026-07-17: PISO DE FECHA. Solo se auditan turnos realizados a partir de esta
+// fecha; los de períodos de facturación cerrados (anteriores) NO se muestran ni se
+// exportan → no reaparecen en futuras auditorías. Debe coincidir con
+// FECHA_MIN_REALIZACION del bot lumen-fix-fuerafecha.py.
+// >>> BUMPEAR ESTA FECHA junto con el bot cuando avance el período. <<<
+const FUERAFECHA_MIN_REALIZACION = new Date(2026, 5, 1); // 1 de junio 2026 (mes 5 = junio)
+
 function esErrorFueraFechaFact(r) {
   // Combina dos reglas (cualquiera de las dos marca error):
   //  a) ID 3075/1665 con F/ Facturación en mes distinto a Turno Fecha (regla original)
   //  b) 2026-07-17: cualquier línea COSEGURO con F/ Facturación en mes distinto a
   //     Turno Fecha (ítem trasladado desde Coseguros a Fuera Fecha Facturación).
+  // Piso: los turnos de períodos cerrados (antes de junio) no se auditan.
+  const tf = parseDate(r['Turno Fecha']);
+  if (tf && tf < FUERAFECHA_MIN_REALIZACION) return false;
   return esFueraFechaID(r) || esErrorCoseguroFueraMes(r);
 }
 
