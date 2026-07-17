@@ -109,6 +109,11 @@
   .mini-btn:hover{border-color:var(--border-a);color:var(--pyralis-firefly)}
   .muted{color:var(--muted)}
   .empty{padding:40px;text-align:center;color:var(--muted)}
+  .restored-bar{display:none;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 18px;padding:10px 14px;
+    border:1px solid rgba(6,182,212,.35);background:rgba(6,182,212,.08);border-radius:10px;font-size:12.5px;color:var(--lumen-accent-soft)}
+  .link-btn{margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;
+    padding:5px 12px;font-size:11px;cursor:pointer}
+  .link-btn:hover{color:var(--pyralis-firefly);border-color:var(--border-a)}
   .cp{display:inline-block;margin-left:6px;cursor:pointer;color:var(--muted);font-size:12px;opacity:.75;user-select:none}
   .cp:hover{color:var(--pyralis-firefly);opacity:1}
   .state-chips{display:none;flex-wrap:wrap;gap:8px;margin:0 0 12px}
@@ -170,6 +175,11 @@
   <p class="page-sub">Soltá el export de turnos de FUESMEN (<code>Turno-####.xls</code>) y la bandeja de transmisión de PAMI
     (<code>bandeja_transmision.xls</code>). El módulo cruza por afiliado + nombre + fecha y clasifica cada turno por su
     <b>estado real en PAMI</b>: validado, pendiente, o sin registro. Todo el procesamiento ocurre en tu navegador.</p>
+
+  <div id="restored" class="restored-bar">
+    <span>↻ Datos restaurados de tu última sesión (<span id="restored-when"></span>). Subí nuevos archivos para reemplazarlos.</span>
+    <button class="link-btn" onclick="limpiarGuardado()">Limpiar guardado</button>
+  </div>
 
   <!-- Config -->
   <div class="cfg">
@@ -291,7 +301,7 @@
 const URL_FUESMEN = 'http://his.fuesmen.edu.ar:8180/his/servlet/hturno';
 const URL_PAMI    = 'https://pe.pami.org.ar/controllers/transmision.php';
 
-let FU=null, PA=null, ITEMS=[], RES=null, curFilter='all', curItem=null;
+let FU=null, PA=null, ITEMS=[], RES=null, curFilter='all', curItem=null, SAVED_DECISIONS={};
 
 const ESTADO_META = {
   VALIDADO:{c:'var(--ok)',lbl:'Validado'},
@@ -304,6 +314,24 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
   clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2600);}
 function isoDate(d){if(!(d instanceof Date)||isNaN(d))return null;
   const z=n=>(n<10?'0':'')+n;return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate());}
+
+/* ── Persistencia local (IndexedDB) ── */
+const IDB_NAME='lumen_conciliacion', IDB_STORE='estado';
+function idbOpen(){return new Promise((res,rej)=>{const r=indexedDB.open(IDB_NAME,1);
+  r.onupgradeneeded=()=>r.result.createObjectStore(IDB_STORE);
+  r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);});}
+async function idbSet(k,v){const db=await idbOpen();return new Promise((res,rej)=>{const t=db.transaction(IDB_STORE,'readwrite');t.objectStore(IDB_STORE).put(v,k);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);});}
+async function idbGet(k){const db=await idbOpen();return new Promise((res,rej)=>{const t=db.transaction(IDB_STORE,'readonly');const q=t.objectStore(IDB_STORE).get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);});}
+async function idbDel(k){const db=await idbOpen();return new Promise((res,rej)=>{const t=db.transaction(IDB_STORE,'readwrite');t.objectStore(IDB_STORE).delete(k);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);});}
+async function persistFiles(){ try{ await idbSet('files',{
+  fu:FU, pa:PA, names:{fu:(FU&&FU._name)||null, pa:(PA&&PA._name)||null},
+  stFu:document.getElementById('st-fu').innerHTML, stPa:document.getElementById('st-pa').innerHTML,
+  savedAt:new Date().toISOString() }); }catch(e){ console.warn('persistFiles',e); } }
+async function persistWork(){ try{ await idbSet('work',{cfg:readCfg(),decisions:SAVED_DECISIONS,savedAt:new Date().toISOString()}); }catch(e){} }
+async function limpiarGuardado(){ try{ await idbDel('files'); await idbDel('work'); }catch(e){} location.reload(); }
+function showRestored(iso){ const el=document.getElementById('restored'); if(!el) return;
+  let w=''; try{ w=new Date(iso).toLocaleString('es-AR'); }catch(e){}
+  const wh=document.getElementById('restored-when'); if(wh) wh.textContent=w; el.style.display='flex'; }
 
 /* ── Sesión (para habilitar guardar) ── */
 (async function initSes(){
@@ -335,10 +363,11 @@ async function handleFuesmen(file){
     const aoa=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
     const parsed=CP.parseFuesmen(aoa);
     if(!parsed.turnos.length){throw new Error('No encontré turnos INSSJYP/PAMI. ¿Es el export correcto?');}
-    FU=parsed; zone.classList.remove('err'); zone.classList.add('loaded');
+    FU=parsed; FU._name=file.name; zone.classList.remove('err'); zone.classList.add('loaded');
     let warn = parsed.vacios>0 ? `<div class="drop-warn">⚠ ${parsed.vacios} turnos sin afiliado — el match usará nombre+fecha.</div>` : '';
     if(!isOle) warn += `<div class="drop-warn">⚠ El archivo no parece .xls binario; verificá que sea el export de FUESMEN.</div>`;
     st.innerHTML=`<span class="cnt">${parsed.turnos.length}</span> turnos · ${parsed.total}→${parsed.p1}→${parsed.p2} filas filtradas`+warn;
+    persistFiles();
     tryReconcile();
   }catch(err){zone.classList.remove('loaded');zone.classList.add('err');
     st.innerHTML=`<span style="color:var(--danger)">✕ ${err.message}</span>`;}
@@ -366,8 +395,9 @@ async function handlePami(file){
     const cfg=readCfg();
     const parsed=CP.parsePami(aoa,cfg);
     if(!parsed.registros.length) throw new Error('No pude leer registros PAMI.');
-    PA=parsed; zone.classList.remove('err'); zone.classList.add('loaded');
+    PA=parsed; PA._name=file.name; zone.classList.remove('err'); zone.classList.add('loaded');
     st.innerHTML=`<span class="cnt">${parsed.total.toLocaleString('es')}</span> órdenes · ${parsed.delUsuario} tuyas · ${parsed.pendientes} pendientes`;
+    persistFiles();
     tryReconcile();
   }catch(err){zone.classList.remove('loaded');zone.classList.add('err');
     st.innerHTML=`<span style="color:var(--danger)">✕ ${err.message}</span>`;}
@@ -393,6 +423,7 @@ function recalcular(){
   const cfg=readCfg();
   // re-parsear PAMI counts con uAcepto actual (para pendientes)
   ITEMS=CP.reconcile(FU.turnos, PA.registros, cfg);
+  ITEMS.forEach(it=>{const d=SAVED_DECISIONS[it.turno.nro_turno]; if(d) it.decision_manual=d;});
   RES=CP.resumen(ITEMS);
   renderKPIs();
   document.getElementById('kpis').style.display='grid';
@@ -401,6 +432,7 @@ function recalcular(){
   document.getElementById('tblw').classList.add('show');
   document.getElementById('actions').classList.add('show');
   renderTable();
+  persistWork();
   toast(`Conciliados ${ITEMS.length} turnos`);
 }
 
@@ -535,7 +567,7 @@ function openReview(idx){
 function closeReview(){document.getElementById('ov').classList.remove('show');curItem=null;}
 document.getElementById('ov').addEventListener('click',e=>{if(e.target.id==='ov')closeReview();});
 
-function decidir(idx,dec){ITEMS[idx].decision_manual=dec;renderTable();closeReview();
+function decidir(idx,dec){ITEMS[idx].decision_manual=dec;SAVED_DECISIONS[ITEMS[idx].turno.nro_turno]=dec;persistWork();renderTable();closeReview();
   toast(dec==='confirmado'?'Match confirmado':'Match descartado');}
 
 function elegirAlt(idx,k){
@@ -545,13 +577,13 @@ function elegirAlt(idx,k){
   const viejo=it.match;
   it.match=nuevoMatch; it.nombre_sim=alt.nombre_sim; it.delta_dias=alt.delta_dias; it.score=alt.score;
   it.estado=CP.estadoPami(nuevoMatch);
-  it.confianza='dudoso'; it.decision_manual='confirmado';
+  it.confianza='dudoso'; it.decision_manual='confirmado'; SAVED_DECISIONS[it.turno.nro_turno]='confirmado';
   const cfg=readCfg();
   it.operador=(nuevoMatch.u_acepto===cfg.uAcepto)?'mi_usuario':'otro_operador';
   // reconstruir alternativas (poner el viejo primero)
   it.alternativas=[{registro:viejo,score:0,nombre_sim:0,delta_dias:null}].concat(
     it.alternativas.filter((_,j)=>j!==k));
-  RES=CP.resumen(ITEMS); renderKPIs(); renderTable(); openReview(idx);
+  RES=CP.resumen(ITEMS); renderKPIs(); renderTable(); persistWork(); openReview(idx);
   toast('Candidato reasignado y confirmado');
 }
 
@@ -618,8 +650,26 @@ function wireDrop(zoneId,inputId,handler){
   ['dragleave','drop'].forEach(ev=>z.addEventListener(ev,e=>{e.preventDefault();z.classList.remove('dragover');}));
   z.addEventListener('drop',e=>{if(e.dataTransfer.files[0])handler(e.dataTransfer.files[0]);});
 }
-wireDrop('drop-fu','in-fu',f=>{FU&&(FU._name=null);handleFuesmen(f).then(()=>{if(FU)FU._name=f.name;});});
-wireDrop('drop-pa','in-pa',f=>{handlePami(f).then(()=>{if(PA)PA._name=f.name;});});
+wireDrop('drop-fu','in-fu',handleFuesmen);
+wireDrop('drop-pa','in-pa',handlePami);
+
+/* ── Restaurar sesión guardada (IndexedDB) ── */
+(async function restaurar(){
+  try{
+    const files=await idbGet('files'); if(!files) return;
+    if(files.fu){ FU=files.fu; if(files.names&&files.names.fu) FU._name=files.names.fu;
+      document.getElementById('st-fu').innerHTML=files.stFu||''; document.getElementById('drop-fu').classList.add('loaded'); }
+    if(files.pa){ PA=files.pa; if(files.names&&files.names.pa) PA._name=files.names.pa;
+      document.getElementById('st-pa').innerHTML=files.stPa||''; document.getElementById('drop-pa').classList.add('loaded'); }
+    const work=await idbGet('work');
+    if(work&&work.cfg){ const c=work.cfg;
+      document.getElementById('cfg-ua').value=c.uAcepto||'SU41752974';
+      document.getElementById('cfg-vent').value=c.ventanaDias; document.getElementById('cfg-umb').value=c.umbralNombre; document.getElementById('cfg-cor').value=c.corteFuerte; }
+    if(work&&work.decisions) SAVED_DECISIONS=work.decisions;
+    document.getElementById('btn-recalc').disabled=!(FU&&PA);
+    if(FU&&PA){ recalcular(); showRestored(files.savedAt); }
+  }catch(e){ console.warn('restaurar',e); }
+})();
 </script>
 </body>
 </html>
