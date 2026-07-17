@@ -1205,17 +1205,9 @@ function sedeHeroHtml(s) {
 
 function renderSedes(sedes) {
   const grid = document.getElementById('sedes-grid');
-  const hero = sedes.find(s => s.nombre === SEDE_PRINCIPAL);
-  const rest = sedes.filter(s => s.nombre !== SEDE_PRINCIPAL);
-  let html = '';
-  if (hero) {
-    html += sedeHeroHtml(hero);
-    if (rest.length) html += `<div class="sedes-section-label">Otras sedes</div>`;
-  }
-  if (rest.length) {
-    html += `<div class="sedes-grid-inner">` + rest.map((s, i) => sedeBtnHtml(s, i)).join('') + `</div>`;
-  }
-  grid.innerHTML = html;
+  // 2026-07-17: mostrar SOLO la sede principal (Hospital Italiano). Se ocultan "otras sedes".
+  const hero = sedes.find(s => s.nombre === SEDE_PRINCIPAL) || { nombre: SEDE_PRINCIPAL };
+  grid.innerHTML = sedeHeroHtml(hero);
 }
 
 function selectSede(nombre) {

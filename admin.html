@@ -60,26 +60,46 @@
     /* ── LAYOUT ── */
     .main { max-width:1200px; margin:0 auto; padding:28px 24px 60px; }
 
-    /* ── UPLOAD ── */
-    #upload-zone {
-      margin-bottom:28px; border:1.5px dashed var(--border-a);
-      border-radius:12px; padding:36px; text-align:center;
-      transition:all .3s; background:rgba(59,130,246,.03);
-    }
-    #upload-zone.has-data { border-color:rgba(59,130,246,.4); background:rgba(59,130,246,.06); padding:20px; }
-    .upload-icon { font-size:32px; margin-bottom:10px; }
-    .upload-title { font-family:'Rajdhani',sans-serif; font-size:16px; letter-spacing:2px; color:var(--blue); }
-    .upload-sub   { font-size:12px; color:var(--muted); margin-top:4px; }
-    .upload-label {
-      display:inline-block; margin-top:16px;
-      padding:10px 28px; border-radius:6px;
-      background:rgba(59,130,246,.1); border:1px solid var(--border-a);
-      color:var(--blue); font-size:12px; letter-spacing:2px;
-      text-transform:uppercase; cursor:pointer; transition:all .2s;
-    }
-    .upload-label:hover { background:rgba(59,130,246,.2); }
+    /* ── BANNER SUPERIOR (tech) ── */
+    #upload-zone { margin-bottom:28px; }
     #file-input  { display:none; }
-    #data-status { margin-top:10px; font-size:12px; color:var(--muted); letter-spacing:1px; }
+    .tech-banner{
+      position:relative; overflow:hidden; border-radius:16px;
+      background:
+        radial-gradient(120% 140% at 50% 0%,rgba(30,90,180,.35),transparent 60%),
+        linear-gradient(180deg,#0c1b34 0%,#0a1326 55%,#080e1c 100%);
+      border:1px solid rgba(56,140,220,.35);
+      box-shadow:0 12px 46px rgba(0,0,0,.45),inset 0 0 60px rgba(20,60,120,.25);
+      padding:20px 30px 28px; min-height:150px;
+      display:flex; flex-direction:column; justify-content:center; gap:14px;
+    }
+    .tech-banner .circuit{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; opacity:.9; }
+    .tech-banner .grid-fx{ position:absolute; inset:0; pointer-events:none;
+      background-image:linear-gradient(rgba(90,150,220,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(90,150,220,.05) 1px,transparent 1px);
+      background-size:34px 34px; -webkit-mask:radial-gradient(120% 120% at 50% 40%,#000 30%,transparent 75%); mask:radial-gradient(120% 120% at 50% 40%,#000 30%,transparent 75%); }
+    .tech-banner .horizon{ position:absolute; left:8%; right:8%; bottom:10px; height:2px; pointer-events:none;
+      background:linear-gradient(90deg,transparent,#38e1ff,#bfefff,#38e1ff,transparent);
+      filter:blur(.4px); box-shadow:0 0 22px 3px rgba(56,225,255,.55); opacity:.85; }
+    .tb-head{ position:relative; display:flex; align-items:center; justify-content:center; gap:14px; }
+    .tb-brief{ width:38px; height:38px; filter:drop-shadow(0 0 10px rgba(56,225,255,.7)); }
+    .tb-title{ font-family:'Rajdhani',sans-serif; font-weight:700; font-size:28px; letter-spacing:6px;
+      color:#dff3ff; text-shadow:0 0 18px rgba(56,225,255,.55); text-transform:uppercase; }
+    .tb-title b{ color:#38e1ff; }
+    .tb-data{ position:relative; display:flex; gap:16px; flex-wrap:wrap; justify-content:center; }
+    .tb-stat{ flex:1 1 340px; max-width:460px; display:flex; align-items:center; gap:16px;
+      background:rgba(10,22,42,.55); border:1px solid rgba(56,140,220,.3); border-radius:12px; padding:12px 16px; backdrop-filter:blur(3px); }
+    .tb-stat .txt{ flex:1; min-width:0; }
+    .tb-stat .val{ font-family:'Rajdhani',sans-serif; font-weight:700; line-height:1; color:#eaf6ff; }
+    .tb-stat .val.big{ font-size:30px; }
+    .tb-stat .val.mid{ font-size:19px; }
+    .tb-stat .lbl{ font-size:11px; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase; margin-top:3px; }
+    .tb-btn{ flex:0 0 auto; border-radius:9px; padding:10px 16px; font-weight:700; font-size:12.5px; letter-spacing:.4px;
+      cursor:pointer; display:flex; align-items:center; gap:8px; white-space:nowrap; transition:all .18s; font-family:'Inter',sans-serif; }
+    .tb-btn.cloud{ background:linear-gradient(135deg,rgba(34,219,174,.22),rgba(34,219,174,.08)); border:1px solid rgba(34,219,174,.55); color:var(--green); }
+    .tb-btn.cloud:hover{ background:rgba(34,219,174,.3); box-shadow:0 6px 18px rgba(34,219,174,.25); }
+    .tb-btn.excel{ background:linear-gradient(135deg,rgba(59,130,246,.22),rgba(59,130,246,.08)); border:1px solid rgba(59,130,246,.55); color:#8fc0ff; }
+    .tb-btn.excel:hover{ background:rgba(59,130,246,.3); box-shadow:0 6px 18px rgba(59,130,246,.25); }
+    .tb-note{ position:relative; text-align:center; font-size:11.5px; color:var(--green); min-height:14px; }
 
     /* ── SUMMARY BAR ── */
     .summary-bar {
@@ -270,6 +290,36 @@
     .kpi-arr { margin-top:5px; font-size:11px; font-weight:600; line-height:1.2; }
     .kpi-arr .arr-ok   { color:var(--green); }
     .kpi-arr .arr-pend { color:var(--amber); font-weight:500; }
+
+    /* ── ERRORES DE CARGA · rectángulos auto/manual ── */
+    .err-block { margin-bottom:28px; }
+    .ecard-group-label { display:flex; align-items:center; gap:9px; font-family:'Rajdhani',sans-serif;
+      font-size:12px; font-weight:700; letter-spacing:2.5px; text-transform:uppercase; margin:22px 2px 12px; }
+    .ecard-group-label .pill { width:10px; height:10px; border-radius:3px; }
+    .ecard-group-label.auto   { color:var(--green); } .ecard-group-label.auto .pill   { background:var(--green); }
+    .ecard-group-label.manual { color:var(--red); }   .ecard-group-label.manual .pill { background:var(--red); }
+    .ecards { display:grid; grid-template-columns:repeat(auto-fit,minmax(360px,1fr)); gap:14px; }
+    .kpi-card.ecard { display:grid; grid-template-columns:auto 1fr; column-gap:18px; align-items:center;
+      padding:16px 20px 16px 22px; }
+    .kpi-card.ecard::after { display:none; }
+    .kpi-card.ecard::before { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; }
+    .kpi-card.ecard.auto::before   { background:linear-gradient(180deg,var(--green),rgba(34,219,174,.25)); }
+    .kpi-card.ecard.manual::before { background:linear-gradient(180deg,var(--red),rgba(248,96,122,.28)); }
+    .kpi-card.ecard.auto:hover   { border-color:rgba(34,219,174,.45); box-shadow:0 10px 30px rgba(34,219,174,.14); }
+    .kpi-card.ecard.manual:hover { border-color:rgba(248,96,122,.45); box-shadow:0 10px 30px rgba(248,96,122,.14); }
+    .kpi-card.ecard.automatizado { opacity:1; }
+    .ecard .num { font-family:'Rajdhani',sans-serif; font-size:44px; font-weight:700; line-height:.9; min-width:58px; text-align:center; }
+    .ecard.auto   .num { color:var(--green); }
+    .ecard.manual .num { color:var(--red); }
+    .ecard .ec-top { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .ecard .ec-label { font-family:'Rajdhani',sans-serif; font-size:14.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--text); }
+    .ecard .ec-sub { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:6px; }
+    .ecard .kpi-sub { font-size:11.5px; color:var(--muted); margin:0; }
+    .ecard .kpi-arr { margin:0; white-space:nowrap; }
+    .ecard .kpi-auto-badge, .ecard .ec-man-badge { position:static; display:inline-flex; align-items:center; margin:0; align-self:auto;
+      font-size:10px; font-weight:700; letter-spacing:1px; padding:3px 9px; border-radius:20px; white-space:nowrap; text-transform:uppercase; }
+    .ecard .kpi-auto-badge { color:var(--green); border:1px solid rgba(34,219,174,.4); background:rgba(34,219,174,.12); }
+    .ecard .ec-man-badge   { color:var(--red);   border:1px solid rgba(248,96,122,.4); background:rgba(248,96,122,.12); }
 
     /* ── MODAL DRAWER ── */
     /* IMPORTANTE: spcd-components.css define .modal-overlay { display:none }
@@ -558,23 +608,47 @@
 
 <div class="main">
 
-  <!-- ESTADO DATOS -->
+  <!-- ESTADO DATOS · banner tech -->
   <div id="upload-zone">
-    <svg viewBox="0 0 200 230" width="120" height="138" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:8px">
-      <rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/>
-      <path d="M82 52 L82 44 Q82 38 88 38 L112 38 Q118 38 118 44 L118 52" fill="none" stroke="#3B82F6" stroke-width="3.5" stroke-linecap="round"/>
-      <rect x="45" y="52" width="110" height="72" rx="8" fill="none" stroke="#3B82F6" stroke-width="3.5"/>
-      <line x1="45" y1="75" x2="155" y2="75" stroke="#3B82F6" stroke-width="2" stroke-opacity="0.5"/>
-      <rect x="93" y="69" width="14" height="12" rx="2" fill="none" stroke="#3B82F6" stroke-width="2.5"/>
-      <text x="100" y="200" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">MÓDULO</text>
-      <text x="100" y="222" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="1">ADMINISTRATIVO</text>
+   <div class="tech-banner">
+    <svg class="circuit" viewBox="0 0 1140 200" preserveAspectRatio="none">
+      <defs><filter id="bnr-g"><feGaussianBlur stdDeviation="1.4"/></filter></defs>
+      <g stroke="#2f8fe0" stroke-width="1.4" fill="none" opacity=".55" filter="url(#bnr-g)">
+        <polyline points="0,60 70,60 95,85 180,85"/><polyline points="0,110 50,110 80,140 150,140"/>
+        <polyline points="0,150 40,150 65,125 130,125"/><polyline points="20,30 110,30 130,55 210,55"/>
+        <polyline points="1140,60 1070,60 1045,85 960,85"/><polyline points="1140,110 1090,110 1060,140 990,140"/>
+        <polyline points="1140,150 1100,150 1075,125 1010,125"/><polyline points="1120,30 1030,30 1010,55 930,55"/>
+      </g>
+      <g fill="#59c7ff">
+        <circle cx="180" cy="85" r="3.5"/><circle cx="150" cy="140" r="3"/><circle cx="130" cy="125" r="3"/><circle cx="210" cy="55" r="3.5"/>
+        <circle cx="960" cy="85" r="3.5"/><circle cx="990" cy="140" r="3"/><circle cx="1010" cy="125" r="3"/><circle cx="930" cy="55" r="3.5"/>
+        <circle cx="95" cy="85" r="2.5"/><circle cx="1045" cy="85" r="2.5"/>
+      </g>
+      <g fill="#8fe0ff" opacity=".8">
+        <circle cx="60" cy="45" r="1.6"/><circle cx="230" cy="120" r="1.6"/><circle cx="120" cy="170" r="1.6"/><circle cx="30" cy="90" r="1.4"/>
+        <circle cx="1080" cy="45" r="1.6"/><circle cx="910" cy="120" r="1.6"/><circle cx="1020" cy="170" r="1.6"/><circle cx="1110" cy="90" r="1.4"/>
+      </g>
     </svg>
-    <div class="upload-sub" id="upload-sub-text">Cargando datos...</div>
-    <div id="data-status"></div>
-    <button id="btn-traer-nube" onclick="traerUltimaDataNube()" style="margin-top:14px; background:rgba(34,219,174,.12); border:1px solid rgba(34,219,174,.5); color:#22DBAE; padding:9px 18px; border-radius:8px; cursor:pointer; font-weight:600; letter-spacing:.5px;">
-      ☁️ Traer última data de la nube
-    </button>
-    <div id="traer-nube-status" style="margin-top:8px; font-size:12px; color:var(--muted);"></div>
+    <div class="grid-fx"></div>
+    <div class="tb-head">
+      <svg class="tb-brief" viewBox="0 0 24 24" fill="none" stroke="#38e1ff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 5V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1"/><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="3" y1="11" x2="21" y2="11"/><rect x="10.5" y="9.5" width="3" height="3" rx=".5"/>
+      </svg>
+      <div class="tb-title">Módulo <b>Administrativo</b></div>
+    </div>
+    <div class="tb-data">
+      <div class="tb-stat">
+        <div class="txt"><div class="val big" id="kpi-num">—</div><div class="lbl" id="upload-sub-text">Cargando datos...</div></div>
+        <button class="tb-btn cloud" id="btn-traer-nube" onclick="traerUltimaDataNube()">☁️ Traer última data de la nube</button>
+      </div>
+      <div class="tb-stat">
+        <div class="txt"><div class="val mid" id="data-status">—</div><div class="lbl">Última actualización</div></div>
+        <button class="tb-btn excel" onclick="location.href='app.html'">📂 Recargar Excel</button>
+      </div>
+    </div>
+    <div class="tb-note" id="traer-nube-status"></div>
+    <div class="horizon"></div>
+   </div>
   </div>
 
   <!-- SUMMARY BAR (análisis) -->
@@ -623,65 +697,72 @@
     <button class="btn-reset"  onclick="resetFilters()">Limpiar</button>
   </div>
 
-  <!-- KPIs · Grupo 1: Errores de carga -->
-  <div class="kpi-section-label sec-errores">Errores de carga</div>
-  <div class="kpi-grid fade-in">
-    <div class="kpi-card red" onclick="openModal('instderiv')">
-      <div class="kpi-icon">⚠️</div>
-      <div class="kpi-label">Institución Derivante</div>
-      <div class="kpi-val" id="kpi-instderiv">—</div>
-      <div class="kpi-sub" id="kpi-instderiv-sub">Probable error</div>
-      <div class="kpi-hint">ver detalle →</div>
+  <!-- KPIs · Errores de carga (rectángulos: automatizados primero, luego manuales) -->
+  <div class="err-block fade-in">
+    <div class="kpi-section-label sec-errores">Errores de carga</div>
+
+    <div class="ecard-group-label auto"><span class="pill"></span>Automatizados · con bot de reparación</div>
+    <div class="ecards">
+      <div class="kpi-card ecard auto" onclick="openModal('instderiv')">
+        <div class="num" id="kpi-instderiv">—</div>
+        <div class="ec-body">
+          <div class="ec-top"><span class="ec-label">Institución Derivante</span><span class="kpi-auto-badge">✓ Automatizado</span></div>
+          <div class="ec-sub"><span class="kpi-sub" id="kpi-instderiv-sub">Probable error</span><span class="kpi-arr"></span></div>
+        </div>
+      </div>
+      <div class="kpi-card ecard auto" onclick="openModal('cobertura')">
+        <div class="num" id="kpi-cobertura">—</div>
+        <div class="ec-body">
+          <div class="ec-top"><span class="ec-label">Tipo Cobertura</span><span class="kpi-auto-badge">✓ Automatizado</span></div>
+          <div class="ec-sub"><span class="kpi-sub" id="kpi-cobertura-sub">≠ OBL (ID 3075/1665)</span><span class="kpi-arr"></span></div>
+        </div>
+      </div>
+      <div class="kpi-card ecard auto" onclick="openModal('fuerafecha')">
+        <div class="num" id="kpi-fuerafecha">—</div>
+        <div class="ec-body">
+          <div class="ec-top"><span class="ec-label">Fuera Fecha Facturación</span><span class="kpi-auto-badge">✓ Automatizado</span></div>
+          <div class="ec-sub"><span class="kpi-sub" id="kpi-fuerafecha-sub">ID 3075/1665 mes distinto</span><span class="kpi-arr"></span></div>
+        </div>
+      </div>
+      <div class="kpi-card ecard auto" onclick="openModal('aseguradora')">
+        <div class="num" id="kpi-aseguradora">—</div>
+        <div class="ec-body">
+          <div class="ec-top"><span class="ec-label">TC RM PAMI en FINAMED</span><span class="kpi-auto-badge">✓ Automatizado</span></div>
+          <div class="ec-sub"><span class="kpi-sub" id="kpi-aseguradora-sub">FINAMED → INSSJYP</span><span class="kpi-arr"></span></div>
+        </div>
+      </div>
     </div>
-    <div class="kpi-card red" onclick="openModal('derivantes')">
-      <div class="kpi-icon">⚠️</div>
-      <div class="kpi-label">Sin Derivantes</div>
-      <div class="kpi-val" id="kpi-derivantes">—</div>
-      <div class="kpi-sub" id="kpi-deriv-sub">sin dato o "A CONFIRMAR"</div>
-      <div class="kpi-hint">ver detalle →</div>
-    </div>
-    <div class="kpi-card red" onclick="openModal('coseguros')">
-      <div class="kpi-icon">⚠️</div>
-      <div class="kpi-label">Coseguros</div>
-      <div class="kpi-val" id="kpi-coseguros">—</div>
-      <div class="kpi-sub" id="kpi-coseg-sub">errores de coseguro</div>
-      <div class="kpi-hint">ver detalle →</div>
-    </div>
-    <div class="kpi-card red" onclick="openModal('sinreferencia')">
-      <div class="kpi-icon">⚠️</div>
-      <div class="kpi-label">Sin Nº Referencia</div>
-      <div class="kpi-val" id="kpi-referencia">—</div>
-      <div class="kpi-sub" id="kpi-ref-sub">ID 1665: vacío o dígitos inválidos</div>
-      <div class="kpi-hint">ver detalle →</div>
-    </div>
-    <div class="kpi-card red" onclick="openModal('cuentaint')">
-      <div class="kpi-icon">⚠️</div>
-      <div class="kpi-label">Cuenta sin INTERNADOS</div>
-      <div class="kpi-val" id="kpi-cuentaint">—</div>
-      <div class="kpi-sub" id="kpi-cuentaint-sub">INT FINAMED: OSEP/PAMI sin INTERNADOS</div>
-      <div class="kpi-hint">ver detalle →</div>
-    </div>
-    <div style="grid-column:1/-1; height:0; margin:0; padding:0;"></div>
-    <div class="kpi-card amber" onclick="openModal('cobertura')">
-      <div class="kpi-icon">⚠️</div>
-      <div class="kpi-label">Tipo Cobertura</div>
-      <div class="kpi-val" id="kpi-cobertura">—</div>
-      <div class="kpi-sub" id="kpi-cobertura-sub">≠ OBL (excl. Particular)</div>
-      <div class="kpi-hint">ver detalle →</div>
-    </div>
-    <div class="kpi-card amber" onclick="openModal('fuerafecha')">
-      <div class="kpi-icon">⚠️</div>
-      <div class="kpi-label">Fuera Fecha Facturación</div>
-      <div class="kpi-val" id="kpi-fuerafecha">—</div>
-      <div class="kpi-sub" id="kpi-fuerafecha-sub">ID 3075/1665 mes distinto</div>
-      <div class="kpi-hint">ver detalle →</div>
-    </div>
-    <div class="kpi-card amber" onclick="openModal('aseguradora')">
-      <div class="kpi-icon">⚠️</div>
-      <div class="kpi-label">TC RM PAMI en FINAMED</div>
-      <div class="kpi-val" id="kpi-aseguradora">—</div>
-      <div class="kpi-sub" id="kpi-aseguradora-sub">FINAMED → INSSJYP</div>
-      <div class="kpi-hint">ver detalle →</div>
+
+    <div class="ecard-group-label manual"><span class="pill"></span>Requieren carga manual</div>
+    <div class="ecards">
+      <div class="kpi-card ecard manual" onclick="openModal('derivantes')">
+        <div class="num" id="kpi-derivantes">—</div>
+        <div class="ec-body">
+          <div class="ec-top"><span class="ec-label">Sin Derivantes</span><span class="ec-man-badge">⚠ Manual</span></div>
+          <div class="ec-sub"><span class="kpi-sub" id="kpi-deriv-sub">sin dato o "A CONFIRMAR"</span></div>
+        </div>
+      </div>
+      <div class="kpi-card ecard manual" onclick="openModal('coseguros')">
+        <div class="num" id="kpi-coseguros">—</div>
+        <div class="ec-body">
+          <div class="ec-top"><span class="ec-label">Coseguros</span><span class="ec-man-badge">⚠ Manual</span></div>
+          <div class="ec-sub"><span class="kpi-sub" id="kpi-coseg-sub">errores de coseguro</span></div>
+        </div>
+      </div>
+      <div class="kpi-card ecard manual" onclick="openModal('sinreferencia')">
+        <div class="num" id="kpi-referencia">—</div>
+        <div class="ec-body">
+          <div class="ec-top"><span class="ec-label">Sin Nº Referencia</span><span class="ec-man-badge">⚠ Manual</span></div>
+          <div class="ec-sub"><span class="kpi-sub" id="kpi-ref-sub">ID 1665: vacío o dígitos inválidos</span></div>
+        </div>
+      </div>
+      <div class="kpi-card ecard manual" onclick="openModal('cuentaint')">
+        <div class="num" id="kpi-cuentaint">—</div>
+        <div class="ec-body">
+          <div class="ec-top"><span class="ec-label">Cuenta sin INTERNADOS</span><span class="ec-man-badge">⚠ Manual</span></div>
+          <div class="ec-sub"><span class="kpi-sub" id="kpi-cuentaint-sub">INT FINAMED: OSEP/PAMI sin INTERNADOS</span></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1291,8 +1372,9 @@ window.addEventListener('DOMContentLoaded', () => {
 function onDataLoaded(data) {
   document.getElementById('upload-zone').classList.add('has-data');
   const uploadDate = localStorage.getItem('spcd_upload_date') || '';
-  document.getElementById('upload-sub-text').textContent = `✅  ${data.length.toLocaleString()} registros cargados`;
-  document.getElementById('data-status').textContent = uploadDate ? `Última actualización: ${uploadDate}` : '';
+  const _n = document.getElementById('kpi-num'); if (_n) _n.textContent = data.length.toLocaleString();
+  document.getElementById('upload-sub-text').textContent = 'Registros cargados';
+  document.getElementById('data-status').textContent = uploadDate || '—';
   populateFilters(data);
   document.getElementById('filters-bar').style.display  = 'flex';
   document.getElementById('summary-bar').style.display  = 'flex';
