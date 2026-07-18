@@ -14,7 +14,7 @@
     --glass:rgba(30,58,138,.14); --border:rgba(148,163,184,.16); --border-a:rgba(245,158,11,.35);
   }
   html,body{font-size:14px;line-height:1.5}
-  .main{max-width:1320px;margin:0 auto;padding:22px 22px 80px}
+  .main{max-width:1760px;margin:0 auto;padding:22px 22px 80px}
 
   /* Topbar */
   .topbar{position:sticky;top:0;z-index:50;background:rgba(10,15,20,.9);backdrop-filter:blur(12px);
@@ -89,10 +89,12 @@
   /* Table */
   .tbl-wrap{border:1px solid var(--border);border-radius:12px;overflow:auto;max-height:60vh;display:none}
   .tbl-wrap.show{display:block}
-  table.recon{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto}
-  table.recon th{position:sticky;top:0;background:#0c1420;text-align:left;padding:9px 10px;white-space:nowrap;
-    font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);z-index:1}
-  table.recon td{padding:8px 10px;border-bottom:1px solid rgba(148,163,184,.08);vertical-align:middle}
+  table.recon{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:auto}
+  table.recon th{position:sticky;top:0;background:#0c1420;text-align:left;padding:7px 8px;white-space:nowrap;
+    font-size:9.5px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);z-index:1}
+  table.recon td{padding:6px 8px;border-bottom:1px solid rgba(148,163,184,.08);vertical-align:middle}
+  table.recon td.cut{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  table.recon td.cut2{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   table.recon td.nw{white-space:nowrap}
   table.recon tr:hover td{background:rgba(245,158,11,.04)}
   .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:middle}
@@ -125,8 +127,8 @@
   .chip-n{display:inline-block;min-width:16px;text-align:center;font-size:10px;font-weight:700;
     background:rgba(148,163,184,.18);color:var(--pyralis-text);border-radius:10px;padding:1px 6px;margin-left:5px}
   .chip.active .chip-n{background:rgba(245,158,11,.3);color:var(--pyralis-firefly)}
-  .obs-sel{padding:5px 6px;border-radius:6px;background:var(--pyralis-bg-input);border:1px solid var(--border);
-    color:var(--pyralis-text);font-size:11px;max-width:160px}
+  .obs-sel{padding:4px 5px;border-radius:6px;background:var(--pyralis-bg-input);border:1px solid var(--border);
+    color:var(--pyralis-text);font-size:10.5px;max-width:130px}
   .obs-sel:focus{outline:none;border-color:var(--pyralis-firefly)}
   .obs-sel.set{border-color:var(--warn);color:var(--warn)}
   .obs-txt{font-size:10px;color:var(--warn);margin-top:3px;max-width:160px;white-space:normal;line-height:1.3}
@@ -286,6 +288,7 @@
     <button class="chip" data-e="SIN_REGISTRO">Sin registro <span class="chip-n" data-c="SIN_REGISTRO">0</span></button>
     <button class="chip" data-e="__dudoso">Dudosos <span class="chip-n" data-c="__dudoso">0</span></button>
     <button class="chip" data-e="__arreglado">✓ Arreglado <span class="chip-n" data-c="__arreglado">0</span></button>
+    <button class="chip" data-e="__observadas">👁 Observadas <span class="chip-n" data-c="__observadas">0</span></button>
   </div>
 
   <!-- Table -->
@@ -318,6 +321,24 @@
   </div>
 </div>
 
+<!-- Modal Observación -->
+<div class="ov" id="obs-ov">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-head"><h3>Observación</h3><span class="modal-x" onclick="obsModalCancel()">✕</span></div>
+    <div style="padding:18px 22px">
+      <label style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)">Detalle (obligatorio)</label>
+      <input id="obs-input" onkeydown="obsKey(event)" placeholder="Escribí la observación…"
+        style="width:100%;margin-top:6px;padding:10px 12px;border-radius:8px;background:var(--pyralis-bg-input);
+        border:1px solid var(--border);color:var(--pyralis-text);font-family:'Inter',sans-serif;font-size:14px"/>
+      <div id="obs-err" style="color:var(--danger);font-size:12px;min-height:16px;margin-top:6px"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="obsModalCancel()">Cancelar</button>
+      <button class="btn btn-primary" onclick="obsModalOk()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <!-- Libs -->
@@ -333,7 +354,7 @@ const URL_PAMI    = 'https://pe.pami.org.ar/controllers/transmision.php';
 let FU=null, PA=null, ITEMS=[], RES=null, curFilter='all', curItem=null, SAVED_DECISIONS={};
 let SAVED_ARREGLADO={};          // { nro_turno: true } — turnos ya resueltos
 let sortMode='score', sortDir='desc';  // sortMode: 'score' | 'fecha'  ·  sortDir: 'desc' | 'asc'
-let vistaArreglado='excluir';  // 'excluir' (pestañas normales, sin arreglados) | 'solo' (pestaña Arreglado)
+let vista='normal';  // 'normal' | 'arreglado' | 'observadas'
 let SAVED_OBS={};  // { nro_turno: {tipo, texto} } — observaciones de turnos que no se pueden arreglar
 const OBS_OPCIONES=['OME no aceptada','OME a validar usuario ATALLEY','Sin OME'];
 
@@ -485,7 +506,7 @@ function renderKPIs(){
 
 /* KPIs + chips: filtro de estado unificado */
 function applyEstado(v){ // '' | estado | '__dudoso'
-  vistaArreglado='excluir';
+  vista='normal';
   const estSel=document.getElementById('f-estado'), confSel=document.getElementById('f-conf');
   if(v==='__dudoso'){ estSel.value=''; confSel.value='dudoso'; }
   else { estSel.value=v||''; confSel.value=''; }
@@ -494,9 +515,16 @@ function applyEstado(v){ // '' | estado | '__dudoso'
   renderTable();
 }
 function applyArreglado(){
-  vistaArreglado='solo';
+  vista='arreglado';
   document.getElementById('f-estado').value=''; document.getElementById('f-conf').value='';
   document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('active',(c.dataset.e||'')==='__arreglado'));
+  document.querySelectorAll('.kpi').forEach(k=>k.classList.remove('active'));
+  renderTable();
+}
+function applyObservadas(){
+  vista='observadas';
+  document.getElementById('f-estado').value=''; document.getElementById('f-conf').value='';
+  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('active',(c.dataset.e||'')==='__observadas'));
   document.querySelectorAll('.kpi').forEach(k=>k.classList.remove('active'));
   renderTable();
 }
@@ -508,15 +536,19 @@ document.getElementById('kpis').addEventListener('click',e=>{
 document.getElementById('chips').addEventListener('click',e=>{
   const b=e.target.closest('.chip'); if(!b) return;
   const e2=b.dataset.e||'';
-  if(e2==='__arreglado') applyArreglado(); else applyEstado(e2);
+  if(e2==='__arreglado') applyArreglado();
+  else if(e2==='__observadas') applyObservadas();
+  else applyEstado(e2);
 });
 
 /* Contadores de cada pestaña (arreglados excluidos de las normales) */
 function updateChipCounts(){
   const set=(c,n)=>{const el=document.querySelector('.chip-n[data-c="'+c+'"]'); if(el) el.textContent=n;};
-  let all=0,val=0,pen=0,tra=0,sin=0,dud=0,arr=0;
+  let all=0,val=0,pen=0,tra=0,sin=0,dud=0,arr=0,obs=0;
   (ITEMS||[]).forEach(it=>{
-    if(SAVED_ARREGLADO[it.turno.nro_turno]){ arr++; return; }
+    const nro=it.turno.nro_turno;
+    if(SAVED_ARREGLADO[nro]){ arr++; return; }      // arreglado tiene prioridad
+    if(SAVED_OBS[nro]){ obs++; return; }             // observada sale de las normales
     all++;
     if(it.estado==='VALIDADO') val++;
     else if(it.estado==='PENDIENTE') pen++;
@@ -525,7 +557,7 @@ function updateChipCounts(){
     if(it.confianza==='dudoso') dud++;
   });
   set('all',all);set('VALIDADO',val);set('PENDIENTE',pen);set('TRANSMITIDO_SIN_VALIDAR',tra);
-  set('SIN_REGISTRO',sin);set('__dudoso',dud);set('__arreglado',arr);
+  set('SIN_REGISTRO',sin);set('__dudoso',dud);set('__arreglado',arr);set('__observadas',obs);
 }
 function copiar(txt){ if(!txt) return;
   const done=()=>toast('Copiado: '+txt);
@@ -541,9 +573,11 @@ function currentFiltered(){
   const op=document.getElementById('f-op').value;
   const q=document.getElementById('f-q').value.trim().toUpperCase();
   return ITEMS.filter(it=>{
-    const arr=!!SAVED_ARREGLADO[it.turno.nro_turno];
-    if(vistaArreglado==='solo'){ if(!arr) return false; }
-    else if(arr){ return false; }
+    const nro=it.turno.nro_turno;
+    const arr=!!SAVED_ARREGLADO[nro], obs=!!SAVED_OBS[nro];
+    if(vista==='arreglado'){ if(!arr) return false; }
+    else if(vista==='observadas'){ if(arr||!obs) return false; }   // arreglado gana; solo observadas puras
+    else { if(arr||obs) return false; }                            // normales: sin arreglados ni observadas
     if(est&&it.estado!==est) return false;
     if(conf&&it.confianza!==conf) return false;
     if(op&&it.operador!==op) return false;
@@ -630,11 +664,11 @@ function renderTable(){
     return `<tr class="${arreglado?'arreglado':''}">
       <td class="nw"><span class="dot" style="background:${em.c}"></span><span class="badge b-${it.estado}">${em.lbl}</span>${decMark}</td>
       <td class="nw">${esc(it.turno.nro_turno)}${cp(it.turno.nro_turno,'turno')}</td>
-      <td>${esc(it.turno.nombre_raw)}</td>
+      <td class="cut" title="${esc(it.turno.nombre_raw)}">${esc(it.turno.nombre_raw)}</td>
       <td class="nw muted">${esc(dni||'—')}${cp(dni,'DNI')}</td>
       <td class="nw muted">${esc(afil||'—')}${cp(afil,'afiliado')}</td>
       <td class="nw">${esc(it.turno.fecha_str)}</td>
-      <td title="${esc(it.turno.estudios.join(' · '))}">${esc(estudio.slice(0,32))}${estMas}</td>
+      <td class="cut2" title="${esc(it.turno.estudios.join(' · '))}">${esc(estudio.slice(0,40))}${estMas}</td>
       <td class="nw">${conf} <span class="muted">${it.score}</span></td>
       <td class="nw" style="text-align:center"><label class="ar-check" title="${arreglado?'Marcado como arreglado':'Marcar como arreglado'}"><input type="checkbox" ${arreglado?'checked':''} onchange="toggleArreglado('${esc(it.turno.nro_turno)}',this)"><span class="ar-box">✓</span></label></td>
       ${_obsCell}
@@ -643,32 +677,49 @@ function renderTable(){
   }).join('');
 }
 
-function setObs(nro, sel){
+/* Modal de observación "Otras" (mismo diseño que la revisión) */
+let _obsResolve=null;
+function askObs(prev){
+  return new Promise(res=>{
+    _obsResolve=res;
+    const inp=document.getElementById('obs-input'); inp.value=prev||'';
+    document.getElementById('obs-err').textContent='';
+    document.getElementById('obs-ov').classList.add('show');
+    setTimeout(()=>inp.focus(),40);
+  });
+}
+function obsModalOk(){
+  const v=document.getElementById('obs-input').value.trim();
+  if(!v){ document.getElementById('obs-err').textContent='La observación es obligatoria.'; return; }
+  document.getElementById('obs-ov').classList.remove('show');
+  const r=_obsResolve; _obsResolve=null; if(r) r(v);
+}
+function obsModalCancel(){
+  document.getElementById('obs-ov').classList.remove('show');
+  const r=_obsResolve; _obsResolve=null; if(r) r(null);
+}
+function obsKey(ev){ if(ev.key==='Enter'){ev.preventDefault();obsModalOk();} else if(ev.key==='Escape'){ev.preventDefault();obsModalCancel();} }
+
+async function setObs(nro, sel){
   const v = sel.value;
-  const td = sel.closest('td');
-  const txtEl = td ? td.querySelector('.obs-txt') : null;
   if(!v){
     delete SAVED_OBS[nro];
-    sel.classList.remove('set'); if(txtEl){ txtEl.textContent=''; txtEl.title=''; }
-    persistWork(); return;
+    persistWork(); renderTable();
+    toast('Observación quitada'); return;
   }
   if(v==='Otras'){
     const prev = (SAVED_OBS[nro] && SAVED_OBS[nro].tipo==='Otras') ? SAVED_OBS[nro].texto : '';
-    const txt = prompt('Observación (obligatoria):', prev||'');
+    const txt = await askObs(prev);
     if(txt===null || !txt.trim()){
-      sel.value = SAVED_OBS[nro] ? SAVED_OBS[nro].tipo : '';     // obligatorio: revertir
-      sel.classList.toggle('set', !!(SAVED_OBS[nro] && SAVED_OBS[nro].tipo));
-      toast('La opción "Otras" requiere texto'); return;
+      sel.value = SAVED_OBS[nro] ? SAVED_OBS[nro].tipo : '';   // obligatorio: revertir sin cambios
+      return;
     }
     SAVED_OBS[nro]={tipo:'Otras', texto:txt.trim()};
-    if(txtEl){ txtEl.textContent=txt.trim(); txtEl.title=txt.trim(); }
   } else {
     SAVED_OBS[nro]={tipo:v, texto:''};
-    if(txtEl){ txtEl.textContent=''; txtEl.title=''; }
   }
-  sel.classList.add('set');
-  persistWork();
-  toast('Observación: '+(SAVED_OBS[nro].tipo==='Otras'?SAVED_OBS[nro].texto:SAVED_OBS[nro].tipo));
+  persistWork(); renderTable();   // la fila se va a OBSERVADAS y sale de su pestaña
+  toast('👁 Movido a Observadas: '+(SAVED_OBS[nro].tipo==='Otras'?SAVED_OBS[nro].texto:SAVED_OBS[nro].tipo));
 }
 
 /* ── Revisión lado a lado ── */
