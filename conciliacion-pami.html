@@ -122,6 +122,9 @@
     border:1px solid var(--border);background:var(--glass);color:var(--muted);cursor:pointer;transition:all .15s}
   .chip:hover{border-color:var(--border-a);color:var(--pyralis-text)}
   .chip.active{background:rgba(245,158,11,.15);border-color:var(--pyralis-firefly);color:var(--pyralis-firefly)}
+  .chip-n{display:inline-block;min-width:16px;text-align:center;font-size:10px;font-weight:700;
+    background:rgba(148,163,184,.18);color:var(--pyralis-text);border-radius:10px;padding:1px 6px;margin-left:5px}
+  .chip.active .chip-n{background:rgba(245,158,11,.3);color:var(--pyralis-firefly)}
 
   /* Review modal */
   .ov{position:fixed;inset:0;background:rgba(5,8,12,.72);backdrop-filter:blur(4px);z-index:100;
@@ -271,12 +274,13 @@
 
   <!-- Botones rápidos de estado -->
   <div class="state-chips" id="chips">
-    <button class="chip active" data-e="">Todos</button>
-    <button class="chip" data-e="VALIDADO">Validado</button>
-    <button class="chip" data-e="PENDIENTE">Pendiente</button>
-    <button class="chip" data-e="TRANSMITIDO_SIN_VALIDAR">Transmitido s/validar</button>
-    <button class="chip" data-e="SIN_REGISTRO">Sin registro</button>
-    <button class="chip" data-e="__dudoso">Dudosos</button>
+    <button class="chip active" data-e="">Todos <span class="chip-n" data-c="all">0</span></button>
+    <button class="chip" data-e="VALIDADO">Validado <span class="chip-n" data-c="VALIDADO">0</span></button>
+    <button class="chip" data-e="PENDIENTE">Pendiente <span class="chip-n" data-c="PENDIENTE">0</span></button>
+    <button class="chip" data-e="TRANSMITIDO_SIN_VALIDAR">Transmitido s/validar <span class="chip-n" data-c="TRANSMITIDO_SIN_VALIDAR">0</span></button>
+    <button class="chip" data-e="SIN_REGISTRO">Sin registro <span class="chip-n" data-c="SIN_REGISTRO">0</span></button>
+    <button class="chip" data-e="__dudoso">Dudosos <span class="chip-n" data-c="__dudoso">0</span></button>
+    <button class="chip" data-e="__arreglado">✓ Arreglado <span class="chip-n" data-c="__arreglado">0</span></button>
   </div>
 
   <!-- Table -->
@@ -324,6 +328,7 @@ const URL_PAMI    = 'https://pe.pami.org.ar/controllers/transmision.php';
 let FU=null, PA=null, ITEMS=[], RES=null, curFilter='all', curItem=null, SAVED_DECISIONS={};
 let SAVED_ARREGLADO={};          // { nro_turno: true } — turnos ya resueltos
 let sortMode='score', sortDir='desc';  // sortMode: 'score' | 'fecha'  ·  sortDir: 'desc' | 'asc'
+let vistaArreglado='excluir';  // 'excluir' (pestañas normales, sin arreglados) | 'solo' (pestaña Arreglado)
 
 const ESTADO_META = {
   VALIDADO:{c:'var(--ok)',lbl:'Validado'},
@@ -473,11 +478,19 @@ function renderKPIs(){
 
 /* KPIs + chips: filtro de estado unificado */
 function applyEstado(v){ // '' | estado | '__dudoso'
+  vistaArreglado='excluir';
   const estSel=document.getElementById('f-estado'), confSel=document.getElementById('f-conf');
   if(v==='__dudoso'){ estSel.value=''; confSel.value='dudoso'; }
   else { estSel.value=v||''; confSel.value=''; }
   document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('active',(c.dataset.e||'')===(v||'')));
   document.querySelectorAll('.kpi').forEach(k=>{const f=k.dataset.f; k.classList.toggle('active', f===v || (v==='__dudoso'&&f==='dudoso'));});
+  renderTable();
+}
+function applyArreglado(){
+  vistaArreglado='solo';
+  document.getElementById('f-estado').value=''; document.getElementById('f-conf').value='';
+  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('active',(c.dataset.e||'')==='__arreglado'));
+  document.querySelectorAll('.kpi').forEach(k=>k.classList.remove('active'));
   renderTable();
 }
 document.getElementById('kpis').addEventListener('click',e=>{
@@ -487,8 +500,26 @@ document.getElementById('kpis').addEventListener('click',e=>{
 });
 document.getElementById('chips').addEventListener('click',e=>{
   const b=e.target.closest('.chip'); if(!b) return;
-  applyEstado(b.dataset.e||'');
+  const e2=b.dataset.e||'';
+  if(e2==='__arreglado') applyArreglado(); else applyEstado(e2);
 });
+
+/* Contadores de cada pestaña (arreglados excluidos de las normales) */
+function updateChipCounts(){
+  const set=(c,n)=>{const el=document.querySelector('.chip-n[data-c="'+c+'"]'); if(el) el.textContent=n;};
+  let all=0,val=0,pen=0,tra=0,sin=0,dud=0,arr=0;
+  (ITEMS||[]).forEach(it=>{
+    if(SAVED_ARREGLADO[it.turno.nro_turno]){ arr++; return; }
+    all++;
+    if(it.estado==='VALIDADO') val++;
+    else if(it.estado==='PENDIENTE') pen++;
+    else if(it.estado==='TRANSMITIDO_SIN_VALIDAR') tra++;
+    else if(it.estado==='SIN_REGISTRO') sin++;
+    if(it.confianza==='dudoso') dud++;
+  });
+  set('all',all);set('VALIDADO',val);set('PENDIENTE',pen);set('TRANSMITIDO_SIN_VALIDAR',tra);
+  set('SIN_REGISTRO',sin);set('__dudoso',dud);set('__arreglado',arr);
+}
 function copiar(txt){ if(!txt) return;
   const done=()=>toast('Copiado: '+txt);
   if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(fb); }
@@ -503,6 +534,9 @@ function currentFiltered(){
   const op=document.getElementById('f-op').value;
   const q=document.getElementById('f-q').value.trim().toUpperCase();
   return ITEMS.filter(it=>{
+    const arr=!!SAVED_ARREGLADO[it.turno.nro_turno];
+    if(vistaArreglado==='solo'){ if(!arr) return false; }
+    else if(arr){ return false; }
     if(est&&it.estado!==est) return false;
     if(conf&&it.confianza!==conf) return false;
     if(op&&it.operador!==op) return false;
@@ -551,13 +585,16 @@ function updateSortArrow(){
 }
 
 function toggleArreglado(nro,cb){
-  if(cb.checked) SAVED_ARREGLADO[nro]=true; else delete SAVED_ARREGLADO[nro];
-  const tr=cb.closest('tr'); if(tr) tr.classList.toggle('arreglado',cb.checked);
+  const marcar=cb.checked;
+  if(marcar) SAVED_ARREGLADO[nro]=true; else delete SAVED_ARREGLADO[nro];
   persistWork();
+  renderTable();  // la fila sale de la pestaña actual y los contadores se actualizan
+  toast(marcar?'✓ Movido a Arreglado':'Quitado de Arreglado');
 }
 
 function renderTable(){
   updateSortArrow();
+  updateChipCounts();
   const rows=sortRows(currentFiltered().slice());
   const tb=document.getElementById('tbody');
   if(!rows.length){tb.innerHTML='<tr><td colspan="10" class="empty">Sin resultados con estos filtros.</td></tr>';return;}
