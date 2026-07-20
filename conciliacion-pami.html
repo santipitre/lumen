@@ -249,6 +249,9 @@
   <!-- Actions -->
   <div class="actions-bar" id="actions">
     <button class="btn btn-ghost" onclick="exportCSV()">⬇ Exportar CSV</button>
+    <button class="btn btn-ghost" onclick="exportBackup()" title="Descargá un archivo con tus arreglados y observaciones (respaldo portable entre navegadores/PCs)">⇩ Respaldo</button>
+    <button class="btn btn-ghost" onclick="document.getElementById('in-backup').click()" title="Restaurá arreglados y observaciones desde un archivo de respaldo">⇧ Restaurar respaldo</button>
+    <input type="file" id="in-backup" accept="application/json,.json" style="display:none"/>
     <button class="btn btn-primary" id="btn-save" onclick="guardarLote()">💾 Guardar lote en LUMEN</button>
   </div>
 
@@ -813,6 +816,36 @@ function exportCSV(){
   toast('CSV exportado ('+rows.length+' filas)');
 }
 
+/* ── Respaldo portable (JSON) — arreglados + observaciones + decisiones ── */
+function exportBackup(){
+  const data={
+    _tipo:'lumen-conciliacion-respaldo', _v:1,
+    savedAt:new Date().toISOString(),
+    cfg:readCfg(), arreglado:SAVED_ARREGLADO, obs:SAVED_OBS, decisions:SAVED_DECISIONS
+  };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='lumen-respaldo-conciliacion_'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  const nA=Object.keys(SAVED_ARREGLADO).length, nO=Object.keys(SAVED_OBS).length;
+  toast('Respaldo exportado: '+nA+' arreglados · '+nO+' obs');
+}
+async function importBackup(file){
+  try{
+    const d=JSON.parse(await file.text());
+    if(!d||d._tipo!=='lumen-conciliacion-respaldo') throw new Error('No es un archivo de respaldo de Lumen');
+    let nA=0,nO=0,nD=0;
+    // merge (no reemplaza): suma sobre lo que ya tenés cargado
+    if(d.arreglado&&typeof d.arreglado==='object'){ for(const k in d.arreglado){ if(d.arreglado[k]){ SAVED_ARREGLADO[k]=true; nA++; } } }
+    if(d.obs&&typeof d.obs==='object'){ for(const k in d.obs){ if(d.obs[k]){ SAVED_OBS[k]=d.obs[k]; nO++; } } }
+    if(d.decisions&&typeof d.decisions==='object'){ for(const k in d.decisions){ if(d.decisions[k]){ SAVED_DECISIONS[k]=d.decisions[k]; nD++; } } }
+    await persistWork();
+    if(ITEMS.length){ ITEMS.forEach(it=>{const dd=SAVED_DECISIONS[it.turno.nro_turno]; if(dd) it.decision_manual=dd;}); renderTable(); }
+    toast('Respaldo importado: '+nA+' arreglados · '+nO+' obs'+(ITEMS.length?'':' — cargá los archivos para verlos'));
+  }catch(err){ toast('Error al importar: '+err.message); }
+}
+
 /* ── Guardar en LUMEN (Supabase) ── */
 async function guardarLote(){
   if(typeof sbInsert!=='function'){toast('Supabase no disponible');return;}
@@ -854,6 +887,15 @@ function wireDrop(zoneId,inputId,handler){
 }
 wireDrop('drop-fu','in-fu',handleFuesmen);
 wireDrop('drop-pa','in-pa',handlePami);
+document.getElementById('in-backup').addEventListener('change',e=>{ if(e.target.files[0]){ importBackup(e.target.files[0]); e.target.value=''; } });
+
+/* ── Pedir almacenamiento persistente: evita que el navegador desaloje el IndexedDB ── */
+(async function pedirPersistencia(){ try{
+  if(navigator.storage&&navigator.storage.persist){
+    const ya=await navigator.storage.persisted();
+    if(!ya) await navigator.storage.persist();
+  }
+}catch(e){} })();
 
 /* ── Restaurar sesión guardada (IndexedDB) ── */
 (async function restaurar(){
