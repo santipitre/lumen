@@ -186,6 +186,27 @@
   .ar-check:hover .ar-box{border-color:var(--ok)}
   .ar-check input:checked + .ar-box{background:var(--ok);border-color:var(--ok);color:#04120c}
   .ar-check input:focus-visible + .ar-box{outline:2px solid var(--pyralis-firefly);outline-offset:2px}
+
+  /* Casilla "Visto" (info) — marca sin sacar la fila. Solo visible en la pestaña "Por observación" */
+  .col-visto{display:none}
+  body.view-grupos .col-visto{display:table-cell}
+  .vi-check{display:inline-flex;align-items:center;justify-content:center;cursor:pointer;position:relative}
+  .vi-check input{position:absolute;opacity:0;width:0;height:0;margin:0}
+  .vi-box{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;
+    border:1.5px solid var(--border);border-radius:6px;background:var(--glass);filter:grayscale(1) opacity(.5);
+    font-size:12px;line-height:1;transition:all .15s}
+  .vi-check:hover .vi-box{border-color:var(--info);filter:grayscale(.3) opacity(.9)}
+  .vi-check input:checked + .vi-box{background:rgba(96,165,250,.18);border-color:var(--info);filter:none}
+  .vi-check input:focus-visible + .vi-box{outline:2px solid var(--pyralis-firefly);outline-offset:2px}
+  body.view-grupos tr.visto td{background:rgba(96,165,250,.10)!important}
+  body.view-grupos tr.visto:hover td{background:rgba(96,165,250,.15)!important}
+  body.view-grupos tr.visto.arreglado td{background:rgba(16,185,129,.13)!important}
+
+  /* Encabezado de cada grupo de observación */
+  tr.grp-head td{background:#0e1826;padding:9px 10px;border-top:2px solid var(--border-a);border-bottom:1px solid var(--border)}
+  .grp-name{font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:12.5px;color:var(--pyralis-firefly)}
+  .grp-n{display:inline-block;min-width:18px;text-align:center;font-size:10px;font-weight:700;background:rgba(245,158,11,.22);color:var(--pyralis-firefly);border-radius:10px;padding:1px 7px;margin-left:8px}
+  .grp-vi{font-size:11px;color:var(--info);margin-left:10px;letter-spacing:.3px}
 </style>
 </head>
 <body>
@@ -292,6 +313,7 @@
     <button class="chip" data-e="__dudoso">Dudosos <span class="chip-n" data-c="__dudoso">0</span></button>
     <button class="chip" data-e="__arreglado">✓ Arreglado <span class="chip-n" data-c="__arreglado">0</span></button>
     <button class="chip" data-e="__observadas">👁 Observadas <span class="chip-n" data-c="__observadas">0</span></button>
+    <button class="chip" data-e="__grupos">📂 Por observación <span class="chip-n" data-c="__grupos">0</span></button>
   </div>
 
   <!-- Table -->
@@ -300,9 +322,9 @@
       <thead><tr>
         <th>Estado</th><th>N° Turno</th><th>Paciente</th><th>DNI</th><th>Afiliado</th>
         <th class="sortable" id="th-fecha" onclick="toggleSortFecha()" title="Ordenar por fecha (clic para alternar)">Fecha <span id="sort-arrow" class="sort-arrow">↕</span></th>
-        <th>Estudio</th><th>Match</th><th class="nw" title="Marcá cuando ya lo resolviste">✓ Arreglado</th><th class="nw" title="Motivo si no se puede arreglar">Observación</th><th></th>
+        <th>Estudio</th><th>Match</th><th class="nw" title="Marcá cuando ya lo resolviste">✓ Arreglado</th><th class="nw col-visto" title="Ya lo revisaste — NO saca la fila de la pestaña">👁 Visto</th><th class="nw" title="Motivo si no se puede arreglar">Observación</th><th></th>
       </tr></thead>
-      <tbody id="tbody"><tr><td colspan="11" class="empty">Cargá ambos archivos para ver la conciliación.</td></tr></tbody>
+      <tbody id="tbody"><tr><td colspan="12" class="empty">Cargá ambos archivos para ver la conciliación.</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -357,8 +379,9 @@ const URL_PAMI    = 'https://pe.pami.org.ar/controllers/transmision.php';
 let FU=null, PA=null, ITEMS=[], RES=null, curFilter='all', curItem=null, SAVED_DECISIONS={};
 let SAVED_ARREGLADO={};          // { nro_turno: true } — turnos ya resueltos
 let sortMode='score', sortDir='desc';  // sortMode: 'score' | 'fecha'  ·  sortDir: 'desc' | 'asc'
-let vista='normal';  // 'normal' | 'arreglado' | 'observadas'
+let vista='normal';  // 'normal' | 'arreglado' | 'observadas' | 'grupos'
 let SAVED_OBS={};  // { nro_turno: {tipo, texto} } — observaciones de turnos que no se pueden arreglar
+let SAVED_VISTO={};  // { nro_turno: true } — filas ya revisadas en "Por observación" (NO saca la fila)
 const OBS_OPCIONES=['OME no aceptada','OME a validar usuario ATALLEY','Sin OME'];
 
 const ESTADO_META = {
@@ -385,7 +408,7 @@ async function persistFiles(){ try{ await idbSet('files',{
   fu:FU, pa:PA, names:{fu:(FU&&FU._name)||null, pa:(PA&&PA._name)||null},
   stFu:document.getElementById('st-fu').innerHTML, stPa:document.getElementById('st-pa').innerHTML,
   savedAt:new Date().toISOString() }); }catch(e){ console.warn('persistFiles',e); } }
-async function persistWork(){ try{ await idbSet('work',{cfg:readCfg(),decisions:SAVED_DECISIONS,arreglado:SAVED_ARREGLADO,obs:SAVED_OBS,savedAt:new Date().toISOString()}); }catch(e){} }
+async function persistWork(){ try{ await idbSet('work',{cfg:readCfg(),decisions:SAVED_DECISIONS,arreglado:SAVED_ARREGLADO,obs:SAVED_OBS,visto:SAVED_VISTO,savedAt:new Date().toISOString()}); }catch(e){} }
 async function limpiarGuardado(){ try{ await idbDel('files'); await idbDel('work'); }catch(e){} location.reload(); }
 function showRestored(iso){ const el=document.getElementById('restored'); if(!el) return;
   let w=''; try{ w=new Date(iso).toLocaleString('es-AR'); }catch(e){}
@@ -531,6 +554,13 @@ function applyObservadas(){
   document.querySelectorAll('.kpi').forEach(k=>k.classList.remove('active'));
   renderTable();
 }
+function applyGrupos(){
+  vista='grupos';
+  document.getElementById('f-estado').value=''; document.getElementById('f-conf').value='';
+  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('active',(c.dataset.e||'')==='__grupos'));
+  document.querySelectorAll('.kpi').forEach(k=>k.classList.remove('active'));
+  renderTable();
+}
 document.getElementById('kpis').addEventListener('click',e=>{
   const card=e.target.closest('.kpi'); if(!card) return;
   const f=card.dataset.f;
@@ -541,6 +571,7 @@ document.getElementById('chips').addEventListener('click',e=>{
   const e2=b.dataset.e||'';
   if(e2==='__arreglado') applyArreglado();
   else if(e2==='__observadas') applyObservadas();
+  else if(e2==='__grupos') applyGrupos();
   else applyEstado(e2);
 });
 
@@ -561,6 +592,7 @@ function updateChipCounts(){
   });
   set('all',all);set('VALIDADO',val);set('PENDIENTE',pen);set('TRANSMITIDO_SIN_VALIDAR',tra);
   set('SIN_REGISTRO',sin);set('__dudoso',dud);set('__arreglado',arr);set('__observadas',obs);
+  set('__grupos',obs);  // "Por observación" = mismas filas observadas, agrupadas por categoría
 }
 function copiar(txt){ if(!txt) return;
   const done=()=>toast('Copiado: '+txt);
@@ -580,6 +612,7 @@ function currentFiltered(){
     const arr=!!SAVED_ARREGLADO[nro], obs=!!SAVED_OBS[nro];
     if(vista==='arreglado'){ if(!arr) return false; }
     else if(vista==='observadas'){ if(arr||!obs) return false; }   // arreglado gana; solo observadas puras
+    else if(vista==='grupos'){ if(arr||!obs) return false; }       // "Por observación": observadas no arregladas, agrupadas
     else { if(arr||obs) return false; }                            // normales: sin arreglados ni observadas
     if(est&&it.estado!==est) return false;
     if(conf&&it.confianza!==conf) return false;
@@ -636,48 +669,97 @@ function toggleArreglado(nro,cb){
   toast(marcar?'✓ Movido a Arreglado':'Quitado de Arreglado');
 }
 
+const _cpIco=(v,t)=>v?`<span class="cp" title="Copiar ${t}" onclick="copiar('${esc(v)}')">⧉</span>`:'';
+
+function rowHTML(it){
+  const em=ESTADO_META[it.estado]||{c:'var(--muted)',lbl:it.estado};
+  const idx=ITEMS.indexOf(it);
+  const estudio=it.turno.estudios[0]||'';
+  const estMas=it.turno.estudios.length>1?` +${it.turno.estudios.length-1}`:'';
+  const conf = it.confianza==='sin_match'?'<span class="badge b-SIN_REGISTRO">sin match</span>'
+    : it.confianza==='dudoso'?'<span class="badge b-dudoso">dudoso '+it.nombre_sim+'</span>'
+    : '<span class="badge b-fuerte">fuerte '+it.nombre_sim+'</span>';
+  const decMark = it.decision_manual==='confirmado'?' ✓':it.decision_manual==='descartado'?' ✕':'';
+  const dni=it.turno.documento||'', afil=it.turno.afiliado_norm||'';
+  const nro=it.turno.nro_turno;
+  const arreglado = !!SAVED_ARREGLADO[nro];
+  const visto = !!SAVED_VISTO[nro];
+  const _obs = SAVED_OBS[nro] || {tipo:'',texto:''};
+  const _obsOpts = OBS_OPCIONES.map(o=>`<option value="${esc(o)}" ${_obs.tipo===o?'selected':''}>${esc(o)}</option>`).join('');
+  const _obsCell = `<td class="nw">
+      <select class="obs-sel${_obs.tipo?' set':''}" onchange="setObs('${esc(nro)}',this)">
+        <option value="">— obs —</option>
+        ${_obsOpts}
+        <option value="Otras" ${_obs.tipo==='Otras'?'selected':''}>Otras…</option>
+      </select>
+      <div class="obs-txt" title="${esc(_obs.texto)}">${_obs.tipo==='Otras'?esc(_obs.texto):''}</div>
+    </td>`;
+  const _vistoCell = `<td class="nw col-visto" style="text-align:center"><label class="vi-check" title="${visto?'Visto — clic para desmarcar':'Marcar como visto (no saca la fila)'}"><input type="checkbox" ${visto?'checked':''} onchange="toggleVisto('${esc(nro)}',this)"><span class="vi-box">👁</span></label></td>`;
+  return `<tr class="${arreglado?'arreglado':''}${visto?' visto':''}" data-nro="${esc(nro)}">
+    <td class="nw"><span class="dot" style="background:${em.c}"></span><span class="badge b-${it.estado}">${em.lbl}</span>${decMark}</td>
+    <td class="nw">${esc(nro)}${_cpIco(nro,'turno')}</td>
+    <td class="cut" title="${esc(it.turno.nombre_raw)}">${esc(it.turno.nombre_raw)}</td>
+    <td class="nw muted">${esc(dni||'—')}${_cpIco(dni,'DNI')}</td>
+    <td class="nw muted">${esc(afil||'—')}${_cpIco(afil,'afiliado')}</td>
+    <td class="nw">${esc(it.turno.fecha_str)}</td>
+    <td class="cut2" title="${esc(it.turno.estudios.join(' · '))}">${esc(estudio.slice(0,40))}${estMas}</td>
+    <td class="nw">${conf} <span class="muted">${it.score}</span></td>
+    <td class="nw" style="text-align:center"><label class="ar-check" title="${arreglado?'Marcado como arreglado':'Marcar como arreglado'}"><input type="checkbox" ${arreglado?'checked':''} onchange="toggleArreglado('${esc(nro)}',this)"><span class="ar-box">✓</span></label></td>
+    ${_vistoCell}
+    ${_obsCell}
+    <td class="nw"><button class="mini-btn" onclick="openReview(${idx})">Ver</button></td>
+  </tr>`;
+}
+
 function renderTable(){
   updateSortArrow();
   updateChipCounts();
+  document.body.classList.toggle('view-grupos', vista==='grupos');
   const rows=sortRows(currentFiltered().slice());
   const tb=document.getElementById('tbody');
-  if(!rows.length){tb.innerHTML='<tr><td colspan="11" class="empty">Sin resultados con estos filtros.</td></tr>';return;}
-  const cp=(v,t)=>v?`<span class="cp" title="Copiar ${t}" onclick="copiar('${esc(v)}')">⧉</span>`:'';
-  tb.innerHTML=rows.map((it)=>{
-    const em=ESTADO_META[it.estado]||{c:'var(--muted)',lbl:it.estado};
-    const idx=ITEMS.indexOf(it);
-    const estudio=it.turno.estudios[0]||'';
-    const estMas=it.turno.estudios.length>1?` +${it.turno.estudios.length-1}`:'';
-    const conf = it.confianza==='sin_match'?'<span class="badge b-SIN_REGISTRO">sin match</span>'
-      : it.confianza==='dudoso'?'<span class="badge b-dudoso">dudoso '+it.nombre_sim+'</span>'
-      : '<span class="badge b-fuerte">fuerte '+it.nombre_sim+'</span>';
-    const decMark = it.decision_manual==='confirmado'?' ✓':it.decision_manual==='descartado'?' ✕':'';
-    const dni=it.turno.documento||'', afil=it.turno.afiliado_norm||'';
-    const arreglado = !!SAVED_ARREGLADO[it.turno.nro_turno];
-    const _obs = SAVED_OBS[it.turno.nro_turno] || {tipo:'',texto:''};
-    const _obsOpts = OBS_OPCIONES.map(o=>`<option value="${esc(o)}" ${_obs.tipo===o?'selected':''}>${esc(o)}</option>`).join('');
-    const _obsCell = `<td class="nw">
-        <select class="obs-sel${_obs.tipo?' set':''}" onchange="setObs('${esc(it.turno.nro_turno)}',this)">
-          <option value="">— obs —</option>
-          ${_obsOpts}
-          <option value="Otras" ${_obs.tipo==='Otras'?'selected':''}>Otras…</option>
-        </select>
-        <div class="obs-txt" title="${esc(_obs.texto)}">${_obs.tipo==='Otras'?esc(_obs.texto):''}</div>
-      </td>`;
-    return `<tr class="${arreglado?'arreglado':''}">
-      <td class="nw"><span class="dot" style="background:${em.c}"></span><span class="badge b-${it.estado}">${em.lbl}</span>${decMark}</td>
-      <td class="nw">${esc(it.turno.nro_turno)}${cp(it.turno.nro_turno,'turno')}</td>
-      <td class="cut" title="${esc(it.turno.nombre_raw)}">${esc(it.turno.nombre_raw)}</td>
-      <td class="nw muted">${esc(dni||'—')}${cp(dni,'DNI')}</td>
-      <td class="nw muted">${esc(afil||'—')}${cp(afil,'afiliado')}</td>
-      <td class="nw">${esc(it.turno.fecha_str)}</td>
-      <td class="cut2" title="${esc(it.turno.estudios.join(' · '))}">${esc(estudio.slice(0,40))}${estMas}</td>
-      <td class="nw">${conf} <span class="muted">${it.score}</span></td>
-      <td class="nw" style="text-align:center"><label class="ar-check" title="${arreglado?'Marcado como arreglado':'Marcar como arreglado'}"><input type="checkbox" ${arreglado?'checked':''} onchange="toggleArreglado('${esc(it.turno.nro_turno)}',this)"><span class="ar-box">✓</span></label></td>
-      ${_obsCell}
-      <td class="nw"><button class="mini-btn" onclick="openReview(${idx})">Ver</button></td>
-    </tr>`;
-  }).join('');
+  if(!rows.length){ tb.innerHTML='<tr><td colspan="12" class="empty">Sin resultados con estos filtros.</td></tr>'; return; }
+  if(vista==='grupos'){ renderGrupos(rows,tb); return; }
+  tb.innerHTML=rows.map(rowHTML).join('');
+}
+
+/* Pestaña "Por observación": mismas filas observadas, divididas en secciones por categoría */
+function renderGrupos(rows,tb){
+  const order=OBS_OPCIONES.concat(['Otras']);
+  const groups={};
+  rows.forEach(it=>{ const o=SAVED_OBS[it.turno.nro_turno]||{}; const k=o.tipo||'(sin categoría)'; (groups[k]=groups[k]||[]).push(it); });
+  const keys=Object.keys(groups).sort((a,b)=>{
+    let ia=order.indexOf(a), ib=order.indexOf(b);
+    if(ia<0) ia=900; if(ib<0) ib=900;
+    return ia-ib || a.localeCompare(b);
+  });
+  let html='';
+  keys.forEach(k=>{
+    const g=groups[k];
+    const vi=g.filter(it=>SAVED_VISTO[it.turno.nro_turno]).length;
+    html+=`<tr class="grp-head"><td colspan="12"><span class="grp-name">${esc(k)}</span><span class="grp-n">${g.length}</span><span class="grp-vi">👁 ${vi}/${g.length} vistas</span></td></tr>`;
+    html+=g.map(rowHTML).join('');
+  });
+  tb.innerHTML=html;
+}
+
+/* VISTO: marca/desmarca EN EL LUGAR (sin re-render) → la fila NUNCA se sale de la lista */
+function toggleVisto(nro,cb){
+  const marcar=cb.checked;
+  if(marcar) SAVED_VISTO[nro]=true; else delete SAVED_VISTO[nro];
+  persistWork();
+  const tr=cb.closest('tr'); if(tr) tr.classList.toggle('visto',marcar);
+  updateGrupoHeadCounts();
+  toast(marcar?'👁 Marcado como visto':'Visto quitado');
+}
+function updateGrupoHeadCounts(){
+  document.querySelectorAll('#tbody tr.grp-head').forEach(h=>{
+    let total=0,vi=0,n=h.nextElementSibling;
+    while(n && !n.classList.contains('grp-head')){
+      if(n.dataset && n.dataset.nro){ total++; if(SAVED_VISTO[n.dataset.nro]) vi++; }
+      n=n.nextElementSibling;
+    }
+    const b=h.querySelector('.grp-vi'); if(b) b.textContent='👁 '+vi+'/'+total+' vistas';
+  });
 }
 
 /* Modal de observación "Otras" (mismo diseño que la revisión) */
@@ -798,7 +880,7 @@ function abrirEn(sistema,idx){
 /* ── Export CSV ── */
 function exportCSV(){
   const rows=currentFiltered();
-  const cols=['nro_turno','paciente','afiliado','fecha_fuesmen','estudio','estado_pami','confianza','nombre_sim','delta_dias','score','operador','nro_orden_pami','practica_pami','decision','arreglado','observacion'];
+  const cols=['nro_turno','paciente','afiliado','fecha_fuesmen','estudio','estado_pami','confianza','nombre_sim','delta_dias','score','operador','nro_orden_pami','practica_pami','decision','arreglado','visto','observacion'];
   const lines=[cols.join(';')];
   rows.forEach(it=>{
     const p=it.match||{};
@@ -807,7 +889,7 @@ function exportCSV(){
     lines.push([it.turno.nro_turno,it.turno.nombre_raw,it.turno.afiliado_norm,it.turno.fecha_str,
       (it.turno.estudios[0]||''),it.estado,it.confianza,it.nombre_sim,it.delta_dias==null?'':it.delta_dias,
       it.score,it.operador||'',p.nro_orden||'',(p.practica||''),it.decision_manual,
-      SAVED_ARREGLADO[it.turno.nro_turno]?'si':'',obsTxt]
+      SAVED_ARREGLADO[it.turno.nro_turno]?'si':'',SAVED_VISTO[it.turno.nro_turno]?'si':'',obsTxt]
       .map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(';'));
   });
   const blob=new Blob(['﻿'+lines.join('\n')],{type:'text/csv;charset=utf-8'});
@@ -821,7 +903,7 @@ function exportBackup(){
   const data={
     _tipo:'lumen-conciliacion-respaldo', _v:1,
     savedAt:new Date().toISOString(),
-    cfg:readCfg(), arreglado:SAVED_ARREGLADO, obs:SAVED_OBS, decisions:SAVED_DECISIONS
+    cfg:readCfg(), arreglado:SAVED_ARREGLADO, obs:SAVED_OBS, visto:SAVED_VISTO, decisions:SAVED_DECISIONS
   };
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
@@ -839,6 +921,7 @@ async function importBackup(file){
     // merge (no reemplaza): suma sobre lo que ya tenés cargado
     if(d.arreglado&&typeof d.arreglado==='object'){ for(const k in d.arreglado){ if(d.arreglado[k]){ SAVED_ARREGLADO[k]=true; nA++; } } }
     if(d.obs&&typeof d.obs==='object'){ for(const k in d.obs){ if(d.obs[k]){ SAVED_OBS[k]=d.obs[k]; nO++; } } }
+    if(d.visto&&typeof d.visto==='object'){ for(const k in d.visto){ if(d.visto[k]){ SAVED_VISTO[k]=true; } } }
     if(d.decisions&&typeof d.decisions==='object'){ for(const k in d.decisions){ if(d.decisions[k]){ SAVED_DECISIONS[k]=d.decisions[k]; nD++; } } }
     await persistWork();
     if(ITEMS.length){ ITEMS.forEach(it=>{const dd=SAVED_DECISIONS[it.turno.nro_turno]; if(dd) it.decision_manual=dd;}); renderTable(); }
@@ -912,6 +995,7 @@ document.getElementById('in-backup').addEventListener('change',e=>{ if(e.target.
     if(work&&work.decisions) SAVED_DECISIONS=work.decisions;
     if(work&&work.arreglado) SAVED_ARREGLADO=work.arreglado;
     if(work&&work.obs) SAVED_OBS=work.obs;
+    if(work&&work.visto) SAVED_VISTO=work.visto;
     document.getElementById('btn-recalc').disabled=!(FU&&PA);
     if(FU&&PA){ recalcular(); showRestored(files.savedAt); }
   }catch(e){ console.warn('restaurar',e); }
