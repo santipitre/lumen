@@ -207,6 +207,20 @@
   .grp-name{font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:12.5px;color:var(--pyralis-firefly)}
   .grp-n{display:inline-block;min-width:18px;text-align:center;font-size:10px;font-weight:700;background:rgba(245,158,11,.22);color:var(--pyralis-firefly);border-radius:10px;padding:1px 7px;margin-left:8px}
   .grp-vi{font-size:11px;color:var(--info);margin-left:10px;letter-spacing:.3px}
+
+  /* Resaltado de N° de turno marcados (lista pegada por el usuario) */
+  table.recon td.hl-turno{background:rgba(245,158,11,.22)!important;color:#fde68a;font-weight:800;
+    box-shadow:inset 3px 0 0 var(--pyralis-firefly)}
+  table.recon tr:hover td.hl-turno{background:rgba(245,158,11,.30)!important}
+  .hl-bar{display:none;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 14px;padding:11px 14px;
+    border:1px solid var(--border-a);background:rgba(245,158,11,.06);border-radius:10px}
+  .hl-bar.show{display:flex}
+  .hl-bar label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+  .hl-bar textarea{flex:1;min-width:240px;min-height:38px;max-height:120px;resize:vertical;padding:8px 10px;
+    border-radius:6px;background:var(--pyralis-bg-input);border:1px solid var(--border);color:var(--pyralis-text);
+    font-family:'Inter',sans-serif;font-size:12px;line-height:1.4}
+  .hl-bar textarea:focus{outline:none;border-color:var(--pyralis-firefly)}
+  .hl-info{font-size:11.5px;color:var(--pyralis-firefly);white-space:nowrap}
 </style>
 </head>
 <body>
@@ -314,6 +328,16 @@
     <button class="chip" data-e="__arreglado">✓ Arreglado <span class="chip-n" data-c="__arreglado">0</span></button>
     <button class="chip" data-e="__observadas">👁 Observadas <span class="chip-n" data-c="__observadas">0</span></button>
     <button class="chip" data-e="__grupos">📂 Por observación <span class="chip-n" data-c="__grupos">0</span></button>
+    <button class="chip" data-e="__marcados">🔖 Marcados <span class="chip-n" data-c="__marcados">0</span></button>
+  </div>
+
+  <!-- Resaltar turnos de una lista pegada -->
+  <div class="hl-bar" id="hlbar">
+    <label style="align-self:center">🔖 Resaltar N° de turno</label>
+    <textarea id="hl-input" placeholder="Pegá una lista de N° de turno (separados por coma, espacio o salto de línea)…"></textarea>
+    <button class="btn btn-primary" onclick="setHighlight()">Resaltar</button>
+    <button class="btn btn-ghost" onclick="clearHighlight()">Limpiar</button>
+    <span class="hl-info" id="hl-info"></span>
   </div>
 
   <!-- Table -->
@@ -382,6 +406,8 @@ let sortMode='score', sortDir='desc';  // sortMode: 'score' | 'fecha'  ·  sortD
 let vista='normal';  // 'normal' | 'arreglado' | 'observadas' | 'grupos'
 let SAVED_OBS={};  // { nro_turno: {tipo, texto} } — observaciones de turnos que no se pueden arreglar
 let SAVED_VISTO={};  // { nro_turno: true } — filas ya revisadas en "Por observación" (NO saca la fila)
+let HIGHLIGHT=new Set();  // N° de turno resaltados desde una lista pegada por el usuario
+const HIGHLIGHT_DEFAULT='3880472,3890224,3895095,3897973,3898138,3898375,3898424,3900153,3901721,3903332,3904667,3904692,3904819,3906538,3912696,3923899,3926940,3926975,3926983,3928673,3930334,3931855,3931863,3934875,3934979,3935007,3935009,3935011,3935092,3935093,3935096,3936901,3942392,3942451,3942455,3942503,3942517,3942531,3944004,3946810,3946813,3946823,3947498,3947515,3947598,3947614,3947663,3947802,3947805,3949646,3949648,3951240,3951248,3952535,3955421,3955522';
 const OBS_OPCIONES=['OME no aceptada','OME a validar usuario ATALLEY','Sin OME'];
 
 const ESTADO_META = {
@@ -408,7 +434,7 @@ async function persistFiles(){ try{ await idbSet('files',{
   fu:FU, pa:PA, names:{fu:(FU&&FU._name)||null, pa:(PA&&PA._name)||null},
   stFu:document.getElementById('st-fu').innerHTML, stPa:document.getElementById('st-pa').innerHTML,
   savedAt:new Date().toISOString() }); }catch(e){ console.warn('persistFiles',e); } }
-async function persistWork(){ try{ await idbSet('work',{cfg:readCfg(),decisions:SAVED_DECISIONS,arreglado:SAVED_ARREGLADO,obs:SAVED_OBS,visto:SAVED_VISTO,savedAt:new Date().toISOString()}); }catch(e){} }
+async function persistWork(){ try{ await idbSet('work',{cfg:readCfg(),decisions:SAVED_DECISIONS,arreglado:SAVED_ARREGLADO,obs:SAVED_OBS,visto:SAVED_VISTO,highlight:Array.from(HIGHLIGHT),savedAt:new Date().toISOString()}); }catch(e){} }
 async function limpiarGuardado(){ try{ await idbDel('files'); await idbDel('work'); }catch(e){} location.reload(); }
 function showRestored(iso){ const el=document.getElementById('restored'); if(!el) return;
   let w=''; try{ w=new Date(iso).toLocaleString('es-AR'); }catch(e){}
@@ -510,6 +536,7 @@ function recalcular(){
   document.getElementById('kpis').style.display='grid';
   document.getElementById('filters').classList.add('show');
   document.getElementById('chips').classList.add('show');
+  document.getElementById('hlbar').classList.add('show');
   document.getElementById('tblw').classList.add('show');
   document.getElementById('actions').classList.add('show');
   renderTable();
@@ -561,6 +588,13 @@ function applyGrupos(){
   document.querySelectorAll('.kpi').forEach(k=>k.classList.remove('active'));
   renderTable();
 }
+function applyMarcados(){
+  vista='marcados';
+  document.getElementById('f-estado').value=''; document.getElementById('f-conf').value='';
+  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('active',(c.dataset.e||'')==='__marcados'));
+  document.querySelectorAll('.kpi').forEach(k=>k.classList.remove('active'));
+  renderTable();
+}
 document.getElementById('kpis').addEventListener('click',e=>{
   const card=e.target.closest('.kpi'); if(!card) return;
   const f=card.dataset.f;
@@ -572,6 +606,7 @@ document.getElementById('chips').addEventListener('click',e=>{
   if(e2==='__arreglado') applyArreglado();
   else if(e2==='__observadas') applyObservadas();
   else if(e2==='__grupos') applyGrupos();
+  else if(e2==='__marcados') applyMarcados();
   else applyEstado(e2);
 });
 
@@ -593,6 +628,8 @@ function updateChipCounts(){
   set('all',all);set('VALIDADO',val);set('PENDIENTE',pen);set('TRANSMITIDO_SIN_VALIDAR',tra);
   set('SIN_REGISTRO',sin);set('__dudoso',dud);set('__arreglado',arr);set('__observadas',obs);
   set('__grupos',obs);  // "Por observación" = mismas filas observadas, agrupadas por categoría
+  let marc=0; (ITEMS||[]).forEach(it=>{ if(HIGHLIGHT.has(String(it.turno.nro_turno))) marc++; });
+  set('__marcados',marc);
 }
 function copiar(txt){ if(!txt) return;
   const done=()=>toast('Copiado: '+txt);
@@ -613,6 +650,7 @@ function currentFiltered(){
     if(vista==='arreglado'){ if(!arr) return false; }
     else if(vista==='observadas'){ if(arr||!obs) return false; }   // arreglado gana; solo observadas puras
     else if(vista==='grupos'){ if(arr||!obs) return false; }       // "Por observación": observadas no arregladas, agrupadas
+    else if(vista==='marcados'){ if(!HIGHLIGHT.has(String(nro))) return false; }  // solo los turnos de la lista, sin importar estado
     else { if(arr||obs) return false; }                            // normales: sin arreglados ni observadas
     if(est&&it.estado!==est) return false;
     if(conf&&it.confianza!==conf) return false;
@@ -684,6 +722,7 @@ function rowHTML(it){
   const nro=it.turno.nro_turno;
   const arreglado = !!SAVED_ARREGLADO[nro];
   const visto = !!SAVED_VISTO[nro];
+  const hl = HIGHLIGHT.has(String(nro));
   const _obs = SAVED_OBS[nro] || {tipo:'',texto:''};
   const _obsOpts = OBS_OPCIONES.map(o=>`<option value="${esc(o)}" ${_obs.tipo===o?'selected':''}>${esc(o)}</option>`).join('');
   const _obsCell = `<td class="nw">
@@ -697,7 +736,7 @@ function rowHTML(it){
   const _vistoCell = `<td class="nw col-visto" style="text-align:center"><label class="vi-check" title="${visto?'Visto — clic para desmarcar':'Marcar como visto (no saca la fila)'}"><input type="checkbox" ${visto?'checked':''} onchange="toggleVisto('${esc(nro)}',this)"><span class="vi-box">👁</span></label></td>`;
   return `<tr class="${arreglado?'arreglado':''}${visto?' visto':''}" data-nro="${esc(nro)}">
     <td class="nw"><span class="dot" style="background:${em.c}"></span><span class="badge b-${it.estado}">${em.lbl}</span>${decMark}</td>
-    <td class="nw">${esc(nro)}${_cpIco(nro,'turno')}</td>
+    <td class="nw${hl?' hl-turno':''}">${hl?'🔖 ':''}${esc(nro)}${_cpIco(nro,'turno')}</td>
     <td class="cut" title="${esc(it.turno.nombre_raw)}">${esc(it.turno.nombre_raw)}</td>
     <td class="nw muted">${esc(dni||'—')}${_cpIco(dni,'DNI')}</td>
     <td class="nw muted">${esc(afil||'—')}${_cpIco(afil,'afiliado')}</td>
@@ -714,6 +753,7 @@ function rowHTML(it){
 function renderTable(){
   updateSortArrow();
   updateChipCounts();
+  updateHlInfo();
   document.body.classList.toggle('view-grupos', vista==='grupos');
   const rows=sortRows(currentFiltered().slice());
   const tb=document.getElementById('tbody');
@@ -760,6 +800,27 @@ function updateGrupoHeadCounts(){
     }
     const b=h.querySelector('.grp-vi'); if(b) b.textContent='👁 '+vi+'/'+total+' vistas';
   });
+}
+
+/* ── Resaltar N° de turno desde una lista pegada ── */
+function parseTurnos(txt){ return (String(txt||'').match(/\d+/g)||[]); }
+function contarMarcadosEnBase(){ let f=0; (ITEMS||[]).forEach(it=>{ if(HIGHLIGHT.has(String(it.turno.nro_turno))) f++; }); return f; }
+function updateHlInfo(){
+  const el=document.getElementById('hl-info'); if(!el) return;
+  const tot=HIGHLIGHT.size;
+  el.textContent = tot ? ('🔖 '+tot+' en la lista · '+contarMarcadosEnBase()+' encontrados en esta base') : '';
+}
+function setHighlight(){
+  const ta=document.getElementById('hl-input');
+  HIGHLIGHT=new Set(parseTurnos(ta?ta.value:''));
+  persistWork(); renderTable();
+  toast('🔖 '+HIGHLIGHT.size+' turnos marcados · '+contarMarcadosEnBase()+' encontrados en esta base');
+}
+function clearHighlight(){
+  HIGHLIGHT=new Set();
+  const ta=document.getElementById('hl-input'); if(ta) ta.value='';
+  persistWork(); renderTable();
+  toast('Marcado de turnos limpiado');
 }
 
 /* Modal de observación "Otras" (mismo diseño que la revisión) */
@@ -903,7 +964,7 @@ function exportBackup(){
   const data={
     _tipo:'lumen-conciliacion-respaldo', _v:1,
     savedAt:new Date().toISOString(),
-    cfg:readCfg(), arreglado:SAVED_ARREGLADO, obs:SAVED_OBS, visto:SAVED_VISTO, decisions:SAVED_DECISIONS
+    cfg:readCfg(), arreglado:SAVED_ARREGLADO, obs:SAVED_OBS, visto:SAVED_VISTO, highlight:Array.from(HIGHLIGHT), decisions:SAVED_DECISIONS
   };
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
@@ -922,6 +983,7 @@ async function importBackup(file){
     if(d.arreglado&&typeof d.arreglado==='object'){ for(const k in d.arreglado){ if(d.arreglado[k]){ SAVED_ARREGLADO[k]=true; nA++; } } }
     if(d.obs&&typeof d.obs==='object'){ for(const k in d.obs){ if(d.obs[k]){ SAVED_OBS[k]=d.obs[k]; nO++; } } }
     if(d.visto&&typeof d.visto==='object'){ for(const k in d.visto){ if(d.visto[k]){ SAVED_VISTO[k]=true; } } }
+    if(Array.isArray(d.highlight)){ d.highlight.forEach(k=>HIGHLIGHT.add(String(k))); var _hi=document.getElementById('hl-input'); if(_hi) _hi.value=Array.from(HIGHLIGHT).join('\n'); }
     if(d.decisions&&typeof d.decisions==='object'){ for(const k in d.decisions){ if(d.decisions[k]){ SAVED_DECISIONS[k]=d.decisions[k]; nD++; } } }
     await persistWork();
     if(ITEMS.length){ ITEMS.forEach(it=>{const dd=SAVED_DECISIONS[it.turno.nro_turno]; if(dd) it.decision_manual=dd;}); renderTable(); }
@@ -982,6 +1044,12 @@ document.getElementById('in-backup').addEventListener('change',e=>{ if(e.target.
 
 /* ── Restaurar sesión guardada (IndexedDB) ── */
 (async function restaurar(){
+  // Semilla de resaltado con la lista por defecto (se sobreescribe si hay guardado)
+  var _ta=document.getElementById('hl-input');
+  try{
+    if(_ta && !_ta.value.trim()) _ta.value=HIGHLIGHT_DEFAULT;
+    if(!HIGHLIGHT.size) HIGHLIGHT=new Set(parseTurnos(HIGHLIGHT_DEFAULT));
+  }catch(e){}
   try{
     const files=await idbGet('files'); if(!files) return;
     if(files.fu){ FU=files.fu; if(files.names&&files.names.fu) FU._name=files.names.fu;
@@ -996,6 +1064,7 @@ document.getElementById('in-backup').addEventListener('change',e=>{ if(e.target.
     if(work&&work.arreglado) SAVED_ARREGLADO=work.arreglado;
     if(work&&work.obs) SAVED_OBS=work.obs;
     if(work&&work.visto) SAVED_VISTO=work.visto;
+    if(work&&Array.isArray(work.highlight)){ HIGHLIGHT=new Set(work.highlight.map(String)); if(_ta) _ta.value=work.highlight.join('\n'); }
     document.getElementById('btn-recalc').disabled=!(FU&&PA);
     if(FU&&PA){ recalcular(); showRestored(files.savedAt); }
   }catch(e){ console.warn('restaurar',e); }
