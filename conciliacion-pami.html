@@ -196,9 +196,8 @@
   .ar-check input:checked + .ar-box{background:var(--ok);border-color:var(--ok);color:#04120c}
   .ar-check input:focus-visible + .ar-box{outline:2px solid var(--pyralis-firefly);outline-offset:2px}
 
-  /* Casilla "Visto" (info) — marca sin sacar la fila. Solo visible en la pestaña "Por observación" */
-  .col-visto{display:none}
-  body.view-grupos .col-visto{display:table-cell}
+  /* Casilla "Visto" (info) — marca sin sacar la fila. Visible en todas las pestañas */
+  .col-visto{display:table-cell}
   .vi-check{display:inline-flex;align-items:center;justify-content:center;cursor:pointer;position:relative}
   .vi-check input{position:absolute;opacity:0;width:0;height:0;margin:0}
   .vi-box{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;
@@ -207,9 +206,9 @@
   .vi-check:hover .vi-box{border-color:var(--info);filter:grayscale(.3) opacity(.9)}
   .vi-check input:checked + .vi-box{background:rgba(96,165,250,.18);border-color:var(--info);filter:none}
   .vi-check input:focus-visible + .vi-box{outline:2px solid var(--pyralis-firefly);outline-offset:2px}
-  body.view-grupos tr.visto td{background:rgba(96,165,250,.10)!important}
-  body.view-grupos tr.visto:hover td{background:rgba(96,165,250,.15)!important}
-  body.view-grupos tr.visto.arreglado td{background:rgba(16,185,129,.13)!important}
+  tr.visto td{background:rgba(96,165,250,.10)!important}
+  tr.visto:hover td{background:rgba(96,165,250,.15)!important}
+  tr.visto.arreglado td{background:rgba(16,185,129,.13)!important}
 
   /* Encabezado de cada grupo de observación */
   tr.grp-head td{background:#0e1826;padding:9px 10px;border-top:2px solid var(--border-a);border-bottom:1px solid var(--border)}
@@ -353,7 +352,7 @@
   <div class="tbl-wrap" id="tblw">
     <table class="recon">
       <thead><tr>
-        <th>Estado</th><th>N° Turno</th><th>Paciente</th><th>DNI</th><th>Afiliado</th>
+        <th>N° Turno</th><th>Paciente</th><th>DNI</th><th>Afiliado</th>
         <th class="sortable" id="th-fecha" onclick="toggleSortFecha()" title="Ordenar por fecha (clic para alternar)">Fecha <span id="sort-arrow" class="sort-arrow">↕</span></th>
         <th class="th-estudio"><div class="est-filter-wrap">Estudio
           <select id="f-estudio" class="est-filter" onchange="setEstudioFilter(this)" title="Filtrar por tipo de estudio">
@@ -362,9 +361,9 @@
             <option value="RX">RX · Radiografía</option>
             <option value="RM">RM · Resonancia</option>
             <option value="ECO">ECO · Ecografía</option>
-          </select></div></th><th>Match</th><th class="nw" title="Marcá cuando ya lo resolviste">✓ Arreglado</th><th class="nw col-visto" title="Ya lo revisaste — NO saca la fila de la pestaña">👁 Visto</th><th class="nw" title="Motivo si no se puede arreglar">Observación</th><th></th>
+          </select></div></th><th class="nw" title="Marcá cuando ya lo resolviste">✓ Arreglado</th><th class="nw col-visto" title="Ya lo revisaste — NO saca la fila de la pestaña">👁 Visto</th><th class="nw" title="Motivo si no se puede arreglar">Observación</th>
       </tr></thead>
-      <tbody id="tbody"><tr><td colspan="12" class="empty">Cargá ambos archivos para ver la conciliación.</td></tr></tbody>
+      <tbody id="tbody"><tr><td colspan="9" class="empty">Cargá ambos archivos para ver la conciliación.</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -757,18 +756,15 @@ function rowHTML(it){
     </td>`;
   const _vistoCell = `<td class="nw col-visto" style="text-align:center"><label class="vi-check" title="${visto?'Visto — clic para desmarcar':'Marcar como visto (no saca la fila)'}"><input type="checkbox" ${visto?'checked':''} onchange="toggleVisto('${esc(nro)}',this)"><span class="vi-box">👁</span></label></td>`;
   return `<tr class="${arreglado?'arreglado':''}${visto?' visto':''}" data-nro="${esc(nro)}">
-    <td class="nw"><span class="dot" style="background:${em.c}"></span><span class="badge b-${it.estado}">${em.lbl}</span>${decMark}</td>
     <td class="nw${hl?' hl-turno':''}">${hl?'🔖 ':''}${esc(nro)}${_cpIco(nro,'turno')}</td>
     <td class="cut" title="${esc(it.turno.nombre_raw)}">${esc(it.turno.nombre_raw)}</td>
     <td class="nw muted">${esc(dni||'—')}${_cpIco(dni,'DNI')}</td>
     <td class="nw muted">${esc(afil||'—')}${_cpIco(afil,'afiliado')}</td>
     <td class="nw">${esc(it.turno.fecha_str)}</td>
     <td class="cut2" title="${esc(it.turno.estudios.join(' · '))}">${esc(estudio.slice(0,40))}${estMas}</td>
-    <td class="nw">${conf} <span class="muted">${it.score}</span></td>
     <td class="nw" style="text-align:center"><label class="ar-check" title="${arreglado?'Marcado como arreglado':'Marcar como arreglado'}"><input type="checkbox" ${arreglado?'checked':''} onchange="toggleArreglado('${esc(nro)}',this)"><span class="ar-box">✓</span></label></td>
     ${_vistoCell}
     ${_obsCell}
-    <td class="nw"><button class="mini-btn" onclick="openReview(${idx})">Ver</button></td>
   </tr>`;
 }
 
@@ -779,7 +775,7 @@ function renderTable(){
   document.body.classList.toggle('view-grupos', vista==='grupos');
   const rows=sortRows(currentFiltered().slice());
   const tb=document.getElementById('tbody');
-  if(!rows.length){ tb.innerHTML='<tr><td colspan="12" class="empty">Sin resultados con estos filtros.</td></tr>'; return; }
+  if(!rows.length){ tb.innerHTML='<tr><td colspan="9" class="empty">Sin resultados con estos filtros.</td></tr>'; return; }
   if(vista==='grupos'){ renderGrupos(rows,tb); return; }
   tb.innerHTML=rows.map(rowHTML).join('');
 }
@@ -798,7 +794,7 @@ function renderGrupos(rows,tb){
   keys.forEach(k=>{
     const g=groups[k];
     const vi=g.filter(it=>SAVED_VISTO[it.turno.nro_turno]).length;
-    html+=`<tr class="grp-head"><td colspan="12"><span class="grp-name">${esc(k)}</span><span class="grp-n">${g.length}</span><span class="grp-vi">👁 ${vi}/${g.length} vistas</span></td></tr>`;
+    html+=`<tr class="grp-head"><td colspan="9"><span class="grp-name">${esc(k)}</span><span class="grp-n">${g.length}</span><span class="grp-vi">👁 ${vi}/${g.length} vistas</span></td></tr>`;
     html+=g.map(rowHTML).join('');
   });
   tb.innerHTML=html;
