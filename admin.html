@@ -401,6 +401,15 @@
       transition:all .2s; white-space:nowrap;
     }
     .btn-reparar:hover { background:rgba(248,113,113,.22); }
+    /* Botón "Reparar automáticamente" dentro de una tarjeta automatizada (verde) */
+    .ec-reparar {
+      display:block; width:100%; margin-top:10px; padding:7px 10px;
+      background:rgba(34,219,174,.12); border:1px solid rgba(34,219,174,.45);
+      color:var(--green); font-size:10px; letter-spacing:1.5px;
+      border-radius:6px; text-transform:uppercase; cursor:pointer;
+      font-family:'Inter',sans-serif; transition:all .2s; white-space:nowrap;
+    }
+    .ec-reparar:hover { background:rgba(34,219,174,.22); }
     /* Overlay de instrucciones del bot */
     .reparar-overlay {
       display:none; position:fixed; inset:0; z-index:1100;
@@ -731,6 +740,14 @@
           <div class="ec-sub"><span class="kpi-sub" id="kpi-aseguradora-sub">FINAMED → INSSJYP</span><span class="kpi-arr"></span></div>
         </div>
       </div>
+      <div class="kpi-card ecard auto" onclick="openModal('cuentaint')">
+        <div class="num" id="kpi-cuentaint">—</div>
+        <div class="ec-body">
+          <div class="ec-top"><span class="ec-label">Cuenta sin INTERNADOS</span><span class="kpi-auto-badge">✓ Automatizado</span></div>
+          <div class="ec-sub"><span class="kpi-sub" id="kpi-cuentaint-sub">INT FINAMED: OSEP/PAMI sin INTERNADOS</span><span class="kpi-arr"></span></div>
+          <button class="ec-reparar" onclick="event.stopPropagation(); reparAutoCard('cuentaint')" title="Genera el Excel y lanza el bot FUESMEN">🔧 Reparar automáticamente</button>
+        </div>
+      </div>
     </div>
 
     <div class="ecard-group-label manual"><span class="pill"></span>Requieren carga manual</div>
@@ -754,13 +771,6 @@
         <div class="ec-body">
           <div class="ec-top"><span class="ec-label">Sin Nº Referencia</span><span class="ec-man-badge">⚠ Manual</span></div>
           <div class="ec-sub"><span class="kpi-sub" id="kpi-ref-sub">ID 1665: vacío o dígitos inválidos</span></div>
-        </div>
-      </div>
-      <div class="kpi-card ecard manual" onclick="openModal('cuentaint')">
-        <div class="num" id="kpi-cuentaint">—</div>
-        <div class="ec-body">
-          <div class="ec-top"><span class="ec-label">Cuenta sin INTERNADOS</span><span class="ec-man-badge">⚠ Manual</span></div>
-          <div class="ec-sub"><span class="kpi-sub" id="kpi-cuentaint-sub">INT FINAMED: OSEP/PAMI sin INTERNADOS</span></div>
         </div>
       </div>
     </div>
@@ -1257,7 +1267,7 @@
           La primera vez hay que registrar el protocolo: ejecutá <b>una sola vez</b> el archivo
           <code style="color:var(--cyan)">lumenbot_install.reg</code> (doble clic → "Sí"). Después, este botón abre PowerShell solo.
           <div style="margin-top:8px">O corré el comando a mano:</div>
-          <div class="reparar-cmd" id="reparar-cmd">cd "C:\Users\pitre\OneDrive\Documentos\Claude\Projects\Automatización tareas adm\fuesmen_bot"; .\.venv\Scripts\Activate.ps1; python lumen-fix-instderivante.py</div>
+          <div class="reparar-cmd" id="reparar-cmd">cd "C:\Users\pitre\Repos\Automatización tareas adm\fuesmen_bot"; .\.venv\Scripts\Activate.ps1; python lumen-fix-instderivante.py</div>
           <button class="reparar-copy" onclick="copiarComandoReparar()">📋 Copiar comando</button>
         </div>
       </details>
@@ -2032,7 +2042,6 @@ function calcSummaryBar(data) {
     (()=>{ const d=(r['Derivante']||'').trim().toUpperCase(); return !d || d==='A CONFIRMAR'; })() ||
     cosegTurnos.has(_safe(r['Turno N°'])) ||
     esErrorReferencia(r) ||
-    esErrorCuentaInternados(r) ||
     esErrorTramiteIncompleto(r)
   ).length;
 
@@ -2317,11 +2326,12 @@ function calcKPIs(data) {
 
   // KPIs cuyo flujo ya está automatizado (bot Reparar): se atenúan, llevan badge
   // "✓ Automatizado", muestran cuántos ya se arreglaron y NO suman al total.
-  ['kpi-instderiv','kpi-cobertura','kpi-fuerafecha','kpi-aseguradora'].forEach(marcarKpiAutomatizado);
+  ['kpi-instderiv','kpi-cobertura','kpi-fuerafecha','kpi-aseguradora','kpi-cuentaint'].forEach(marcarKpiAutomatizado);
   mostrarArreglados('kpi-instderiv', instDerivErr,  'instderiv');
   mostrarArreglados('kpi-cobertura', cobErr,        'cobertura');
   mostrarArreglados('kpi-fuerafecha', fueraFechaErr, 'fuerafecha');
   mostrarArreglados('kpi-aseguradora', aseguradoraErr, 'aseguradora');
+  mostrarArreglados('kpi-cuentaint', cuentaIntErr, 'cuentaint');
 }
 
 /* Atenúa la tarjeta del KPI y le agrega el badge "Automatizado" (idempotente). */
@@ -3700,7 +3710,6 @@ function _openModalInternal(tipo) {
       (()=>{ const d=_safe(r['Derivante']).toUpperCase(); return !d || d==='A CONFIRMAR'; })() ||
       esErrorCoseguro(r) ||
       esErrorReferencia(r) ||
-      esErrorCuentaInternados(r) ||
       esErrorTramiteIncompleto(r)
     ); break;
     case 'sumturnos':    modalRows = [...filtered]; break;
@@ -3750,7 +3759,7 @@ function _openModalInternal(tipo) {
 
   // Botón "Reparar" para los KPIs que tienen bot (Inst. Derivante y Tipo Cobertura)
   const btnRep = document.getElementById('btn-reparar-instderiv');
-  if (btnRep) btnRep.style.display = (tipo === 'instderiv' || tipo === 'cobertura' || tipo === 'fuerafecha' || tipo === 'aseguradora') ? 'inline-block' : 'none';
+  if (btnRep) btnRep.style.display = (tipo === 'instderiv' || tipo === 'cobertura' || tipo === 'fuerafecha' || tipo === 'aseguradora' || tipo === 'cuentaint') ? 'inline-block' : 'none';
 
   modalFiltered = [...modalRows];
   renderModalTable(modalFiltered);
@@ -4236,24 +4245,41 @@ const REPARAR_CFG = {
   instderiv: {
     titulo:    '🔧 Reparar Institución Derivante',
     protocolo: 'lumenbot://reparar',
-    cmd:       'cd "C:\\Users\\pitre\\OneDrive\\Documentos\\Claude\\Projects\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe lumen-fix-instderivante.py'
+    cmd:       'cd "C:\\Users\\pitre\\Repos\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe lumen-fix-instderivante.py'
   },
   cobertura: {
     titulo:    '🔧 Reparar Tipo Cobertura',
     protocolo: 'lumenbot://cobertura',
-    cmd:       'cd "C:\\Users\\pitre\\OneDrive\\Documentos\\Claude\\Projects\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe lumen-fix-tipocobertura.py'
+    cmd:       'cd "C:\\Users\\pitre\\Repos\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe lumen-fix-tipocobertura.py'
   },
   fuerafecha: {
     titulo:    '🔧 Reparar Fuera Fecha Facturación',
     protocolo: 'lumenbot://fuerafecha',
-    cmd:       'cd "C:\\Users\\pitre\\OneDrive\\Documentos\\Claude\\Projects\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe lumen-fix-fuerafecha.py'
+    cmd:       'cd "C:\\Users\\pitre\\Repos\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe lumen-fix-fuerafecha.py'
   },
   aseguradora: {
     titulo:    '🔧 Reparar Aseguradora FINAMED→INSSJYP (TC/RM PAMI)',
     protocolo: 'lumenbot://aseguradora',
-    cmd:       'cd "C:\\Users\\pitre\\OneDrive\\Documentos\\Claude\\Projects\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe lumen-fix-aseguradora.py'
+    cmd:       'cd "C:\\Users\\pitre\\Repos\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe lumen-fix-aseguradora.py'
+  },
+  cuentaint: {
+    titulo:    '🔧 Reparar Cuenta sin INTERNADOS',
+    protocolo: 'lumenbot://cuentaint',
+    cmd:       'cd "C:\\Users\\pitre\\Repos\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe lumen-fix-cuentaint.py'
   }
 };
+
+/* Dispara "Reparar automáticamente" DESDE LA TARJETA (sin que el usuario abra el
+   modal a mano). openModal deja listo modalTipo + modalRows (los turnos con error),
+   que es lo que repararConBot necesita para exportar el Excel correcto y lanzar el bot. */
+async function reparAutoCard(tipo) {
+  try {
+    openModal(tipo);            // setea modalTipo, modalRows, headers, cols...
+    await repararConBot();      // exporta el Excel + dispara lumenbot://<tipo>
+  } catch (e) {
+    console.error('[reparAutoCard]', e);
+  }
+}
 
 async function repararConBot() {
   const tipo = modalTipo;
