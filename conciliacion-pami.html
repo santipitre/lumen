@@ -174,6 +174,15 @@
   table.recon th.sortable.active{color:var(--pyralis-firefly)}
   .sort-arrow{font-size:9px;margin-left:4px;opacity:.85}
 
+  /* Filtro por tipo de estudio (dentro del header ESTUDIO) */
+  table.recon th.th-estudio{padding-top:5px;padding-bottom:5px}
+  .est-filter-wrap{display:flex;flex-direction:column;gap:3px;min-width:96px}
+  select.est-filter{margin-top:2px;padding:3px 6px;border-radius:5px;background:var(--pyralis-bg-input);
+    border:1px solid var(--border);color:var(--pyralis-text);font-family:'Inter',sans-serif;
+    font-size:10.5px;letter-spacing:.3px;text-transform:none;cursor:pointer;font-weight:600}
+  select.est-filter:focus{outline:none;border-color:var(--pyralis-firefly)}
+  select.est-filter.set{border-color:var(--pyralis-firefly);color:var(--pyralis-firefly)}
+
   /* Casilla "Arreglado" + resaltado de fila */
   tr.arreglado td{background:rgba(16,185,129,.13)!important}
   tr.arreglado:hover td{background:rgba(16,185,129,.18)!important}
@@ -346,7 +355,14 @@
       <thead><tr>
         <th>Estado</th><th>N° Turno</th><th>Paciente</th><th>DNI</th><th>Afiliado</th>
         <th class="sortable" id="th-fecha" onclick="toggleSortFecha()" title="Ordenar por fecha (clic para alternar)">Fecha <span id="sort-arrow" class="sort-arrow">↕</span></th>
-        <th>Estudio</th><th>Match</th><th class="nw" title="Marcá cuando ya lo resolviste">✓ Arreglado</th><th class="nw col-visto" title="Ya lo revisaste — NO saca la fila de la pestaña">👁 Visto</th><th class="nw" title="Motivo si no se puede arreglar">Observación</th><th></th>
+        <th class="th-estudio"><div class="est-filter-wrap">Estudio
+          <select id="f-estudio" class="est-filter" onchange="setEstudioFilter(this)" title="Filtrar por tipo de estudio">
+            <option value="">Todos</option>
+            <option value="TC">TC · Tomografía</option>
+            <option value="RX">RX · Radiografía</option>
+            <option value="RM">RM · Resonancia</option>
+            <option value="ECO">ECO · Ecografía</option>
+          </select></div></th><th>Match</th><th class="nw" title="Marcá cuando ya lo resolviste">✓ Arreglado</th><th class="nw col-visto" title="Ya lo revisaste — NO saca la fila de la pestaña">👁 Visto</th><th class="nw" title="Motivo si no se puede arreglar">Observación</th><th></th>
       </tr></thead>
       <tbody id="tbody"><tr><td colspan="12" class="empty">Cargá ambos archivos para ver la conciliación.</td></tr></tbody>
     </table>
@@ -407,6 +423,7 @@ let vista='normal';  // 'normal' | 'arreglado' | 'observadas' | 'grupos'
 let SAVED_OBS={};  // { nro_turno: {tipo, texto} } — observaciones de turnos que no se pueden arreglar
 let SAVED_VISTO={};  // { nro_turno: true } — filas ya revisadas en "Por observación" (NO saca la fila)
 let HIGHLIGHT=new Set();  // N° de turno resaltados desde una lista pegada por el usuario
+let estudioFilter='';  // '' | 'TC' | 'RX' | 'RM' | 'ECO' — filtra por inicio del nombre de estudio
 const HIGHLIGHT_DEFAULT='3880472,3890224,3895095,3897973,3898138,3898375,3898424,3900153,3901721,3903332,3904667,3904692,3904819,3906538,3912696,3923899,3926940,3926975,3926983,3928673,3930334,3931855,3931863,3934875,3934979,3935007,3935009,3935011,3935092,3935093,3935096,3936901,3942392,3942451,3942455,3942503,3942517,3942531,3944004,3946810,3946813,3946823,3947498,3947515,3947598,3947614,3947663,3947802,3947805,3949646,3949648,3951240,3951248,3952535,3955421,3955522';
 const OBS_OPCIONES=['OME no aceptada','OME a validar usuario ATALLEY','Sin OME'];
 
@@ -655,6 +672,11 @@ function currentFiltered(){
     if(est&&it.estado!==est) return false;
     if(conf&&it.confianza!==conf) return false;
     if(op&&it.operador!==op) return false;
+    if(estudioFilter){
+      const arr=it.turno.estudios||[];
+      const hit=arr.some(e=>String(e||'').trim().toUpperCase().startsWith(estudioFilter));
+      if(!hit) return false;
+    }
     if(q){
       const hay=(it.turno.nombre_raw+' '+it.turno.afiliado_norm+' '+it.turno.nro_turno+' '+(it.match?it.match.nombre_raw:'')).toUpperCase();
       if(hay.indexOf(q)===-1) return false;
@@ -800,6 +822,13 @@ function updateGrupoHeadCounts(){
     }
     const b=h.querySelector('.grp-vi'); if(b) b.textContent='👁 '+vi+'/'+total+' vistas';
   });
+}
+
+/* ── Filtro por tipo de estudio (TC / RX / RM / ECO) desde el header ── */
+function setEstudioFilter(sel){
+  estudioFilter=(sel&&sel.value?sel.value:'').toUpperCase();
+  if(sel) sel.classList.toggle('set',!!estudioFilter);
+  renderTable();
 }
 
 /* ── Resaltar N° de turno desde una lista pegada ── */
