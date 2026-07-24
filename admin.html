@@ -748,6 +748,14 @@
           <button class="ec-reparar" onclick="event.stopPropagation(); reparAutoCard('cuentaint')" title="Genera el Excel y lanza el bot FUESMEN">🔧 Reparar automáticamente</button>
         </div>
       </div>
+      <div class="kpi-card ecard auto" onclick="openModal('rxamb')">
+        <div class="num" id="kpi-rxamb">—</div>
+        <div class="ec-body">
+          <div class="ec-top"><span class="ec-label">RX AMB PAMI en FINAMED</span><span class="kpi-auto-badge">✓ Automatizado</span></div>
+          <div class="ec-sub"><span class="kpi-sub" id="kpi-rxamb-sub">AMB FINAMED → INSSJYP</span><span class="kpi-arr"></span></div>
+          <button class="ec-reparar" onclick="event.stopPropagation(); reparAutoCard('rxamb')" title="Genera el Excel y lanza el bot FUESMEN">🔧 Reparar automáticamente</button>
+        </div>
+      </div>
     </div>
 
     <div class="ecard-group-label manual"><span class="pill"></span>Requieren carga manual</div>
@@ -2193,6 +2201,23 @@ function esErrorAseguradora(r) {
   return serv === 'TOMOGRAFÍA' || serv === 'RESONANCIA MAGNÉTICA';
 }
 
+// RX AMB PAMI en FINAMED: REA + ID Aseguradora 1665 + Servicio RAYOS X + Cuenta PAMI
+// + Tipo Turno = AMB. Se reasigna a INSSJYP (cuenta 53) con el bot lumen-fix-rxamb.
+// Los INT con este mismo perfil los toma esErrorCuentaInternados (bot cuentaint),
+// por eso acá exigimos AMB: así no hay doble conteo.
+function esErrorRxAmb(r) {
+  const estado = (r['Estado']||'').trim().toUpperCase();
+  if (estado !== 'REA') return false;
+  const idAseg = String(r['ID Aseguradora']||'').trim();
+  if (idAseg !== '1665') return false;
+  const tt = (r['Tipo Turno']||'').trim().toUpperCase();
+  if (tt !== 'AMB') return false;
+  const cuenta = (r['Cuenta']||'').trim().toUpperCase();
+  if (cuenta !== 'PAMI') return false;
+  const serv = (r['Servicio']||'').trim().toUpperCase();
+  return serv === 'RAYOS X';
+}
+
 /* ══════════════════════════════════
    ERROR TRÁMITES INCOMPLETOS
    - PARTICULAR con N° Factura = 0
@@ -2321,17 +2346,23 @@ function calcKPIs(data) {
   document.getElementById('kpi-cuentaint').textContent = cuentaIntErr.length.toLocaleString();
   document.getElementById('kpi-cuentaint-sub').textContent = 'INT FINAMED: OSEP/PAMI sin INTERNADOS';
 
+  // RX AMB PAMI en FINAMED (reasignación FINAMED→INSSJYP para RayosX ambulatorios)
+  const rxAmbErr = rea.filter(r => esErrorRxAmb(r));
+  document.getElementById('kpi-rxamb').textContent = rxAmbErr.length.toLocaleString();
+  document.getElementById('kpi-rxamb-sub').textContent = 'AMB FINAMED RX → INSSJYP';
+
   // Trámites incompletos: el detalle por aseguradora se renderiza en la pestaña
   // "Trámites Incompletos" (renderTITab), desde el Excel cargado. Ver más abajo.
 
   // KPIs cuyo flujo ya está automatizado (bot Reparar): se atenúan, llevan badge
   // "✓ Automatizado", muestran cuántos ya se arreglaron y NO suman al total.
-  ['kpi-instderiv','kpi-cobertura','kpi-fuerafecha','kpi-aseguradora','kpi-cuentaint'].forEach(marcarKpiAutomatizado);
+  ['kpi-instderiv','kpi-cobertura','kpi-fuerafecha','kpi-aseguradora','kpi-cuentaint','kpi-rxamb'].forEach(marcarKpiAutomatizado);
   mostrarArreglados('kpi-instderiv', instDerivErr,  'instderiv');
   mostrarArreglados('kpi-cobertura', cobErr,        'cobertura');
   mostrarArreglados('kpi-fuerafecha', fueraFechaErr, 'fuerafecha');
   mostrarArreglados('kpi-aseguradora', aseguradoraErr, 'aseguradora');
   mostrarArreglados('kpi-cuentaint', cuentaIntErr, 'cuentaint');
+  mostrarArreglados('kpi-rxamb', rxAmbErr, 'rxamb');
 }
 
 /* Atenúa la tarjeta del KPI y le agrega el badge "Automatizado" (idempotente). */
@@ -3606,6 +3637,7 @@ const MODAL_COLORS = {
   cobertura:     'var(--amber)',
   fuerafecha:    'var(--amber)',
   aseguradora:   'var(--amber)',
+  rxamb:         'var(--amber)',
   tramites:      'var(--red)',
   tramitesharefield: 'var(--red)',
   tramitesfinamed: 'var(--red)',
@@ -3633,6 +3665,7 @@ const MODAL_LABELS = {
   cobertura:     'Tipo Cobertura — Error (ID 3075/1665 ≠ OBL)',
   fuerafecha:    'Fuera Fecha Facturación — Error (ID 3075/1665 mes distinto · o coseguro fuera de mes)',
   aseguradora:   'Aseguradora FINAMED INSSJYP',
+  rxamb:         'RX AMB PAMI en FINAMED',
   tramites:      'Trámites Incompletos OS/Prepagas — Factura o N° Orden en 0',
   tramitesharefield: 'Trámites Incompletos Harefield — ID 3075 (HAREFIELD S.A.) con N° Orden en 0 (a recepcionar)',
   tramitesfinamed: 'Trámites Incompletos Finamed — ID 1665 (FINAMED SA - HOSP ITAL (PROV)) con N° Orden en 0 (a recepcionar)',
@@ -3696,6 +3729,7 @@ function _openModalInternal(tipo) {
     case 'cobertura':   modalRows = filtered.filter(r => esErrorCobertura(r)); break;
     case 'fuerafecha':  modalRows = filtered.filter(r => esErrorFueraFechaFact(r)); break;
     case 'aseguradora': modalRows = filtered.filter(r => esErrorAseguradora(r)); break;
+    case 'rxamb':       modalRows = filtered.filter(r => esErrorRxAmb(r)); break;
     case 'tramites':    modalRows = filtered.filter(r => esErrorTramiteIncompleto(r) && !esErrorTramiteHarefield(r)); break;
     case 'tramitesharefield': modalRows = filtered.filter(r => esErrorTramiteHarefield(r)); break;
     case 'tramitesfinamed': modalRows = filtered.filter(r => esErrorTramiteFinamed(r)); break;
@@ -3759,7 +3793,7 @@ function _openModalInternal(tipo) {
 
   // Botón "Reparar" para los KPIs que tienen bot (Inst. Derivante y Tipo Cobertura)
   const btnRep = document.getElementById('btn-reparar-instderiv');
-  if (btnRep) btnRep.style.display = (tipo === 'instderiv' || tipo === 'cobertura' || tipo === 'fuerafecha' || tipo === 'aseguradora' || tipo === 'cuentaint') ? 'inline-block' : 'none';
+  if (btnRep) btnRep.style.display = (tipo === 'instderiv' || tipo === 'cobertura' || tipo === 'fuerafecha' || tipo === 'aseguradora' || tipo === 'cuentaint' || tipo === 'rxamb') ? 'inline-block' : 'none';
 
   modalFiltered = [...modalRows];
   renderModalTable(modalFiltered);
@@ -4266,6 +4300,11 @@ const REPARAR_CFG = {
     titulo:    '🔧 Reparar Cuenta sin INTERNADOS',
     protocolo: 'lumenbot://cuentaint',
     cmd:       'cd "C:\\Users\\pitre\\Repos\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe lumen-fix-cuentaint.py'
+  },
+  rxamb: {
+    titulo:    '🔧 Reparar RX AMB PAMI en FINAMED (FINAMED→INSSJYP)',
+    protocolo: 'lumenbot://rxamb',
+    cmd:       'cd "C:\\Users\\pitre\\Repos\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe lumen-fix-rxamb.py'
   }
 };
 
