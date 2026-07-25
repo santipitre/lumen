@@ -1484,20 +1484,34 @@ const tiDrop = {
   findAseg(hs){ let c=hs.find(h=>this.normH(h)==='ASEGURADORA'); if(!c) c=hs.find(h=>{const n=this.normH(h); return n.includes('ASEGURAD')||n.includes('OBRASOCIAL')||n==='OS';}); return c||null; },
   findServicio(hs){ const ex=['SERVICIO','PRESTACION','PRACTICA','MODALIDAD','ESTUDIO','TIPOESTUDIO','TIPODEESTUDIO']; let c=hs.find(h=>ex.includes(this.normH(h))); if(!c) c=hs.find(h=>{const n=this.normH(h); return n.includes('SERVICIO')||n.includes('PRESTACION')||n.includes('MODALIDAD');}); return c||null; },
   findFecha(hs){
-    // Prioridad: fecha de realización → fecha del turno → fecha genérica (evitando facturación / nacimiento / vencimiento / carga / pedido)
-    let c=hs.find(h=>{const n=this.normH(h); return n.includes('FECHA')&&(n.includes('REALIZ')||n.includes('ESTUDIO'));});
-    if(!c) c=hs.find(h=>['TURNOFECHA','FECHATURNO','FECHAREA'].includes(this.normH(h)));
-    if(!c) c=hs.find(h=>{const n=this.normH(h); return n.includes('FECHA')&&!n.includes('FACTURAC')&&!n.includes('NACIM')&&!n.includes('VENCIM')&&!n.includes('CARGA')&&!n.includes('PEDIDO')&&!n.includes('BAJA');});
+    // Prioridad EXACTA: "Fecha Turno" (columna oficial del export). Luego variantes de turno/realización.
+    let c=hs.find(h=>this.normH(h)==='FECHATURNO');
+    if(!c) c=hs.find(h=>['TURNOFECHA','FECHAREALIZACION','FECHAREALIZ','FECHAREA','FECHAESTUDIO'].includes(this.normH(h)));
+    if(!c) c=hs.find(h=>{const n=this.normH(h); return n.includes('FECHA')&&n.includes('TURNO');});
+    if(!c) c=hs.find(h=>{const n=this.normH(h); return n.includes('FECHA')&&!n.includes('FACTURAC')&&!n.includes('NACIM')&&!n.includes('VENCIM')&&!n.includes('CARGA')&&!n.includes('PEDIDO')&&!n.includes('BAJA')&&!n.includes('HORA');});
     return c||null;
   },
   parseMes(v){
-    // → 'YYYY-MM' o null. Soporta yyyy-mm-dd, dd/mm/yyyy, dd/mm/yy (con hora opcional).
-    const s=String(v==null?'':v).trim(); if(!s) return null;
-    let m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);
-    if(m) return m[1]+'-'+String(+m[2]).padStart(2,'0');
-    m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/);
-    if(m){ let y=+m[3]; if(y<100) y+=2000; return String(y)+'-'+String(+m[2]).padStart(2,'0'); }
-    const d=new Date(s); if(!isNaN(d.getTime())) return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    // → 'YYYY-MM' o null. Descarta lo que no sea una fecha válida (mes 1..12). NO usa Date() ambiguo.
+    if(v==null||v==='') return null;
+    // Serial de Excel (número puro de días desde 1899-12-30)
+    if(typeof v==='number' && isFinite(v) && v>20000 && v<80000){
+      const d=new Date(Math.round((v-25569)*86400000));
+      if(!isNaN(d.getTime())) return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0');
+    }
+    let s=String(v).trim(); if(!s) return null;
+    s=s.replace(/[ T]\d{1,2}:\d.*$/,'').trim(); // quitar hora "dd/mm/yyyy hh:mm" sin romper "15 mar 2026"
+    // yyyy-mm-dd
+    let m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/);
+    if(m){ const mo=+m[2]; if(mo>=1&&mo<=12) return m[1]+'-'+String(mo).padStart(2,'0'); }
+    // dd/mm/yyyy o dd/mm/yy (formato argentino: día primero)
+    m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})$/);
+    if(m){ const d=+m[1], mo=+m[2]; let y=+m[3]; if(y<100) y+=(y<70?2000:1900);
+      if(mo>=1&&mo<=12&&d>=1&&d<=31) return String(y)+'-'+String(mo).padStart(2,'0'); }
+    // dd-mmm-yyyy / mmm-yyyy con nombre de mes (es/en)
+    const MESN={ene:1,jan:1,feb:2,mar:3,abr:4,apr:4,may:5,jun:6,jul:7,ago:8,aug:8,sep:9,set:9,oct:10,nov:11,dic:12,dec:12};
+    m=s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').match(/(?:(\d{1,2})[-\/ ])?([a-z]{3,})[-\/ ](\d{2,4})$/);
+    if(m){ const mo=MESN[m[2].slice(0,3)]; if(mo){ let y=+m[3]; if(y<100) y+=(y<70?2000:1900); return String(y)+'-'+String(mo).padStart(2,'0'); } }
     return null;
   },
 
@@ -1610,19 +1624,20 @@ const tiDrop = {
     // Trámites (turnos únicos) por mes, según la fecha de realización detectada.
     const cont=document.getElementById('ti-total-meses'); if(!cont) return;
     if(!this.colFecha){ cont.innerHTML='<div class="ti-meses-note">El Excel no tiene columna de fecha de realización</div>'; return; }
-    const cnt={};
-    dedup.forEach(r=>{ const mk=this.parseMes(r[this.colFecha]); if(mk) cnt[mk]=(cnt[mk]||0)+1; });
+    const cnt={}; let sinFecha=0;
+    dedup.forEach(r=>{ const mk=this.parseMes(r[this.colFecha]); if(mk) cnt[mk]=(cnt[mk]||0)+1; else sinFecha++; });
     const keys=Object.keys(cnt).sort();
     if(!keys.length){ cont.innerHTML='<div class="ti-meses-note">No pude leer fechas válidas de la columna "'+tiEsc(this.colFecha)+'"</div>'; return; }
     const max=Math.max(...keys.map(k=>cnt[k]));
-    const MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    const MES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
     const lbl=k=>{ const p=k.split('-'); return MES[(+p[1])-1]+" '"+p[0].slice(2); };
     cont.innerHTML='<div class="ti-meses-title">Trámites por mes · '+tiEsc(this.colFecha)+'</div>'+
       keys.map(k=>
         '<div class="ti-mes-row"><span class="ti-mes-lbl">'+lbl(k)+'</span>'+
         '<span class="ti-mes-bar"><span style="width:'+Math.round(cnt[k]/max*100)+'%"></span></span>'+
         '<span class="ti-mes-val">'+tiNum(cnt[k])+'</span></div>'
-      ).join('');
+      ).join('') +
+      (sinFecha ? '<div class="ti-meses-note">'+tiNum(sinFecha)+' turno(s) sin fecha válida</div>' : '');
   },
 
   renderPanels(){
