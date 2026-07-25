@@ -195,7 +195,7 @@
     }
     /* Distribución del sector: fila hero (Total + carga) y grilla pareja de aseguradoras */
     .ti-hero-row {
-      display:grid; grid-template-columns:1.15fr 1fr; gap:16px; margin-bottom:16px;
+      display:grid; grid-template-columns:1.7fr 1fr; gap:16px; margin-bottom:16px; align-items:start;
     }
     .ti-aseg-grid {
       display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:22px;
@@ -210,14 +210,18 @@
     .kpi-card.ti-hero .kpi-val   { font-size:50px; }
     .kpi-card.ti-hero .kpi-label { font-size:12px; }
     .kpi-card.ti-hero .kpi-icon  { font-size:44px; opacity:.16; }
-    /* Desglose de trámites por mes dentro del cuadro Total */
-    .ti-meses { margin-top:16px; }
+    /* Desglose de trámites por mes dentro del cuadro Total · cuadritos compactos */
+    .ti-meses { margin-top:14px; }
     .ti-meses-title { font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:9px; }
-    .ti-meses-note { font-size:11px; color:var(--muted); margin-top:12px; font-style:italic; }
-    .ti-mes-row { display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:5px 0; border-top:1px solid rgba(255,255,255,.06); }
-    .ti-mes-row:first-of-type { border-top:none; }
-    .ti-mes-lbl { font-size:13.5px; color:var(--text); letter-spacing:.2px; }
-    .ti-mes-val { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:17px; color:var(--purple); }
+    .ti-meses-grid { display:flex; flex-wrap:wrap; gap:8px; }
+    .ti-mes-chip {
+      display:flex; align-items:baseline; gap:7px;
+      padding:5px 10px; border-radius:8px;
+      background:rgba(167,139,250,.10); border:1px solid rgba(167,139,250,.24);
+    }
+    .ti-mes-chip .m { font-size:11px; letter-spacing:.5px; text-transform:uppercase; color:var(--muted); }
+    .ti-mes-chip .n { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:16px; color:var(--purple); line-height:1; }
+    .ti-meses-note { font-size:11px; color:var(--muted); margin-top:10px; font-style:italic; }
     .ti-detalle-wrap { display:block; margin-bottom:8px; }
     .ti-detalle-wrap .chart-card { width:100%; }
     @media(max-width:1100px){ .ti-aseg-grid{ grid-template-columns:repeat(3,1fr); } }
@@ -280,7 +284,9 @@
     .kpi-card.ti-drop {
       border:1.5px dashed rgba(148,163,184,.45); background:rgba(148,163,184,.05);
       display:flex; align-items:center; justify-content:center; text-align:center;
+      padding:14px; min-height:120px;
     }
+    .kpi-card.ti-drop.has-file .ti-drop-icon { font-size:22px; margin-bottom:3px; }
     .kpi-card.ti-drop::after { display:none; }
     .kpi-card.ti-drop:hover { transform:translateY(-3px); border-color:var(--blue); background:rgba(59,130,246,.06); box-shadow:0 8px 28px rgba(59,130,246,.15); }
     .kpi-card.ti-drop.dragover { border-color:var(--blue); border-style:solid; background:rgba(59,130,246,.14); box-shadow:0 0 0 2px rgba(59,130,246,.35) inset; }
@@ -290,7 +296,7 @@
     .ti-drop-icon  { font-size:30px; opacity:.85; margin-bottom:6px; }
     .ti-drop-title { font-family:'Rajdhani',sans-serif; font-size:15px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--blue); }
     .kpi-card.ti-drop.has-file .ti-drop-title { color:var(--green); }
-    .ti-drop-sub   { font-size:10.5px; color:var(--muted); margin-top:5px; line-height:1.35; max-width:170px; }
+    .ti-drop-sub   { font-size:10.5px; color:var(--muted); margin-top:5px; line-height:1.4; max-width:210px; }
     .ti-drop-clear {
       margin-top:9px; font-size:10px; letter-spacing:1px; text-transform:uppercase;
       background:rgba(248,113,113,.12); border:1px solid rgba(248,113,113,.35); color:#fca5a5;
@@ -1467,7 +1473,7 @@ function renderTramitesInc(p, generado) {
    un Excel subido acá, estos 6 cuadros lo respetan (tiDrop.active).
 ══════════════════════════════════════════════════════════════════════ */
 const tiDrop = {
-  active:false, rows:[], headers:[], colTurno:null, colAseg:null, colServ:null, colFecha:null,
+  active:false, rows:[], headers:[], colTurno:null, colAseg:null, colServ:null, colFecha:null, updatedAt:null,
   fileName:'', rawRows:[], dedupRows:[], byBucket:{}, byTurnos:{},
   detailKey:null, detailAll:[],
 
@@ -1518,7 +1524,8 @@ const tiDrop = {
   async _idbGet(key){ try{ const db=await this._idb(); return await new Promise((res,rej)=>{ const tx=db.transaction('kv','readonly'); const r=tx.objectStore('kv').get(key); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }catch(e){ console.warn('[tiDrop] idbGet',e); return null; } },
   async _idbDel(key){ try{ const db=await this._idb(); await new Promise((res)=>{ const tx=db.transaction('kv','readwrite'); tx.objectStore('kv').delete(key); tx.oncomplete=()=>res(); tx.onerror=()=>res(); }); }catch(e){} },
 
-  async persist(){ await this._idbSet('current', { v:1, fileName:this.fileName, colTurno:this.colTurno, colAseg:this.colAseg, colServ:this.colServ, colFecha:this.colFecha, headers:this.headers, rows:this.rows }); },
+  fmtUpdated(){ if(!this.updatedAt) return ''; const d=new Date(this.updatedAt); if(isNaN(d.getTime())) return ''; const p=n=>String(n).padStart(2,'0'); return 'Actualizado '+p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear()+' '+p(d.getHours())+':'+p(d.getMinutes()); },
+  async persist(){ await this._idbSet('current', { v:1, fileName:this.fileName, colTurno:this.colTurno, colAseg:this.colAseg, colServ:this.colServ, colFecha:this.colFecha, updatedAt:this.updatedAt, headers:this.headers, rows:this.rows }); },
 
   async restore(){
     try{
@@ -1528,13 +1535,14 @@ const tiDrop = {
       this.rows=saved.rows; this.headers=saved.headers||this.collectHeaders(saved.rows);
       this.colTurno=saved.colTurno; this.colAseg=saved.colAseg; this.colServ=saved.colServ||null;
       this.colFecha=saved.colFecha||this.findFecha(this.headers||[]);
+      this.updatedAt=saved.updatedAt||null;
       this.fileName=saved.fileName||'archivo guardado';
       if(!this.colTurno||!this.colAseg){ this._idbDel('current'); return; }
       this.active=true; this.compute();
       const dz=document.getElementById('ti-dropzone'); if(dz) dz.classList.add('has-file');
       const set=(id,t)=>{ const e=document.getElementById(id); if(e) e.textContent=t; };
       set('ti-drop-icon','✅'); set('ti-drop-title','Archivo cargado');
-      set('ti-drop-sub', this.fileName+' · '+tiNum(this.rawRows.length)+' filas · guardado ✓');
+      set('ti-drop-sub', this.fileName+' · '+tiNum(this.rawRows.length)+' filas'+(this.fmtUpdated()?' · '+this.fmtUpdated():''));
       const clr=document.getElementById('ti-drop-clear'); if(clr) clr.style.display='inline-block';
     }catch(e){ console.warn('[tiDrop] restore',e); }
   },
@@ -1576,10 +1584,11 @@ const tiDrop = {
       }
       this.rows=rows; this.headers=headers; this.colTurno=colTurno; this.colAseg=colAseg;
       this.colServ=this.findServicio(headers); this.colFecha=this.findFecha(headers); this.fileName=file.name; this.active=true;
+      this.updatedAt=new Date().toISOString();
       this.compute();
       dz.classList.add('has-file');
       setIcon('✅'); setTitle('Archivo cargado');
-      setSub(file.name+' · '+tiNum(this.rawRows.length)+' filas · guardado ✓');
+      setSub(file.name+' · '+tiNum(this.rawRows.length)+' filas'+(this.fmtUpdated()?' · '+this.fmtUpdated():''));
       document.getElementById('ti-drop-clear').style.display='inline-block';
       this.persist();   // queda guardado hasta "quitar" o subir otro archivo
     }catch(err){
@@ -1614,21 +1623,35 @@ const tiDrop = {
   },
 
   renderMeses(dedup){
-    // Trámites (turnos únicos) por mes, según "Fecha Turno". Solo texto: mes + cantidad.
+    // Trámites (turnos únicos) por mes, según "Fecha Turno". Detecta el orden (m/d vs d/m) de los datos.
     const cont=document.getElementById('ti-total-meses'); if(!cont) return;
     if(!this.colFecha){ cont.innerHTML='<div class="ti-meses-note">El Excel no tiene columna de fecha</div>'; return; }
+    const RX=/(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/, ISO=/(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/;
+    // Votación de orden: si un número es >12, ese es el día → define si el mes va 1° (m/d) o 2° (d/m)
+    let dm=0, md=0;
+    dedup.forEach(r=>{ const s=String(r[this.colFecha]==null?'':r[this.colFecha]); if(ISO.test(s)) return; const m=s.match(RX); if(m){ const a=+m[1], b=+m[2]; if(a>12&&b<=12) dm++; else if(b>12&&a<=12) md++; } });
+    const monthFirst = md>=dm; // por defecto mes primero (formato del export)
+    const keyOf=v=>{
+      if(v==null||v==='') return null;
+      if(typeof v==='number' && isFinite(v) && v>20000 && v<80000){ const d=new Date(Math.round((v-25569)*86400000)); if(!isNaN(d.getTime())) return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0'); }
+      const s=String(v);
+      let m=s.match(ISO); if(m){ const mo=+m[2]; if(mo>=1&&mo<=12) return m[1]+'-'+String(mo).padStart(2,'0'); }
+      m=s.match(RX); if(m){ const a=+m[1], b=+m[2]; let y=+m[3]; if(y<100) y+=2000; let mo; if(a>12&&b<=12) mo=b; else if(b>12&&a<=12) mo=a; else mo=monthFirst?a:b; if(mo>=1&&mo<=12) return String(y)+'-'+String(mo).padStart(2,'0'); }
+      return null;
+    };
     const cnt={}; let sinFecha=0;
-    dedup.forEach(r=>{ const mk=this.parseMes(r[this.colFecha]); if(mk) cnt[mk]=(cnt[mk]||0)+1; else sinFecha++; });
+    dedup.forEach(r=>{ const k=keyOf(r[this.colFecha]); if(k) cnt[k]=(cnt[k]||0)+1; else sinFecha++; });
     const keys=Object.keys(cnt).sort();
     if(!keys.length){ cont.innerHTML='<div class="ti-meses-note">No leí fechas válidas de "'+tiEsc(this.colFecha)+'"</div>'; return; }
-    const MES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const MES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
     const multi=new Set(keys.map(k=>k.split('-')[0])).size>1;
-    const lbl=k=>{ const p=k.split('-'); return MES[(+p[1])-1] + (multi?' '+p[0]:''); };
+    const lbl=k=>{ const p=k.split('-'); return MES[(+p[1])-1] + (multi?" '"+p[0].slice(2):''); };
     cont.innerHTML='<div class="ti-meses-title">Trámites por mes · '+tiEsc(this.colFecha)+'</div>'+
+      '<div class="ti-meses-grid">'+
       keys.map(k=>
-        '<div class="ti-mes-row"><span class="ti-mes-lbl">'+lbl(k)+'</span>'+
-        '<span class="ti-mes-val">'+tiNum(cnt[k])+'</span></div>'
+        '<div class="ti-mes-chip"><span class="m">'+lbl(k)+'</span><span class="n">'+tiNum(cnt[k])+'</span></div>'
       ).join('') +
+      '</div>'+
       (sinFecha ? '<div class="ti-meses-note">'+tiNum(sinFecha)+' sin fecha válida</div>' : '');
   },
 
