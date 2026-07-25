@@ -2405,15 +2405,20 @@ function mostrarArreglados(valId, rows, tipo) {
     el.className = 'kpi-arr';
     val.insertAdjacentElement('afterend', el);
   }
+  const total = rows.length;
+  // Sin datos de Supabase todavía: el número queda en el total (ya seteado por calcKPIs).
   if (!REPARADOS || !REPARADOS.size) { el.textContent = ''; return; }
   let arr = 0;
   for (const r of rows) {
     const tn = _safe(r['Turno N°'] ?? r['Turno N'] ?? r['Turno No']);
     if (tn && REPARADOS.has(tipo + ':' + tn)) arr++;
   }
-  const pend = Math.max(0, rows.length - arr);
-  el.innerHTML = `<span class="arr-ok">✓ ${arr.toLocaleString('es-AR')} arreglados</span>` +
-                 (pend ? ` <span class="arr-pend">· ${pend.toLocaleString('es-AR')} pend.</span>` : '');
+  const pend = Math.max(0, total - arr);
+  // El número grande ahora refleja SOLO lo pendiente (descuenta los ya arreglados por el bot).
+  val.textContent = pend.toLocaleString('es-AR');
+  el.innerHTML = arr
+    ? `<span class="arr-ok">✓ ${arr.toLocaleString('es-AR')} arreglados</span> <span class="arr-pend">· ${pend.toLocaleString('es-AR')} pend. de ${total.toLocaleString('es-AR')}</span>`
+    : `<span class="arr-pend">${pend.toLocaleString('es-AR')} pendientes</span>`;
 }
 
 /* ══════════════════════════════════
