@@ -348,6 +348,19 @@
     .ti-detail-body tr:hover td { background:rgba(59,130,246,.06); }
     .ti-detail-body td.ti-col-aseg { color:var(--cyan); font-weight:600; }
     .ti-detail-foot { padding:10px 20px; border-top:1px solid var(--border); font-size:11px; color:var(--muted); }
+    /* Cabecera de "Automatizados" con el botón de reparar TODO */
+    .auto-head { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+    .btn-reparar-todo {
+      display:inline-flex; align-items:center; gap:8px;
+      font-family:'Rajdhani',sans-serif; font-weight:700; font-size:13px;
+      letter-spacing:1.5px; text-transform:uppercase; cursor:pointer;
+      color:#0A0F14; background:linear-gradient(135deg,#55e78b,#22dbae);
+      border:none; border-radius:9px; padding:11px 20px;
+      box-shadow:0 6px 20px rgba(85,231,139,.28); transition:transform .15s, box-shadow .15s, filter .15s;
+    }
+    .btn-reparar-todo:hover { transform:translateY(-2px); box-shadow:0 10px 30px rgba(85,231,139,.42); filter:brightness(1.05); }
+    .btn-reparar-todo:active { transform:translateY(0); }
+
     /* KPIs automatizados (bot Reparar): NO atenuados — se distinguen por el badge
        + el contador de arreglados. El badge va en el flujo (no absoluto) para no
        superponerse con el subtexto. */
@@ -781,7 +794,10 @@
   <div class="err-block fade-in">
     <div class="kpi-section-label sec-errores">Errores de carga</div>
 
-    <div class="ecard-group-label auto"><span class="pill"></span>Automatizados · con bot de reparación</div>
+    <div class="auto-head">
+      <div class="ecard-group-label auto"><span class="pill"></span>Automatizados · con bot de reparación</div>
+      <button class="btn-reparar-todo" onclick="repararTodo()" title="Genera los 6 Excel y corre todos los arreglos con un solo login">⚡ Arreglar automáticamente TODO</button>
+    </div>
     <div class="ecards">
       <div class="kpi-card ecard auto" onclick="openModal('instderiv')">
         <div class="num" id="kpi-instderiv">—</div>
@@ -1196,6 +1212,7 @@
           <div style="margin-top:8px">O corré el comando a mano:</div>
           <div class="reparar-cmd" id="reparar-cmd">cd "C:\Users\pitre\Repos\Automatización tareas adm\fuesmen_bot"; .\.venv\Scripts\Activate.ps1; python lumen-fix-instderivante.py</div>
           <button class="reparar-copy" onclick="copiarComandoReparar()">📋 Copiar comando</button>
+          <div style="margin-top:10px;color:var(--cyan)">Para <b>“Arreglar TODO”</b>: hacé doble clic en <code>ARREGLAR_TODO.bat</code> (carpeta del bot). Abre un solo navegador, te logueás <b>una vez</b> y corre los 6 en orden.</div>
         </div>
       </details>
       <div class="reparar-note">El bot pregunta cuántos turnos procesar (ENTER = todos). Solo cambia los que siguen como error; los ya reparados se saltean por historial.</div>
@@ -4314,6 +4331,60 @@ async function reparAutoCard(tipo) {
   } catch (e) {
     console.error('[reparAutoCard]', e);
   }
+}
+
+/* ARREGLAR AUTOMÁTICAMENTE TODO
+   Genera los 6 Excel (uno por tipo, con el nombre que cada bot espera) y dispara
+   el orquestador lumen-fix-todo.py, que loguea UNA sola vez y corre los 6 en orden.
+   Orden = igual que las tarjetas. */
+async function repararTodo() {
+  const ORDEN = [
+    ['instderiv',   'Institución Derivante'],
+    ['cobertura',   'Tipo Cobertura'],
+    ['fuerafecha',  'Fuera Fecha Facturación'],
+    ['aseguradora', 'TC/RM PAMI (aseguradora)'],
+    ['cuentaint',   'Cuenta sin INTERNADOS'],
+    ['rxamb',       'RX AMB PAMI en FINAMED'],
+  ];
+  const overlay  = document.getElementById('reparar-overlay');
+  const titleEl  = document.getElementById('reparar-title');
+  const countTxt = document.getElementById('reparar-count-txt');
+  const cmdEl    = document.getElementById('reparar-cmd');
+
+  if (titleEl)  titleEl.textContent  = '⚡ Arreglar automáticamente TODO';
+  if (cmdEl)    cmdEl.textContent    = 'cd "C:\\Users\\pitre\\Repos\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe lumen-fix-todo.py';
+  if (overlay)  overlay.classList.add('open');
+
+  if (!filtered.length) {
+    if (countTxt) countTxt.textContent = 'No hay datos cargados. Primero traé la data de la nube (o cargá el Excel) y volvé a intentar.';
+    return;
+  }
+
+  const generados = [], vacios = [];
+  for (const [tipo, label] of ORDEN) {
+    if (countTxt) countTxt.textContent = 'Generando Excel: ' + label + '…';
+    try {
+      openModal(tipo);                       // setea modalTipo + modalRows + modalFiltered
+      const n = (modalRows || []).length;
+      if (!n) { vacios.push(label); continue; }
+      await exportExcel(undefined, false);   // descarga con el nombre que el bot espera
+      generados.push(label + ' (' + n + ')');
+    } catch (e) {
+      console.error('[repararTodo]', tipo, e);
+      vacios.push(label + ' (error)');
+    }
+  }
+  try { closeModal(); } catch (e) {}
+
+  if (countTxt) {
+    countTxt.innerHTML =
+      '<b>' + generados.length + ' Excel generado(s)</b> en Descargas: ' + (generados.join(', ') || '—') +
+      (vacios.length ? '<br><span style="color:var(--muted)">Sin turnos (no hace falta): ' + vacios.join(', ') + '</span>' : '');
+  }
+
+  // Dispara el orquestador (si el protocolo 'todo' está registrado). Si no abre nada,
+  // el fallback es doble clic en BOT_TODOS.bat (ver instrucciones del overlay).
+  try { window.location.href = 'lumenbot://todo'; } catch (e) { console.warn('protocolo todo no disponible:', e); }
 }
 
 async function repararConBot() {
