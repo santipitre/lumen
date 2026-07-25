@@ -214,11 +214,10 @@
     .ti-meses { margin-top:16px; }
     .ti-meses-title { font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:9px; }
     .ti-meses-note { font-size:11px; color:var(--muted); margin-top:12px; font-style:italic; }
-    .ti-mes-row { display:grid; grid-template-columns:56px 1fr 38px; align-items:center; gap:9px; margin:4px 0; }
-    .ti-mes-lbl { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
-    .ti-mes-bar { height:8px; border-radius:6px; background:rgba(255,255,255,.06); overflow:hidden; }
-    .ti-mes-bar > span { display:block; height:100%; background:linear-gradient(90deg,var(--purple),rgba(167,139,250,.5)); border-radius:6px; }
-    .ti-mes-val { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:13px; color:var(--purple); text-align:right; }
+    .ti-mes-row { display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:5px 0; border-top:1px solid rgba(255,255,255,.06); }
+    .ti-mes-row:first-of-type { border-top:none; }
+    .ti-mes-lbl { font-size:13.5px; color:var(--text); letter-spacing:.2px; }
+    .ti-mes-val { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:17px; color:var(--purple); }
     .ti-detalle-wrap { display:block; margin-bottom:8px; }
     .ti-detalle-wrap .chart-card { width:100%; }
     @media(max-width:1100px){ .ti-aseg-grid{ grid-template-columns:repeat(3,1fr); } }
@@ -1492,26 +1491,20 @@ const tiDrop = {
     return c||null;
   },
   parseMes(v){
-    // → 'YYYY-MM' o null. Descarta lo que no sea una fecha válida (mes 1..12). NO usa Date() ambiguo.
+    // -> 'YYYY-MM'. Extrae SOLO la fecha (ignora la hora). null si no hay fecha valida (mes 1..12).
     if(v==null||v==='') return null;
-    // Serial de Excel (número puro de días desde 1899-12-30)
+    // Serial de Excel (numero de dias desde 1899-12-30)
     if(typeof v==='number' && isFinite(v) && v>20000 && v<80000){
       const d=new Date(Math.round((v-25569)*86400000));
       if(!isNaN(d.getTime())) return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0');
     }
-    let s=String(v).trim(); if(!s) return null;
-    s=s.replace(/[ T]\d{1,2}:\d.*$/,'').trim(); // quitar hora "dd/mm/yyyy hh:mm" sin romper "15 mar 2026"
-    // yyyy-mm-dd
-    let m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/);
+    const s=String(v);
+    // ISO aaaa-mm-dd PRIMERO (para no confundir dia con anio)
+    let m=s.match(/(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);
     if(m){ const mo=+m[2]; if(mo>=1&&mo<=12) return m[1]+'-'+String(mo).padStart(2,'0'); }
-    // dd/mm/yyyy o dd/mm/yy (formato argentino: día primero)
-    m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})$/);
-    if(m){ const d=+m[1], mo=+m[2]; let y=+m[3]; if(y<100) y+=(y<70?2000:1900);
-      if(mo>=1&&mo<=12&&d>=1&&d<=31) return String(y)+'-'+String(mo).padStart(2,'0'); }
-    // dd-mmm-yyyy / mmm-yyyy con nombre de mes (es/en)
-    const MESN={ene:1,jan:1,feb:2,mar:3,abr:4,apr:4,may:5,jun:6,jul:7,ago:8,aug:8,sep:9,set:9,oct:10,nov:11,dic:12,dec:12};
-    m=s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').match(/(?:(\d{1,2})[-\/ ])?([a-z]{3,})[-\/ ](\d{2,4})$/);
-    if(m){ const mo=MESN[m[2].slice(0,3)]; if(mo){ let y=+m[3]; if(y<100) y+=(y<70?2000:1900); return String(y)+'-'+String(mo).padStart(2,'0'); } }
+    // dd/mm/aaaa o dd/mm/aa (argentino, dia primero) - primera fecha del texto, ignora la hora
+    m=s.match(/(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/);
+    if(m){ const mo=+m[2]; let y=+m[3]; if(y<100) y+=(y<70?2000:1900); if(mo>=1&&mo<=12) return String(y)+'-'+String(mo).padStart(2,'0'); }
     return null;
   },
 
@@ -1621,23 +1614,22 @@ const tiDrop = {
   },
 
   renderMeses(dedup){
-    // Trámites (turnos únicos) por mes, según la fecha de realización detectada.
+    // Trámites (turnos únicos) por mes, según "Fecha Turno". Solo texto: mes + cantidad.
     const cont=document.getElementById('ti-total-meses'); if(!cont) return;
-    if(!this.colFecha){ cont.innerHTML='<div class="ti-meses-note">El Excel no tiene columna de fecha de realización</div>'; return; }
+    if(!this.colFecha){ cont.innerHTML='<div class="ti-meses-note">El Excel no tiene columna de fecha</div>'; return; }
     const cnt={}; let sinFecha=0;
     dedup.forEach(r=>{ const mk=this.parseMes(r[this.colFecha]); if(mk) cnt[mk]=(cnt[mk]||0)+1; else sinFecha++; });
     const keys=Object.keys(cnt).sort();
-    if(!keys.length){ cont.innerHTML='<div class="ti-meses-note">No pude leer fechas válidas de la columna "'+tiEsc(this.colFecha)+'"</div>'; return; }
-    const max=Math.max(...keys.map(k=>cnt[k]));
-    const MES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-    const lbl=k=>{ const p=k.split('-'); return MES[(+p[1])-1]+" '"+p[0].slice(2); };
+    if(!keys.length){ cont.innerHTML='<div class="ti-meses-note">No leí fechas válidas de "'+tiEsc(this.colFecha)+'"</div>'; return; }
+    const MES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const multi=new Set(keys.map(k=>k.split('-')[0])).size>1;
+    const lbl=k=>{ const p=k.split('-'); return MES[(+p[1])-1] + (multi?' '+p[0]:''); };
     cont.innerHTML='<div class="ti-meses-title">Trámites por mes · '+tiEsc(this.colFecha)+'</div>'+
       keys.map(k=>
         '<div class="ti-mes-row"><span class="ti-mes-lbl">'+lbl(k)+'</span>'+
-        '<span class="ti-mes-bar"><span style="width:'+Math.round(cnt[k]/max*100)+'%"></span></span>'+
         '<span class="ti-mes-val">'+tiNum(cnt[k])+'</span></div>'
       ).join('') +
-      (sinFecha ? '<div class="ti-meses-note">'+tiNum(sinFecha)+' turno(s) sin fecha válida</div>' : '');
+      (sinFecha ? '<div class="ti-meses-note">'+tiNum(sinFecha)+' sin fecha válida</div>' : '');
   },
 
   renderPanels(){
