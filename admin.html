@@ -193,6 +193,27 @@
       font-size:11px; letter-spacing:1.5px; color:var(--muted);
       text-transform:uppercase; margin-top:2px;
     }
+    /* Distribución del sector: fila hero (Total + carga) y grilla pareja de aseguradoras */
+    .ti-hero-row {
+      display:grid; grid-template-columns:1.15fr 1fr; gap:16px; margin-bottom:16px;
+    }
+    .ti-aseg-grid {
+      display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:22px;
+    }
+    .kpi-card.ti-hero {
+      display:flex; flex-direction:column; justify-content:center;
+      background:linear-gradient(135deg, rgba(167,139,250,.16), rgba(167,139,250,.03));
+      border-color:rgba(167,139,250,.42);
+    }
+    .kpi-card.ti-hero:hover { border-color:var(--purple); box-shadow:0 8px 28px rgba(167,139,250,.22); }
+    .kpi-card.ti-hero .kpi-val   { font-size:56px; }
+    .kpi-card.ti-hero .kpi-label { font-size:12px; }
+    .kpi-card.ti-hero .kpi-icon  { font-size:44px; opacity:.16; }
+    .ti-detalle-wrap { display:block; margin-bottom:8px; }
+    .ti-detalle-wrap .chart-card { width:100%; }
+    @media(max-width:1100px){ .ti-aseg-grid{ grid-template-columns:repeat(3,1fr); } }
+    @media(max-width:820px){ .ti-hero-row{ grid-template-columns:1fr; } .ti-aseg-grid{ grid-template-columns:repeat(2,1fr); } }
+    @media(max-width:520px){ .ti-aseg-grid{ grid-template-columns:1fr; } }
 
     /* ── KPI GRID ── */
     .kpi-section-label {
@@ -830,16 +851,12 @@
         <div class="ti-st">A recepcionar · por aseguradora</div>
       </div>
     </div>
-    <div class="kpi-grid kpi-grid-tramites fade-in">
-      <div class="kpi-card purple" onclick="tiCardClick('TOTAL')"><div class="kpi-icon">📋</div><div class="kpi-label">Total trámites</div><div class="kpi-val" id="ti-total">—</div><div class="kpi-sub" id="ti-total-sub">turnos únicos</div><div class="kpi-hint">ver detalle →</div></div>
-      <div class="kpi-card blue" onclick="tiCardClick('FINAMED')"><div class="kpi-icon">🏢</div><div class="kpi-label">FINAMED</div><div class="kpi-val" id="ti-FINAMED">—</div><div class="kpi-sub" id="ti-FINAMED-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
-      <div class="kpi-card amber" onclick="tiCardClick('PAMI')"><div class="kpi-icon">🏢</div><div class="kpi-label">PAMI (INSSJYP)</div><div class="kpi-val" id="ti-PAMI">—</div><div class="kpi-sub" id="ti-PAMI-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
-      <div class="kpi-card cyan" onclick="tiCardClick('HAREFIELD')"><div class="kpi-icon">🏢</div><div class="kpi-label">Harefield</div><div class="kpi-val" id="ti-HAREFIELD">—</div><div class="kpi-sub" id="ti-HAREFIELD-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
-      <div class="kpi-card green" onclick="tiCardClick('OSOTRAS')"><div class="kpi-icon">🏢</div><div class="kpi-label">Otras OS / Prepagas</div><div class="kpi-val" id="ti-OSOTRAS">—</div><div class="kpi-sub" id="ti-OSOTRAS-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
-      <div class="kpi-card red" onclick="tiCardClick('PARTICULAR')"><div class="kpi-icon">🧾</div><div class="kpi-label">Particular</div><div class="kpi-val" id="ti-PARTICULAR">—</div><div class="kpi-sub" id="ti-PARTICULAR-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
+    <!-- Fila hero: total (headline) + carga de Excel -->
+    <div class="ti-hero-row fade-in">
+      <div class="kpi-card purple ti-hero" onclick="tiCardClick('TOTAL')"><div class="kpi-icon">📋</div><div class="kpi-label">Total trámites</div><div class="kpi-val" id="ti-total">—</div><div class="kpi-sub" id="ti-total-sub">turnos únicos</div><div class="kpi-hint">ver detalle →</div></div>
 
-      <!-- Recuadro de carga de Excel: alimenta los 6 cuadros de arriba -->
-      <div class="kpi-card ti-drop" id="ti-dropzone" onclick="tiDrop.pick()" title="Click o arrastrá el Excel acá para alimentar los 6 cuadros">
+      <!-- Recuadro de carga de Excel: alimenta los cuadros de aseguradoras -->
+      <div class="kpi-card ti-drop" id="ti-dropzone" onclick="tiDrop.pick()" title="Click o arrastrá el Excel acá para alimentar los cuadros">
         <input type="file" id="ti-file-input" accept=".xlsx,.xlsm,.xls,.csv" style="display:none" onchange="tiDrop.onInput(event)">
         <div class="ti-drop-inner">
           <div class="ti-drop-icon" id="ti-drop-icon">📥</div>
@@ -849,7 +866,18 @@
         </div>
       </div>
     </div>
-    <div class="charts-row fade-in">
+
+    <!-- Grilla pareja de aseguradoras -->
+    <div class="ti-aseg-grid fade-in">
+      <div class="kpi-card blue" onclick="tiCardClick('FINAMED')"><div class="kpi-icon">🏢</div><div class="kpi-label">FINAMED</div><div class="kpi-val" id="ti-FINAMED">—</div><div class="kpi-sub" id="ti-FINAMED-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card amber" onclick="tiCardClick('PAMI')"><div class="kpi-icon">🏢</div><div class="kpi-label">PAMI (INSSJYP)</div><div class="kpi-val" id="ti-PAMI">—</div><div class="kpi-sub" id="ti-PAMI-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card cyan" onclick="tiCardClick('HAREFIELD')"><div class="kpi-icon">🏢</div><div class="kpi-label">Harefield</div><div class="kpi-val" id="ti-HAREFIELD">—</div><div class="kpi-sub" id="ti-HAREFIELD-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card green" onclick="tiCardClick('OSOTRAS')"><div class="kpi-icon">🏢</div><div class="kpi-label">Otras OS / Prepagas</div><div class="kpi-val" id="ti-OSOTRAS">—</div><div class="kpi-sub" id="ti-OSOTRAS-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card red" onclick="tiCardClick('PARTICULAR')"><div class="kpi-icon">🧾</div><div class="kpi-label">Particular</div><div class="kpi-val" id="ti-PARTICULAR">—</div><div class="kpi-sub" id="ti-PARTICULAR-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
+    </div>
+
+    <!-- Detalle por aseguradora · ancho completo -->
+    <div class="ti-detalle-wrap fade-in">
       <div class="chart-card">
         <div class="chart-title">Detalle por aseguradora</div>
         <div id="ti-aseg"><div class="empty-state"><div class="e-icon">🏢</div><div class="e-text">Sin datos — corré la sincronización local</div></div></div>
