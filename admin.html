@@ -221,6 +221,10 @@
     }
     .ti-mes-chip .m { font-size:11px; letter-spacing:.5px; text-transform:uppercase; color:var(--muted); }
     .ti-mes-chip .n { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:16px; color:var(--purple); line-height:1; }
+    /* Filas clickeables de "Detalle por aseguradora" */
+    #ti-aseg .ti-aseg-row { cursor:pointer; transition:background .15s; }
+    #ti-aseg .ti-aseg-row:hover { background:rgba(167,139,250,.12); }
+    #ti-aseg .ti-aseg-row:hover td:first-child { color:var(--purple); }
     .ti-meses-note { font-size:11px; color:var(--muted); margin-top:10px; font-style:italic; }
     .ti-detalle-wrap { display:block; margin-bottom:8px; }
     .ti-detalle-wrap .chart-card { width:100%; }
@@ -894,7 +898,7 @@
     <!-- Detalle por aseguradora · ancho completo -->
     <div class="ti-detalle-wrap fade-in">
       <div class="chart-card">
-        <div class="chart-title">Detalle por aseguradora</div>
+        <div class="chart-title">Detalle por aseguradora <span style="font-size:10px;letter-spacing:1px;color:var(--muted);text-transform:none;font-weight:400">· click en una fila para ver y exportar</span></div>
         <div id="ti-aseg"><div class="empty-state"><div class="e-icon">🏢</div><div class="e-text">Sin datos — corré la sincronización local</div></div></div>
       </div>
     </div>
@@ -1475,7 +1479,7 @@ function renderTramitesInc(p, generado) {
 const tiDrop = {
   active:false, rows:[], headers:[], colTurno:null, colAseg:null, colServ:null, colFecha:null, updatedAt:null,
   fileName:'', rawRows:[], dedupRows:[], byBucket:{}, byTurnos:{},
-  detailKey:null, detailAll:[],
+  detailKey:null, detailAll:[], detailLabel:'', detailTurnos:0, _asegArr:[],
 
   LABEL:{ TOTAL:'Total trámites', FINAMED:'FINAMED', PAMI:'PAMI (INSSJYP)', HAREFIELD:'Harefield', OSOTRAS:'Otras OS / Prepagas', PARTICULAR:'Particular' },
   COLOR:{ TOTAL:'var(--purple)', FINAMED:'var(--blue)', PAMI:'var(--amber)', HAREFIELD:'var(--cyan)', OSOTRAS:'var(--green)', PARTICULAR:'var(--red)' },
@@ -1660,20 +1664,23 @@ const tiDrop = {
     const g={};
     raw.forEach(r=>{ const name=S(r[this.colAseg])||'—'; if(!g[name]) g[name]={t:new Set(),blank:0,l:0}; g[name].l++; const tn=S(r[this.colTurno]).toUpperCase(); if(tn) g[name].t.add(tn); else g[name].blank++; });
     const arr=Object.entries(g).map(([k,v])=>({aseg:k,turnos:v.t.size+v.blank,lineas:v.l})).sort((a,b)=>b.turnos-a.turnos);
+    this._asegArr=arr;
     const cont=document.getElementById('ti-aseg');
-    if(cont) cont.innerHTML = arr.length ? (
+    if(cont){ cont.innerHTML = arr.length ? (
       '<table style="width:100%;border-collapse:collapse;font-size:12.5px">' +
       '<thead><tr>' +
       '<th style="text-align:left;padding:6px 4px;color:var(--muted);font-size:11px;text-transform:uppercase">Aseguradora</th>' +
       '<th style="text-align:right;padding:6px 4px;color:var(--muted);font-size:11px;text-transform:uppercase">Turnos</th>' +
       '<th style="text-align:right;padding:6px 4px;color:var(--muted);font-size:11px;text-transform:uppercase">Estudios</th>' +
       '</tr></thead><tbody>' +
-      arr.map(a => '<tr>' +
+      arr.map((a,i) => '<tr class="ti-aseg-row" data-idx="'+i+'" title="Ver detalle de turnos y exportar a Excel">' +
         '<td style="padding:6px 4px;border-top:1px solid rgba(255,255,255,.05)">' + tiEsc(a.aseg) + '</td>' +
         '<td style="padding:6px 4px;text-align:right;border-top:1px solid rgba(255,255,255,.05);font-family:Rajdhani,Inter,sans-serif;font-weight:700">' + tiNum(a.turnos) + '</td>' +
         '<td style="padding:6px 4px;text-align:right;border-top:1px solid rgba(255,255,255,.05);color:var(--muted)">' + tiNum(a.lineas) + '</td></tr>').join('') +
       '</tbody></table>'
     ) : '<div class="empty-state"><div class="e-icon">🏢</div><div class="e-text">Sin filas en el Excel subido</div></div>';
+      cont.onclick=(e)=>{ const tr=e.target.closest('tr[data-idx]'); if(!tr) return; const a=this._asegArr&&this._asegArr[+tr.dataset.idx]; if(a) this.openDetailAseg(a.aseg); };
+    }
 
     const sc=document.getElementById('ti-serv');
     if(sc){
@@ -1696,10 +1703,28 @@ const tiDrop = {
     if(!this.active) return;
     const rows = (key==='TOTAL') ? this.rawRows : (this.byBucket[key]||[]);
     const turnos = (key==='TOTAL') ? this.dedupRows.length : (this.byTurnos[key]||0);
-    this.detailKey=key; this.detailAll=rows;
-    document.getElementById('ti-detail-title').textContent = this.LABEL[key]||'Detalle';
+    this.detailKey=key; this.detailAll=rows; this.detailLabel=this.LABEL[key]||'Detalle'; this.detailTurnos=turnos;
+    document.getElementById('ti-detail-title').textContent = this.detailLabel;
     document.getElementById('ti-detail-count').textContent = tiNum(turnos)+' turnos · '+tiNum(rows.length)+' estudios';
     document.getElementById('ti-detail-bar').style.background = this.COLOR[key]||'var(--blue)';
+    const srch=document.getElementById('ti-detail-search'); if(srch) srch.value='';
+    this.renderDetail(rows);
+    document.getElementById('ti-detail-overlay').classList.add('open');
+  },
+
+  // Detalle de UNA aseguradora puntual (click en fila de "Detalle por aseguradora")
+  openDetailAseg(name){
+    if(!this.active) return;
+    const S=this.S.bind(this);
+    const rows=this.rawRows.filter(r=> S(r[this.colAseg])===name);
+    if(!rows.length) return;
+    const seen=new Set(); let blank=0;
+    rows.forEach(r=>{ const tn=S(r[this.colTurno]).toUpperCase(); if(tn) seen.add(tn); else blank++; });
+    const turnos=seen.size+blank;
+    this.detailKey='ASEG'; this.detailAll=rows; this.detailLabel=name||'Detalle'; this.detailTurnos=turnos;
+    document.getElementById('ti-detail-title').textContent = this.detailLabel;
+    document.getElementById('ti-detail-count').textContent = tiNum(turnos)+' turnos · '+tiNum(rows.length)+' estudios';
+    document.getElementById('ti-detail-bar').style.background = 'var(--purple)';
     const srch=document.getElementById('ti-detail-search'); if(srch) srch.value='';
     this.renderDetail(rows);
     document.getElementById('ti-detail-overlay').classList.add('open');
@@ -1755,11 +1780,13 @@ const tiDrop = {
   async exportCurrent(){
     try{
       const key=this.detailKey||'TOTAL'; const rows=this.detailAll||[];
+      const label=this.detailLabel||this.LABEL[key]||'Detalle';
       const excl=new Set(this.EXPORT_EXCLUDE);
       const heads=this.orderedHeads().filter(h=>!excl.has(this.normH(h)));
       const d=new Date();
       const stamp=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-      const fname='Lumen_TI_'+key+'_'+stamp+'.xlsx';
+      const safe=String(label).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,40)||key;
+      const fname='Lumen_TI_'+safe+'_'+stamp+'.xlsx';
 
       // Sin ExcelJS no hay diseño posible → fallback plano con SheetJS (no debería pasar en producción).
       if(typeof ExcelJS==='undefined'){
@@ -1771,7 +1798,7 @@ const tiDrop = {
       // Paleta Lumen (fondo oscuro + acento dorado firefly) — igual que el informe por operador.
       const NAVY='FF0A0F14', BLUED='FF243049', GOLD='FFF59E0B', WHITE='FFF1F5F9',
             INK='FF0A0F14', SURF='FF0A0F14', ALT='FF0E1521', MUTED='FF94A3B8', CYAN='FF22DBAE';
-      const turnos=(key==='TOTAL')?this.dedupRows.length:(this.byTurnos[key]||0);
+      const turnos=this.detailTurnos||((key==='TOTAL')?this.dedupRows.length:(this.byTurnos[key]||0));
       const sede=(typeof localStorage!=='undefined' && localStorage.getItem('spcd_sede'))||'Hospital Italiano';
       const fecha=d.toLocaleDateString('es-AR');
       const totalCols=Math.max(1, heads.length);
@@ -1787,7 +1814,7 @@ const tiDrop = {
       ws.getRow(1).height=46;
       try{ const logo=this.lumenLogoPNG(); const id=wb.addImage({base64:logo,extension:'png'}); ws.addImage(id,{ tl:{col:0,row:0}, ext:{width:210,height:44} }); }catch(e){ console.warn('[tiDrop] logo',e); }
       const tCol=totalCols>=4?3:1; ws.mergeCells(1,tCol,1,totalCols);
-      const tt=ws.getCell(1,tCol); tt.value='TRÁMITES INCOMPLETOS · '+(this.LABEL[key]||'DETALLE').toUpperCase();
+      const tt=ws.getCell(1,tCol); tt.value='TRÁMITES INCOMPLETOS · '+String(label||'DETALLE').toUpperCase();
       tt.font={name:'Calibri',size:13,bold:true,color:{argb:WHITE}}; tt.alignment={horizontal:'right',vertical:'middle',indent:1};
 
       // Fila 2: regla dorada
