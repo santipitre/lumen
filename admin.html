@@ -787,16 +787,10 @@
   <!-- KPIs · Grupo 2 (Trámites incompletos · a recepcionar) — bloque removido:
        el detalle por aseguradora vive ahora en la pestaña "Trámites Incompletos". -->
 
-  <!-- TABS -->
-  <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('tab-resumen',this)">Resumen</button>
-    <button class="tab-btn"        onclick="switchTab('tab-derivantes',this)">Derivantes</button>
-    <button class="tab-btn"        onclick="switchTab('tab-detalle',this)">Detalle</button>
-    <button class="tab-btn"        onclick="switchTab('tab-tramites-inc',this)">Trámites Incompletos</button>
-  </div>
+  <!-- TABS removidas: sólo queda Trámites Incompletos -->
 
   <!-- TAB TRÁMITES INCOMPLETOS (dashboard desde Supabase · tabla ti_snapshot) -->
-  <div class="tab-pane" id="tab-tramites-inc">
+  <div class="tab-pane active" id="tab-tramites-inc">
     <div class="kpi-section-label sec-tramites">Trámites incompletos · a recepcionar (por aseguradora)</div>
     <div class="kpi-grid kpi-grid-tramites fade-in">
       <div class="kpi-card purple" onclick="tiCardClick('TOTAL')"><div class="kpi-icon">📋</div><div class="kpi-label">Total trámites</div><div class="kpi-val" id="ti-total">—</div><div class="kpi-sub" id="ti-total-sub">turnos únicos</div><div class="kpi-hint">ver detalle →</div></div>
@@ -830,98 +824,7 @@
     <div id="ti-meta" style="color:var(--muted);font-size:11px;margin-top:-12px"></div>
   </div>
 
-  <!-- TAB RESUMEN -->
-  <div class="tab-pane active" id="tab-resumen">
-    <div class="charts-row fade-in">
-      <div class="chart-card">
-        <div class="chart-title">Tipo de Turno</div>
-        <canvas id="chart-tipoturno"></canvas>
-      </div>
-    </div>
-    <div class="charts-row-3 fade-in">
-      <div class="chart-card">
-        <div class="chart-title">Top Aseguradoras</div>
-        <div class="rank-list" id="rank-aseguradoras">
-          <div class="empty-state"><div class="e-icon">🏢</div><div class="e-text">Sin datos</div></div>
-        </div>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">Top Médicos Derivantes</div>
-        <div class="rank-list" id="rank-derivantes-top">
-          <div class="empty-state"><div class="e-icon">👨‍⚕️</div><div class="e-text">Sin datos</div></div>
-        </div>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">Top Instituciones Derivantes</div>
-        <div class="rank-list" id="rank-instituciones">
-          <div class="empty-state"><div class="e-icon">🏥</div><div class="e-text">Sin datos</div></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- TAB DERIVANTES -->
-  <div class="tab-pane" id="tab-derivantes">
-    <div class="charts-row fade-in">
-      <div class="chart-card">
-        <div class="chart-title">Derivaciones por Día</div>
-        <canvas id="chart-deriv-dias"></canvas>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">Top 10 Derivantes</div>
-        <canvas id="chart-deriv-top"></canvas>
-      </div>
-    </div>
-    <div class="table-card fade-in">
-      <div class="table-header">
-        <div class="table-header-title">Médicos Derivantes</div>
-        <div class="table-count" id="count-derivantes">—</div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr>
-            <th>#</th>
-            <th>Médico Derivante</th>
-            <th>Matrícula</th>
-            <th>Inst. Derivante</th>
-            <th>Derivaciones</th>
-            <th>Coseguros Generados</th>
-            <th>Prestación más frecuente</th>
-          </tr></thead>
-          <tbody id="tbody-derivantes"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- TAB DETALLE -->
-  <div class="tab-pane" id="tab-detalle">
-    <div class="table-card fade-in">
-      <div class="table-header">
-        <div class="table-header-title">Detalle Completo</div>
-        <div class="table-count" id="count-detalle">—</div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr>
-            <th>Fecha</th>
-            <th>Turno N°</th>
-            <th>Paciente</th>
-            <th>Tipo Turno</th>
-            <th>Tipo Cobertura</th>
-            <th>Aseguradora</th>
-            <th>Nº Afiliado</th>
-            <th>Médico Derivante</th>
-            <th>Inst. Derivante</th>
-            <th>Nº Referencia</th>
-            <th>Coseguro $</th>
-            <th>Estado</th>
-          </tr></thead>
-          <tbody id="tbody-detalle"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <!-- TABS Resumen / Derivantes / Detalle removidas -->
 
   <!-- PANEL PERMISOS - MODAL OVERLAY (solo abierto via botón topbar 👥 Permisos) -->
   <div id="modal-panel-permisos" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:900; padding:24px; overflow-y:auto;">
@@ -1094,73 +997,7 @@
     </div>
   </div>
 
-  <!-- ERRORES POR OPERADOR (gráfico principal) -->
-  <div class="fade-in" id="chart-operadores-section" style="display:none; margin-top:24px;">
-    <div class="table-card" style="padding:24px;">
-      <div class="table-header" style="margin-bottom:16px;">
-        <div class="table-header-title" style="font-size:14px; letter-spacing:2px;">Errores por Operador</div>
-      </div>
-      <div style="height:380px; position:relative;">
-        <canvas id="chart-errores-operador"></canvas>
-      </div>
-    </div>
-  </div>
-
-  <!-- COMPARATIVO MENSUAL POR OPERADOR -->
-  <div class="fade-in" id="chart-comparativo-section" style="display:none; margin-top:24px;">
-    <div class="table-card" style="padding:24px;">
-      <div class="table-header" style="margin-bottom:16px; display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end; justify-content:space-between;">
-        <div class="table-header-title" style="font-size:14px; letter-spacing:2px;">Comparativo Mensual por Operador</div>
-        <div style="display:flex; flex-wrap:wrap; gap:12px;">
-          <div class="filter-group">
-            <span class="filter-label">Mes desde</span>
-            <input type="month" id="cmp-mes-desde" class="filter-input" onchange="renderComparativoMensual()"/>
-          </div>
-          <div class="filter-group">
-            <span class="filter-label">Mes hasta</span>
-            <input type="month" id="cmp-mes-hasta" class="filter-input" onchange="renderComparativoMensual()"/>
-          </div>
-          <div class="filter-group">
-            <span class="filter-label">Vista</span>
-            <select id="cmp-vista" class="filter-select" onchange="renderComparativoMensual()">
-              <option value="totales">Cantidad de errores</option>
-              <option value="variacion">Variación % vs mes anterior</option>
-            </select>
-          </div>
-          <button class="btn-reset" onclick="resetComparativoMensual()">Limpiar</button>
-        </div>
-      </div>
-
-      <!-- Chart 1: total por operador mes a mes -->
-      <div style="height:360px; position:relative; margin-bottom:8px;">
-        <canvas id="chart-cmp-total"></canvas>
-      </div>
-
-      <!-- KPIs de comparación entre meses -->
-      <div id="cmp-kpi-row" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin:20px 0 12px;"></div>
-
-      <!-- Sub-header con selector de operador -->
-      <div style="display:flex; flex-wrap:wrap; gap:16px; align-items:center; justify-content:space-between; margin:16px 0 12px;">
-        <div class="table-header-title" style="font-size:13px; letter-spacing:2px;">Evolución Mensual del Operador</div>
-        <div class="filter-group" style="min-width:200px;">
-          <span class="filter-label">Operador</span>
-          <select id="cmp-operador" class="filter-select" onchange="onCmpOperadorChange()"></select>
-        </div>
-      </div>
-
-      <!-- Chart 2: desglose por tipo para el operador seleccionado -->
-      <div style="height:340px; position:relative;">
-        <canvas id="chart-cmp-tipos"></canvas>
-      </div>
-    </div>
-  </div>
-
-  <!-- INFORME DE RENDIMIENTO (sólo al click en tarjeta) -->
-  <div class="fade-in" id="informe-rendimiento-section" style="display:none; margin-top:24px;">
-    <div class="table-card" style="padding:24px;">
-      <div id="informe-rendimiento-body"></div>
-    </div>
-  </div>
+  <!-- Secciones Errores por Operador / Comparativo Mensual / Informe de Rendimiento removidas -->
 
 </div><!-- /main -->
 
@@ -2002,19 +1839,10 @@ function resetFilters() {
    RENDER
 ══════════════════════════════════ */
 function render(data) {
-  calcKPIs(data);
-  calcSummaryBar(data);
-  renderChartTipoTurno(data);
-  renderRankAseguradoras(data);
-  renderRankDerivantes(data);
-  renderRankInstituciones(data);
-  renderChartDerivDias(data);
-  renderChartDerivTop(data);
-  renderTablaDerivantes(data);
-  renderTabDetalle(data);
-  renderChartErroresOperador(data);
-  populateComparativoSelectors(data);
-  renderComparativoMensual();
+  calcKPIs(data);        // cards de arriba (Sin Derivantes / Coseguros / Sin Nº Ref, etc.) — se quedan
+  calcSummaryBar(data);  // barra resumen de arriba — se queda
+  // Secciones removidas (Resumen / Derivantes / Detalle / Errores por Operador / Comparativo):
+  // sus render* ya no se llaman porque su DOM fue eliminado.
   renderTITab(data);   // pestaña Trámites Incompletos: detalle por aseguradora desde el Excel (Opción A)
 }
 
