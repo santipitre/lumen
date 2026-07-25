@@ -206,9 +206,19 @@
       border-color:rgba(167,139,250,.42);
     }
     .kpi-card.ti-hero:hover { border-color:var(--purple); box-shadow:0 8px 28px rgba(167,139,250,.22); }
-    .kpi-card.ti-hero .kpi-val   { font-size:56px; }
+    .kpi-card.ti-hero { justify-content:flex-start; }
+    .kpi-card.ti-hero .kpi-val   { font-size:50px; }
     .kpi-card.ti-hero .kpi-label { font-size:12px; }
     .kpi-card.ti-hero .kpi-icon  { font-size:44px; opacity:.16; }
+    /* Desglose de trámites por mes dentro del cuadro Total */
+    .ti-meses { margin-top:16px; }
+    .ti-meses-title { font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:9px; }
+    .ti-meses-note { font-size:11px; color:var(--muted); margin-top:12px; font-style:italic; }
+    .ti-mes-row { display:grid; grid-template-columns:56px 1fr 38px; align-items:center; gap:9px; margin:4px 0; }
+    .ti-mes-lbl { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+    .ti-mes-bar { height:8px; border-radius:6px; background:rgba(255,255,255,.06); overflow:hidden; }
+    .ti-mes-bar > span { display:block; height:100%; background:linear-gradient(90deg,var(--purple),rgba(167,139,250,.5)); border-radius:6px; }
+    .ti-mes-val { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:13px; color:var(--purple); text-align:right; }
     .ti-detalle-wrap { display:block; margin-bottom:8px; }
     .ti-detalle-wrap .chart-card { width:100%; }
     @media(max-width:1100px){ .ti-aseg-grid{ grid-template-columns:repeat(3,1fr); } }
@@ -853,7 +863,7 @@
     </div>
     <!-- Fila hero: total (headline) + carga de Excel -->
     <div class="ti-hero-row fade-in">
-      <div class="kpi-card purple ti-hero" onclick="tiCardClick('TOTAL')"><div class="kpi-icon">📋</div><div class="kpi-label">Total trámites</div><div class="kpi-val" id="ti-total">—</div><div class="kpi-sub" id="ti-total-sub">turnos únicos</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card purple ti-hero" onclick="tiCardClick('TOTAL')"><div class="kpi-icon">📋</div><div class="kpi-label">Total trámites</div><div class="kpi-val" id="ti-total">—</div><div class="kpi-sub" id="ti-total-sub">turnos únicos</div><div class="ti-meses" id="ti-total-meses"></div><div class="kpi-hint">ver detalle →</div></div>
 
       <!-- Recuadro de carga de Excel: alimenta los cuadros de aseguradoras -->
       <div class="kpi-card ti-drop" id="ti-dropzone" onclick="tiDrop.pick()" title="Click o arrastrá el Excel acá para alimentar los cuadros">
@@ -1458,7 +1468,7 @@ function renderTramitesInc(p, generado) {
    un Excel subido acá, estos 6 cuadros lo respetan (tiDrop.active).
 ══════════════════════════════════════════════════════════════════════ */
 const tiDrop = {
-  active:false, rows:[], headers:[], colTurno:null, colAseg:null, colServ:null,
+  active:false, rows:[], headers:[], colTurno:null, colAseg:null, colServ:null, colFecha:null,
   fileName:'', rawRows:[], dedupRows:[], byBucket:{}, byTurnos:{},
   detailKey:null, detailAll:[],
 
@@ -1473,6 +1483,23 @@ const tiDrop = {
   findTurno(hs){ const ex=['NTURNO','NROTURNO','NUMEROTURNO','NUMERODETURNO','TURNON','TURNONRO','TURNONUMERO','TURNONO']; let c=hs.find(h=>ex.includes(this.normH(h))); if(!c) c=hs.find(h=>{const n=this.normH(h); return n.includes('TURNO')&&!n.includes('FECHA')&&!n.includes('HORA')&&!n.includes('ESTADO')&&!n.includes('TIPO')&&!n.includes('ORIGEN');}); return c||null; },
   findAseg(hs){ let c=hs.find(h=>this.normH(h)==='ASEGURADORA'); if(!c) c=hs.find(h=>{const n=this.normH(h); return n.includes('ASEGURAD')||n.includes('OBRASOCIAL')||n==='OS';}); return c||null; },
   findServicio(hs){ const ex=['SERVICIO','PRESTACION','PRACTICA','MODALIDAD','ESTUDIO','TIPOESTUDIO','TIPODEESTUDIO']; let c=hs.find(h=>ex.includes(this.normH(h))); if(!c) c=hs.find(h=>{const n=this.normH(h); return n.includes('SERVICIO')||n.includes('PRESTACION')||n.includes('MODALIDAD');}); return c||null; },
+  findFecha(hs){
+    // Prioridad: fecha de realización → fecha del turno → fecha genérica (evitando facturación / nacimiento / vencimiento / carga / pedido)
+    let c=hs.find(h=>{const n=this.normH(h); return n.includes('FECHA')&&(n.includes('REALIZ')||n.includes('ESTUDIO'));});
+    if(!c) c=hs.find(h=>['TURNOFECHA','FECHATURNO','FECHAREA'].includes(this.normH(h)));
+    if(!c) c=hs.find(h=>{const n=this.normH(h); return n.includes('FECHA')&&!n.includes('FACTURAC')&&!n.includes('NACIM')&&!n.includes('VENCIM')&&!n.includes('CARGA')&&!n.includes('PEDIDO')&&!n.includes('BAJA');});
+    return c||null;
+  },
+  parseMes(v){
+    // → 'YYYY-MM' o null. Soporta yyyy-mm-dd, dd/mm/yyyy, dd/mm/yy (con hora opcional).
+    const s=String(v==null?'':v).trim(); if(!s) return null;
+    let m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);
+    if(m) return m[1]+'-'+String(+m[2]).padStart(2,'0');
+    m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/);
+    if(m){ let y=+m[3]; if(y<100) y+=2000; return String(y)+'-'+String(+m[2]).padStart(2,'0'); }
+    const d=new Date(s); if(!isNaN(d.getTime())) return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    return null;
+  },
 
   bucket(aseg){ const A=this.normH(aseg); if(!A) return 'OSOTRAS'; if(A.includes('PARTICULAR')) return 'PARTICULAR'; if(A.includes('FINAMED')) return 'FINAMED'; if(A.includes('INSSJYP')||A.includes('PAMI')) return 'PAMI'; if(A.includes('HAREFIELD')) return 'HAREFIELD'; return 'OSOTRAS'; },
 
@@ -1484,7 +1511,7 @@ const tiDrop = {
   async _idbGet(key){ try{ const db=await this._idb(); return await new Promise((res,rej)=>{ const tx=db.transaction('kv','readonly'); const r=tx.objectStore('kv').get(key); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }catch(e){ console.warn('[tiDrop] idbGet',e); return null; } },
   async _idbDel(key){ try{ const db=await this._idb(); await new Promise((res)=>{ const tx=db.transaction('kv','readwrite'); tx.objectStore('kv').delete(key); tx.oncomplete=()=>res(); tx.onerror=()=>res(); }); }catch(e){} },
 
-  async persist(){ await this._idbSet('current', { v:1, fileName:this.fileName, colTurno:this.colTurno, colAseg:this.colAseg, colServ:this.colServ, headers:this.headers, rows:this.rows }); },
+  async persist(){ await this._idbSet('current', { v:1, fileName:this.fileName, colTurno:this.colTurno, colAseg:this.colAseg, colServ:this.colServ, colFecha:this.colFecha, headers:this.headers, rows:this.rows }); },
 
   async restore(){
     try{
@@ -1493,6 +1520,7 @@ const tiDrop = {
       if(this.active) return;   // ya hay algo cargado en esta sesión → no pisar
       this.rows=saved.rows; this.headers=saved.headers||this.collectHeaders(saved.rows);
       this.colTurno=saved.colTurno; this.colAseg=saved.colAseg; this.colServ=saved.colServ||null;
+      this.colFecha=saved.colFecha||this.findFecha(this.headers||[]);
       this.fileName=saved.fileName||'archivo guardado';
       if(!this.colTurno||!this.colAseg){ this._idbDel('current'); return; }
       this.active=true; this.compute();
@@ -1540,7 +1568,7 @@ const tiDrop = {
         throw new Error('No encontré la columna '+falta.join(' ni ')+'. Encabezados detectados: '+headers.slice(0,14).join(', '));
       }
       this.rows=rows; this.headers=headers; this.colTurno=colTurno; this.colAseg=colAseg;
-      this.colServ=this.findServicio(headers); this.fileName=file.name; this.active=true;
+      this.colServ=this.findServicio(headers); this.colFecha=this.findFecha(headers); this.fileName=file.name; this.active=true;
       this.compute();
       dz.classList.add('has-file');
       setIcon('✅'); setTitle('Archivo cargado');
@@ -1572,9 +1600,29 @@ const tiDrop = {
     const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
     set('ti-total', tiNum(dedup.length)); set('ti-total-sub', tiNum(raw.length)+' estudios');
     this.BUCKETS.forEach(k=>{ set('ti-'+k, tiNum(byT[k])); set('ti-'+k+'-sub', tiNum(by[k].length)+' estudios'); });
+    this.renderMeses(dedup);
     this.renderPanels();
     const meta=document.getElementById('ti-meta');
     if(meta) meta.textContent='Detalle calculado desde el Excel subido ('+this.fileName+') · '+tiNum(dedup.length)+' turnos / '+tiNum(raw.length)+' estudios · click en cada tarjeta para ver y exportar el detalle';
+  },
+
+  renderMeses(dedup){
+    // Trámites (turnos únicos) por mes, según la fecha de realización detectada.
+    const cont=document.getElementById('ti-total-meses'); if(!cont) return;
+    if(!this.colFecha){ cont.innerHTML='<div class="ti-meses-note">El Excel no tiene columna de fecha de realización</div>'; return; }
+    const cnt={};
+    dedup.forEach(r=>{ const mk=this.parseMes(r[this.colFecha]); if(mk) cnt[mk]=(cnt[mk]||0)+1; });
+    const keys=Object.keys(cnt).sort();
+    if(!keys.length){ cont.innerHTML='<div class="ti-meses-note">No pude leer fechas válidas de la columna "'+tiEsc(this.colFecha)+'"</div>'; return; }
+    const max=Math.max(...keys.map(k=>cnt[k]));
+    const MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    const lbl=k=>{ const p=k.split('-'); return MES[(+p[1])-1]+" '"+p[0].slice(2); };
+    cont.innerHTML='<div class="ti-meses-title">Trámites por mes · '+tiEsc(this.colFecha)+'</div>'+
+      keys.map(k=>
+        '<div class="ti-mes-row"><span class="ti-mes-lbl">'+lbl(k)+'</span>'+
+        '<span class="ti-mes-bar"><span style="width:'+Math.round(cnt[k]/max*100)+'%"></span></span>'+
+        '<span class="ti-mes-val">'+tiNum(cnt[k])+'</span></div>'
+      ).join('');
   },
 
   renderPanels(){
