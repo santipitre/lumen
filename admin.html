@@ -163,6 +163,37 @@
     .tab-pane { display:none; }
     .tab-pane.active { display:block; }
 
+    /* ── Trámites Incompletos · sector exclusivo ── */
+    .ti-exclusive {
+      background:linear-gradient(180deg, rgba(167,139,250,.09), rgba(167,139,250,.02));
+      border:1px solid rgba(167,139,250,.35);
+      border-radius:16px;
+      padding:24px 24px 20px;
+      margin-top:10px;
+      box-shadow:0 0 0 1px rgba(167,139,250,.06), 0 14px 44px rgba(167,139,250,.12);
+      position:relative; overflow:hidden;
+    }
+    .ti-exclusive::before {
+      content:''; position:absolute; top:0; left:0; right:0; height:3px;
+      background:linear-gradient(90deg, var(--purple), transparent);
+    }
+    .ti-exclusive-head {
+      display:flex; align-items:center; gap:14px; margin:0 0 20px;
+      padding-bottom:16px; border-bottom:1px solid rgba(167,139,250,.22);
+    }
+    .ti-exclusive-head .ti-ic {
+      font-size:24px; line-height:1;
+      filter:drop-shadow(0 0 8px rgba(167,139,250,.55));
+    }
+    .ti-exclusive-head .ti-tt {
+      font-family:'Rajdhani',sans-serif; font-weight:700;
+      font-size:21px; letter-spacing:3px; text-transform:uppercase; color:var(--purple);
+    }
+    .ti-exclusive-head .ti-st {
+      font-size:11px; letter-spacing:1.5px; color:var(--muted);
+      text-transform:uppercase; margin-top:2px;
+    }
+
     /* ── KPI GRID ── */
     .kpi-section-label {
       display:flex; align-items:center; gap:8px;
@@ -789,9 +820,16 @@
 
   <!-- TABS removidas: sólo queda Trámites Incompletos -->
 
-  <!-- TAB TRÁMITES INCOMPLETOS (dashboard desde Supabase · tabla ti_snapshot) -->
+  <!-- SECTOR EXCLUSIVO · TRÁMITES INCOMPLETOS (dashboard desde Supabase · tabla ti_snapshot) -->
   <div class="tab-pane active" id="tab-tramites-inc">
-    <div class="kpi-section-label sec-tramites">Trámites incompletos · a recepcionar (por aseguradora)</div>
+   <section class="ti-exclusive">
+    <div class="ti-exclusive-head">
+      <div class="ti-ic">📋</div>
+      <div>
+        <div class="ti-tt">Trámites Incompletos</div>
+        <div class="ti-st">A recepcionar · por aseguradora</div>
+      </div>
+    </div>
     <div class="kpi-grid kpi-grid-tramites fade-in">
       <div class="kpi-card purple" onclick="tiCardClick('TOTAL')"><div class="kpi-icon">📋</div><div class="kpi-label">Total trámites</div><div class="kpi-val" id="ti-total">—</div><div class="kpi-sub" id="ti-total-sub">turnos únicos</div><div class="kpi-hint">ver detalle →</div></div>
       <div class="kpi-card blue" onclick="tiCardClick('FINAMED')"><div class="kpi-icon">🏢</div><div class="kpi-label">FINAMED</div><div class="kpi-val" id="ti-FINAMED">—</div><div class="kpi-sub" id="ti-FINAMED-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
@@ -816,12 +854,9 @@
         <div class="chart-title">Detalle por aseguradora</div>
         <div id="ti-aseg"><div class="empty-state"><div class="e-icon">🏢</div><div class="e-text">Sin datos — corré la sincronización local</div></div></div>
       </div>
-      <div class="chart-card">
-        <div class="chart-title">Por servicio</div>
-        <div id="ti-serv"><div class="empty-state"><div class="e-icon">📊</div><div class="e-text">Sin datos</div></div></div>
-      </div>
     </div>
     <div id="ti-meta" style="color:var(--muted);font-size:11px;margin-top:-12px"></div>
+   </section>
   </div>
 
   <!-- TABS Resumen / Derivantes / Detalle removidas -->
@@ -1843,7 +1878,7 @@ function render(data) {
   calcSummaryBar(data);  // barra resumen de arriba — se queda
   // Secciones removidas (Resumen / Derivantes / Detalle / Errores por Operador / Comparativo):
   // sus render* ya no se llaman porque su DOM fue eliminado.
-  renderTITab(data);   // pestaña Trámites Incompletos: detalle por aseguradora desde el Excel (Opción A)
+  renderTITab(data);   // sector Trámites Incompletos: detalle por aseguradora desde el Excel (Opción A)
 }
 
 /* ══════════════════════════════════
