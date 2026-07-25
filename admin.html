@@ -372,8 +372,9 @@
     }
     /* Contador "X arreglados" debajo del número del KPI automatizado. */
     .kpi-arr { margin-top:5px; font-size:11px; font-weight:600; line-height:1.2; }
-    .kpi-arr .arr-ok   { color:var(--green); }
-    .kpi-arr .arr-pend { color:var(--amber); font-weight:500; }
+    .kpi-arr .arr-ok     { color:var(--green); }
+    .kpi-arr .arr-pend   { color:var(--amber); font-weight:500; }
+    .kpi-arr .arr-sinacc { color:var(--muted); font-weight:500; }
 
     /* ── ERRORES DE CARGA · rectángulos auto/manual ── */
     .err-block { margin-bottom:28px; }
@@ -1262,6 +1263,9 @@ let filtered = [];
 let charts   = {};
 // Set de turnos ya reparados por los bots: claves "tipo:turnoN" (estado OK/YA_OK).
 let REPARADOS = new Set();
+// Turnos que el bot cerró SIN corregir (NO_ENCONTRADO / OMITIDO_FECHA): no son error
+// (el bot no los va a reintentar) pero tampoco cuentan como "arreglados".
+let SIN_ACCION = new Set();
 
 /* ══════════════════════════════════
    INIT
@@ -1350,12 +1354,18 @@ async function cargarReparaciones(force = true) {
     const ahora = Date.now();
     if (!force && ahora - _reparadosLastFetch < 8000) return; // evita spamear al alternar pestañas
     _reparadosLastFetch = ahora;
-    const rows = await sbQuery('reparaciones', 'select=turno_n,tipo&estado=in.(OK,YA_OK)');
-    const nuevo = new Set((rows || []).map(r => `${r.tipo}:${String(r.turno_n).trim()}`));
-    const sig = [...nuevo].sort().join('|');
+    const rows = await sbQuery('reparaciones', 'select=turno_n,tipo,estado&estado=in.(OK,YA_OK,NO_ENCONTRADO,OMITIDO_FECHA)');
+    const ok = new Set(), sinacc = new Set();
+    (rows || []).forEach(r => {
+      const key = `${r.tipo}:${String(r.turno_n).trim()}`;
+      const e = String(r.estado || '').toUpperCase();
+      if (e === 'OK' || e === 'YA_OK') ok.add(key);
+      else sinacc.add(key);   // NO_ENCONTRADO / OMITIDO_FECHA
+    });
+    const sig = [...ok].sort().join('|') + '##' + [...sinacc].sort().join('|');
     if (sig === _reparadosSig) return;   // sin cambios → no re-renderizar
     _reparadosSig = sig;
-    REPARADOS = nuevo;
+    REPARADOS = ok; SIN_ACCION = sinacc;
     if (filtered && filtered.length) render(filtered);  // refresca sin recargar datos
   } catch (e) {
     console.warn('[reparaciones] no se pudo cargar el contador de arreglados:', e);
@@ -2407,18 +2417,24 @@ function mostrarArreglados(valId, rows, tipo) {
   }
   const total = rows.length;
   // Sin datos de Supabase todavía: el número queda en el total (ya seteado por calcKPIs).
-  if (!REPARADOS || !REPARADOS.size) { el.textContent = ''; return; }
-  let arr = 0;
+  const hayDatos = (REPARADOS && REPARADOS.size) || (SIN_ACCION && SIN_ACCION.size);
+  if (!hayDatos) { el.textContent = ''; return; }
+  let arr = 0, sinacc = 0;
   for (const r of rows) {
     const tn = _safe(r['Turno N°'] ?? r['Turno N'] ?? r['Turno No']);
-    if (tn && REPARADOS.has(tipo + ':' + tn)) arr++;
+    if (!tn) continue;
+    const k = tipo + ':' + tn;
+    if (REPARADOS.has(k)) arr++;
+    else if (SIN_ACCION.has(k)) sinacc++;   // el bot lo cerró sin corregir → no es error
   }
-  const pend = Math.max(0, total - arr);
-  // El número grande ahora refleja SOLO lo pendiente (descuenta los ya arreglados por el bot).
+  const pend = Math.max(0, total - arr - sinacc);
+  // El número grande refleja SOLO lo pendiente (descuenta arreglados + sin acción del bot).
   val.textContent = pend.toLocaleString('es-AR');
-  el.innerHTML = arr
-    ? `<span class="arr-ok">✓ ${arr.toLocaleString('es-AR')} arreglados</span> <span class="arr-pend">· ${pend.toLocaleString('es-AR')} pend. de ${total.toLocaleString('es-AR')}</span>`
-    : `<span class="arr-pend">${pend.toLocaleString('es-AR')} pendientes</span>`;
+  const partes = [];
+  if (arr)    partes.push(`<span class="arr-ok">✓ ${arr.toLocaleString('es-AR')} arreglados</span>`);
+  if (sinacc) partes.push(`<span class="arr-sinacc">${sinacc.toLocaleString('es-AR')} sin acción</span>`);
+  partes.push(`<span class="arr-pend">${pend.toLocaleString('es-AR')} pend.</span>`);
+  el.innerHTML = partes.join(' · ');
 }
 
 /* ══════════════════════════════════
