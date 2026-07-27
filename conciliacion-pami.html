@@ -48,6 +48,8 @@
   .btn-primary:disabled{opacity:.4;cursor:not-allowed;filter:none}
   .btn-ghost{background:var(--glass);border-color:var(--border);color:var(--pyralis-text)}
   .btn-ghost:hover{border-color:var(--border-a);color:var(--pyralis-firefly)}
+  .btn-excel{background:rgba(16,185,129,.14);border-color:rgba(16,185,129,.4);color:#34d399}
+  .btn-excel:hover{background:rgba(16,185,129,.22);border-color:#10B981;color:#6ee7b7}
 
   /* Dropzones */
   .drops{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:22px}
@@ -291,6 +293,7 @@
 
   <!-- Actions -->
   <div class="actions-bar" id="actions">
+    <button class="btn btn-excel" onclick="exportObservadasXLSX()" title="Descargá un Excel profesional con TODAS las prácticas observadas (las 'Observadas'), con todos los datos de cada fila">📊 Exportar Observadas (Excel)</button>
     <button class="btn btn-ghost" onclick="exportCSV()">⬇ Exportar CSV</button>
     <button class="btn btn-ghost" onclick="exportBackup()" title="Descargá un archivo con tus arreglados y observaciones (respaldo portable entre navegadores/PCs)">⇩ Respaldo</button>
     <button class="btn btn-ghost" onclick="document.getElementById('in-backup').click()" title="Restaurá arreglados y observaciones desde un archivo de respaldo">⇧ Restaurar respaldo</button>
@@ -407,6 +410,11 @@
 
 <!-- Libs -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- Lector .xls actual = XLSX (community). Guardamos su referencia antes de cargar el escritor con estilos. -->
+<script>window.__XLSX_READ = window.XLSX;</script>
+<!-- Escritor de Excel con estilos (encabezados, colores, filtros). NO reemplaza al lector. -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx-js-style.min.js"></script>
+<script>window.XLSXStyle = window.XLSX; window.XLSX = window.__XLSX_READ; /* restaurar lector original */</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="spcd-supabase.js"></script>
 <script src="conciliacion-engine.js"></script>
@@ -982,6 +990,128 @@ function exportCSV(){
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download='conciliacion_pami_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
   toast('CSV exportado ('+rows.length+' filas)');
+}
+
+/* ── Export Excel profesional · Prácticas OBSERVADAS ──
+   Exporta TODAS las prácticas con observación (no arregladas) — las mismas filas que
+   la pestaña "Observadas" — con todos los datos de la fila, sin importar en qué pestaña
+   o con qué filtros estés parado. Formato con encabezado de marca, filtros y congelado. */
+function _obsEfectiva(o){ if(!o) return {label:'',tipo:''};
+  return { label:(o.tipo==='Otras'?(o.texto||'Otras'):o.tipo), tipo:o.tipo||'' }; }
+
+function _itemsObservados(){
+  // Regla idéntica a la vista "observadas": tiene observación y NO está arreglado.
+  return (ITEMS||[]).filter(it=>{
+    const nro=it.turno.nro_turno;
+    return !!SAVED_OBS[nro] && !SAVED_ARREGLADO[nro];
+  }).sort((a,b)=>{  // más reciente primero (como se ven en pantalla al ordenar por fecha)
+    const ta=fechaTime(a), tb=fechaTime(b);
+    if(ta==null && tb==null) return String(a.turno.nro_turno).localeCompare(String(b.turno.nro_turno));
+    if(ta==null) return 1; if(tb==null) return -1; return tb-ta;
+  });
+}
+
+function exportObservadasXLSX(){
+  if(typeof XLSXStyle==='undefined'){ toast('No se pudo cargar el generador de Excel'); return; }
+  const rows=_itemsObservados();
+  if(!rows.length){ toast('No hay prácticas observadas para exportar'); return; }
+
+  const HEADERS=['N° Turno','Paciente','DNI','Afiliado','Fecha','Estudio','Estado PAMI','Observación','Tipo','Visto'];
+  const NCOL=HEADERS.length;
+  const now=new Date();
+  const z=n=>(n<10?'0':'')+n;
+  const stamp=z(now.getDate())+'/'+z(now.getMonth()+1)+'/'+now.getFullYear()+' '+z(now.getHours())+':'+z(now.getMinutes());
+
+  // ── Paleta / estilos (colores de la marca Lumen) ──
+  const AMBER='FFF59E0B', BLUE='FF1E3A8A', INK='FF0C1420', WHITE='FFFFFFFF',
+        GREY='FF374151', BAND='FFF3F4F6', LINE='FFE5E7EB';
+  const estadoColor={ VALIDADO:'FF059669', PENDIENTE:'FFB45309', TRANSMITIDO_SIN_VALIDAR:'FF1D4ED8', SIN_REGISTRO:'FFDC2626' };
+  const tipoColor=(t)=> t==='Sin OME'?'FFB45309' : t==='OME no aceptada'?'FFDC2626' : t==='Otras'?'FF6D28D9' : GREY;
+  const thin={style:'thin',color:{rgb:LINE}};
+  const borderAll={top:thin,bottom:thin,left:thin,right:thin};
+
+  const styleTitle={ font:{name:'Calibri',sz:16,bold:true,color:{rgb:WHITE}},
+    fill:{fgColor:{rgb:INK}}, alignment:{vertical:'center',horizontal:'left',indent:1} };
+  const styleSub={ font:{name:'Calibri',sz:10,bold:false,color:{rgb:AMBER}},
+    fill:{fgColor:{rgb:INK}}, alignment:{vertical:'center',horizontal:'left',indent:1} };
+  const styleHead={ font:{name:'Calibri',sz:11,bold:true,color:{rgb:WHITE}},
+    fill:{fgColor:{rgb:BLUE}}, alignment:{vertical:'center',horizontal:'center',wrapText:true},
+    border:borderAll };
+  const baseCell=(band)=>({ font:{name:'Calibri',sz:10,color:{rgb:GREY}},
+    fill:{fgColor:{rgb: band?BAND:WHITE }},
+    alignment:{vertical:'center',horizontal:'left',wrapText:false}, border:borderAll });
+
+  // ── Construcción de la matriz ──
+  const aoa=[];
+  aoa.push(['LUMEN · Conciliación PAMI — Prácticas Observadas']);
+  aoa.push(['Hospital Italiano · '+rows.length+' prácticas observadas · Generado '+stamp]);
+  aoa.push([]); // espaciador
+  aoa.push(HEADERS);
+  rows.forEach(it=>{
+    const t=it.turno, oe=_obsEfectiva(SAVED_OBS[t.nro_turno]);
+    const em=ESTADO_META[it.estado]||{lbl:it.estado||''};
+    aoa.push([
+      String(t.nro_turno||''),
+      String(t.nombre_raw||''),
+      String(t.documento||''),
+      String(t.afiliado_norm||''),
+      String(t.fecha_str||''),
+      (t.estudios&&t.estudios.length?t.estudios.join(' · '):''),
+      em.lbl||'',
+      oe.label||'',
+      oe.tipo||'',
+      SAVED_VISTO[t.nro_turno]?'Sí':'No'
+    ]);
+  });
+
+  const ws=XLSXStyle.utils.aoa_to_sheet(aoa);
+  const HEAD_ROW=3;               // índice 0-based de la fila de encabezados
+  const FIRST_DATA=HEAD_ROW+1;
+  const LAST=aoa.length-1;
+  const cell=(r,c)=>XLSXStyle.utils.encode_cell({r,c});
+
+  // Merges: título y subtítulo ocupan todo el ancho
+  ws['!merges']=[
+    {s:{r:0,c:0},e:{r:0,c:NCOL-1}},
+    {s:{r:1,c:0},e:{r:1,c:NCOL-1}}
+  ];
+  // Estilos título/subtítulo (aplicar a toda la fila fusionada para pintar el fondo)
+  for(let c=0;c<NCOL;c++){
+    const t0=ws[cell(0,c)]||(ws[cell(0,c)]={t:'s',v:''}); t0.s=styleTitle;
+    const t1=ws[cell(1,c)]||(ws[cell(1,c)]={t:'s',v:''}); t1.s=styleSub;
+  }
+  // Encabezados
+  for(let c=0;c<NCOL;c++){ const k=cell(HEAD_ROW,c); if(ws[k]) ws[k].s=styleHead; }
+  // Filas de datos con bandeado + acentos de color
+  for(let r=FIRST_DATA;r<=LAST;r++){
+    const band=((r-FIRST_DATA)%2===1);
+    for(let c=0;c<NCOL;c++){
+      const k=cell(r,c); const st=baseCell(band);
+      if(c===0){ st.font={...st.font,bold:true,color:{rgb:INK}}; st.alignment={...st.alignment,horizontal:'left'}; }
+      if(c===2||c===3){ st.alignment={...st.alignment,horizontal:'left'}; if(ws[k]) ws[k].t='s'; if(ws[k]) ws[k].z='@'; }
+      if(c===4||c===9){ st.alignment={...st.alignment,horizontal:'center'}; }
+      if(c===6){ const lbl=ws[k]?ws[k].v:''; // color por estado
+        const key=Object.keys(estadoColor).find(kk=>(ESTADO_META[kk]&&ESTADO_META[kk].lbl)===lbl);
+        st.font={...st.font,bold:true,color:{rgb: key?estadoColor[key]:GREY }}; st.alignment={...st.alignment,horizontal:'center'}; }
+      if(c===8){ st.font={...st.font,bold:true,color:{rgb: tipoColor(ws[k]?ws[k].v:'') }}; }
+      if(ws[k]) ws[k].s=st; else { ws[cell(r,c)]={t:'s',v:'',s:st}; }
+    }
+  }
+
+  // Anchos de columna
+  ws['!cols']=[
+    {wch:11},{wch:30},{wch:12},{wch:18},{wch:12},{wch:34},{wch:20},{wch:26},{wch:16},{wch:7}
+  ];
+  // Altos: título / subtítulo / encabezado
+  ws['!rows']=[{hpt:26},{hpt:18},{hpt:6},{hpt:22}];
+  // Autofiltro sobre encabezado + datos (permite filtrar/ordenar por cualquier columna en Excel)
+  ws['!autofilter']={ref: XLSXStyle.utils.encode_range({s:{r:HEAD_ROW,c:0},e:{r:LAST,c:NCOL-1}})};
+
+  const wb=XLSXStyle.utils.book_new();
+  XLSXStyle.utils.book_append_sheet(wb,ws,'Observadas');
+  const fname='Lumen_Practicas_Observadas_'+now.getFullYear()+'-'+z(now.getMonth()+1)+'-'+z(now.getDate())+'.xlsx';
+  XLSXStyle.writeFile(wb,fname);
+  toast('📊 Excel exportado · '+rows.length+' prácticas observadas');
 }
 
 /* ── Respaldo portable (JSON) — arreglados + observaciones + decisiones ── */
