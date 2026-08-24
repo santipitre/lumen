@@ -144,6 +144,18 @@ dialog::backdrop{background:rgba(3,7,18,.68)}
 dialog .dlg-h{padding:16px 18px 0}
 dialog .dlg-b{padding:14px 18px}
 dialog .dlg-f{padding:14px 18px;border-top:1px solid var(--linea);display:flex;gap:8px;justify-content:flex-end;background:var(--linea-2);flex-wrap:wrap}
+dialog.dlg-confirm{max-width:min(460px,94vw)}
+dialog.dlg-confirm::backdrop{background:rgba(3,7,18,.55)}
+dialog.dlg-confirm .dlg-h{padding:20px 22px 0;display:flex;align-items:flex-start;gap:12px}
+dialog.dlg-confirm .dlg-h h2{font-size:17.5px;margin:0;line-height:1.3}
+dialog.dlg-confirm .dlg-b{padding:10px 22px 4px;font-size:14px;line-height:1.6;color:var(--ink-2)}
+dialog.dlg-confirm .dlg-b p{margin:0 0 8px}
+dialog.dlg-confirm .dlg-b p:last-child{margin-bottom:0}
+dialog.dlg-confirm .dlg-f{padding:16px 22px;justify-content:flex-end}
+.dlg-icono{flex:0 0 auto;width:34px;height:34px;border-radius:9px;display:flex;align-items:center;
+  justify-content:center;font-size:17px;font-weight:700;font-family:var(--mono)}
+.dlg-icono.pregunta{background:var(--aviso-bg);color:var(--aviso)}
+.dlg-icono.peligro{background:var(--alerta-bg);color:var(--alerta)}
 .vacio{padding:34px 10px;text-align:center;color:var(--ink-3);font-size:13.5px}
 .vacio b{display:block;color:var(--ink-2);font-size:15px;margin-bottom:5px;font-weight:600}
 /* ============================================================
@@ -232,6 +244,12 @@ dialog .dlg-f{padding:14px 18px;border-top:1px solid var(--linea);display:flex;g
   <div class="dlg-h"><h2 id="dlg-t"></h2></div>
   <div class="dlg-b" id="dlg-b"></div>
   <div class="dlg-f" id="dlg-f"></div>
+</form></dialog>
+
+<dialog id="dlg2" class="dlg-confirm"><form method="dialog">
+  <div class="dlg-h"><h2 id="dlg2-t"></h2></div>
+  <div class="dlg-b" id="dlg2-b"></div>
+  <div class="dlg-f" id="dlg2-f"></div>
 </form></dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -533,9 +551,41 @@ const kpi=(k,v,c)=>el("div",{class:"kpi"},el("div",{class:"k"},k),el("div",{clas
 function modal({titulo,cuerpo,acciones}){
   const d=$("#dlg"); $("#dlg-t").textContent=titulo; $("#dlg-b").replaceChildren(cuerpo);
   const f=$("#dlg-f"); f.replaceChildren();
-  for(const a of acciones) f.append(el("button",{class:"btn "+(a.clase||"ghost"),type:"button",onclick:()=>{if(a.accion&&a.accion()===false)return;d.close()}},a.texto));
+  for(const a of acciones) f.append(el("button",{class:"btn "+(a.clase||"ghost"),type:"button",onclick:async()=>{if(a.accion&&await a.accion()===false)return;d.close()}},a.texto));
   d.showModal(); const x=$("#dlg-b").querySelector("input,select,button"); if(x)x.focus(); return d;
 }
+/* ============================================================
+   CONFIRMAR / AVISAR
+   Reemplazan a confirm() y alert() del navegador. Usan su propio
+   <dialog>, así se pueden abrir encima de un modal ya abierto.
+   ============================================================ */
+function _dlg2({titulo,texto,acciones,peligro}){
+  return new Promise(resolve=>{
+    const d=$("#dlg2");
+    const h=$("#dlg2-t");
+    h.parentElement.replaceChildren(
+      el("div",{class:"dlg-icono "+(peligro?"peligro":"pregunta")},peligro?"!":"?"),
+      el("h2",{id:"dlg2-t"},titulo));
+    const cuerpo=$("#dlg2-b"); cuerpo.replaceChildren();
+    for(const t of (Array.isArray(texto)?texto:[texto])) cuerpo.append(el("p",{},t));
+    const f=$("#dlg2-f"); f.replaceChildren();
+    let resuelto=false;
+    const cerrar=v=>{if(resuelto)return;resuelto=true;d.close();resolve(v)};
+    for(const a of acciones)
+      f.append(el("button",{class:"btn "+(a.clase||"ghost"),type:"button",
+        onclick:()=>cerrar(a.valor)},a.texto));
+    d.addEventListener("close",()=>cerrar(false),{once:true});
+    d.showModal();
+    const b=f.querySelector("button:last-child"); if(b)b.focus();
+  });
+}
+const confirmar=(titulo,texto,{ok="Continuar",cancelar="Cancelar",peligro=false}={})=>
+  _dlg2({titulo,texto,peligro,acciones:[
+    {texto:cancelar,valor:false},
+    {texto:ok,valor:true,clase:peligro?"danger":""}]});
+const avisar=(titulo,texto)=>
+  _dlg2({titulo,texto,acciones:[{texto:"Entendido",valor:true,clase:""}]});
+
 function banners(){
   const o=[];
   if(db.sinRespaldo>=20) o.push(el("div",{class:"banner ambar"},el("b",{},`${db.sinRespaldo} cambios sin respaldar.`),"El archivo .json es lo único que sobrevive a un borrado de caché.",el("button",{class:"btn small",type:"button",onclick:exportarJSON},"Guardar respaldo")));
@@ -577,9 +627,11 @@ function vistaImportar(){
         el("td",{},i.rango||"—"),
         el("td",{class:"num"},numero(i.filas)),
         el("td",{class:"num"},plata(i.total)),
-        el("td",{},el("button",{class:"btn ghost small",type:"button",onclick:()=>{
+        el("td",{},el("button",{class:"btn ghost small",type:"button",onclick:async()=>{
           const n=db.grupos.filter(g=>g.imp===i.id).length;
-          if(!confirm(`Deshacer esta importación elimina ${n} grupos de movimientos. ¿Seguir?`))return;
+          if(!await confirmar("Deshacer importación",
+            `Se eliminan ${n} grupos de movimientos cargados desde este archivo. Los comprobantes adjuntos no se tocan.`,
+            {ok:"Deshacer",peligro:true}))return;
           db.grupos=db.grupos.filter(g=>g.imp!==i.id);
           db.importaciones=db.importaciones.filter(x=>x.id!==i.id);
           guardar();toast("Importación deshecha.");render();
@@ -768,7 +820,12 @@ function vistaDias(){
     const d=ev.x, k=d.fecha+"|"+d.cajero, mot=anomaliasDia(d);
     tb.append(el("tr",{},
       el("td",{},fechaCorta(d.fecha)),
-      el("td",{},el("span",{class:"cajero-tag"},d.cajero)," ",mot.length?el("span",{class:"badge rev",title:mot.join(" · ")},"revisar"):null),
+      el("td",{},el("span",{class:"cajero-tag"},d.cajero)," ",
+        estaRevisado(d)
+          ? el("span",{class:"badge ok",
+              title:"Revisado el "+new Date(db.revisados[k].ts).toLocaleDateString("es-AR")+
+                    (mot.length?" \u00b7 "+mot.join(" \u00b7 "):"")},"revisado")
+          : (mot.length?el("span",{class:"badge rev",title:mot.join(" \u00b7 ")},"revisar"):null)),
       el("td",{class:"num chip-ef"+(d.efectivo<0?" neg":"")},plata(d.efectivo)),
       el("td",{class:"num chip-ta"},d.tarjeta?plata(d.tarjeta):"—"),
       el("td",{class:"num chip-bi"},d.billetera?plata(d.billetera):"—"),
@@ -921,8 +978,10 @@ function vistaRetiros(){
       el("td",{class:"num"+(Math.abs(dif)>0.5?" neg":"")},Math.abs(dif)<0.5?"—":plata(dif)),
       el("td",{},r.detalle||"—"),
       celdaComps("retiro|"+r.id),
-      el("td",{},el("button",{class:"btn ghost small",type:"button",onclick:()=>{
-        if(!confirm(`¿Eliminar el retiro del ${fechaCorta(r.fecha)} por ${plata(r.monto)}? El efectivo vuelve al saldo.`))return;
+      el("td",{},el("button",{class:"btn ghost small",type:"button",onclick:async()=>{
+        if(!await confirmar("Eliminar retiro",
+          `Retiro del ${fechaCorta(r.fecha)} por ${plata(r.monto)}. Al eliminarlo, ese efectivo vuelve al saldo de caja.`,
+          {ok:"Eliminar",peligro:true}))return;
         db.retiros=db.retiros.filter(x=>x.id!==r.id);delete db.comprobantes["retiro|"+r.id];guardar();toast("Retiro eliminado.");render()},},"Eliminar"))));
   }
   tab.append(tb); p.append(el("div",{class:"tabla-scroll"},tab)); c.append(p); return c;
@@ -959,10 +1018,13 @@ function dialogoRetiro(){
       el("div",{class:"f",style:"margin-bottom:7px"},"Comprobante del retiro"),
       el("p",{class:"hint",style:"margin:0 0 9px"},"Recibo firmado, foto del sobre o comprobante de transferencia. PNG, JPG, WEBP o PDF, hasta 400 KB. Se guarda junto al retiro y viaja en el respaldo .json."),
       zona)),
-    acciones:[{texto:"Cancelar"},{texto:"Registrar retiro",clase:"",accion:()=>{
+    acciones:[{texto:"Cancelar"},{texto:"Registrar retiro",clase:"",accion:async()=>{
       const m=parseMonto(iM.value);
-      if(m<=0){alert("El monto tiene que ser mayor a cero.");return false}
-      if(m>saldo+.5&&!confirm(`El monto supera el saldo en ${plata(m-saldo)}. ¿Registrar igual?`))return false;
+      if(m<=0){avisar("Monto inválido","El monto del retiro tiene que ser mayor a cero.");return false}
+      if(m>saldo+.5&&!await confirmar("El monto supera el saldo",
+        [`Estás retirando ${plata(m-saldo)} más de lo que hay registrado en caja.`,
+         "Puede ser un error de carga, o efectivo que todavía no importaste."],
+        {ok:"Registrar igual"}))return false;
       const rid=uid();
       db.retiros.push({id:rid,fecha:iF.value,responsable:sR.value,monto:m,detalle:iD.value.trim(),creado:Date.now()});
       for(const c of buf) if(!guardarEn("retiro|"+rid,c)) break;
@@ -1119,8 +1181,10 @@ function vistaDatos(){
   const lc=el("div",{class:"row",style:"margin-bottom:12px"},
     ...db.cajeros.map(x=>el("span",{style:"display:inline-flex;gap:6px;align-items:center;border:1px solid var(--linea);border-radius:99px;padding:3px 6px 3px 11px"},
       el("span",{class:"cajero-tag"},x),
-      el("button",{class:"btn ghost small",type:"button",style:"border:0;padding:0 4px",title:"Quitar",onclick:()=>{
-        if(db.grupos.some(g=>g.cajero===x)&&!confirm(`${x} tiene movimientos. Sacarlo de la lista no los borra. ¿Seguir?`))return;
+      el("button",{class:"btn ghost small",type:"button",style:"border:0;padding:0 4px",title:"Quitar",onclick:async()=>{
+        if(db.grupos.some(g=>g.cajero===x)&&!await confirmar("Sacar de la lista",
+          `${x} tiene movimientos cargados. Sacarlo de la lista no borra nada: sólo deja de aparecer en los desplegables.`,
+          {ok:"Sacar"}))return;
         db.cajeros=db.cajeros.filter(y=>y!==x);guardar();render()}},"×"))));
   const inv=el("input",{type:"text",placeholder:"NUEVOCAJERO",style:"width:160px"});
   const add=()=>{const v=inv.value.trim().toUpperCase();if(!v)return;
@@ -1164,9 +1228,9 @@ function exportarJSON(){
 function importarJSON(f){
   if(!f)return; const fr=new FileReader();
   fr.onload=()=>{
-    let d;try{d=JSON.parse(fr.result)}catch(e){alert("Ese archivo no es un respaldo válido.");return}
+    let d;try{d=JSON.parse(fr.result)}catch(e){avisar("Archivo ilegible","Ese archivo no es un respaldo válido de la caja. Buscá el .json que descargaste desde Datos y respaldo.");return}
     const gr=d.grupos||d.movimientos;
-    if(!Array.isArray(gr)){alert("El archivo no tiene movimientos.");return}
+    if(!Array.isArray(gr)){avisar("Respaldo vacío","El archivo se leyó bien pero no contiene movimientos.");return}
     modal({titulo:"Restaurar respaldo",cuerpo:el("div",{},
       el("p",{},`El respaldo trae ${gr.length} grupos y ${(d.retiros||[]).length} retiros.`),
       el("p",{},`Ahora tenés ${db.grupos.length} grupos y ${db.retiros.length} retiros.`),
@@ -1184,8 +1248,11 @@ function importarJSON(f){
         toast(`${n} grupos nuevos subidos a la nube.`+
           (Object.keys(d.comprobantes||{}).length?" Los comprobantes del respaldo no se migran: adjuntalos de nuevo.":""));
         render()}},
-      {texto:"Reemplazar todo",clase:"danger",accion:()=>{
-        if(!confirm("Reemplazar borra la caja de la NUBE para todas las sedes y usuarios, no s\u00f3lo en esta computadora. \u00bfSeguir?"))return false;
+      {texto:"Reemplazar todo",clase:"danger",accion:async()=>{
+        if(!await confirmar("Reemplazar toda la caja",
+          ["Esto borra la caja de la nube para todas las sedes y todos los usuarios, no sólo en esta computadora.",
+           "No hay forma de deshacerlo."],
+          {ok:"Reemplazar todo",peligro:true}))return false;
         db.grupos=gr.map(g=>({...g,id:uid(),imp:"manual"}));
         db.retiros=(d.retiros||[]).map(r=>({...r,id:uid()}));
         db.importaciones=[];
@@ -1354,11 +1421,14 @@ function claveDia(d){return d.fecha+"|"+d.cajero}
 function estaRevisado(d){return !!db.revisados[claveDia(d)]}
 function compsDe(d){return db.comprobantes[claveDia(d)]||[]}
 function tamDB(){return 0}
-function marcarRevisado(d,on){
+async function marcarRevisado(d,on){
   if(!puedeEditar()){toast("Tu usuario es de solo lectura.");return}
   const k=claveDia(d);
   if(on){
-    if(!compsDe(d).length&&!confirm("Este día no tiene ningún comprobante adjunto. ¿Marcarlo como revisado igual?"))return;
+    if(!compsDe(d).length&&!await confirmar("Sin comprobantes adjuntos",
+      [`El ${fechaCorta(d.fecha)} de ${d.cajero} no tiene ningún comprobante cargado.`,
+       "Podés marcarlo como revisado igual, pero después no vas a tener respaldo de ese día."],
+      {ok:"Marcar revisado"}))return;
     db.revisados[k]={ts:Date.now(),fecha:d.fecha,cajero:d.cajero};
   }else delete db.revisados[k];
   guardar();toast(on?"Marcado como revisado.":"Reabierto para revisión.");render();
@@ -1410,7 +1480,9 @@ async function quitarComp(clave,id){
   if(!puedeEditar()){toast("Tu usuario es de solo lectura.");return}
   const lista=db.comprobantes[clave]||[], c=lista.find(x=>x.id===id);
   if(!c)return;
-  if(!confirm(`\u00bfQuitar "${c.nombre}"? No hay deshacer.`))return;
+  if(!await confirmar("Quitar comprobante",
+    `Se elimina "${c.nombre}" de forma definitiva. No hay deshacer.`,
+    {ok:"Quitar",peligro:true}))return;
   try{
     await sbDel("caja_comprobantes","id=eq."+id);
     await stBorrar(c.path);
