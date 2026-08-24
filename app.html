@@ -287,6 +287,9 @@
     .role-card.tecnico:hover   { border-color: var(--blue);  box-shadow: 0 8px 40px rgba(59,130,246,.2); }
     .role-card.medico:hover    { border-color: var(--green); box-shadow: 0 8px 40px rgba(85,231,139,.2); }
     .role-card.operativo:hover { border-color: #38BDF8;      box-shadow: 0 8px 40px rgba(56,189,248,.25); }
+    .role-card.caja:hover      { border-color: #F59E0B;      box-shadow: 0 8px 40px rgba(245,158,11,.25); }
+    .role-card.caja::before     { background: linear-gradient(90deg,transparent,#F59E0B,transparent); }
+    .role-card.caja .role-icon-wrap { background: rgba(245,158,11,.15); }
     .role-card.tecnico::before  { background: linear-gradient(90deg,transparent,var(--blue),transparent); }
     .role-card.medico::before   { background: linear-gradient(90deg,transparent,var(--green),transparent); }
     .role-card.operativo::before{ background: linear-gradient(90deg,transparent,#38BDF8,transparent); }
@@ -802,6 +805,11 @@ const MODULE_CARDS = {
     clase: 'personal', nombre: 'Personal', key: 'personal',
     desc: 'Licencias &middot; Cambios de turno &middot; Horarios',
     svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/><rect x="45" y="38" width="110" height="90" rx="10" fill="none" stroke="#A78BFA" stroke-width="3.5"/><line x1="45" y1="60" x2="155" y2="60" stroke="#A78BFA" stroke-width="2.5"/><circle cx="70" cy="48" r="2.5" fill="#A78BFA"/><circle cx="130" cy="48" r="2.5" fill="#A78BFA"/><line x1="70" y1="40" x2="70" y2="54" stroke="#A78BFA" stroke-width="2.5" stroke-linecap="round"/><line x1="130" y1="40" x2="130" y2="54" stroke="#A78BFA" stroke-width="2.5" stroke-linecap="round"/><rect x="60" y="72" width="14" height="12" rx="2" fill="#A78BFA" fill-opacity="0.3" stroke="#A78BFA" stroke-width="1.5"/><rect x="80" y="72" width="14" height="12" rx="2" fill="none" stroke="#A78BFA" stroke-width="1.5"/><rect x="100" y="72" width="14" height="12" rx="2" fill="#22DBAE" fill-opacity="0.5" stroke="#22DBAE" stroke-width="1.5"/><rect x="120" y="72" width="14" height="12" rx="2" fill="none" stroke="#A78BFA" stroke-width="1.5"/><rect x="60" y="90" width="14" height="12" rx="2" fill="none" stroke="#A78BFA" stroke-width="1.5"/><rect x="80" y="90" width="14" height="12" rx="2" fill="#A78BFA" fill-opacity="0.3" stroke="#A78BFA" stroke-width="1.5"/><rect x="100" y="90" width="14" height="12" rx="2" fill="none" stroke="#A78BFA" stroke-width="1.5"/><rect x="120" y="90" width="14" height="12" rx="2" fill="none" stroke="#A78BFA" stroke-width="1.5"/><rect x="60" y="108" width="14" height="12" rx="2" fill="none" stroke="#A78BFA" stroke-width="1.5"/><rect x="80" y="108" width="14" height="12" rx="2" fill="none" stroke="#A78BFA" stroke-width="1.5"/><rect x="100" y="108" width="14" height="12" rx="2" fill="none" stroke="#A78BFA" stroke-width="1.5"/><rect x="120" y="108" width="14" height="12" rx="2" fill="#22DBAE" fill-opacity="0.5" stroke="#22DBAE" stroke-width="1.5"/><text x="100" y="200" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">MÓDULO</text><text x="100" y="222" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="1">PERSONAL</text></svg>`
+  },
+  caja: {
+    clase: 'caja', nombre: 'Caja', key: 'caja',
+    desc: 'Rendici&oacute;n de caja &middot; Retiros &middot; Arqueos',
+    svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/><rect x="42" y="58" width="116" height="74" rx="8" fill="none" stroke="#F59E0B" stroke-width="3.5"/><path d="M42 80 L158 80" stroke="#F59E0B" stroke-width="2" stroke-opacity="0.45"/><rect x="88" y="90" width="24" height="18" rx="3" fill="none" stroke="#F59E0B" stroke-width="2.5"/><circle cx="100" cy="99" r="3" fill="#F59E0B"/><path d="M62 58 L62 46 Q62 40 68 40 L132 40 Q138 40 138 46 L138 58" fill="none" stroke="#F59E0B" stroke-width="3.5" stroke-linecap="round"/><circle cx="66" cy="118" r="7" fill="none" stroke="#22DBAE" stroke-width="2.5"/><text x="66" y="122" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="10" font-weight="700" fill="#22DBAE">$</text><text x="100" y="200" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">RENDICI&#211;N</text><text x="100" y="222" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">DE CAJA</text></svg>`
   }
 };
 
@@ -1226,11 +1234,11 @@ async function renderModules() {
   // Atajo: si el usuario tiene acceso a UN SOLO m\u00f3dulo, lo mandamos directo ah\u00ed
   // (no tiene sentido mostrarle la pantalla de selecci\u00f3n con una sola card).
   // Si tiene 2 o m\u00e1s (ej: operativo + personal para solicitantes), mostramos la pantalla.
-  const modulosConPermiso = ['admin', 'tecnico', 'medico', 'operativo', 'personal']
+  const modulosConPermiso = ['admin', 'tecnico', 'medico', 'operativo', 'personal', 'caja']
     .filter(key => modulos[key]);
   if (modulosConPermiso.length === 1) {
     const key = modulosConPermiso[0];
-    const destinos = { admin:'admin.html', tecnico:'tecnico.html', medico:'medico.html', operativo:'operativo.html?modo=pedidos', personal:'personal.html' };
+    const destinos = { admin:'admin.html', tecnico:'tecnico.html', medico:'medico.html', operativo:'operativo.html?modo=pedidos', personal:'personal.html', caja:'caja.html' };
     localStorage.setItem('spcd_rol', key);
     window.location.replace(destinos[key] || 'index.html');
     return;
@@ -1251,7 +1259,7 @@ async function renderModules() {
   }
 
   // Solo mostrar módulos que el usuario tiene permiso
-  const order = ['admin', 'tecnico', 'medico', 'operativo', 'personal'];
+  const order = ['admin', 'tecnico', 'medico', 'operativo', 'personal', 'caja'];
   const cards = order
     .filter(key => modulos[key]) // solo los que tiene algún permiso
     .map((key, i) => {
@@ -1274,7 +1282,7 @@ async function renderModules() {
 function selectRol(nombre, clase) {
   selectedRol = nombre;
   localStorage.setItem('spcd_rol', nombre);
-  const destinos = { admin:'admin.html', tecnico:'tecnico.html', medico:'medico.html', operativo:'operativo.html', personal:'personal.html' };
+  const destinos = { admin:'admin.html', tecnico:'tecnico.html', medico:'medico.html', operativo:'operativo.html', personal:'personal.html', caja:'caja.html' };
   window.location.href = destinos[clase] || 'index.html';
 }
 
