@@ -253,8 +253,78 @@
     }
 
     .roles-grid {
-      display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;
-      max-width: 920px;
+      display: flex; flex-direction: column; gap: 14px;
+      width: 100%; max-width: 880px; margin: 0 auto;
+    }
+
+    /* --- Grupos de módulos (padre + submódulos) --- */
+    .mod-grupo { animation: fadeUp .5s ease both; }
+    .mod-sub-wrap {
+      display: flex; flex-direction: column; gap: 8px;
+      margin: 8px 0 0 34px; padding-left: 22px;
+      border-left: 1px solid var(--border);
+    }
+    .mod-fila {
+      display: flex; align-items: center; gap: 18px;
+      background: var(--glass); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px 22px;
+      cursor: pointer; position: relative; overflow: hidden;
+      transition: border-color .25s, box-shadow .25s, transform .25s;
+    }
+    .mod-fila::before {
+      content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+      background: var(--cyan); transform: scaleY(0); transition: transform .25s;
+    }
+    .mod-fila:hover { transform: translateX(3px); }
+    .mod-fila:hover::before { transform: scaleY(1); }
+    .mod-fila.inerte { cursor: default; opacity: .6; }
+    .mod-fila.inerte:hover { transform: none; }
+    .mod-fila.inerte:hover::before { transform: scaleY(0); }
+
+    .mod-icono {
+      width: 58px; height: 58px; flex: 0 0 auto;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 12px; background: rgba(59,130,246,.10);
+    }
+    .mod-fila.sub .mod-icono { width: 44px; height: 44px; }
+    .mod-icono svg { width: 100%; height: 100%; }
+
+    .mod-cuerpo { flex: 1; min-width: 0; text-align: left; }
+    .mod-nombre {
+      font-family: 'Rajdhani', sans-serif; font-size: 19px; font-weight: 700;
+      letter-spacing: 1.5px; text-transform: uppercase; color: var(--text); line-height: 1.1;
+    }
+    .mod-fila.sub .mod-nombre { font-size: 15.5px; letter-spacing: 1.2px; }
+    .mod-desc { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+    .mod-ro {
+      font-size: 9.5px; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--muted); border: 1px solid var(--border);
+      border-radius: 99px; padding: 2px 8px; margin-left: 8px; white-space: nowrap;
+    }
+    .mod-flecha { color: var(--muted); font-size: 15px; flex: 0 0 auto; }
+    .mod-fila.inerte .mod-flecha { display: none; }
+
+    .mod-fila.admin:hover      { border-color: var(--cyan);  box-shadow: 0 6px 26px rgba(34,219,174,.16); }
+    .mod-fila.tecnico:hover    { border-color: var(--blue);  box-shadow: 0 6px 26px rgba(59,130,246,.16); }
+    .mod-fila.medico:hover     { border-color: var(--green); box-shadow: 0 6px 26px rgba(85,231,139,.16); }
+    .mod-fila.operativo:hover  { border-color: #38BDF8;      box-shadow: 0 6px 26px rgba(56,189,248,.16); }
+    .mod-fila.personal:hover   { border-color: #A78BFA;      box-shadow: 0 6px 26px rgba(167,139,250,.16); }
+    .mod-fila.caja:hover       { border-color: #F59E0B;      box-shadow: 0 6px 26px rgba(245,158,11,.16); }
+    .mod-fila.tecnico::before  { background: var(--blue); }
+    .mod-fila.medico::before   { background: var(--green); }
+    .mod-fila.operativo::before{ background: #38BDF8; }
+    .mod-fila.personal::before { background: #A78BFA; }
+    .mod-fila.caja::before     { background: #F59E0B; }
+    .mod-fila.caja .mod-icono      { background: rgba(245,158,11,.12); }
+    .mod-fila.personal .mod-icono  { background: rgba(167,139,250,.12); }
+    .mod-fila.operativo .mod-icono { background: rgba(56,189,248,.12); }
+    .mod-fila.medico .mod-icono    { background: rgba(85,231,139,.12); }
+    .mod-fila.admin .mod-icono     { background: rgba(34,219,174,.12); }
+
+    @media (max-width: 640px) {
+      .mod-sub-wrap { margin-left: 12px; padding-left: 12px; }
+      .mod-fila { padding: 13px 15px; gap: 13px; }
+      .mod-desc { display: none; }
     }
 
     .role-card {
@@ -1258,24 +1328,60 @@ async function renderModules() {
     } catch(e) { /* silent */ }
   }
 
-  // Solo mostrar módulos que el usuario tiene permiso
-  const order = ['admin', 'tecnico', 'medico', 'operativo', 'personal', 'caja'];
-  const cards = order
-    .filter(key => modulos[key]) // solo los que tiene algún permiso
-    .map((key, i) => {
-      const m = MODULE_CARDS[key];
-      const perm = modulos[key];
-      const badge = perm === 'view' ? '<div style="font-size:10px; letter-spacing:1.5px; color:var(--muted); margin-top:4px; text-transform:uppercase;">Solo lectura</div>' : '';
-      const notifDot = (key === 'operativo' && pendingCount > 0)
-        ? `<span class="notif-dot">${pendingCount}</span>` : '';
-      return `<div class="role-card ${m.clase}" onclick="selectRol('${m.nombre}','${m.key}')" style="padding:12px 20px; animation-delay:${(i+1)*0.1}s; position:relative;">
-        ${notifDot}
-        ${m.svg}
-        <div class="role-desc">${m.desc}${badge}</div>
-      </div>`;
-    });
+  // Estructura: módulos principales con sus submódulos
+  const GRUPOS = [
+    { padre: 'admin',   hijos: ['caja', 'personal', 'operativo'] },
+    { padre: 'medico',  hijos: [] },
+    { padre: 'tecnico', hijos: [] }
+  ];
 
-  grid.innerHTML = cards.length > 0 ? cards.join('') :
+  // El SVG de cada módulo trae el nombre adentro; acá sólo queremos el dibujo.
+  const soloIcono = (m) => m.svg
+    .replace(/<text[\s\S]*?<\/text>/g, '')
+    .replace(/width="\d+" height="\d+"/, 'width="100%" height="100%"')
+    .replace('viewBox="0 0 200 230"', 'viewBox="0 0 200 180"');
+
+  const fila = (key, esSub) => {
+    const m = MODULE_CARDS[key];
+    if (!m) return '';
+    const perm = modulos[key];
+    const ro = perm === 'view' ? '<span class="mod-ro">Solo lectura</span>' : '';
+    const dot = (key === 'operativo' && pendingCount > 0)
+      ? `<span class="notif-dot">${pendingCount}</span>` : '';
+    return `<div class="mod-fila ${m.clase}${esSub ? ' sub' : ''}" onclick="selectRol('${m.nombre}','${m.key}')">
+      ${dot}
+      <div class="mod-icono">${soloIcono(m)}</div>
+      <div class="mod-cuerpo">
+        <div class="mod-nombre">${m.nombre}${ro}</div>
+        <div class="mod-desc">${m.desc}</div>
+      </div>
+      <div class="mod-flecha">&#10095;</div>
+    </div>`;
+  };
+
+  const bloques = [];
+  let n = 0;
+  for (const g of GRUPOS) {
+    const tienePadre = !!modulos[g.padre];
+    const hijos = g.hijos.filter(k => modulos[k]);
+    if (!tienePadre && !hijos.length) continue;
+
+    // Si no tiene el módulo padre pero sí alguno de los hijos, el encabezado
+    // se muestra apagado y sin clic: sirve para agrupar, no para entrar.
+    const mp = MODULE_CARDS[g.padre];
+    const cab = tienePadre ? fila(g.padre, false)
+      : `<div class="mod-fila ${mp.clase} inerte">
+           <div class="mod-icono">${soloIcono(mp)}</div>
+           <div class="mod-cuerpo"><div class="mod-nombre">${mp.nombre}</div></div>
+         </div>`;
+
+    bloques.push(`<div class="mod-grupo" style="animation-delay:${++n * 0.09}s">
+      ${cab}
+      ${hijos.length ? `<div class="mod-sub-wrap">${hijos.map(k => fila(k, true)).join('')}</div>` : ''}
+    </div>`);
+  }
+
+  grid.innerHTML = bloques.length > 0 ? bloques.join('') :
     '<div style="text-align:center; color:var(--muted); padding:40px;"><p>No tenés módulos asignados para esta sede.</p><p style="font-size:11px; margin-top:8px;">Contactá al administrador.</p></div>';
 }
 
