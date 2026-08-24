@@ -146,16 +146,29 @@ dialog .dlg-b{padding:14px 18px}
 dialog .dlg-f{padding:14px 18px;border-top:1px solid var(--linea);display:flex;gap:8px;justify-content:flex-end;background:var(--linea-2);flex-wrap:wrap}
 dialog.dlg-confirm{max-width:min(460px,94vw)}
 dialog.dlg-confirm::backdrop{background:rgba(3,7,18,.55)}
-dialog.dlg-confirm .dlg-h{padding:20px 22px 0;display:flex;align-items:flex-start;gap:12px}
-dialog.dlg-confirm .dlg-h h2{font-size:17.5px;margin:0;line-height:1.3}
-dialog.dlg-confirm .dlg-b{padding:10px 22px 4px;font-size:14px;line-height:1.6;color:var(--ink-2)}
-dialog.dlg-confirm .dlg-b p{margin:0 0 8px}
+dialog.dlg-confirm{max-width:min(500px,94vw);overflow:hidden;position:relative}
+dialog.dlg-confirm::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--aviso),transparent)}
+dialog.dlg-confirm.peligro::before{background:linear-gradient(90deg,transparent,var(--alerta),transparent)}
+dialog.dlg-confirm .dlg-h{padding:26px 26px 0;display:block}
+dialog.dlg-confirm .dlg-kicker{font-family:var(--mono);font-size:9.5px;letter-spacing:.26em;
+  text-transform:uppercase;color:var(--aviso);margin-bottom:9px;display:flex;align-items:center;gap:9px}
+dialog.dlg-confirm.peligro .dlg-kicker{color:var(--alerta)}
+dialog.dlg-confirm .dlg-kicker::after{content:"";flex:1;height:1px;
+  background:linear-gradient(90deg,currentColor,transparent);opacity:.35}
+dialog.dlg-confirm .dlg-h h2{font-size:20px;margin:0;line-height:1.25;letter-spacing:.2px;font-weight:600}
+dialog.dlg-confirm .dlg-b{padding:13px 26px 6px;font-size:14px;line-height:1.62;color:var(--ink-2)}
+dialog.dlg-confirm .dlg-b p{margin:0 0 9px}
 dialog.dlg-confirm .dlg-b p:last-child{margin-bottom:0}
-dialog.dlg-confirm .dlg-f{padding:16px 22px;justify-content:flex-end}
-.dlg-icono{flex:0 0 auto;width:34px;height:34px;border-radius:9px;display:flex;align-items:center;
-  justify-content:center;font-size:17px;font-weight:700;font-family:var(--mono)}
-.dlg-icono.pregunta{background:var(--aviso-bg);color:var(--aviso)}
-.dlg-icono.peligro{background:var(--alerta-bg);color:var(--alerta)}
+dialog.dlg-confirm .dlg-f{padding:20px 26px 22px;justify-content:flex-end;background:transparent;border-top:0}
+.dlg-campo{margin-top:16px;padding-top:15px;border-top:1px solid var(--linea)}
+.dlg-campo label{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-3);font-family:var(--mono);margin-bottom:7px}
+.dlg-campo textarea{width:100%;min-height:76px;resize:vertical;padding:10px 12px;border-radius:8px;
+  border:1px solid var(--linea);background:var(--fondo);color:var(--ink);
+  font-family:inherit;font-size:13.5px;line-height:1.5}
+.dlg-campo textarea:focus{outline:2px solid var(--aviso);outline-offset:1px}
+.dlg-campo .err{color:var(--alerta);font-size:12px;margin:7px 0 0;min-height:15px}
 .vacio{padding:34px 10px;text-align:center;color:var(--ink-3);font-size:13.5px}
 .vacio b{display:block;color:var(--ink-2);font-size:15px;margin-bottom:5px;font-weight:600}
 /* ============================================================
@@ -409,7 +422,7 @@ async function sincronizar(){
   const rvFuera =[...SNAP.revisados].filter(k=>!rvAhora.has(k));
   if(rvNuevos.length) tareas.push(sbInsert("caja_revisados",rvNuevos.map(k=>{
     const v=db.revisados[k];
-    return {sede:SEDE,fecha:v.fecha,cajero:v.cajero,revisado_por:AUTHUID};
+    return {sede:SEDE,fecha:v.fecha,cajero:v.cajero,nota:v.nota||null,revisado_por:AUTHUID};
   })));
   for(const k of rvFuera){
     const [f,c]=k.split("|");
@@ -441,7 +454,8 @@ async function cargarDesdeNube(){
   db.retiros=re.map(r=>({id:r.id,fecha:r.fecha,responsable:r.responsable,
     monto:Number(r.monto),detalle:r.detalle||"",creado:Date.parse(r.creado_en)||Date.now()}));
   db.revisados={};
-  rv.forEach(r=>{db.revisados[r.fecha+"|"+r.cajero]={ts:Date.parse(r.revisado_en)||Date.now(),fecha:r.fecha,cajero:r.cajero}});
+  rv.forEach(r=>{db.revisados[r.fecha+"|"+r.cajero]=
+    {ts:Date.parse(r.revisado_en)||Date.now(),fecha:r.fecha,cajero:r.cajero,nota:r.nota||""}});
   db.importaciones=im.map(r=>({id:r.id,archivo:r.archivos||"",cuando:Date.parse(r.creado_en)||Date.now(),
     filas:r.filas_ok||0,rango:r.rango||"",total:0}));
   db.importaciones.forEach(i=>{i.total=db.grupos.filter(g=>g.imp===i.id).reduce((a,g)=>a+g.monto,0)});
@@ -509,10 +523,6 @@ function porDia(gr){
 const saldoEfectivo=()=>db.grupos.filter(g=>g.categoria==="efectivo").reduce((s,g)=>s+g.monto,0)-db.retiros.reduce((s,r)=>s+r.monto,0);
 const ultimoRetiro=()=>{const r=retirosOrd();return r.length?r[r.length-1]:null};
 function periodoAbierto(){const ur=ultimoRetiro();const d=ur?ur.fecha:null;return{desde:d,gr:db.grupos.filter(g=>!d||g.fecha>=d)}}
-function medianaDia(cajero,cat){
-  const dias=porDia(db.grupos.filter(g=>g.cajero===cajero)).map(d=>d[cat]).filter(v=>v>0).sort((a,b)=>a-b);
-  return dias.length?dias[Math.floor(dias.length/2)]:0;
-}
 
 /* --- Anomalías, ahora a nivel día+cajero ------------------- */
 function anomaliasDia(d){
@@ -522,10 +532,6 @@ function anomaliasDia(d){
   if(!db.cajeros.includes(d.cajero)) out.push("Cajero fuera de la lista");
   if(d.efectivo<0) out.push("Efectivo neto negativo");
   if(d.otros!==0) out.push("Valores fuera de efectivo, tarjeta y billetera");
-  for(const [cat,et] of [["efectivo","Efectivo"],["tarjeta","Tarjetas"],["billetera","Billetera"]]){
-    const med=medianaDia(d.cajero,cat);
-    if(med>0&&d[cat]>med*6) out.push(`${et} ${Math.round(d[cat]/med)}× sobre lo habitual`);
-  }
   const origenes=new Set(d.grupos.map(g=>g.imp||"—"));
   if(origenes.size>1) out.push("Cargado desde dos orígenes distintos");
   return out;
@@ -559,32 +565,53 @@ function modal({titulo,cuerpo,acciones}){
    Reemplazan a confirm() y alert() del navegador. Usan su propio
    <dialog>, así se pueden abrir encima de un modal ya abierto.
    ============================================================ */
-function _dlg2({titulo,texto,acciones,peligro}){
+function _dlg2({titulo,texto,acciones,peligro,kicker,campo}){
   return new Promise(resolve=>{
     const d=$("#dlg2");
-    const h=$("#dlg2-t");
-    h.parentElement.replaceChildren(
-      el("div",{class:"dlg-icono "+(peligro?"peligro":"pregunta")},peligro?"!":"?"),
+    d.classList.toggle("peligro",!!peligro);
+    $("#dlg2-t").parentElement.replaceChildren(
+      el("div",{class:"dlg-kicker"},kicker||(peligro?"Acci\u00f3n irreversible":"Confirmaci\u00f3n")),
       el("h2",{id:"dlg2-t"},titulo));
+
     const cuerpo=$("#dlg2-b"); cuerpo.replaceChildren();
     for(const t of (Array.isArray(texto)?texto:[texto])) cuerpo.append(el("p",{},t));
+
+    let ta=null, err=null;
+    if(campo){
+      ta=el("textarea",{placeholder:campo.ejemplo||"",rows:"3",maxlength:"400"});
+      err=el("p",{class:"err"});
+      cuerpo.append(el("div",{class:"dlg-campo"},
+        el("label",{},campo.etiqueta),ta,err));
+    }
+
     const f=$("#dlg2-f"); f.replaceChildren();
     let resuelto=false;
     const cerrar=v=>{if(resuelto)return;resuelto=true;d.close();resolve(v)};
-    for(const a of acciones)
-      f.append(el("button",{class:"btn "+(a.clase||"ghost"),type:"button",
-        onclick:()=>cerrar(a.valor)},a.texto));
+    for(const a of acciones){
+      f.append(el("button",{class:"btn "+(a.clase||"ghost"),type:"button",onclick:()=>{
+        if(a.valor&&campo){
+          const v=ta.value.trim();
+          if(v.length<(campo.minimo||1)){
+            err.textContent=campo.error||"Escrib\u00ed una observaci\u00f3n.";
+            ta.focus(); return;
+          }
+          cerrar(v); return;
+        }
+        cerrar(a.valor);
+      }},a.texto));
+    }
     d.addEventListener("close",()=>cerrar(false),{once:true});
     d.showModal();
-    const b=f.querySelector("button:last-child"); if(b)b.focus();
+    if(ta) ta.focus();
+    else { const b=f.querySelector("button:last-child"); if(b)b.focus(); }
   });
 }
-const confirmar=(titulo,texto,{ok="Continuar",cancelar="Cancelar",peligro=false}={})=>
-  _dlg2({titulo,texto,peligro,acciones:[
+const confirmar=(titulo,texto,{ok="Continuar",cancelar="Cancelar",peligro=false,kicker,campo}={})=>
+  _dlg2({titulo,texto,peligro,kicker,campo,acciones:[
     {texto:cancelar,valor:false},
     {texto:ok,valor:true,clase:peligro?"danger":""}]});
 const avisar=(titulo,texto)=>
-  _dlg2({titulo,texto,acciones:[{texto:"Entendido",valor:true,clase:""}]});
+  _dlg2({titulo,texto,kicker:"Aviso",acciones:[{texto:"Entendido",valor:true,clase:""}]});
 
 function banners(){
   const o=[];
@@ -824,6 +851,7 @@ function vistaDias(){
         estaRevisado(d)
           ? el("span",{class:"badge ok",
               title:"Revisado el "+new Date(db.revisados[k].ts).toLocaleDateString("es-AR")+
+                    (db.revisados[k].nota?" \u2014 "+db.revisados[k].nota:"")+
                     (mot.length?" \u00b7 "+mot.join(" \u00b7 "):"")},"revisado")
           : (mot.length?el("span",{class:"badge rev",title:mot.join(" \u00b7 ")},"revisar"):null)),
       el("td",{class:"num chip-ef"+(d.efectivo<0?" neg":"")},plata(d.efectivo)),
@@ -1057,6 +1085,7 @@ function vistaRevisar(){
         el("td",{class:"num chip-ot"},d.otros?plata(d.otros):"\u2014"),
         el("td",{style:"white-space:normal;min-width:220px"},
           revisado?el("span",{class:"badge ok",title:"Revisado el "+new Date(marca.ts).toLocaleString("es-AR")},"Revisado"):null,
+          revisado&&marca.nota?el("div",{class:"hint",style:"margin-top:5px;font-style:italic"},"\u201c"+marca.nota+"\u201d"):null,
           " ",
           ...motivos.map(m=>el("span",{class:"badge "+(revisado?"info":"rev"),style:"margin:1px 3px 1px 0"},m))),
         celdaComps(claveDia(d)),
@@ -1069,7 +1098,7 @@ function vistaRevisar(){
 
   const p1=el("div",{class:"panel"});
   p1.append(el("h2",{},"Pendientes de revisar"+(pend.length?" ("+pend.length+")":"")));
-  p1.append(el("p",{class:"hint"},"Nada se bloquea: se marca. Un d\u00eda seis veces por encima de lo habitual para ese cajero, efectivo neto negativo, valores fuera de los tres medios comunes, o un d\u00eda cargado desde dos importaciones distintas. Adjunt\u00e1 el comprobante y marcalo revisado para que deje de aparecer ac\u00e1."));
+  p1.append(el("p",{class:"hint"},"Nada se bloquea: se marca. Aparecen ac\u00e1 los d\u00edas con efectivo neto negativo, valores fuera de los tres medios comunes, fechas imposibles, o cargados desde dos importaciones distintas. Los montos no se comparan contra ning\u00fan promedio. Adjunt\u00e1 el comprobante y marcalo revisado para que deje de aparecer ac\u00e1."));
   if(pend.length) p1.append(tabla(pend,false));
   else p1.append(el("div",{class:"vacio"},el("b",{},todos.length?"Todo revisado":"No hay nada raro"),
     todos.length?"Los "+todos.length+" d\u00edas marcados ya fueron revisados.":"Todos los d\u00edas pasan los controles."));
@@ -1425,11 +1454,20 @@ async function marcarRevisado(d,on){
   if(!puedeEditar()){toast("Tu usuario es de solo lectura.");return}
   const k=claveDia(d);
   if(on){
-    if(!compsDe(d).length&&!await confirmar("Sin comprobantes adjuntos",
-      [`El ${fechaCorta(d.fecha)} de ${d.cajero} no tiene ningún comprobante cargado.`,
-       "Podés marcarlo como revisado igual, pero después no vas a tener respaldo de ese día."],
-      {ok:"Marcar revisado"}))return;
-    db.revisados[k]={ts:Date.now(),fecha:d.fecha,cajero:d.cajero};
+    let nota="";
+    if(!compsDe(d).length){
+      const r=await confirmar("Revisar sin comprobantes",
+        [`El ${fechaCorta(d.fecha)} de ${d.cajero} no tiene ningún comprobante adjunto.`,
+         "Podés darlo por revisado igual, pero dejá constancia de en qué te basaste. Queda guardado junto a la marca."],
+        {ok:"Marcar revisado", kicker:"Requiere observaci\u00f3n",
+         campo:{etiqueta:"Observaci\u00f3n de la revisi\u00f3n",
+                ejemplo:"Ej: contado con planilla de caja del turno tarde, cierra con el sistema.",
+                minimo:8,
+                error:"Escrib\u00ed en qué te basaste para darlo por revisado."}});
+      if(!r) return;
+      nota=r;
+    }
+    db.revisados[k]={ts:Date.now(),fecha:d.fecha,cajero:d.cajero,nota};
   }else delete db.revisados[k];
   guardar();toast(on?"Marcado como revisado.":"Reabierto para revisión.");render();
 }
