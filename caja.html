@@ -740,7 +740,7 @@ function vistaDias(){
   p.append(el("div",{class:"row",style:"margin-bottom:14px"},
     el("label",{class:"f"},"Desde",iD),el("label",{class:"f"},"Hasta",iH),el("label",{class:"f"},"Cajero",sC),
     el("button",{class:"btn ghost small",type:"button",onclick:()=>{filtro={desde:"",hasta:"",cajero:""};render()}},"Limpiar"),
-    el("button",{class:"btn ghost small",type:"button",onclick:()=>exportarCSV(filtrados())},"Exportar CSV")));
+    el("button",{class:"btn ghost small",type:"button",onclick:()=>exportarCSV(filtrados())},"Exportar a Excel")));
 
   const filtrados=()=>db.grupos.filter(g=>(!filtro.desde||g.fecha>=filtro.desde)&&(!filtro.hasta||g.fecha<=filtro.hasta)&&(!filtro.cajero||g.cajero===filtro.cajero));
   const gr=filtrados(); const dias=porDia(gr);
@@ -891,7 +891,7 @@ function vistaReportes(){
   const p5=el("div",{class:"panel"});
   p5.append(el("div",{class:"row"},
     el("button",{class:"btn ghost",type:"button",onclick:()=>window.print()},"Imprimir o guardar en PDF"),
-    el("button",{class:"btn ghost",type:"button",onclick:()=>exportarCSV(gr)},"Exportar CSV del período")));
+    el("button",{class:"btn ghost",type:"button",onclick:()=>exportarCSV(gr)},"Exportar el período a Excel")));
   c.append(p5);
   return c;
 }
@@ -1194,14 +1194,75 @@ function importarJSON(f){
   };
   fr.readAsText(f,"utf-8");
 }
+/* ============================================================
+   EXPORTACI\u00d3N A EXCEL
+   Mismo formato que la pantalla: fechas dd/mm/aaaa, importes en
+   pesos con separador de miles. Los importes van como N\u00daMERO con
+   formato aplicado, no como texto: se leen igual y se pueden sumar.
+   ============================================================ */
+const FMT_PESOS='"$" #,##0;[Red]-"$" #,##0';
+const FMT_FECHA='dd/mm/yyyy';
+const aFecha=i=>{const[a,m,d]=i.split("-").map(Number);return new Date(a,m-1,d)};
+
+function hojaDeDias(dias){
+  const cab=["Fecha","Cajero","Efectivo","Tarjetas","Billetera","Otros valores","Total","Comprobantes","Estado"];
+  const filas=dias.map(d=>[
+    aFecha(d.fecha), d.cajero,
+    d.efectivo||0, d.tarjeta||0, d.billetera||0, d.otros||0, d.total||0,
+    d.comps||0, estaRevisado(d)?"Revisado":""
+  ]);
+  const tot=dias.reduce((a,d)=>({ef:a.ef+(d.efectivo||0),ta:a.ta+(d.tarjeta||0),
+    bi:a.bi+(d.billetera||0),ot:a.ot+(d.otros||0),to:a.to+(d.total||0),n:a.n+(d.comps||0)}),
+    {ef:0,ta:0,bi:0,ot:0,to:0,n:0});
+  filas.push([]);
+  filas.push(["TOTAL","",tot.ef,tot.ta,tot.bi,tot.ot,tot.to,tot.n,""]);
+
+  const ws=XLSX.utils.aoa_to_sheet([cab,...filas],{cellDates:true});
+  ws["!cols"]=[{wch:12},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:15},{wch:14},{wch:11}];
+  ws["!freeze"]={xSplit:0,ySplit:1};
+  const rango=XLSX.utils.decode_range(ws["!ref"]);
+  for(let r=1;r<=rango.e.r;r++){
+    const cf=ws[XLSX.utils.encode_cell({r,c:0})];
+    if(cf&&cf.t==="d") cf.z=FMT_FECHA;
+    for(let c=2;c<=6;c++){
+      const ref=XLSX.utils.encode_cell({r,c}), cel=ws[ref];
+      if(cel&&cel.t==="n") cel.z=FMT_PESOS;
+    }
+  }
+  return ws;
+}
+
 function exportarCSV(gr){
-  const s=";"; const dias=porDia(gr);
-  const f=[["fecha","cajero","efectivo","tarjetas","billetera","otros","total","comprobantes"].join(s)];
-  for(const d of dias) f.push([fechaCorta(d.fecha),d.cajero,
-    ...["efectivo","tarjeta","billetera","otros","total"].map(k=>String(Math.round(d[k]*100)/100).replace(".",",")),
-    String(d.comps)].join(s));
-  bajar(`caja-${hoyISO()}.csv`,f.join("\r\n"),"text/csv");
-  toast(`${dias.length} días exportados.`);
+  const dias=porDia(gr);
+  if(!dias.length){toast("No hay nada para exportar en ese rango.");return}
+  try{
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,hojaDeDias(dias),"Rendici\u00f3n de caja");
+
+    const rt=db.retiros.filter(r=>{
+      const f=dias.map(d=>d.fecha);
+      return r.fecha>=f[0] && r.fecha<=f[f.length-1];
+    }).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+    if(rt.length){
+      const ws2=XLSX.utils.aoa_to_sheet([["Fecha","Responsable","Monto","Detalle"],
+        ...rt.map(r=>[aFecha(r.fecha),r.responsable,r.monto||0,r.detalle||""])],{cellDates:true});
+      ws2["!cols"]=[{wch:12},{wch:18},{wch:15},{wch:44}];
+      const rr=XLSX.utils.decode_range(ws2["!ref"]);
+      for(let r=1;r<=rr.e.r;r++){
+        const cf=ws2[XLSX.utils.encode_cell({r,c:0})];
+        if(cf&&cf.t==="d") cf.z=FMT_FECHA;
+        const cel=ws2[XLSX.utils.encode_cell({r,c:2})];
+        if(cel&&cel.t==="n") cel.z=FMT_PESOS;
+      }
+      XLSX.utils.book_append_sheet(wb,ws2,"Retiros");
+    }
+
+    XLSX.writeFile(wb,`caja-${hoyISO()}.xlsx`,{cellStyles:true,cellDates:true});
+    toast(`${dias.length} d\u00edas exportados a Excel.`);
+  }catch(e){
+    console.error("[caja] export",e);
+    toast("No se pudo generar el Excel: "+e.message);
+  }
 }
 
 /* ============================================================
