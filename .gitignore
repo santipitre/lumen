@@ -21,3 +21,10 @@ desktop.ini
 # Lanzador local del bot FUESMEN (no debe servirse en GitHub Pages)
 reparar_lumen.ps1
 *.reg
+
+# no publicar en GitHub Pages
+*.sql
+*.patch
+_*.ps1
+admin_*.html
+*secret*.json
