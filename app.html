@@ -171,7 +171,7 @@
       animation: fadeUp .5s ease both; position: relative; overflow: hidden;
     }
     .sede-hero::after {
-      content: ''; position: absolute; inset: 0; border-radius: 18px; pointer-events: none;
+      content: ''; position: absolute; inset: 0; border-radius: 16px; pointer-events: none;
       background: radial-gradient(120% 140% at 12% 0%, rgba(34,219,174,.08), transparent 55%);
     }
     .sede-hero:hover {
@@ -253,77 +253,200 @@
     }
 
     .roles-grid {
-      display: flex; flex-direction: column; gap: 14px;
-      width: 100%; max-width: 880px; margin: 0 auto;
+      display: flex; flex-direction: column; gap: 26px;
+      width: 100%; max-width: 780px; margin: 0 auto;
     }
 
     /* --- Grupos de módulos (padre + submódulos) --- */
-    .mod-grupo { animation: fadeUp .5s ease both; }
+    .mod-grupo { animation: fadeUp .55s ease both; }
+
     .mod-sub-wrap {
-      display: flex; flex-direction: column; gap: 8px;
-      margin: 8px 0 0 34px; padding-left: 22px;
-      border-left: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 10px;
+      margin: 10px 0 0 26px; padding-left: 20px;
+      border-left: 1px solid rgba(148,197,255,.14);
+      position: relative;
     }
+    .mod-sub-wrap::before {
+      content: ''; position: absolute; left: -1px; top: 0; width: 1px; height: 42px;
+      background: linear-gradient(180deg, var(--cyan, #22DBAE), transparent);
+      opacity: .55;
+    }
+
+    /* Fila base — mismo lenguaje que la tarjeta de sede */
     .mod-fila {
-      display: flex; align-items: center; gap: 18px;
-      background: var(--glass); border: 1px solid var(--border);
-      border-radius: 12px; padding: 16px 22px;
-      cursor: pointer; position: relative; overflow: hidden;
-      transition: border-color .25s, box-shadow .25s, transform .25s;
+      width: 100%; text-align: left; cursor: pointer;
+      display: flex; align-items: center; gap: 22px;
+      padding: 20px 24px; min-height: 96px; border-radius: 16px;
+      background: linear-gradient(145deg, rgba(30,58,138,.30), rgba(10,15,20,.55));
+      border: 1px solid rgba(34,219,174,.35);
+      box-shadow: 0 -1px 0 rgba(148,197,255,.10) inset,
+                  8px 8px 24px rgba(0,0,0,.55),
+                  -8px -8px 22px rgba(52,86,160,.10),
+                  0 0 34px rgba(34,219,174,.10);
+      transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+      position: relative; overflow: hidden;
     }
+    /* Barrido de luz superior */
+    .mod-fila::after {
+      content: ''; position: absolute; inset: 0; border-radius: 18px; pointer-events: none;
+      background: radial-gradient(120% 140% at 12% 0%, rgba(34,219,174,.08), transparent 55%);
+      transition: opacity .25s; opacity: 1;
+    }
+    /* Filete lateral que se enciende */
     .mod-fila::before {
-      content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-      background: var(--cyan); transform: scaleY(0); transition: transform .25s;
+      content: ''; position: absolute; left: 0; top: 14%; bottom: 14%; width: 3px;
+      border-radius: 0 3px 3px 0;
+      background: var(--cyan, #22DBAE);
+      box-shadow: 0 0 12px currentColor;
+      color: var(--cyan, #22DBAE);
+      transform: scaleY(0); transform-origin: center;
+      transition: transform .28s cubic-bezier(.4,0,.2,1);
     }
-    .mod-fila:hover { transform: translateX(3px); }
+    .mod-fila:hover { transform: translateY(-3px); }
     .mod-fila:hover::before { transform: scaleY(1); }
-    .mod-fila.inerte { cursor: default; opacity: .6; }
+
+    /* Submódulos: un escalón más contenidos */
+    .mod-fila.sub {
+      padding: 14px 20px; gap: 16px; min-height: 74px; border-radius: 14px;
+      background: linear-gradient(145deg, rgba(30,58,138,.20), rgba(10,15,20,.48));
+      border-color: rgba(148,197,255,.16);
+      box-shadow: 0 -1px 0 rgba(148,197,255,.07) inset,
+                  5px 6px 16px rgba(0,0,0,.45),
+                  0 0 18px rgba(34,219,174,.05);
+    }
+    .mod-fila.sub::after { border-radius: 14px; }
+
+    .mod-fila.inerte { cursor: default; opacity: .45; filter: saturate(.4); }
     .mod-fila.inerte:hover { transform: none; }
     .mod-fila.inerte:hover::before { transform: scaleY(0); }
 
+    /* Ícono: placa con relieve y halo */
     .mod-icono {
-      width: 58px; height: 58px; flex: 0 0 auto;
+      width: 64px; height: 64px; flex: 0 0 auto;
       display: flex; align-items: center; justify-content: center;
-      border-radius: 12px; background: rgba(59,130,246,.10);
+      border-radius: 16px; padding: 9px;
+      background: linear-gradient(150deg, rgba(148,197,255,.10), rgba(10,15,20,.65));
+      border: 1px solid rgba(148,197,255,.14);
+      box-shadow: 0 1px 0 rgba(148,197,255,.16) inset,
+                  0 6px 16px rgba(0,0,0,.5);
+      transition: box-shadow .25s, border-color .25s, transform .25s;
     }
-    .mod-fila.sub .mod-icono { width: 44px; height: 44px; }
-    .mod-icono svg { width: 100%; height: 100%; }
+    .mod-fila.sub .mod-icono { width: 50px; height: 50px; padding: 7px; border-radius: 12px; }
+    .mod-icono svg { width: 100%; height: 100%; display: block;
+      filter: drop-shadow(0 0 6px rgba(34,219,174,.30)); transition: filter .25s; }
+    .mod-fila:hover .mod-icono { transform: translateY(-1px); }
 
     .mod-cuerpo { flex: 1; min-width: 0; text-align: left; }
     .mod-nombre {
-      font-family: 'Rajdhani', sans-serif; font-size: 19px; font-weight: 700;
-      letter-spacing: 1.5px; text-transform: uppercase; color: var(--text); line-height: 1.1;
+      font-family: 'Rajdhani', sans-serif; font-size: 22px; font-weight: 700;
+      letter-spacing: 2.5px; text-transform: uppercase; line-height: 1.05;
+      color: #EAF2FF; text-shadow: 0 0 18px rgba(148,197,255,.20); word-break: break-word;
+      display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
     }
-    .mod-fila.sub .mod-nombre { font-size: 15.5px; letter-spacing: 1.2px; }
-    .mod-desc { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+    .mod-fila.sub .mod-nombre { font-size: 17px; letter-spacing: 2px; }
+    .mod-desc {
+      font-size: 11.5px; letter-spacing: .6px; color: var(--muted, #64748B);
+      margin-top: 6px;
+    }
+    .mod-fila.sub .mod-desc { font-size: 11px; margin-top: 4px; }
+
     .mod-ro {
-      font-size: 9.5px; letter-spacing: 1.5px; text-transform: uppercase;
-      color: var(--muted); border: 1px solid var(--border);
-      border-radius: 99px; padding: 2px 8px; margin-left: 8px; white-space: nowrap;
+      font-size: 9px; letter-spacing: 1.8px; text-transform: uppercase;
+      color: #EBB53F; border: 1px solid rgba(235,181,63,.35);
+      background: rgba(235,181,63,.10);
+      border-radius: 99px; padding: 3px 9px; white-space: nowrap;
+      font-family: 'Rajdhani', sans-serif; font-weight: 600;
     }
-    .mod-flecha { color: var(--muted); font-size: 15px; flex: 0 0 auto; }
+
+    .mod-flecha {
+      color: rgba(148,197,255,.45); font-size: 16px; flex: 0 0 auto;
+      transition: transform .25s, color .25s;
+    }
+    /* El contador vive dentro de la fila (que recorta el overflow),
+       alineado con la flecha en vez de colgar de la esquina. */
+    .mod-fila > .notif-dot {
+      position: static; flex: 0 0 auto; margin-right: 2px;
+      min-width: 24px; height: 24px; border-radius: 12px; font-size: 11.5px;
+    }
+    .mod-fila:hover .mod-flecha { transform: translateX(4px); color: var(--cyan, #22DBAE); }
     .mod-fila.inerte .mod-flecha { display: none; }
 
-    .mod-fila.admin:hover      { border-color: var(--cyan);  box-shadow: 0 6px 26px rgba(34,219,174,.16); }
-    .mod-fila.tecnico:hover    { border-color: var(--blue);  box-shadow: 0 6px 26px rgba(59,130,246,.16); }
-    .mod-fila.medico:hover     { border-color: var(--green); box-shadow: 0 6px 26px rgba(85,231,139,.16); }
-    .mod-fila.operativo:hover  { border-color: #38BDF8;      box-shadow: 0 6px 26px rgba(56,189,248,.16); }
-    .mod-fila.personal:hover   { border-color: #A78BFA;      box-shadow: 0 6px 26px rgba(167,139,250,.16); }
-    .mod-fila.caja:hover       { border-color: #F59E0B;      box-shadow: 0 6px 26px rgba(245,158,11,.16); }
-    .mod-fila.tecnico::before  { background: var(--blue); }
-    .mod-fila.medico::before   { background: var(--green); }
-    .mod-fila.operativo::before{ background: #38BDF8; }
-    .mod-fila.personal::before { background: #A78BFA; }
-    .mod-fila.caja::before     { background: #F59E0B; }
-    .mod-fila.caja .mod-icono      { background: rgba(245,158,11,.12); }
-    .mod-fila.personal .mod-icono  { background: rgba(167,139,250,.12); }
-    .mod-fila.operativo .mod-icono { background: rgba(56,189,248,.12); }
-    .mod-fila.medico .mod-icono    { background: rgba(85,231,139,.12); }
-    .mod-fila.admin .mod-icono     { background: rgba(34,219,174,.12); }
+    /* --- Color por módulo: borde, halo, filete e ícono --- */
+    .mod-fila.admin:hover {
+      border-color: #22DBAE;
+      box-shadow: 0 -1px 0 rgba(148,197,255,.12) inset, 10px 12px 30px rgba(0,0,0,.6),
+                  -8px -8px 24px rgba(52,86,160,.12), 0 0 46px rgba(34,219,174,.24);
+    }
+    .mod-fila.medico { border-color: rgba(85,231,139,.30); }
+    .mod-fila.medico::before { background: #55E78B; color: #55E78B; }
+    .mod-fila.medico:hover {
+      border-color: #55E78B;
+      box-shadow: 0 -1px 0 rgba(148,197,255,.12) inset, 10px 12px 30px rgba(0,0,0,.6),
+                  0 0 46px rgba(85,231,139,.24);
+    }
+    .mod-fila.medico .mod-icono svg { filter: drop-shadow(0 0 6px rgba(85,231,139,.35)); }
+
+    .mod-fila.tecnico { border-color: rgba(59,130,246,.30); }
+    .mod-fila.tecnico::before { background: #3B82F6; color: #3B82F6; }
+    .mod-fila.tecnico:hover {
+      border-color: #3B82F6;
+      box-shadow: 0 -1px 0 rgba(148,197,255,.12) inset, 10px 12px 30px rgba(0,0,0,.6),
+                  0 0 46px rgba(59,130,246,.26);
+    }
+    .mod-fila.tecnico .mod-icono svg { filter: drop-shadow(0 0 6px rgba(59,130,246,.35)); }
+
+    .mod-fila.caja { border-color: rgba(245,158,11,.26); }
+    .mod-fila.caja::before { background: #F59E0B; color: #F59E0B; }
+    .mod-fila.caja:hover {
+      border-color: #F59E0B;
+      box-shadow: 0 -1px 0 rgba(148,197,255,.12) inset, 8px 10px 24px rgba(0,0,0,.55),
+                  0 0 38px rgba(245,158,11,.26);
+    }
+    .mod-fila.caja .mod-icono {
+      background: linear-gradient(150deg, rgba(245,158,11,.16), rgba(10,15,20,.65));
+      border-color: rgba(245,158,11,.24);
+    }
+    .mod-fila.caja .mod-icono svg { filter: drop-shadow(0 0 7px rgba(245,158,11,.45)); }
+
+    .mod-fila.personal { border-color: rgba(167,139,250,.24); }
+    .mod-fila.personal::before { background: #A78BFA; color: #A78BFA; }
+    .mod-fila.personal:hover {
+      border-color: #A78BFA;
+      box-shadow: 0 -1px 0 rgba(148,197,255,.12) inset, 8px 10px 24px rgba(0,0,0,.55),
+                  0 0 38px rgba(167,139,250,.26);
+    }
+    .mod-fila.personal .mod-icono {
+      background: linear-gradient(150deg, rgba(167,139,250,.14), rgba(10,15,20,.65));
+      border-color: rgba(167,139,250,.22);
+    }
+    .mod-fila.personal .mod-icono svg { filter: drop-shadow(0 0 7px rgba(167,139,250,.40)); }
+
+    .mod-fila.operativo { border-color: rgba(56,189,248,.24); }
+    .mod-fila.operativo::before { background: #38BDF8; color: #38BDF8; }
+    .mod-fila.operativo:hover {
+      border-color: #38BDF8;
+      box-shadow: 0 -1px 0 rgba(148,197,255,.12) inset, 8px 10px 24px rgba(0,0,0,.55),
+                  0 0 38px rgba(56,189,248,.26);
+    }
+    .mod-fila.operativo .mod-icono {
+      background: linear-gradient(150deg, rgba(56,189,248,.14), rgba(10,15,20,.65));
+      border-color: rgba(56,189,248,.22);
+    }
+    .mod-fila.operativo .mod-icono svg { filter: drop-shadow(0 0 7px rgba(56,189,248,.40)); }
+
+    @media (prefers-reduced-motion: reduce) {
+      .mod-fila, .mod-fila::before, .mod-icono, .mod-flecha { transition: none; }
+      .mod-grupo { animation: none; }
+    }
 
     @media (max-width: 640px) {
-      .mod-sub-wrap { margin-left: 12px; padding-left: 12px; }
-      .mod-fila { padding: 13px 15px; gap: 13px; }
+      .mod-sub-wrap { margin: 10px 0 0 14px; padding-left: 14px; gap: 8px; }
+      .mod-fila { padding: 15px 16px; gap: 14px; border-radius: 14px; }
+      .mod-fila.sub { padding: 13px 14px; gap: 12px; }
+      .mod-icono { width: 54px; height: 54px; border-radius: 13px; }
+      .mod-fila.sub .mod-icono { width: 44px; height: 44px; }
+      .mod-nombre { font-size: 17px; letter-spacing: 1.6px; }
+      .mod-fila.sub .mod-nombre { font-size: 14.5px; }
       .mod-desc { display: none; }
     }
 
