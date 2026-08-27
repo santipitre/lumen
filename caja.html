@@ -40,7 +40,7 @@ body.gated nav.tabs,body.gated .shell,body.gated #ro-banda{display:none}
 #gate-mail{width:100%;padding:12px 14px;border-radius:9px;border:1px solid var(--linea);background:var(--paper);color:var(--ink);font-size:14.5px;font-family:inherit;transition:border-color .15s}
 #gate-mail:hover,#gate-code:hover{border-color:var(--ink-3)}
 #gate-mail:focus,#gate-code:focus{outline:none;border-color:var(--oro);box-shadow:0 0 0 3px rgba(242,194,48,.16)}
-#gate-code{width:100%;padding:15px 13px;border-radius:9px;border:1px solid var(--linea);background:var(--paper);color:var(--oro);font-family:var(--mono);font-size:29px;font-weight:700;letter-spacing:.36em;text-indent:.36em;text-align:center;transition:border-color .15s}
+#gate-code{width:100%;padding:15px 13px;border-radius:9px;border:1px solid var(--linea);background:var(--paper);color:var(--oro);font-family:var(--mono);font-size:27px;font-weight:700;letter-spacing:.26em;text-indent:.26em;text-align:center;transition:border-color .15s}
 #gate-code::placeholder{color:var(--linea);font-weight:700}
 #gate-btn,#gate-btn2{padding:12px;border-radius:9px;font-size:14.5px;font-weight:600;letter-spacing:.01em}
 #gate-btn:disabled,#gate-btn2:disabled{opacity:.55;cursor:default}
@@ -241,7 +241,7 @@ dialog.dlg-confirm .dlg-f{padding:20px 26px 22px;justify-content:flex-end;backgr
 
       <div class="gate-kicker">by Pyralis</div>
       <h1 class="gate-t">Rendici&oacute;n de Caja</h1>
-      <p class="gate-p" id="gate-msg">Ingres&aacute; tu correo institucional. Te enviamos un c&oacute;digo de 6 d&iacute;gitos para entrar.</p>
+      <p class="gate-p" id="gate-msg">Ingres&aacute; tu correo institucional. Te enviamos un c&oacute;digo num&eacute;rico para entrar.</p>
 
       <div id="gate-form">
         <div class="gate-lab">Correo institucional</div>
@@ -250,8 +250,8 @@ dialog.dlg-confirm .dlg-f{padding:20px 26px 22px;justify-content:flex-end;backgr
       </div>
 
       <div id="gate-form2" style="display:none">
-        <div class="gate-lab">C&oacute;digo de 6 d&iacute;gitos</div>
-        <input id="gate-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+        <div class="gate-lab">C&oacute;digo del correo</div>
+        <input id="gate-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="000000">
         <button class="btn" id="gate-btn2" type="button">Entrar</button>
         <button class="gate-link" id="gate-otro" type="button">&larr; Usar otro correo</button>
       </div>
@@ -1661,7 +1661,7 @@ async function enviarCodigo(){
 
 async function verificarCodigo(){
   const code=$("#gate-code").value.replace(/\D/g,"");
-  if(code.length!==6){mostrarGate("El c\u00f3digo tiene 6 d\u00edgitos.","err");return}
+  if(code.length<6){mostrarGate("Escrib\u00ed el c\u00f3digo completo tal cual figura en el correo.","err");return}
   const btn=$("#gate-btn2");btn.disabled=true;btn.textContent="Verificando\u2026";
   try{
     const {error}=await window.sbAuth.auth.verifyOtp({email:MAIL_OTP,token:code,type:"email"});
@@ -1680,7 +1680,7 @@ function volverAlMail(){
   $("#gate-form").style.display="flex";
   $("#gate-code").value="";
   $("#gate-btn").disabled=false;$("#gate-btn").textContent="Enviarme el c\u00f3digo";
-  $("#gate-msg").textContent="Ingres\u00e1 tu correo institucional. Te enviamos un c\u00f3digo de 6 d\u00edgitos para entrar.";
+  $("#gate-msg").textContent="Ingres\u00e1 tu correo institucional. Te enviamos un c\u00f3digo num\u00e9rico para entrar.";
   mostrarGate(" ","");
 }
 
@@ -1698,9 +1698,9 @@ async function arrancar(){
   $("#gate-btn2").addEventListener("click",verificarCodigo);
   $("#gate-otro").addEventListener("click",volverAlMail);
   $("#gate-code").addEventListener("input",e=>{
-    e.target.value=e.target.value.replace(/\D/g,"").slice(0,6);
-    if(e.target.value.length===6)verificarCodigo();
+    e.target.value=e.target.value.replace(/\D/g,"").slice(0,10);
   });
+  $("#gate-code").addEventListener("keydown",e=>{if(e.key==="Enter")verificarCodigo()});
 
   if(!window.sbAuth){mostrarGate("No se pudo iniciar el cliente de Supabase.","err");return}
 
