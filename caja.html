@@ -26,20 +26,32 @@
 body.gated nav.tabs,body.gated .shell,body.gated #ro-banda{display:none}
 #gate{position:fixed;inset:0;z-index:99;display:none;align-items:center;justify-content:center;background:var(--fondo);padding:24px}
 #gate.on{display:flex}
-.gate-box{width:100%;max-width:430px;border:1px solid var(--linea);border-radius:12px;padding:30px 28px;background:var(--panel)}
-.gate-kicker{font-family:var(--mono);font-size:10.5px;letter-spacing:.28em;color:var(--oro)}
-.gate-t{font-size:25px;margin:10px 0 12px;font-weight:700}
-.gate-p{font-size:13.5px;color:var(--ink-2);line-height:1.55;margin:0 0 18px}
-#gate-form{display:flex;flex-direction:column;gap:10px}
-#gate-mail{width:100%;padding:11px 13px;border-radius:8px;border:1px solid var(--linea);background:var(--fondo);color:var(--ink);font-size:14.5px;font-family:inherit}
-#gate-mail:focus,#gate-code:focus{outline:2px solid var(--oro);outline-offset:1px}
-#gate-code{width:100%;padding:13px;border-radius:8px;border:1px solid var(--linea);background:var(--fondo);color:var(--ink);font-family:var(--mono);font-size:26px;font-weight:700;letter-spacing:.34em;text-align:center}
-#gate-code::placeholder{letter-spacing:.18em;font-size:17px;font-weight:400;color:var(--ink-3)}
-.gate-link{background:none;border:0;color:var(--ink-3);font-size:12.5px;font-family:inherit;text-decoration:underline;cursor:pointer;padding:6px 0}
+.gate-box{width:100%;max-width:408px;border:1px solid var(--linea);border-radius:16px;padding:0;background:var(--panel);overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.45)}
+.gate-top{padding:34px 32px 30px;border-bottom:1px solid var(--linea-2)}
+.gate-marca{display:flex;align-items:center;gap:13px;margin-bottom:26px}
+.gate-marca svg{display:block;flex:none}
+.gate-wordmark{font-size:21px;font-weight:700;letter-spacing:.13em;color:var(--ink);line-height:1}
+.gate-kicker{font-family:var(--mono);font-size:10px;letter-spacing:.3em;color:var(--oro);text-transform:uppercase}
+.gate-t{font-size:23px;margin:11px 0 10px;font-weight:700;letter-spacing:-.01em;line-height:1.2}
+.gate-p{font-size:13.5px;color:var(--ink-2);line-height:1.6;margin:0 0 22px}
+.gate-p strong{color:var(--ink);font-weight:600}
+#gate-form,#gate-form2{display:flex;flex-direction:column;gap:11px}
+.gate-lab{font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--ink-3);text-transform:uppercase;margin-bottom:-3px}
+#gate-mail{width:100%;padding:12px 14px;border-radius:9px;border:1px solid var(--linea);background:var(--paper);color:var(--ink);font-size:14.5px;font-family:inherit;transition:border-color .15s}
+#gate-mail:hover,#gate-code:hover{border-color:var(--ink-3)}
+#gate-mail:focus,#gate-code:focus{outline:none;border-color:var(--oro);box-shadow:0 0 0 3px rgba(242,194,48,.16)}
+#gate-code{width:100%;padding:15px 13px;border-radius:9px;border:1px solid var(--linea);background:var(--paper);color:var(--oro);font-family:var(--mono);font-size:29px;font-weight:700;letter-spacing:.36em;text-indent:.36em;text-align:center;transition:border-color .15s}
+#gate-code::placeholder{color:var(--linea);font-weight:700}
+#gate-btn,#gate-btn2{padding:12px;border-radius:9px;font-size:14.5px;font-weight:600;letter-spacing:.01em}
+#gate-btn:disabled,#gate-btn2:disabled{opacity:.55;cursor:default}
+.gate-link{background:none;border:0;color:var(--ink-3);font-size:12.5px;font-family:inherit;cursor:pointer;padding:4px 0;transition:color .15s}
 .gate-link:hover{color:var(--oro)}
-.gate-hint{font-size:12.5px;color:var(--ink-3);line-height:1.5;margin:14px 0 0;min-height:18px}
+.gate-hint{font-size:12.5px;color:var(--ink-3);line-height:1.5;margin:15px 0 0;min-height:17px}
 .gate-hint.err{color:var(--alerta)}
 .gate-hint.ok{color:var(--efectivo)}
+.gate-pie{padding:15px 32px;background:var(--paper);display:flex;align-items:center;justify-content:center;gap:9px}
+.gate-pie span{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--ink-3);text-transform:uppercase;text-align:center;line-height:1.5}
+.gate-pie i{width:3px;height:3px;border-radius:50%;background:var(--linea);flex:none}
 #ro-banda{display:none;font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-align:center;padding:6px 10px;background:var(--aviso-bg);color:var(--aviso);border-bottom:1px solid var(--linea)}
 body.ro #ro-banda{display:block}
 body.cargando .shell,body.cargando nav.tabs{opacity:.35;pointer-events:none}
@@ -214,19 +226,42 @@ dialog.dlg-confirm .dlg-f{padding:20px 26px 22px;justify-content:flex-end;backgr
 <body>
 <div id="gate">
   <div class="gate-box">
-    <div class="gate-kicker">BY PYRALIS</div>
-    <h1 class="gate-t">Rendici&oacute;n de Caja</h1>
-    <p class="gate-p" id="gate-msg">Ingres&aacute; tu correo institucional. Te enviamos un c&oacute;digo de 6 d&iacute;gitos para entrar.</p>
-    <div id="gate-form">
-      <input id="gate-mail" type="email" autocomplete="email" placeholder="nombre@fuesmen.edu.ar">
-      <button class="btn" id="gate-btn" type="button">Enviarme el c&oacute;digo</button>
+    <div class="gate-top">
+
+      <div class="gate-marca">
+        <svg width="34" height="40" viewBox="0 0 34 40" fill="none" aria-hidden="true">
+          <rect x="0" y="6" width="7.5" height="34" rx="3.75" fill="currentColor" style="color:var(--ink)"/>
+          <rect x="0" y="32.5" width="25" height="7.5" rx="3.75" fill="currentColor" style="color:var(--ink)"/>
+          <circle cx="24.5" cy="9.5" r="9.5" fill="var(--oro)"/>
+        </svg>
+        <div>
+          <div class="gate-wordmark">LUMEN</div>
+        </div>
+      </div>
+
+      <div class="gate-kicker">by Pyralis</div>
+      <h1 class="gate-t">Rendici&oacute;n de Caja</h1>
+      <p class="gate-p" id="gate-msg">Ingres&aacute; tu correo institucional. Te enviamos un c&oacute;digo de 6 d&iacute;gitos para entrar.</p>
+
+      <div id="gate-form">
+        <div class="gate-lab">Correo institucional</div>
+        <input id="gate-mail" type="email" autocomplete="email" placeholder="nombre@fuesmen.edu.ar">
+        <button class="btn" id="gate-btn" type="button">Enviarme el c&oacute;digo</button>
+      </div>
+
+      <div id="gate-form2" style="display:none">
+        <div class="gate-lab">C&oacute;digo de 6 d&iacute;gitos</div>
+        <input id="gate-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+        <button class="btn" id="gate-btn2" type="button">Entrar</button>
+        <button class="gate-link" id="gate-otro" type="button">&larr; Usar otro correo</button>
+      </div>
+
+      <p class="gate-hint" id="gate-hint"></p>
     </div>
-    <div id="gate-form2" style="display:none;flex-direction:column;gap:10px">
-      <input id="gate-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
-      <button class="btn" id="gate-btn2" type="button">Entrar</button>
-      <button class="gate-link" id="gate-otro" type="button">Usar otro correo</button>
+
+    <div class="gate-pie">
+      <span>FUESMEN</span><i></i><span>Hospital Italiano de Mendoza</span>
     </div>
-    <p class="gate-hint" id="gate-hint"></p>
   </div>
 </div>
 <header class="top"><div class="top-in">
