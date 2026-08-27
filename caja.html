@@ -32,7 +32,11 @@ body.gated nav.tabs,body.gated .shell,body.gated #ro-banda{display:none}
 .gate-p{font-size:13.5px;color:var(--ink-2);line-height:1.55;margin:0 0 18px}
 #gate-form{display:flex;flex-direction:column;gap:10px}
 #gate-mail{width:100%;padding:11px 13px;border-radius:8px;border:1px solid var(--linea);background:var(--fondo);color:var(--ink);font-size:14.5px;font-family:inherit}
-#gate-mail:focus{outline:2px solid var(--oro);outline-offset:1px}
+#gate-mail:focus,#gate-code:focus{outline:2px solid var(--oro);outline-offset:1px}
+#gate-code{width:100%;padding:13px;border-radius:8px;border:1px solid var(--linea);background:var(--fondo);color:var(--ink);font-family:var(--mono);font-size:26px;font-weight:700;letter-spacing:.34em;text-align:center}
+#gate-code::placeholder{letter-spacing:.18em;font-size:17px;font-weight:400;color:var(--ink-3)}
+.gate-link{background:none;border:0;color:var(--ink-3);font-size:12.5px;font-family:inherit;text-decoration:underline;cursor:pointer;padding:6px 0}
+.gate-link:hover{color:var(--oro)}
 .gate-hint{font-size:12.5px;color:var(--ink-3);line-height:1.5;margin:14px 0 0;min-height:18px}
 .gate-hint.err{color:var(--alerta)}
 .gate-hint.ok{color:var(--efectivo)}
@@ -212,10 +216,15 @@ dialog.dlg-confirm .dlg-f{padding:20px 26px 22px;justify-content:flex-end;backgr
   <div class="gate-box">
     <div class="gate-kicker">BY PYRALIS</div>
     <h1 class="gate-t">Rendici&oacute;n de Caja</h1>
-    <p class="gate-p" id="gate-msg">Ingres&aacute; tu correo institucional. Te enviamos un enlace de un solo uso para entrar.</p>
+    <p class="gate-p" id="gate-msg">Ingres&aacute; tu correo institucional. Te enviamos un c&oacute;digo de 6 d&iacute;gitos para entrar.</p>
     <div id="gate-form">
       <input id="gate-mail" type="email" autocomplete="email" placeholder="nombre@fuesmen.edu.ar">
-      <button class="btn" id="gate-btn" type="button">Enviarme el enlace</button>
+      <button class="btn" id="gate-btn" type="button">Enviarme el c&oacute;digo</button>
+    </div>
+    <div id="gate-form2" style="display:none;flex-direction:column;gap:10px">
+      <input id="gate-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+      <button class="btn" id="gate-btn2" type="button">Entrar</button>
+      <button class="gate-link" id="gate-otro" type="button">Usar otro correo</button>
     </div>
     <p class="gate-hint" id="gate-hint"></p>
   </div>
@@ -1582,7 +1591,7 @@ function limpiarBotonesEdicion(){
 }
 
 /* ============================================================
-   ACCESO POR ENLACE (magic link)
+   ACCESO POR CODIGO (OTP 6 digitos)
    ============================================================ */
 const gate=()=>$("#gate");
 function mostrarGate(msg,clase){
@@ -1593,21 +1602,51 @@ function mostrarGate(msg,clase){
 }
 function ocultarGate(){gate().classList.remove("on");document.body.classList.remove("gated")}
 
-async function enviarEnlace(){
+let MAIL_OTP="";
+
+async function enviarCodigo(){
   const mail=$("#gate-mail").value.trim().toLowerCase();
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)){mostrarGate("Ese correo no parece v\u00e1lido.","err");return}
   if(!window.sbAuth){mostrarGate("No carg\u00f3 el cliente de Supabase. Revis\u00e1 la conexi\u00f3n.","err");return}
   const btn=$("#gate-btn");btn.disabled=true;btn.textContent="Enviando\u2026";
   try{
-    const {error}=await window.sbAuth.auth.signInWithOtp({
-      email:mail,options:{emailRedirectTo:location.origin+location.pathname,shouldCreateUser:false}});
+    const {error}=await window.sbAuth.auth.signInWithOtp({email:mail,options:{shouldCreateUser:false}});
     if(error)throw error;
+    MAIL_OTP=mail;
     $("#gate-form").style.display="none";
-    mostrarGate("Listo. Revis\u00e1 "+mail+" y abr\u00ed el enlace desde este mismo dispositivo. Vence en una hora.","ok");
+    $("#gate-form2").style.display="flex";
+    $("#gate-msg").textContent="Te enviamos un c\u00f3digo a "+mail+". Escribilo ac\u00e1 abajo.";
+    mostrarGate("Revis\u00e1 tu correo. El c\u00f3digo vence en una hora.","ok");
+    setTimeout(function(){$("#gate-code").focus()},80);
   }catch(e){
     mostrarGate("No se pudo enviar: "+(e.message||e),"err");
-    btn.disabled=false;btn.textContent="Enviarme el enlace";
+    btn.disabled=false;btn.textContent="Enviarme el c\u00f3digo";
   }
+}
+
+async function verificarCodigo(){
+  const code=$("#gate-code").value.replace(/\D/g,"");
+  if(code.length!==6){mostrarGate("El c\u00f3digo tiene 6 d\u00edgitos.","err");return}
+  const btn=$("#gate-btn2");btn.disabled=true;btn.textContent="Verificando\u2026";
+  try{
+    const {error}=await window.sbAuth.auth.verifyOtp({email:MAIL_OTP,token:code,type:"email"});
+    if(error)throw error;
+    location.reload();
+  }catch(e){
+    mostrarGate("C\u00f3digo incorrecto o vencido. Revis\u00e1 el \u00faltimo correo que recibiste.","err");
+    btn.disabled=false;btn.textContent="Entrar";
+    $("#gate-code").select();
+  }
+}
+
+function volverAlMail(){
+  MAIL_OTP="";
+  $("#gate-form2").style.display="none";
+  $("#gate-form").style.display="flex";
+  $("#gate-code").value="";
+  $("#gate-btn").disabled=false;$("#gate-btn").textContent="Enviarme el c\u00f3digo";
+  $("#gate-msg").textContent="Ingres\u00e1 tu correo institucional. Te enviamos un c\u00f3digo de 6 d\u00edgitos para entrar.";
+  mostrarGate(" ","");
 }
 
 async function cerrarSesion(){
@@ -1619,8 +1658,14 @@ async function arrancar(){
   document.body.classList.add("cargando","gated");
   reloj();setInterval(reloj,30000);
   pintarEscudo();
-  $("#gate-btn").addEventListener("click",enviarEnlace);
-  $("#gate-mail").addEventListener("keydown",e=>{if(e.key==="Enter")enviarEnlace()});
+  $("#gate-btn").addEventListener("click",enviarCodigo);
+  $("#gate-mail").addEventListener("keydown",e=>{if(e.key==="Enter")enviarCodigo()});
+  $("#gate-btn2").addEventListener("click",verificarCodigo);
+  $("#gate-otro").addEventListener("click",volverAlMail);
+  $("#gate-code").addEventListener("input",e=>{
+    e.target.value=e.target.value.replace(/\D/g,"").slice(0,6);
+    if(e.target.value.length===6)verificarCodigo();
+  });
 
   if(!window.sbAuth){mostrarGate("No se pudo iniciar el cliente de Supabase.","err");return}
 
