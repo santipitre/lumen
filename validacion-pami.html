@@ -15,7 +15,7 @@
   html,body{font-size:14px;line-height:1.5}
   .main{max-width:1760px;margin:0 auto;padding:20px 22px 90px}
 
-  .topbar{position:sticky;top:0;z-index:60;background:rgba(10,15,20,.92);backdrop-filter:blur(12px);
+  .topbar{position:sticky;top:0;left:0;z-index:60;background:rgba(10,15,20,.92);backdrop-filter:blur(12px);
     border-bottom:1px solid var(--border);padding:0 22px;display:flex;align-items:center;gap:14px;height:56px}
   .tb-crumb{font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
     color:var(--pyralis-firefly);font-size:15px}
@@ -40,8 +40,9 @@
   .btn-excel{background:rgba(16,185,129,.14);border-color:rgba(16,185,129,.4);color:#34d399}
   .btn-excel:hover{background:rgba(16,185,129,.22);border-color:#10B981;color:#6ee7b7}
 
-  /* dropzone */
-  .drop{border:1.5px dashed var(--border-a);border-radius:14px;padding:30px 20px;text-align:center;
+  /* dropzone — es un <label>, hay que forzarlo a block o rompe el layout */
+  .drop{display:block;width:100%;border:1.5px dashed var(--border-a);border-radius:14px;
+    padding:34px 20px;text-align:center;
     background:rgba(245,158,11,.03);transition:all .2s;cursor:pointer;margin-bottom:20px}
   .drop.dragover{border-style:solid;background:rgba(245,158,11,.10);box-shadow:0 0 0 2px var(--border-a) inset}
   .drop.loaded{border-color:var(--ok);background:rgba(16,185,129,.06)}
