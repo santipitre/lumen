@@ -447,6 +447,19 @@
     }
     .mod-fila.conciliacion .mod-icono svg { filter: drop-shadow(0 0 7px rgba(244,114,182,.40)); }
 
+    .mod-fila.validacion { border-color: rgba(34,211,238,.24); }
+    .mod-fila.validacion::before { background: #22D3EE; color: #22D3EE; }
+    .mod-fila.validacion:hover {
+      border-color: #22D3EE;
+      box-shadow: 0 -1px 0 rgba(148,197,255,.12) inset, 8px 10px 24px rgba(0,0,0,.55),
+                  0 0 38px rgba(34,211,238,.26);
+    }
+    .mod-fila.validacion .mod-icono {
+      background: linear-gradient(150deg, rgba(34,211,238,.14), rgba(10,15,20,.65));
+      border-color: rgba(34,211,238,.22);
+    }
+    .mod-fila.validacion .mod-icono svg { filter: drop-shadow(0 0 7px rgba(34,211,238,.40)); }
+
     @media (prefers-reduced-motion: reduce) {
       .mod-fila, .mod-fila::before, .mod-icono, .mod-flecha { transition: none; }
       .mod-grupo { animation: none; }
@@ -1021,6 +1034,11 @@ const MODULE_CARDS = {
     clase: 'conciliacion', nombre: 'Conciliación FUESMEN ↔ PAMI', key: 'conciliacion',
     desc: 'Turnos vs bandeja de transmisi&oacute;n &middot; Validados &middot; Pendientes',
     svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/><rect x="32" y="46" width="56" height="76" rx="7" fill="none" stroke="#F472B6" stroke-width="3.5"/><line x1="43" y1="64" x2="77" y2="64" stroke="#F472B6" stroke-width="2.5" stroke-linecap="round"/><line x1="43" y1="78" x2="77" y2="78" stroke="#F472B6" stroke-width="2.5" stroke-opacity=".7" stroke-linecap="round"/><line x1="43" y1="92" x2="66" y2="92" stroke="#F472B6" stroke-width="2.5" stroke-opacity=".5" stroke-linecap="round"/><rect x="112" y="46" width="56" height="76" rx="7" fill="none" stroke="#F472B6" stroke-width="3.5"/><line x1="123" y1="64" x2="157" y2="64" stroke="#F472B6" stroke-width="2.5" stroke-linecap="round"/><line x1="123" y1="78" x2="157" y2="78" stroke="#F472B6" stroke-width="2.5" stroke-opacity=".7" stroke-linecap="round"/><path d="M124 100 l7 7 l14 -15" fill="none" stroke="#22DBAE" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M94 74 l12 0 m-4 -4 l4 4 l-4 4" fill="none" stroke="#22DBAE" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M106 94 l-12 0 m4 -4 l-4 4 l4 4" fill="none" stroke="#22DBAE" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><text x="100" y="200" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">CONCILIACI&#211;N</text><text x="100" y="222" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">PAMI</text></svg>`
+  },
+  validacion: {
+    clase: 'validacion', nombre: 'Validación de órdenes PAMI', key: 'validacion',
+    desc: 'Bandeja en verde &middot; Autocompletado en el portal &middot; Credencial',
+    svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/><rect x="34" y="40" width="62" height="62" rx="8" fill="none" stroke="#22D3EE" stroke-width="3.5"/><rect x="48" y="54" width="16" height="16" rx="2" fill="#22D3EE"/><rect x="70" y="54" width="12" height="8" rx="1.5" fill="#22D3EE" fill-opacity=".55"/><rect x="48" y="78" width="10" height="10" rx="1.5" fill="#22D3EE" fill-opacity=".55"/><rect x="64" y="76" width="18" height="14" rx="1.5" fill="#22D3EE" fill-opacity=".8"/><path d="M112 46 l52 0 M112 62 l52 0 M112 78 l38 0" stroke="#22D3EE" stroke-width="3" stroke-linecap="round" stroke-opacity=".75"/><path d="M118 112 l10 11 l22 -25" fill="none" stroke="#22DBAE" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M40 118 l44 0 m-8 -7 l8 7 l-8 7" fill="none" stroke="#22DBAE" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><text x="100" y="200" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">VALIDACI&#211;N</text><text x="100" y="222" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">PAMI</text></svg>`
   }
 };
 
@@ -1447,15 +1465,19 @@ async function renderModules() {
   if (!modulos.conciliacion && (modulos.admin === 'edit' || modulos.admin === 'admin')) {
     modulos.conciliacion = 'edit';
   }
+  // Validación de órdenes PAMI: mismo criterio que Conciliación.
+  if (!modulos.validacion && modulos.conciliacion) {
+    modulos.validacion = modulos.conciliacion;
+  }
 
   // Atajo: si el usuario tiene acceso a UN SOLO m\u00f3dulo, lo mandamos directo ah\u00ed
   // (no tiene sentido mostrarle la pantalla de selecci\u00f3n con una sola card).
   // Si tiene 2 o m\u00e1s (ej: operativo + personal para solicitantes), mostramos la pantalla.
-  const modulosConPermiso = ['admin', 'tecnico', 'medico', 'operativo', 'personal', 'caja', 'conciliacion']
+  const modulosConPermiso = ['admin', 'tecnico', 'medico', 'operativo', 'personal', 'caja', 'conciliacion', 'validacion']
     .filter(key => modulos[key]);
   if (modulosConPermiso.length === 1) {
     const key = modulosConPermiso[0];
-    const destinos = { admin:'admin.html', tecnico:'tecnico.html', medico:'medico.html', operativo:'operativo.html?modo=pedidos', personal:'personal.html', caja:'caja.html', conciliacion:'conciliacion-pami.html' };
+    const destinos = { admin:'admin.html', tecnico:'tecnico.html', medico:'medico.html', operativo:'operativo.html?modo=pedidos', personal:'personal.html', caja:'caja.html', conciliacion:'conciliacion-pami.html', validacion:'validacion-pami.html' };
     localStorage.setItem('spcd_rol', key);
     window.location.replace(destinos[key] || 'index.html');
     return;
@@ -1477,7 +1499,7 @@ async function renderModules() {
 
   // Estructura: módulos principales con sus submódulos
   const GRUPOS = [
-    { padre: 'admin',   hijos: ['caja', 'personal', 'operativo', 'conciliacion'] },
+    { padre: 'admin',   hijos: ['caja', 'personal', 'operativo', 'conciliacion', 'validacion'] },
     { padre: 'medico',  hijos: [] },
     { padre: 'tecnico', hijos: [] }
   ];
@@ -1535,7 +1557,7 @@ async function renderModules() {
 function selectRol(nombre, clase) {
   selectedRol = nombre;
   localStorage.setItem('spcd_rol', nombre);
-  const destinos = { admin:'admin.html', tecnico:'tecnico.html', medico:'medico.html', operativo:'operativo.html', personal:'personal.html', caja:'caja.html', conciliacion:'conciliacion-pami.html' };
+  const destinos = { admin:'admin.html', tecnico:'tecnico.html', medico:'medico.html', operativo:'operativo.html', personal:'personal.html', caja:'caja.html', conciliacion:'conciliacion-pami.html', validacion:'validacion-pami.html' };
   window.location.href = destinos[clase] || 'index.html';
 }
 

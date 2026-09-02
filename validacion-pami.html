@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Validación PAMI · LUMEN</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml"/>
+<link rel="stylesheet" href="spcd-theme.css"/>
+<link rel="stylesheet" href="spcd-components.css"/>
+<style>
+  :root{
+    --ok:#10B981; --warn:#FBBF24; --info:#60A5FA; --danger:#F87171; --dud:#A78BFA;
+    --glass:rgba(30,58,138,.14); --border:rgba(148,163,184,.16); --border-a:rgba(245,158,11,.35);
+  }
+  html,body{font-size:14px;line-height:1.5}
+  .main{max-width:1760px;margin:0 auto;padding:20px 22px 90px}
+
+  .topbar{position:sticky;top:0;z-index:60;background:rgba(10,15,20,.92);backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--border);padding:0 22px;display:flex;align-items:center;gap:14px;height:56px}
+  .tb-crumb{font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+    color:var(--pyralis-firefly);font-size:15px}
+  .tb-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+  .ses-chip{font-size:11px;letter-spacing:.5px;color:var(--muted);border:1px solid var(--border);
+    border-radius:20px;padding:5px 12px;background:var(--glass)}
+  .ses-chip b{color:var(--pyralis-text)}
+  .tb-back{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);text-decoration:none;
+    border:1px solid var(--border);border-radius:6px;padding:6px 12px}
+  .tb-back:hover{color:var(--pyralis-firefly);border-color:var(--border-a)}
+
+  h1.page{font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;letter-spacing:1px;margin:18px 0 4px}
+  .page-sub{color:var(--muted);font-size:12.5px;margin-bottom:18px;max-width:880px}
+
+  .btn{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;
+    border-radius:7px;padding:9px 16px;cursor:pointer;border:1px solid transparent;transition:all .15s}
+  .btn-primary{background:linear-gradient(135deg,#B45309,var(--pyralis-firefly));color:#1a1206}
+  .btn-primary:hover{filter:brightness(1.08)}
+  .btn:disabled{opacity:.4;cursor:not-allowed;filter:none}
+  .btn-ghost{background:var(--glass);border-color:var(--border);color:var(--pyralis-text)}
+  .btn-ghost:hover{border-color:var(--border-a);color:var(--pyralis-firefly)}
+  .btn-excel{background:rgba(16,185,129,.14);border-color:rgba(16,185,129,.4);color:#34d399}
+  .btn-excel:hover{background:rgba(16,185,129,.22);border-color:#10B981;color:#6ee7b7}
+
+  /* dropzone */
+  .drop{border:1.5px dashed var(--border-a);border-radius:14px;padding:30px 20px;text-align:center;
+    background:rgba(245,158,11,.03);transition:all .2s;cursor:pointer;margin-bottom:20px}
+  .drop.dragover{border-style:solid;background:rgba(245,158,11,.10);box-shadow:0 0 0 2px var(--border-a) inset}
+  .drop.loaded{border-color:var(--ok);background:rgba(16,185,129,.06)}
+  .drop h3{font-family:'Rajdhani',sans-serif;font-size:17px;letter-spacing:1px;margin:0 0 6px;text-transform:uppercase}
+  .drop p{color:var(--muted);font-size:12px;margin:0}
+  .drop input[type=file]{display:none}
+
+  /* config */
+  .cfg{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;background:var(--glass);
+    border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:18px}
+  .cfg .fld{display:flex;flex-direction:column;gap:5px}
+  .cfg label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+  .cfg input,.cfg select{padding:8px 10px;border-radius:6px;background:var(--pyralis-bg-input);
+    border:1px solid var(--border);color:var(--pyralis-text);font-family:'Inter',sans-serif;font-size:13px}
+  .cfg input[type=text]{width:330px}
+  .cfg input.small{width:64px}
+  .cfg select{width:280px}
+  .cfg input:focus,.cfg select:focus{outline:none;border-color:var(--pyralis-firefly)}
+  .cfg .hint{font-size:11px;color:var(--pyralis-text-dim);flex-basis:100%;margin-top:-4px}
+  .cfg .hint.warn{color:var(--warn)}
+
+  /* stats */
+  .stats{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+  .stat{background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:10px 16px;min-width:112px}
+  .stat b{display:block;font-family:'Rajdhani',sans-serif;font-size:23px;font-weight:700;line-height:1.1}
+  .stat span{font-size:10px;letter-spacing:1.3px;text-transform:uppercase;color:var(--muted)}
+  .stat.ok b{color:var(--ok)} .stat.warn b{color:var(--warn)} .stat.dang b{color:var(--danger)}
+  .stat.info b{color:var(--pyralis-firefly)}
+
+  /* filtros */
+  .filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+  .chip{font-size:11px;letter-spacing:1px;text-transform:uppercase;border:1px solid var(--border);
+    border-radius:20px;padding:6px 14px;background:var(--glass);color:var(--muted);cursor:pointer;transition:all .15s}
+  .chip:hover{border-color:var(--border-a);color:var(--pyralis-text)}
+  .chip.on{background:var(--pyralis-firefly-dim);border-color:var(--pyralis-firefly);color:var(--pyralis-firefly-soft)}
+  .search{margin-left:auto}
+  .search input{padding:8px 12px;border-radius:6px;background:var(--pyralis-bg-input);
+    border:1px solid var(--border);color:var(--pyralis-text);font-size:13px;width:230px}
+  .search input:focus{outline:none;border-color:var(--pyralis-firefly)}
+
+  /* tabla */
+  .tbl-wrap{border:1px solid var(--border);border-radius:12px;overflow:auto;background:rgba(14,21,33,.5)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{position:sticky;top:0;background:#111a26;z-index:5;text-align:left;padding:11px 12px;
+    font-size:10px;letter-spacing:1.3px;text-transform:uppercase;color:var(--muted);
+    border-bottom:1px solid var(--border);white-space:nowrap}
+  tbody td{padding:10px 12px;border-bottom:1px solid rgba(148,163,184,.07);vertical-align:middle}
+  tbody tr:hover{background:rgba(245,158,11,.04)}
+  tbody tr.act{background:rgba(245,158,11,.10);box-shadow:inset 3px 0 0 var(--pyralis-firefly)}
+  tbody tr.e-validada{opacity:.5}
+  tbody tr.e-validada td.c-est{opacity:1}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;letter-spacing:.3px}
+  .ord{color:var(--pyralis-firefly-soft);font-weight:600}
+  .nom{font-weight:600}
+  .pract{font-size:11px;color:var(--pyralis-text-dim);max-width:340px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ben-b{color:var(--lumen-accent-soft)} .ben-d{color:var(--warn)}
+  .rng{font-size:11px;color:var(--pyralis-text-dim);white-space:nowrap}
+  .verde-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#92D050;margin-right:6px;
+    box-shadow:0 0 6px rgba(146,208,80,.7)}
+
+  .est{font-size:10px;letter-spacing:1px;text-transform:uppercase;border-radius:20px;padding:4px 10px;
+    border:1px solid var(--border);color:var(--muted);white-space:nowrap}
+  .est.validada{background:rgba(16,185,129,.15);border-color:rgba(16,185,129,.5);color:#6ee7b7}
+  .est.rechazada{background:rgba(248,113,113,.13);border-color:rgba(248,113,113,.45);color:#fca5a5}
+
+  .acts{display:flex;gap:5px;white-space:nowrap}
+  .ib{border:1px solid var(--border);background:var(--glass);color:var(--muted);border-radius:6px;
+    padding:5px 9px;font-size:11px;cursor:pointer;transition:all .13s;line-height:1.3}
+  .ib:hover{border-color:var(--border-a);color:var(--pyralis-firefly)}
+  .ib.go{background:linear-gradient(135deg,#B45309,var(--pyralis-firefly));color:#1a1206;border-color:transparent;
+    font-weight:700;letter-spacing:.5px;padding:6px 12px}
+  .ib.go:hover{filter:brightness(1.1);color:#1a1206}
+  .ib.ok:hover{border-color:var(--ok);color:#6ee7b7}
+  .ib.no:hover{border-color:var(--danger);color:#fca5a5}
+
+  .empty{padding:60px 20px;text-align:center;color:var(--pyralis-text-dim);font-size:13px}
+
+  /* banner modo */
+  .modo{display:flex;align-items:center;gap:12px;border:1px solid var(--border);border-radius:10px;
+    padding:11px 15px;margin-bottom:16px;background:var(--glass);font-size:12.5px;color:var(--muted)}
+  .modo .dot{width:9px;height:9px;border-radius:50%;background:var(--pyralis-text-dim);flex:none}
+  .modo.auto{border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.06)}
+  .modo.auto .dot{background:var(--ok);box-shadow:0 0 8px rgba(16,185,129,.8)}
+  .modo b{color:var(--pyralis-text)}
+  .modo a{color:var(--pyralis-firefly);text-decoration:none;border-bottom:1px dotted}
+
+  /* toast */
+  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
+    background:#111a26;border:1px solid var(--border-a);border-radius:10px;padding:12px 20px;
+    font-size:13px;color:var(--pyralis-text);z-index:200;opacity:0;transition:all .25s;pointer-events:none;
+    box-shadow:0 10px 40px rgba(0,0,0,.6)}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #toast.ok{border-color:rgba(16,185,129,.6)} #toast.err{border-color:rgba(248,113,113,.6)}
+
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="lumen-wordmark">L<span class="firefly-o">u</span>men</span>
+  <span class="tb-crumb">· Validación PAMI</span>
+  <div class="tb-right">
+    <span class="ses-chip" id="ses">sin sesión</span>
+    <a class="tb-back" href="conciliacion-pami.html">← Conciliación</a>
+    <a class="tb-back" href="app.html">Inicio</a>
+  </div>
+</div>
+
+<div class="main">
+  <h1 class="page">Validación de órdenes en PAMI</h1>
+  <p class="page-sub">Subí la bandeja de transmisión. Las filas con <b>TURNO marcado en verde</b> se detectan solas.
+    Cada orden se dispara al portal de PAMI con el número, el rango de fechas y el beneficio ya partido.</p>
+
+  <div class="modo" id="modo">
+    <span class="dot"></span>
+    <span id="modo-txt">Modo <b>copiar/pegar</b> — instalá el userscript de Tampermonkey para que PAMI se complete solo.
+      <a href="validacion-pami.user.js" id="lnk-us">Instalar userscript</a></span>
+  </div>
+
+  <label class="drop" id="drop">
+    <input type="file" id="file" accept=".xlsx,.xlsm,.xls"/>
+    <h3 id="drop-t">Soltá acá el Excel de la bandeja</h3>
+    <p id="drop-p">ORDENES SIN VALIDAR H ITALIANO.xlsx &middot; o hacé click para elegirlo</p>
+  </label>
+
+  <div id="zona" class="hidden">
+
+    <div class="cfg">
+      <div class="fld">
+        <label>URL del portal PAMI</label>
+        <input type="text" id="pami-url" value="https://po.pami.org.ar/controllers/efector.php"/>
+      </div>
+      <div class="fld">
+        <label>Rango de fecha de emisión</label>
+        <select id="modo-fecha">
+          <option value="emision">Emisión de la orden ± N días (recomendado)</option>
+          <option value="turno">Turno −7 / +2 días (tu regla original)</option>
+          <option value="none">No tocar el filtro de fechas</option>
+        </select>
+      </div>
+      <div class="fld" id="fld-margen">
+        <label>N días</label>
+        <input type="number" class="small" id="margen" value="2" min="0" max="60"/>
+      </div>
+      <div class="fld">
+        <label>&nbsp;</label>
+        <button class="btn btn-excel" id="btn-export">Exportar Excel con estados</button>
+      </div>
+      <div class="hint" id="hint-fecha"></div>
+    </div>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="filters">
+      <span class="chip on" data-f="verdes">Solo verdes</span>
+      <span class="chip" data-f="todas">Todas</span>
+      <span class="chip" data-f="pendientes">Pendientes</span>
+      <span class="chip" data-f="validadas">Validadas</span>
+      <span class="chip" data-f="rechazadas">Rechazadas</span>
+      <button class="btn btn-primary" id="btn-next" style="margin-left:14px">▶ Siguiente pendiente</button>
+      <div class="search"><input type="text" id="q" placeholder="Buscar orden o apellido…"/></div>
+    </div>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th style="width:30px"></th>
+          <th>Nro. orden</th>
+          <th>Apellido y nombre</th>
+          <th>Turno</th>
+          <th>Beneficio / GP</th>
+          <th>Rango emisión</th>
+          <th>Prácticas</th>
+          <th>Estado</th>
+          <th style="width:250px">Acciones</th>
+        </tr></thead>
+        <tbody id="tb"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx-js-style.min.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   LUMEN · Validación PAMI
+   Lumen manda (esta pantalla) · Tampermonkey ejecuta (en po.pami.org.ar)
+   ═══════════════════════════════════════════════════════════════ */
+'use strict';
+
+const EST_KEY  = 'lumen.valpami.estados.v1';
+const CFG_KEY  = 'lumen.valpami.cfg.v1';
+const PAMI_ORIGINS = ['https://po.pami.org.ar','https://pe.pami.org.ar'];
+
+let ORDENES = [];      // [{orden, nombre, turno, turnoD, emision, emisionD, ben14, benBase, benDv, practicas:[], verde}]
+let FILTRO  = 'verdes';
+let QUERY   = '';
+let ESTADOS = load(EST_KEY, {});
+let CFG     = load(CFG_KEY, {});
+let pamiWin = null;
+let activa  = null;
+let autoOK  = false;
+
+/* ── utils ─────────────────────────────────────────────── */
+function load(k, d){ try{ return JSON.parse(localStorage.getItem(k)) || d; }catch(e){ return d; } }
+function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+function norm(s){ return String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .toUpperCase().replace(/\s+/g,' ').trim(); }
+function $(id){ return document.getElementById(id); }
+
+function toast(msg, cls){
+  const t = $('toast'); t.textContent = msg; t.className = 'show ' + (cls||'');
+  clearTimeout(toast._t); toast._t = setTimeout(()=>{ t.className = ''; }, 2600);
+}
+function copiar(txt, label){
+  navigator.clipboard.writeText(txt).then(
+    ()=> toast((label||'Copiado') + ': ' + txt, 'ok'),
+    ()=> toast('No pude copiar', 'err'));
+}
+
+/* dd/mm/yyyy -> Date  |  Date -> dd/mm/yyyy */
+function parseFecha(s){
+  const m = String(s||'').match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if (!m) return null;
+  return new Date(+m[3], +m[2]-1, +m[1]);
+}
+function fmtFecha(d){
+  if (!d) return '';
+  return String(d.getDate()).padStart(2,'0') + '/' +
+         String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
+}
+function addDias(d, n){ const x = new Date(d.getTime()); x.setDate(x.getDate()+n); return x; }
+
+/* ── rango de fechas según config ──────────────────────── */
+function rangoDe(o){
+  const modo = $('modo-fecha').value;
+  const n    = Math.max(0, parseInt($('margen').value, 10) || 0);
+  if (modo === 'none') return null;
+  if (modo === 'turno'){
+    if (!o.turnoD) return null;
+    return { desde: fmtFecha(addDias(o.turnoD, -7)), hasta: fmtFecha(addDias(o.turnoD, 2)) };
+  }
+  if (!o.emisionD) return null;
+  return { desde: fmtFecha(addDias(o.emisionD, -n)), hasta: fmtFecha(addDias(o.emisionD, n)) };
+}
+
+/* ── parseo del Excel ──────────────────────────────────── */
+const CAMPOS = {
+  orden:     ['NRO. ORDEN','NRO ORDEN','N ORDEN','ORDEN'],
+  emision:   ['FECHA EMISION','F EMISION','FECHA DE EMISION'],
+  beneficio: ['NRO. BENEFICIO/GP','NRO BENEFICIO/GP','BENEFICIO/GP','NRO. BENEFICIO','BENEFICIO'],
+  nombre:    ['APELLIDO Y NOMBRE','APELLIDO Y NOMBRES','AFILIADO'],
+  practica:  ['PRACTICA','PRACTICAS'],
+  turno:     ['TURNO','FECHA TURNO']
+};
+
+function mapearColumnas(headers){
+  const idx = {};
+  for (const campo in CAMPOS){
+    for (let c = 0; c < headers.length; c++){
+      if (CAMPOS[campo].includes(norm(headers[c]))){ idx[campo] = c; break; }
+    }
+  }
+  return idx;
+}
+
+function celdaMarcada(ws, r, c){
+  if (c == null) return false;
+  const cell = ws[XLSX.utils.encode_cell({ r: r, c: c })];
+  if (!cell || !cell.s) return false;
+  const f = cell.s.fgColor || (cell.s.fill && cell.s.fill.fgColor);
+  const pt = cell.s.patternType || (cell.s.fill && cell.s.fill.patternType);
+  if (!f || !pt || pt === 'none') return false;
+  const rgb = String(f.rgb || '').toUpperCase().slice(-6);
+  if (!rgb) return !!f.theme;                       // relleno por tema: cuenta
+  return rgb !== 'FFFFFF' && rgb !== '000000';      // blanco/negro = no marcado
+}
+
+async function procesar(file){
+  const buf = await file.arrayBuffer();
+  const wb  = XLSX.read(buf, { type:'array', cellStyles:true, raw:true });
+  const ws  = wb.Sheets[wb.SheetNames[0]];
+  const aoa = XLSX.utils.sheet_to_json(ws, { header:1, raw:true, defval:'' });
+  if (!aoa.length) throw new Error('La hoja está vacía');
+
+  const idx = mapearColumnas(aoa[0]);
+  const faltan = ['orden','beneficio','nombre','turno'].filter(k => idx[k] == null);
+  if (faltan.length) throw new Error('No encontré la columna: ' + faltan.join(', '));
+
+  const mapa = new Map();
+  let marcadas = 0;
+
+  for (let r = 1; r < aoa.length; r++){
+    const row = aoa[r];
+    const orden = String(row[idx.orden] || '').trim();
+    if (!orden) continue;
+
+    const verde = celdaMarcada(ws, r, idx.turno);
+    if (verde) marcadas++;
+
+    if (!mapa.has(orden)){
+      const ben14 = String(row[idx.beneficio] || '').replace(/\D/g,'').padStart(14, '0');
+      const turno = String(row[idx.turno] || '').trim();
+      const emis  = idx.emision != null ? String(row[idx.emision] || '').trim() : '';
+      mapa.set(orden, {
+        orden:    orden,
+        nombre:   String(row[idx.nombre] || '').trim(),
+        turno:    turno,
+        turnoD:   parseFecha(turno),
+        emision:  emis,
+        emisionD: parseFecha(emis),
+        ben14:    ben14,
+        benBase:  ben14.slice(0, 12),
+        benDv:    ben14.slice(12),
+        practicas: [],
+        verde:    verde,
+        fila:     r
+      });
+    }
+    const o = mapa.get(orden);
+    if (verde) o.verde = true;
+    const p = idx.practica != null ? String(row[idx.practica] || '').trim() : '';
+    if (p && !o.practicas.includes(p)) o.practicas.push(p);
+  }
+
+  ORDENES = [...mapa.values()].sort((a,b)=>{
+    const t = (a.turnoD?.getTime()||0) - (b.turnoD?.getTime()||0);
+    return t || a.nombre.localeCompare(b.nombre);
+  });
+
+  if (!marcadas){
+    FILTRO = 'todas';
+    document.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.f === 'todas'));
+    toast('No detecté filas marcadas en TURNO — muestro todas', 'err');
+  }
+
+  $('drop').classList.add('loaded');
+  $('drop-t').textContent = file.name;
+  $('drop-p').textContent = ORDENES.length + ' órdenes únicas · ' + marcadas + ' filas marcadas en verde';
+  $('zona').classList.remove('hidden');
+  render();
+}
+
+/* ── estados ───────────────────────────────────────────── */
+function estadoDe(orden){ return (ESTADOS[orden] && ESTADOS[orden].e) || 'pendiente'; }
+function setEstado(orden, e){
+  if (e === 'pendiente') delete ESTADOS[orden];
+  else ESTADOS[orden] = { e: e, ts: Date.now() };
+  save(EST_KEY, ESTADOS);
+  render();
+}
+
+/* ── render ────────────────────────────────────────────── */
+function visibles(){
+  return ORDENES.filter(o => {
+    const est = estadoDe(o.orden);
+    if (FILTRO === 'verdes'     && !o.verde) return false;
+    if (FILTRO === 'pendientes' && est !== 'pendiente') return false;
+    if (FILTRO === 'validadas'  && est !== 'validada') return false;
+    if (FILTRO === 'rechazadas' && est !== 'rechazada') return false;
+    if (QUERY){
+      const q = norm(QUERY);
+      if (!norm(o.nombre).includes(q) && !o.orden.includes(QUERY.replace(/\D/g,''))) return false;
+    }
+    return true;
+  });
+}
+
+function render(){
+  const verdes = ORDENES.filter(o => o.verde);
+  const base   = verdes.length ? verdes : ORDENES;
+  const cnt = { val:0, rec:0, pen:0 };
+  base.forEach(o => {
+    const e = estadoDe(o.orden);
+    if (e === 'validada') cnt.val++; else if (e === 'rechazada') cnt.rec++; else cnt.pen++;
+  });
+
+  $('stats').innerHTML =
+    stat('info', ORDENES.length, 'Órdenes') +
+    stat('info', verdes.length,  'En verde') +
+    stat('warn', cnt.pen,        'Pendientes') +
+    stat('ok',   cnt.val,        'Validadas') +
+    stat('dang', cnt.rec,        'Rechazadas');
+
+  const modo = $('modo-fecha').value;
+  $('fld-margen').style.display = modo === 'emision' ? '' : 'none';
+  $('hint-fecha').className = 'hint' + (modo === 'turno' ? ' warn' : '');
+  $('hint-fecha').textContent =
+    modo === 'emision' ? 'El filtro de PAMI es por fecha de EMISIÓN, no por turno. Este modo usa la emisión de cada orden, así siempre cae dentro del rango.'
+  : modo === 'turno'   ? '⚠ En tu último Excel solo 29 de 149 filas verdes tenían la emisión dentro de turno −7/+2. Con este modo la mayoría de las búsquedas vuelven vacías.'
+  :                      'El userscript no toca las fechas: se busca solo por número de orden, con el filtro que PAMI traiga por defecto.';
+
+  const rows = visibles();
+  const tb = $('tb');
+  if (!rows.length){
+    tb.innerHTML = '<tr><td colspan="9" class="empty">No hay órdenes con este filtro.</td></tr>';
+    return;
+  }
+
+  tb.innerHTML = rows.map(o => {
+    const est = estadoDe(o.orden);
+    const rg  = rangoDe(o);
+    return `<tr data-o="${o.orden}" class="e-${est}${activa===o.orden?' act':''}">
+      <td>${o.verde ? '<span class="verde-dot" title="Marcada en verde"></span>' : ''}</td>
+      <td class="mono ord">${o.orden}</td>
+      <td class="nom">${esc(o.nombre)}</td>
+      <td class="mono">${esc(o.turno)}</td>
+      <td class="mono"><span class="ben-b">${o.benBase}</span> / <span class="ben-d">${o.benDv}</span></td>
+      <td class="rng">${rg ? rg.desde + ' → ' + rg.hasta : '—'}</td>
+      <td class="pract" title="${esc(o.practicas.join(' | '))}">${esc(o.practicas[0]||'')}${o.practicas.length>1?' +'+(o.practicas.length-1):''}</td>
+      <td class="c-est"><span class="est ${est}">${est}</span></td>
+      <td><div class="acts">
+        <button class="ib go"  data-a="go">▶ PAMI</button>
+        <button class="ib"     data-a="cp-o" title="Copiar nro. de orden">⧉ orden</button>
+        <button class="ib"     data-a="cp-b" title="Copiar beneficio sin los 2 últimos dígitos">⧉ ${o.benBase}</button>
+        <button class="ib ok"  data-a="ok"   title="Marcar validada">✓</button>
+        <button class="ib no"  data-a="no"   title="Marcar rechazada">✗</button>
+        <button class="ib"     data-a="rst"  title="Volver a pendiente">↺</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+function stat(cls, n, lbl){ return `<div class="stat ${cls}"><b>${n}</b><span>${lbl}</span></div>`; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ── disparar a PAMI ───────────────────────────────────── */
+function irAPami(o){
+  const rg  = rangoDe(o);
+  const pay = {
+    v: 1, t: Date.now(),
+    orden:   o.orden,
+    nombre:  o.nombre,
+    turno:   o.turno,
+    benBase: o.benBase,
+    benDv:   o.benDv,
+    desde:   rg ? rg.desde : null,
+    hasta:   rg ? rg.hasta : null
+  };
+  const url = $('pami-url').value.trim() + '#lumen=' + encodeURIComponent(JSON.stringify(pay));
+
+  try {
+    if (pamiWin && !pamiWin.closed){ pamiWin.location.href = url; pamiWin.focus(); }
+    else { pamiWin = window.open(url, 'lumen_pami'); }
+  } catch(e){ pamiWin = window.open(url, 'lumen_pami'); }
+
+  if (!pamiWin) { toast('El navegador bloqueó la ventana. Permití popups en Lumen.', 'err'); return; }
+  activa = o.orden;
+  render();
+  if (!autoOK) copiar(o.orden, 'Nro. de orden');
+}
+
+function siguientePendiente(){
+  const lista = visibles().filter(o => estadoDe(o.orden) === 'pendiente');
+  const i = lista.findIndex(o => o.orden === activa);
+  const o = lista[i + 1] || lista[0];
+  if (!o){ toast('No quedan pendientes con este filtro', 'ok'); return; }
+  irAPami(o);
+  const tr = document.querySelector('tr[data-o="' + o.orden + '"]');
+  if (tr) tr.scrollIntoView({ block:'center', behavior:'smooth' });
+}
+
+/* ── mensajes del userscript ───────────────────────────── */
+window.addEventListener('message', ev => {
+  if (PAMI_ORIGINS.indexOf(ev.origin) === -1) return;
+  const d = ev.data;
+  if (!d || d.src !== 'lumen-pami-us') return;
+
+  if (!autoOK){
+    autoOK = true;
+    $('modo').classList.add('auto');
+    $('modo-txt').innerHTML = 'Modo <b>automático</b> — el userscript está corriendo en PAMI.';
+  }
+  if (d.accion === 'estado' && d.orden){
+    setEstado(d.orden, d.estado);
+    toast(d.orden + ' → ' + d.estado, d.estado === 'validada' ? 'ok' : '');
+    if (d.siguiente) setTimeout(siguientePendiente, 250);
+  }
+  if (d.accion === 'error') toast('PAMI: ' + d.msg, 'err');
+});
+
+/* ── exportar Excel con estados ────────────────────────── */
+function exportar(){
+  if (!ORDENES.length) return;
+  const hoy = fmtFecha(new Date());
+  const aoa = [['NRO. ORDEN','APELLIDO Y NOMBRE','TURNO','FECHA EMISIÓN','NRO. BENEFICIO/GP',
+                'MARCADA','ESTADO LUMEN','FECHA ESTADO','PRÁCTICAS']];
+  ORDENES.forEach(o => {
+    const e = estadoDe(o.orden);
+    const ts = ESTADOS[o.orden] ? fmtFecha(new Date(ESTADOS[o.orden].ts)) : '';
+    aoa.push([o.orden, o.nombre, o.turno, o.emision, o.ben14,
+              o.verde ? 'VERDE' : '', e.toUpperCase(), ts, o.practicas.join(' | ')]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:16},{wch:34},{wch:24},{wch:20},{wch:17},{wch:9},{wch:13},{wch:13},{wch:60}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'validacion');
+  XLSX.writeFile(wb, 'VALIDACION_PAMI_' + hoy.replace(/\//g,'-') + '.xlsx');
+}
+
+/* ── eventos ───────────────────────────────────────────── */
+const drop = $('drop');
+['dragenter','dragover'].forEach(e => drop.addEventListener(e, ev => {
+  ev.preventDefault(); drop.classList.add('dragover'); }));
+['dragleave','drop'].forEach(e => drop.addEventListener(e, ev => {
+  ev.preventDefault(); drop.classList.remove('dragover'); }));
+drop.addEventListener('drop', ev => { const f = ev.dataTransfer.files[0]; if (f) cargar(f); });
+$('file').addEventListener('change', ev => { const f = ev.target.files[0]; if (f) cargar(f); });
+
+function cargar(f){
+  procesar(f).catch(err => { console.error(err); toast(err.message || 'No pude leer el archivo', 'err'); });
+}
+
+$('tb').addEventListener('click', ev => {
+  const b = ev.target.closest('button[data-a]'); if (!b) return;
+  const orden = b.closest('tr').dataset.o;
+  const o = ORDENES.find(x => x.orden === orden); if (!o) return;
+  switch (b.dataset.a){
+    case 'go':   irAPami(o); break;
+    case 'cp-o': copiar(o.orden, 'Orden'); break;
+    case 'cp-b': copiar(o.benBase, 'Beneficio'); break;
+    case 'ok':   setEstado(orden, 'validada'); break;
+    case 'no':   setEstado(orden, 'rechazada'); break;
+    case 'rst':  setEstado(orden, 'pendiente'); break;
+  }
+});
+
+document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => {
+  document.querySelectorAll('.chip').forEach(x => x.classList.remove('on'));
+  c.classList.add('on'); FILTRO = c.dataset.f; render();
+}));
+$('q').addEventListener('input', e => { QUERY = e.target.value; render(); });
+$('btn-next').addEventListener('click', siguientePendiente);
+$('btn-export').addEventListener('click', exportar);
+['modo-fecha','margen','pami-url'].forEach(id => $(id).addEventListener('change', () => {
+  CFG = { modoFecha: $('modo-fecha').value, margen: $('margen').value, url: $('pami-url').value };
+  save(CFG_KEY, CFG); render();
+}));
+
+/* sesión */
+(function(){
+  try {
+    const s = JSON.parse(localStorage.getItem('lumen_session') || localStorage.getItem('spcd_operativo_session'));
+    const u = s && (s.user || s);
+    if (u && (u.nombre || u.usuario)) $('ses').innerHTML = 'Sesión: <b>' + esc(u.nombre || u.usuario) + '</b>';
+  } catch(e){}
+})();
+
+/* config guardada */
+if (CFG.modoFecha) $('modo-fecha').value = CFG.modoFecha;
+if (CFG.margen)    $('margen').value     = CFG.margen;
+if (CFG.url)       $('pami-url').value   = CFG.url;
+</script>
+</body>
+</html>
