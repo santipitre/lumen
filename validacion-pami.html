@@ -229,7 +229,8 @@
 
 <div id="toast"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx-js-style.min.js"></script>
+<!-- cdnjs: es el CDN que ya usa el resto de Lumen. jsdelivr NO carga en la red de FUESMEN. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════
    LUMEN · Validación PAMI
@@ -556,8 +557,23 @@ drop.addEventListener('drop', ev => { const f = ev.dataTransfer.files[0]; if (f)
 $('file').addEventListener('change', ev => { const f = ev.target.files[0]; if (f) cargar(f); });
 
 function cargar(f){
+  if (typeof XLSX === 'undefined'){
+    toast('No cargó la librería de Excel. Revisá si tu red bloquea cdnjs.cloudflare.com', 'err');
+    return;
+  }
   procesar(f).catch(err => { console.error(err); toast(err.message || 'No pude leer el archivo', 'err'); });
 }
+
+/* Aviso temprano si el CDN no respondió, en vez de fallar recién al soltar el archivo */
+window.addEventListener('load', () => {
+  if (typeof XLSX !== 'undefined') return;
+  const m = $('modo');
+  m.classList.remove('auto');
+  m.style.borderColor = 'rgba(248,113,113,.45)';
+  m.style.background  = 'rgba(248,113,113,.07)';
+  $('modo-txt').innerHTML = '<b style="color:#fca5a5">No cargó la librería de Excel (cdnjs.cloudflare.com).</b> ' +
+    'La página no va a poder leer el archivo hasta que se destrabe ese dominio en la red.';
+});
 
 $('tb').addEventListener('click', ev => {
   const b = ev.target.closest('button[data-a]'); if (!b) return;
