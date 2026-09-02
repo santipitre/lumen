@@ -175,7 +175,7 @@
     <div class="cfg">
       <div class="fld">
         <label>URL del portal PAMI</label>
-        <input type="text" id="pami-url" value="https://po.pami.org.ar/controllers/efector.php"/>
+        <input type="text" id="pami-url" value="https://pe.pami.org.ar/controllers/efector.php"/>
       </div>
       <div class="fld">
         <label>Rango de fecha de emisión</label>
@@ -613,6 +613,11 @@ $('btn-export').addEventListener('click', exportar);
 /* config guardada */
 if (CFG.modoFecha) $('modo-fecha').value = CFG.modoFecha;
 if (CFG.margen)    $('margen').value     = CFG.margen;
+/* po.pami.org.ar no resuelve (NXDOMAIN). Si quedó guardado de una versión vieja, se corrige solo. */
+if (CFG.url && /(^|\/\/)po\.pami\.org\.ar/i.test(CFG.url)){
+  CFG.url = CFG.url.replace(/po\.pami\.org\.ar/ig, 'pe.pami.org.ar');
+  save(CFG_KEY, CFG);
+}
 if (CFG.url)       $('pami-url').value   = CFG.url;
 </script>
 </body>
