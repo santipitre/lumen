@@ -153,7 +153,7 @@ input[type=text],input[type=date],select,textarea{background:var(--linea-2);bord
 input::placeholder,textarea::placeholder{color:var(--ink-3)}
 input[type=date]{color-scheme:light}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--tarjeta);outline-offset:-1px;border-color:var(--tarjeta)}
-input.money{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums;width:116px;padding-left:24px}
+input.money{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums;width:142px;padding-left:24px}
 .money-wrap{position:relative;display:inline-block}
 .money-wrap::before{content:"$";position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--ink-3);font-family:var(--mono);pointer-events:none;line-height:1}
 .money-wrap:focus-within::before{color:var(--efectivo)}
@@ -1389,7 +1389,7 @@ function dialogoSalida(tipo){
   const iF=el("input",{type:"date",value:hoyISO(),max:hoyISO()});
   const sR=el("select",{},...S.gente().map(r=>el("option",{value:r},r)));
   // los centavos importan: con Math.round() el remanente daba -$0,50
-  const iM=el("input",{class:"money",type:"text",value:saldo.toFixed(2).replace(".",","),
+  const iM=el("input",{class:"money",type:"text",value:montoTexto(saldo),
     style:"width:170px;font-size:16px"});
   const iD=el("input",{type:"text",placeholder:S.detallePh,style:"width:100%"});
   const sB=S.pideBanco?el("select",{},el("option",{value:""},"Elegí el banco"),
@@ -1913,7 +1913,39 @@ async function marcarRevisado(d,on){
   }else delete db.revisados[k];
   guardar();toast(on?"Marcado como revisado.":"Reabierto para revisión.");render();
 }
-function pesos(inp){return el("span",{class:"money-wrap"},inp)}
+/* Los campos de plata se separan en miles mientras se escribe:
+   8258782,5 -> 8.258.782,5. parseMonto ya entiende ese formato
+   (puntos de miles + coma decimal), así que nada río abajo cambia. */
+const miles=e=>e.replace(/\B(?=(\d{3})+(?!\d))/g,".");
+function montoTexto(n){
+  const v=Number(n)||0, [e,d]=Math.abs(v).toFixed(2).split(".");
+  return (v<0?"-":"")+miles(e)+(d==="00"?"":","+d);
+}
+const sigMonto=c=>/[\d,-]/.test(c);
+function formatearMonto(inp){
+  const pos=inp.selectionStart==null?inp.value.length:inp.selectionStart;
+  // contar dígitos Y coma: si sólo se cuentan dígitos, al escribir la coma
+  // el cursor vuelve delante de ella y el dígito siguiente entra en los enteros
+  const antes=(inp.value.slice(0,pos).match(/[\d,-]/g)||[]).length;
+  let v=inp.value.replace(/[^\d,.-]/g,"");
+  const neg=v.startsWith("-"); v=v.replace(/-/g,"");
+  const coma=v.indexOf(",");
+  const ent=(coma<0?v:v.slice(0,coma)).replace(/\./g,"").replace(/^0+(?=\d)/,"");
+  const dec=coma<0?"":v.slice(coma+1).replace(/\D/g,"").slice(0,2);
+  let out=miles(ent)+(coma<0?"":","+dec);
+  if(neg) out="-"+out;
+  inp.value=out;
+  // dejar el cursor después de la misma cantidad de dígitos que había antes
+  let n=0,i=0;
+  while(i<out.length&&n<antes){ if(sigMonto(out[i])) n++; i++ }
+  try{ inp.setSelectionRange(i,i) }catch(e){}
+}
+function pesos(inp){
+  inp.addEventListener("input",()=>formatearMonto(inp));
+  inp.addEventListener("blur",()=>{ if(inp.value.trim()) inp.value=montoTexto(parseMonto(inp.value)) });
+  if(inp.value) formatearMonto(inp);
+  return el("span",{class:"money-wrap"},inp);
+}
 function procesarArchivo(file,cb){
   if(!file)return;
   const esImg=/^image\/(png|jpeg|webp)$/.test(file.type);
