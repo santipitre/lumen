@@ -5,30 +5,42 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Caja · Listados y tesorería</title>
 <style>
+@font-face{font-family:'Instrument Serif';font-style:normal;font-weight:400;font-display:swap;src:url(fuentes/instrument-serif-400.woff2) format('woff2')}
+@font-face{font-family:'Plus Jakarta Sans';font-style:normal;font-weight:400;font-display:swap;src:url(fuentes/plus-jakarta-sans-400.woff2) format('woff2')}
+@font-face{font-family:'Plus Jakarta Sans';font-style:normal;font-weight:500;font-display:swap;src:url(fuentes/plus-jakarta-sans-500.woff2) format('woff2')}
+@font-face{font-family:'Plus Jakarta Sans';font-style:normal;font-weight:600;font-display:swap;src:url(fuentes/plus-jakarta-sans-600.woff2) format('woff2')}
+@font-face{font-family:'Plus Jakarta Sans';font-style:normal;font-weight:700;font-display:swap;src:url(fuentes/plus-jakarta-sans-700.woff2) format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:swap;src:url(fuentes/ibm-plex-mono-400.woff2) format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:swap;src:url(fuentes/ibm-plex-mono-500.woff2) format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:600;font-display:swap;src:url(fuentes/ibm-plex-mono-600.woff2) format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:700;font-display:swap;src:url(fuentes/ibm-plex-mono-700.woff2) format('woff2')}
+
 :root{
   /* --- identidad (NUNCA usar para estado) --- */
-  --oro:#876800; --oro-2:#DDBF75;
+  --oro:#7A5E12; --oro-2:#E9CE96;
   /* --- superficies: papel cálido, tinta pizarra fría --- */
-  --ink:#2C303C; --ink-2:#5A6275; --ink-3:#5F677E;
-  --paper:#F3F0E9; --panel:#FCFBF8; --linea:#E5E0D5; --linea-2:#F0EDE5;
-  --fondo:#F3F0E9;
+  --ink:#2E2A24; --ink-2:#665D50; --ink-3:#776C5B;
+  --paper:#F7F4EE; --panel:#FFFDF7; --linea:#E7E0D2; --linea-2:#F2EDE3;
+  --fondo:#F7F4EE;
+  --riel:#F1ECE1; --manteca:#F5E0B8; --manteca-2:#E9CE96; --manteca-ink:#4A3A10;
   --btn-fg:#FCFBF8;
   --sombra:0 1px 2px rgba(44,48,60,.05),0 8px 22px rgba(44,48,60,.06);
   /* --- categorías: gama armonizada en OKLCH.
          *-bg / *-soft son pastel (rellenos); el token pelado es TEXTO y
          mantiene >=4.55:1 contra papel, panel y filas teñidas. --- */
-  --efectivo:#127B4E;  --efectivo-bg:#DEF4E6;  --efectivo-soft:#85CDA3;
-  --tarjeta:#5465B4;   --tarjeta-bg:#E6EDFF;   --tarjeta-soft:#A5B7F8;
-  --billetera:#8F5598; --billetera-bg:#F8E8FA; --billetera-soft:#D8A6DF;
-  --otros:#9E5735;     --otros-bg:#FFE8DE;     --otros-soft:#EEA788;
-  --alerta:#B14648;    --alerta-bg:#FFE6E5;    --alerta-soft:#F2A29F;
-  --aviso:#985D00;     --aviso-bg:#FBEBD9;     --aviso-soft:#E2B076;
+  --efectivo:#2E775C;  --efectivo-bg:#D2F7E6;  --efectivo-soft:#6CD5AD;
+  --tarjeta:#3F6D98;   --tarjeta-bg:#D6F0FF;   --tarjeta-soft:#80C4FF;
+  --billetera:#785F94; --billetera-bg:#F4E6FF; --billetera-soft:#CFABF9;
+  --otros:#8D5970;     --otros-bg:#FFE1F0;     --otros-soft:#F79EC5;
+  --alerta:#AD4741;    --alerta-bg:#FFE2DD;    --alerta-soft:#FFA097;
+  --aviso:#896421;     --aviso-bg:#FEEACC;     --aviso-soft:#E6B463;
   /* --- filas teñidas y ticket --- */
-  --fila-ok:#E9F7EF; --fila-ok-h:#DCF0E5;
-  --fila-ret:#F8F2E0; --fila-ret-h:#F2E9CE;
-  --cinta:#FDFCF6;
-  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Roboto Mono","DejaVu Sans Mono",monospace;
-  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --fila-ok:#E7F4EC; --fila-ok-h:#DAEDE3;
+  --fila-ret:#FAF0DA; --fila-ret-h:#F5E7C8;
+  --cinta:#FFFDF7;
+  --mono:'IBM Plex Mono',ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --sans:'Plus Jakarta Sans',system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --serif:'Instrument Serif',Georgia,"Times New Roman",serif;
   --marca:#2F5B8E; --marca-2:#1F3D63;
   --r:6px;
 }
@@ -186,8 +198,8 @@ tr.fila-ok:hover td{background:var(--fila-ok-h)}
 .cajero-tag{font-family:var(--mono);font-size:13.5px;font-weight:700;letter-spacing:.02em}
 .chip-ef{color:var(--efectivo)} .chip-ta{color:var(--tarjeta)} .chip-bi{color:var(--billetera)} .chip-ot{color:var(--otros)}
 .neg{color:var(--alerta)}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:1px;background:var(--linea);border:1px solid var(--linea);border-radius:var(--r);overflow:hidden;box-shadow:var(--sombra)}
-.kpi{background:var(--panel);padding:13px 14px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:0;background:var(--panel);border:1px solid var(--linea);border-radius:var(--r);overflow:hidden;box-shadow:var(--sombra)}
+.kpi{background:var(--panel);padding:13px 14px;box-shadow:1px 0 0 var(--linea),0 1px 0 var(--linea)}
 .kpi .k{font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);font-weight:650}
 .kpi .v{font-family:var(--mono);font-size:21px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-top:3px}
 .bars{display:grid;gap:9px;margin-top:6px}
@@ -241,6 +253,8 @@ dialog.dlg-confirm .dlg-f{padding:20px 26px 22px;justify-content:flex-end;backgr
    Lo que va a contabilidad no lleva identidad de club.
    ============================================================ */
 @media print{
+  .kpis .kpi:last-child{background:#FFFFFF!important}
+  .kpis .kpi:last-child .k{color:#4A5058!important}
   :root{
     --oro:#16181D; --oro-2:#DCE0DA;
     --ink:#16181D; --ink-2:#4A5058; --ink-3:#6E747C;
@@ -283,6 +297,87 @@ dialog.dlg-confirm .dlg-f{padding:20px 26px 22px;justify-content:flex-end;backgr
   .tabla-scroll{max-height:none;border:0;overflow:visible}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
+
+/* ============================================================
+   RIEL LATERAL + ENCABEZADO — sistema "pasteles cálidos"
+   El riel reemplaza a la fila de pestañas. #tabs conserva su id
+   y sus button[data-v], así que aplicarModo() sigue funcionando.
+   ============================================================ */
+.app{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100vh;align-items:start}
+.riel{position:sticky;top:0;height:100vh;background:var(--riel);border-right:1px solid var(--linea);
+  display:flex;flex-direction:column;padding:20px 14px 16px;gap:4px}
+.riel-marca{display:flex;align-items:center;gap:10px;padding:0 8px 20px}
+.riel-l{width:30px;height:30px;flex:none;border-radius:50%;background:var(--manteca);
+  color:var(--manteca-ink);font-family:var(--serif);font-size:19px;
+  display:grid;place-items:center;line-height:1}
+.riel-marca b{display:block;font-size:14.5px;font-weight:700;letter-spacing:.06em;line-height:1.15}
+.riel-marca small{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.22em;color:var(--ink-3)}
+.riel-sec{font-family:var(--mono);font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--ink-3);padding:0 10px 8px}
+nav.tabs{display:flex;flex-direction:column;gap:2px;border-bottom:0;margin:0;padding:0;max-width:none}
+nav.tabs button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;
+  background:none;border:0;border-bottom:0;border-radius:8px;padding:8px 10px;margin:0;
+  font-size:14px;font-weight:500;color:var(--ink-2);cursor:pointer}
+nav.tabs button::before{content:"";width:6px;height:6px;flex:none;border-radius:50%;
+  background:var(--linea);transition:background .15s}
+nav.tabs button:hover{background:rgba(255,253,247,.75);color:var(--ink)}
+nav.tabs button[aria-current=true]{background:var(--manteca);color:var(--manteca-ink);font-weight:700}
+nav.tabs button[aria-current=true]::before{background:var(--manteca-ink)}
+nav.tabs button[data-v=revisar]::before{background:var(--otros-soft)}
+#cnt-rev{margin-left:auto;font-family:var(--mono);font-size:10.5px;font-weight:700;
+  color:var(--otros);background:var(--otros-bg);border-radius:99px;padding:1px 7px}
+#cnt-rev:empty{display:none}
+.riel-pie{margin-top:auto;padding-top:16px;display:grid;gap:10px}
+.riel-sede{background:var(--panel);border:1px solid var(--linea);border-radius:var(--r);padding:10px 12px;display:grid;gap:1px}
+.riel-sede small{font-family:var(--mono);font-size:8.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-3)}
+.riel-sede b{font-size:14px;font-weight:700;line-height:1.2}
+.riel-sede span{font-size:11px;color:var(--ink-3)}
+
+header.top{border-top:0;border-bottom:1px solid var(--linea);background:var(--paper)}
+.top-in{display:block;max-width:none;padding:0}
+.marca{max-width:1500px;margin:0 auto;padding:26px 22px 20px;display:flex;
+  align-items:flex-end;justify-content:space-between;gap:26px;flex-wrap:wrap}
+.marca-eyebrow{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.28em;
+  text-transform:uppercase;color:var(--ink-3);margin-bottom:9px}
+.marca-tit{font-family:var(--serif);font-size:clamp(30px,3.6vw,46px);font-weight:400;
+  letter-spacing:-.005em;color:var(--ink);line-height:.98;margin:0}
+.marca-der{display:flex;align-items:center;gap:20px}
+.top-right{font-family:var(--mono);font-size:11.5px;font-weight:500;letter-spacing:.13em;
+  color:var(--ink-2);background:var(--panel);border:1px solid var(--linea);
+  padding:7px 15px;border-radius:99px;white-space:nowrap}
+.marca-logos{display:flex;align-items:center;gap:15px}
+.marca-logos img{height:40px;width:auto;display:block}
+.marca-logos img.hi{height:46px}
+.shell{padding-top:20px}
+.panel>h2{display:none}
+/* cifras en serif, como la maqueta; los montos tabulares siguen en mono */
+.cinta-monto{font-family:var(--serif);font-weight:400;font-size:40px;letter-spacing:0}
+.kpi .v{font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0}
+.kpis .kpi:last-child{background:var(--manteca)}
+.kpis .kpi:last-child .k{color:var(--manteca-ink)}
+#ro-banda{position:static;border-radius:var(--r);font-size:11px;padding:7px 10px;text-align:center}
+
+@media(max-width:1000px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .riel{position:static;height:auto;border-right:0;border-bottom:1px solid var(--linea);
+    flex-direction:row;align-items:center;flex-wrap:wrap;gap:10px;padding:12px 14px}
+  .riel-marca{padding:0 10px 0 0}
+  .riel-sec{display:none}
+  nav.tabs{flex-direction:row;flex-wrap:wrap;flex:1 1 100%}
+  nav.tabs button{width:auto}
+  .riel-pie{margin:0;padding:0;grid-auto-flow:column;align-items:center}
+  .riel-sede{display:none}
+}
+@media print{
+  .riel{display:none!important}
+  .app{display:block}
+  .marca{padding:0 0 8px!important}
+  .marca-tit{color:#16181D!important;font-size:30px!important}
+  .marca-logos img{height:34px!important}.marca-logos img.hi{height:38px!important}
+  .shell{padding-top:0}
+  .panel>h2{display:block}
+}
+
 </style>
 </head>
 <body>
@@ -326,31 +421,44 @@ dialog.dlg-confirm .dlg-f{padding:20px 26px 22px;justify-content:flex-end;backgr
     </div>
   </div>
 </div>
-<header class="top"><div class="top-in">
-  <div class="top-fecha"><div class="top-right" id="reloj"></div></div>
-  <div class="marca" id="marca">
-    <img class="marca-logo" src="fuesmen-logo.png" alt="FUESMEN — Fundaci&oacute;n Escuela Medicina Nuclear">
-    <div class="marca-mid">
-      <span class="filete"></span>
-      <h1>Rendici&oacute;n <em>de Caja</em></h1>
-      <span class="marca-sede" id="marca-sede"></span>
-      <span class="filete d"></span>
-    </div>
-    <img class="marca-logo hi" src="hitaliano-logo.png" alt="Hospital Italiano de Mendoza">
+<div class="app">
+<aside class="riel">
+  <div class="riel-marca">
+    <span class="riel-l">L</span>
+    <div><b>LUMEN</b><small>by Pyralis</small></div>
   </div>
-  <img id="escudo" class="escudo" alt="Rendición de Caja — FUESMEN · Hospital Italiano de Mendoza">
+  <div class="riel-sec">Caja</div>
+  <nav class="tabs" id="tabs">
+    <button data-v="importar">Importar listados</button>
+    <button data-v="dias" aria-current="true">D&iacute;as</button>
+    <button data-v="reportes">Reportes</button>
+    <button data-v="retiros">Retiros y dep&oacute;sitos</button>
+    <button data-v="revisar">Revisar <span id="cnt-rev"></span></button>
+    <button data-v="manual">Cargar a mano</button>
+    <button data-v="datos">Datos y respaldo</button>
+  </nav>
+  <div class="riel-pie">
+    <div class="riel-sede"><small>Sede</small><b>Hospital Italiano</b><span>FUESMEN &middot; Mendoza</span></div>
+    <div id="ro-banda">S&oacute;lo lectura &middot; pod&eacute;s mirar, exportar e imprimir</div>
+  </div>
+</aside>
+<div class="lienzo">
+<header class="top"><div class="top-in">
+  <div class="marca" id="marca">
+    <div>
+      <div class="marca-eyebrow">Rendici&oacute;n de Caja</div>
+      <h1 class="marca-tit" id="titulo-vista">D&iacute;as cargados</h1>
+    </div>
+    <div class="marca-der">
+      <div class="top-right" id="reloj"></div>
+      <div class="marca-logos">
+        <img src="fuesmen-logo.png" alt="FUESMEN">
+        <img src="hitaliano-logo.png" class="hi" alt="Hospital Italiano de Mendoza">
+      </div>
+    </div>
+  </div>
+  <img id="escudo" class="escudo" alt="">
 </div></header>
-
-<div id="ro-banda">Solo lectura &middot; pod&eacute;s mirar, exportar e imprimir</div>
-<nav class="tabs" id="tabs">
-  <button data-v="importar" aria-current="true">Importar listados</button>
-  <button data-v="dias">Días</button>
-  <button data-v="reportes">Reportes</button>
-  <button data-v="retiros">Retiros y dep&oacute;sitos</button>
-  <button data-v="revisar">Revisar <span id="cnt-rev"></span></button>
-  <button data-v="manual">Cargar a mano</button>
-  <button data-v="datos">Datos y respaldo</button>
-</nav>
 
 <div class="shell">
   <main id="main"></main>
@@ -368,6 +476,7 @@ dialog.dlg-confirm .dlg-f{padding:20px 26px 22px;justify-content:flex-end;backgr
     </div>
   </aside>
 </div>
+</div></div>
 
 <div id="toast" role="status" aria-live="polite"></div>
 <dialog id="dlg"><form method="dialog">
@@ -1706,11 +1815,13 @@ function pintarCinta(){
   const r=diasARevisar().filter(x=>!estaRevisado(x.d)).length; $("#cnt-rev").textContent=r?`(${r})`:"";
   $("#btn-retirar").disabled=s<=0; $("#btn-depositar").disabled=s<=0;
 }
+const TITULOS={importar:"Importar listados",dias:"D\u00edas cargados",reportes:"Reportes",retiros:"Retiros y dep\u00f3sitos",revisar:"Revisar",manual:"Cargar a mano",datos:"Datos y respaldo"};
 const VISTAS={importar:vistaImportar,dias:vistaDias,reportes:vistaReportes,retiros:vistaRetiros,revisar:vistaRevisar,manual:vistaManual,datos:vistaDatos};
 function render(){
   $("#main").replaceChildren(VISTAS[vista]());
   limpiarBotonesEdicion();
   for(const b of $("#tabs").children) b.setAttribute("aria-current",b.dataset.v===vista?"true":"false");
+  $("#titulo-vista").textContent=TITULOS[vista]||"";
   pintarCinta();
 }
 $("#tabs").addEventListener("click",e=>{const b=e.target.closest("button[data-v]");if(!b)return;vista=b.dataset.v;render();window.scrollTo({top:0})});
