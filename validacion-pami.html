@@ -50,6 +50,14 @@
   .drop p{color:var(--muted);font-size:12px;margin:0}
   .drop input[type=file]{display:none}
 
+  /* barra de bandeja persistida */
+  .sesdat{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:-8px 0 20px;padding:9px 14px;
+    border:1px solid rgba(16,185,129,.28);border-radius:10px;background:rgba(16,185,129,.06);
+    font-size:12px;color:var(--muted)}
+  .sesdat b{color:var(--pyralis-text)}
+  .sesdat .sd-btn{margin-left:auto;padding:6px 12px;font-size:10.5px}
+  .sesdat.armado{border-color:rgba(248,113,113,.45);background:rgba(248,113,113,.07)}
+
   /* config */
   .cfg{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;background:var(--glass);
     border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:18px}
@@ -170,6 +178,11 @@
     <p id="drop-p">ORDENES SIN VALIDAR H ITALIANO.xlsx &middot; o hacé click para elegirlo</p>
   </label>
 
+  <div id="sesion-datos" class="sesdat hidden">
+    <span id="sd-txt"></span>
+    <button class="btn btn-ghost sd-btn" id="btn-descartar">Descartar bandeja</button>
+  </div>
+
   <div id="zona" class="hidden">
 
     <div class="cfg">
@@ -240,6 +253,7 @@
 
 const EST_KEY  = 'lumen.valpami.estados.v1';
 const CFG_KEY  = 'lumen.valpami.cfg.v1';
+const DATA_KEY = 'lumen.valpami.data.v1';
 const PAMI_ORIGINS = ['https://po.pami.org.ar','https://pe.pami.org.ar'];
 
 let ORDENES = [];      // [{orden, nombre, turno, turnoD, emision, emisionD, ben14, benBase, benDv, practicas:[], verde}]
@@ -247,6 +261,7 @@ let FILTRO  = 'verdes';
 let QUERY   = '';
 let ESTADOS = load(EST_KEY, {});
 let CFG     = load(CFG_KEY, {});
+let META    = null;    // {file, marcadas, ts}
 let pamiWin = null;
 let activa  = null;
 let autoOK  = false;
@@ -280,6 +295,76 @@ function fmtFecha(d){
          String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
 }
 function addDias(d, n){ const x = new Date(d.getTime()); x.setDate(x.getDate()+n); return x; }
+function fmtFechaHora(ts){
+  const d = new Date(ts);
+  return fmtFecha(d) + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+
+/* ── persistencia de la bandeja cargada ────────────────── */
+function guardarDatos(){
+  if (!META || !ORDENES.length) return;
+  try {
+    localStorage.setItem(DATA_KEY, JSON.stringify({
+      v: 1, ts: META.ts, file: META.file, marcadas: META.marcadas, activa: activa,
+      ordenes: ORDENES.map(o => ({
+        o: o.orden, n: o.nombre, t: o.turno, e: o.emision,
+        b: o.ben14, p: o.practicas, g: o.verde ? 1 : 0, f: o.fila
+      }))
+    }));
+  } catch(err){
+    console.error(err);
+    toast('No pude guardar la bandeja en este navegador (se quedó sin espacio). Los estados ✓/✗ sí se guardan.', 'err');
+  }
+}
+
+function hidratar(r){
+  const b = String(r.b || '');
+  return {
+    orden: r.o, nombre: r.n,
+    turno: r.t, turnoD: parseFecha(r.t),
+    emision: r.e, emisionD: parseFecha(r.e),
+    ben14: b, benBase: b.slice(0, 12), benDv: b.slice(12),
+    practicas: r.p || [], verde: !!r.g, fila: r.f
+  };
+}
+
+function restaurarDatos(){
+  const p = load(DATA_KEY, null);
+  if (!p || !Array.isArray(p.ordenes) || !p.ordenes.length) return false;
+  META    = { file: p.file || '', marcadas: p.marcadas || 0, ts: p.ts || Date.now() };
+  ORDENES = p.ordenes.map(hidratar);
+  activa  = p.activa || null;
+  if (FILTRO === 'verdes' && !ORDENES.some(o => o.verde)){
+    FILTRO = 'todas';
+    document.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.f === 'todas'));
+  }
+  pintarCabecera();
+  $('zona').classList.remove('hidden');
+  render();
+  return true;
+}
+
+function descartarDatos(){
+  try { localStorage.removeItem(DATA_KEY); } catch(e){}
+  ORDENES = []; META = null; activa = null;
+  $('zona').classList.add('hidden');
+  $('sesion-datos').classList.add('hidden');
+  $('drop').classList.remove('loaded');
+  $('drop-t').textContent = 'Soltá acá el Excel de la bandeja';
+  $('drop-p').innerHTML   = 'ORDENES SIN VALIDAR H ITALIANO.xlsx &middot; o hacé click para elegirlo';
+  $('file').value = '';
+  toast('Bandeja descartada. Los estados ✓/✗ por número de orden se conservan.', 'ok');
+}
+
+function pintarCabecera(){
+  if (!META) return;
+  $('drop').classList.add('loaded');
+  $('drop-t').textContent = META.file || 'Bandeja cargada';
+  $('drop-p').textContent = ORDENES.length + ' órdenes únicas · ' + META.marcadas + ' filas marcadas en verde';
+  $('sd-txt').innerHTML = 'Trabajando sobre <b>' + esc(META.file || 'la bandeja cargada') + '</b> · cargada el ' +
+    fmtFechaHora(META.ts) + ' · queda guardada en esta PC hasta que subas otro Excel.';
+  $('sesion-datos').classList.remove('hidden');
+}
 
 /* ── rango de fechas según config ──────────────────────── */
 function rangoDe(o){
@@ -380,14 +465,16 @@ async function procesar(file){
 
   if (!marcadas){
     FILTRO = 'todas';
+    CFG.filtro = 'todas'; save(CFG_KEY, CFG);
     document.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.f === 'todas'));
     toast('No detecté filas marcadas en TURNO — muestro todas', 'err');
   }
 
-  $('drop').classList.add('loaded');
-  $('drop-t').textContent = file.name;
-  $('drop-p').textContent = ORDENES.length + ' órdenes únicas · ' + marcadas + ' filas marcadas en verde';
+  META   = { file: file.name, marcadas: marcadas, ts: Date.now() };
+  activa = null;
+  pintarCabecera();
   $('zona').classList.remove('hidden');
+  guardarDatos();
   render();
 }
 
@@ -495,6 +582,7 @@ function irAPami(o){
 
   if (!pamiWin) { toast('El navegador bloqueó la ventana. Permití popups en Lumen.', 'err'); return; }
   activa = o.orden;
+  guardarDatos();
   render();
   if (!autoOK) copiar(o.orden, 'Nro. de orden');
 }
@@ -591,11 +679,29 @@ $('tb').addEventListener('click', ev => {
 
 document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => {
   document.querySelectorAll('.chip').forEach(x => x.classList.remove('on'));
-  c.classList.add('on'); FILTRO = c.dataset.f; render();
+  c.classList.add('on'); FILTRO = c.dataset.f;
+  CFG.filtro = FILTRO; save(CFG_KEY, CFG);
+  render();
 }));
 $('q').addEventListener('input', e => { QUERY = e.target.value; render(); });
 $('btn-next').addEventListener('click', siguientePendiente);
 $('btn-export').addEventListener('click', exportar);
+
+(function(){
+  const b = $('btn-descartar'); let armado = false, t = null;
+  b.addEventListener('click', () => {
+    if (!armado){
+      armado = true; b.textContent = 'Confirmar descarte';
+      $('sesion-datos').classList.add('armado');
+      t = setTimeout(() => { armado = false; b.textContent = 'Descartar bandeja';
+        $('sesion-datos').classList.remove('armado'); }, 5000);
+      return;
+    }
+    clearTimeout(t); armado = false; b.textContent = 'Descartar bandeja';
+    $('sesion-datos').classList.remove('armado');
+    descartarDatos();
+  });
+})();
 ['modo-fecha','margen','pami-url'].forEach(id => $(id).addEventListener('change', () => {
   CFG = { modoFecha: $('modo-fecha').value, margen: $('margen').value, url: $('pami-url').value };
   save(CFG_KEY, CFG); render();
@@ -619,6 +725,13 @@ if (CFG.url && /(^|\/\/)po\.pami\.org\.ar/i.test(CFG.url)){
   save(CFG_KEY, CFG);
 }
 if (CFG.url)       $('pami-url').value   = CFG.url;
+if (CFG.filtro){
+  FILTRO = CFG.filtro;
+  document.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.f === FILTRO));
+}
+
+/* bandeja de la sesión anterior */
+restaurarDatos();
 </script>
 </body>
 </html>
