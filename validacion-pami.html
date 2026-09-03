@@ -12,7 +12,7 @@
     --ok:#10B981; --warn:#FBBF24; --info:#60A5FA; --danger:#F87171; --dud:#A78BFA;
     --glass:rgba(30,58,138,.14); --border:rgba(148,163,184,.16); --border-a:rgba(245,158,11,.35);
   }
-  html,body{font-size:14px;line-height:1.5}
+  html,body{font-size:15px;line-height:1.55}
   .main{max-width:1760px;margin:0 auto;padding:20px 22px 90px}
 
   .topbar{position:sticky;top:0;left:0;z-index:60;background:rgba(10,15,20,.92);backdrop-filter:blur(12px);
@@ -27,8 +27,8 @@
     border:1px solid var(--border);border-radius:6px;padding:6px 12px}
   .tb-back:hover{color:var(--pyralis-firefly);border-color:var(--border-a)}
 
-  h1.page{font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;letter-spacing:1px;margin:18px 0 4px}
-  .page-sub{color:var(--muted);font-size:12.5px;margin-bottom:18px;max-width:880px}
+  h1.page{font-family:'Rajdhani',sans-serif;font-size:26px;font-weight:700;letter-spacing:1px;margin:18px 0 4px}
+  .page-sub{color:var(--muted);font-size:13.5px;margin-bottom:18px;max-width:920px}
 
   .btn{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;
     border-radius:7px;padding:9px 16px;cursor:pointer;border:1px solid transparent;transition:all .15s}
@@ -47,13 +47,13 @@
   .drop.dragover{border-style:solid;background:rgba(245,158,11,.10);box-shadow:0 0 0 2px var(--border-a) inset}
   .drop.loaded{border-color:var(--ok);background:rgba(16,185,129,.06)}
   .drop h3{font-family:'Rajdhani',sans-serif;font-size:17px;letter-spacing:1px;margin:0 0 6px;text-transform:uppercase}
-  .drop p{color:var(--muted);font-size:12px;margin:0}
+  .drop p{color:var(--muted);font-size:13px;margin:0}
   .drop input[type=file]{display:none}
 
   /* barra de bandeja persistida */
   .sesdat{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:-8px 0 20px;padding:9px 14px;
     border:1px solid rgba(16,185,129,.28);border-radius:10px;background:rgba(16,185,129,.06);
-    font-size:12px;color:var(--muted)}
+    font-size:13px;color:var(--muted)}
   .sesdat b{color:var(--pyralis-text)}
   .sesdat .sd-btn{margin-left:auto;padding:6px 12px;font-size:10.5px}
   .sesdat.armado{border-color:rgba(248,113,113,.45);background:rgba(248,113,113,.07)}
@@ -62,76 +62,87 @@
   .cfg{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;background:var(--glass);
     border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:18px}
   .cfg .fld{display:flex;flex-direction:column;gap:5px}
-  .cfg label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+  .cfg label{font-size:11px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted)}
   .cfg input,.cfg select{padding:8px 10px;border-radius:6px;background:var(--pyralis-bg-input);
-    border:1px solid var(--border);color:var(--pyralis-text);font-family:'Inter',sans-serif;font-size:13px}
+    border:1px solid var(--border);color:var(--pyralis-text);font-family:'Inter',sans-serif;font-size:14px}
   .cfg input[type=text]{width:330px}
   .cfg input.small{width:64px}
   .cfg select{width:280px}
   .cfg input:focus,.cfg select:focus{outline:none;border-color:var(--pyralis-firefly)}
-  .cfg .hint{font-size:11px;color:var(--pyralis-text-dim);flex-basis:100%;margin-top:-4px}
+  .cfg .hint{font-size:12.5px;color:var(--muted);flex-basis:100%;margin-top:-4px;line-height:1.5}
   .cfg .hint.warn{color:var(--warn)}
 
   /* stats */
   .stats{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
   .stat{background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:10px 16px;min-width:112px}
   .stat b{display:block;font-family:'Rajdhani',sans-serif;font-size:23px;font-weight:700;line-height:1.1}
-  .stat span{font-size:10px;letter-spacing:1.3px;text-transform:uppercase;color:var(--muted)}
+  .stat span{font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}
   .stat.ok b{color:var(--ok)} .stat.warn b{color:var(--warn)} .stat.dang b{color:var(--danger)}
   .stat.info b{color:var(--pyralis-firefly)}
 
   /* filtros */
   .filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
-  .chip{font-size:11px;letter-spacing:1px;text-transform:uppercase;border:1px solid var(--border);
-    border-radius:20px;padding:6px 14px;background:var(--glass);color:var(--muted);cursor:pointer;transition:all .15s}
+  .chip{font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;border:1px solid var(--border);
+    border-radius:20px;padding:7px 15px;background:var(--glass);color:var(--muted);cursor:pointer;transition:all .15s}
   .chip:hover{border-color:var(--border-a);color:var(--pyralis-text)}
   .chip.on{background:var(--pyralis-firefly-dim);border-color:var(--pyralis-firefly);color:var(--pyralis-firefly-soft)}
   .search{margin-left:auto}
   .search input{padding:8px 12px;border-radius:6px;background:var(--pyralis-bg-input);
-    border:1px solid var(--border);color:var(--pyralis-text);font-size:13px;width:230px}
+    border:1px solid var(--border);color:var(--pyralis-text);font-size:14px;width:250px}
   .search input:focus{outline:none;border-color:var(--pyralis-firefly)}
 
   /* tabla */
   .tbl-wrap{border:1px solid var(--border);border-radius:12px;overflow:auto;background:rgba(14,21,33,.5)}
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  thead th{position:sticky;top:0;background:#111a26;z-index:5;text-align:left;padding:11px 12px;
-    font-size:10px;letter-spacing:1.3px;text-transform:uppercase;color:var(--muted);
+  table{width:100%;border-collapse:collapse;font-size:14.5px}
+  thead th{position:sticky;top:0;background:#111a26;z-index:5;text-align:left;padding:12px 12px;
+    font-size:11.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#B6C4D6;
     border-bottom:1px solid var(--border);white-space:nowrap}
-  tbody td{padding:10px 12px;border-bottom:1px solid rgba(148,163,184,.07);vertical-align:middle}
+  thead th.ord-col{cursor:pointer;user-select:none;transition:color .13s}
+  thead th.ord-col:hover{color:var(--pyralis-firefly)}
+  thead th.ord-col .car{opacity:.3;margin-left:5px;font-size:10px}
+  thead th.ord-col.on{color:var(--pyralis-firefly)}
+  thead th.ord-col.on .car{opacity:1}
+  tbody td{padding:12px;border-bottom:1px solid rgba(148,163,184,.07);vertical-align:middle}
   tbody tr:hover{background:rgba(245,158,11,.04)}
   tbody tr.act{background:rgba(245,158,11,.10);box-shadow:inset 3px 0 0 var(--pyralis-firefly)}
-  tbody tr.e-validada{opacity:.5}
+  tbody tr.e-validada{opacity:.62}
   tbody tr.e-validada td.c-est{opacity:1}
-  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;letter-spacing:.3px}
-  .ord{color:var(--pyralis-firefly-soft);font-weight:600}
-  .nom{font-weight:600}
-  .pract{font-size:11px;color:var(--pyralis-text-dim);max-width:340px;
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;font-weight:500;letter-spacing:.4px}
+  .ord{color:var(--pyralis-firefly-soft);font-weight:700}
+  .nom{font-weight:700;font-size:14.5px;color:var(--pyralis-text)}
+  .pract{font-size:13px;color:var(--muted);max-width:340px;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .ben-b{color:var(--lumen-accent-soft)} .ben-d{color:var(--warn)}
-  .rng{font-size:11px;color:var(--pyralis-text-dim);white-space:nowrap}
+  .rng{font-size:13.5px;font-weight:600;color:#B6C4D6;white-space:nowrap;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
   .verde-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#92D050;margin-right:6px;
     box-shadow:0 0 6px rgba(146,208,80,.7)}
 
-  .est{font-size:10px;letter-spacing:1px;text-transform:uppercase;border-radius:20px;padding:4px 10px;
+  .est{font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;border-radius:20px;padding:5px 11px;
     border:1px solid var(--border);color:var(--muted);white-space:nowrap}
   .est.validada{background:rgba(16,185,129,.15);border-color:rgba(16,185,129,.5);color:#6ee7b7}
   .est.rechazada{background:rgba(248,113,113,.13);border-color:rgba(248,113,113,.45);color:#fca5a5}
 
   .acts{display:flex;gap:5px;white-space:nowrap}
   .ib{border:1px solid var(--border);background:var(--glass);color:var(--muted);border-radius:6px;
-    padding:5px 9px;font-size:11px;cursor:pointer;transition:all .13s;line-height:1.3}
+    padding:6px 10px;font-size:12.5px;font-weight:600;cursor:pointer;transition:all .13s;line-height:1.3}
   .ib:hover{border-color:var(--border-a);color:var(--pyralis-firefly)}
-  .ib.go{background:linear-gradient(135deg,#B45309,var(--pyralis-firefly));color:#1a1206;border-color:transparent;
-    font-weight:700;letter-spacing:.5px;padding:6px 12px}
-  .ib.go:hover{filter:brightness(1.1);color:#1a1206}
+  /* el boton que salta al portal usa el azul institucional de PAMI: se distingue
+     de las acciones propias de Lumen (ambar) y deja leer el amarillo/celeste del logo */
+  .ib.go{display:inline-flex;align-items:center;gap:7px;
+    background:linear-gradient(135deg,#1E3A8A,#0F2A6B);color:#EAF2FF;
+    border-color:rgba(96,165,250,.45);font-weight:700;letter-spacing:.6px;padding:6px 13px;font-size:12.5px}
+  .ib.go img{width:16px;height:16px;display:block;flex:none}
+  .ib.go:hover{background:linear-gradient(135deg,#2E4FA8,#173785);border-color:#60A5FA;color:#fff;
+    box-shadow:0 0 14px rgba(37,99,235,.45)}
   .ib.ok:hover{border-color:var(--ok);color:#6ee7b7}
   .ib.no:hover{border-color:var(--danger);color:#fca5a5}
 
-  .empty{padding:60px 20px;text-align:center;color:var(--pyralis-text-dim);font-size:13px}
+  .empty{padding:60px 20px;text-align:center;color:var(--muted);font-size:14px}
 
   /* banner modo */
   .modo{display:flex;align-items:center;gap:12px;border:1px solid var(--border);border-radius:10px;
-    padding:11px 15px;margin-bottom:16px;background:var(--glass);font-size:12.5px;color:var(--muted)}
+    padding:12px 15px;margin-bottom:16px;background:var(--glass);font-size:13.5px;color:var(--muted)}
   .modo .dot{width:9px;height:9px;border-radius:50%;background:var(--pyralis-text-dim);flex:none}
   .modo.auto{border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.06)}
   .modo.auto .dot{background:var(--ok);box-shadow:0 0 8px rgba(16,185,129,.8)}
@@ -225,13 +236,13 @@
       <table>
         <thead><tr>
           <th style="width:30px"></th>
-          <th>Nro. orden</th>
-          <th>Apellido y nombre</th>
-          <th>Turno</th>
+          <th class="ord-col" data-s="orden">Nro. orden<span class="car"></span></th>
+          <th class="ord-col" data-s="nombre">Apellido y nombre<span class="car"></span></th>
+          <th class="ord-col" data-s="turno">Turno<span class="car"></span></th>
           <th>Beneficio / GP</th>
-          <th>Rango emisión</th>
+          <th class="ord-col" data-s="emision">Rango emisión<span class="car"></span></th>
           <th>Prácticas</th>
-          <th>Estado</th>
+          <th class="ord-col" data-s="estado">Estado<span class="car"></span></th>
           <th style="width:250px">Acciones</th>
         </tr></thead>
         <tbody id="tb"></tbody>
@@ -258,6 +269,7 @@ const PAMI_ORIGINS = ['https://po.pami.org.ar','https://pe.pami.org.ar'];
 
 let ORDENES = [];      // [{orden, nombre, turno, turnoD, emision, emisionD, ben14, benBase, benDv, practicas:[], verde}]
 let FILTRO  = 'verdes';
+let ORDEN   = { col: 'turno', dir: 'asc' };   // columna y sentido de la tabla
 let QUERY   = '';
 let ESTADOS = load(EST_KEY, {});
 let CFG     = load(CFG_KEY, {});
@@ -458,10 +470,7 @@ async function procesar(file){
     if (p && !o.practicas.includes(p)) o.practicas.push(p);
   }
 
-  ORDENES = [...mapa.values()].sort((a,b)=>{
-    const t = (a.turnoD?.getTime()||0) - (b.turnoD?.getTime()||0);
-    return t || a.nombre.localeCompare(b.nombre);
-  });
+  ORDENES = [...mapa.values()];
 
   if (!marcadas){
     FILTRO = 'todas';
@@ -488,6 +497,29 @@ function setEstado(orden, e){
 }
 
 /* ── render ────────────────────────────────────────────── */
+const PESO_EST = { pendiente:0, validada:1, rechazada:2 };
+function cmp(a, b){
+  const d = ORDEN.dir === 'desc' ? -1 : 1;
+  let r = 0;
+  switch (ORDEN.col){
+    case 'orden':   r = a.orden.localeCompare(b.orden, undefined, { numeric:true }); break;
+    case 'nombre':  r = a.nombre.localeCompare(b.nombre, 'es'); break;
+    case 'emision': r = (a.emisionD ? a.emisionD.getTime() : 0) - (b.emisionD ? b.emisionD.getTime() : 0); break;
+    case 'estado':  r = PESO_EST[estadoDe(a.orden)] - PESO_EST[estadoDe(b.orden)]; break;
+    default:        r = (a.turnoD ? a.turnoD.getTime() : 0) - (b.turnoD ? b.turnoD.getTime() : 0);
+  }
+  if (!r) r = a.nombre.localeCompare(b.nombre, 'es') || a.orden.localeCompare(b.orden);
+  return r * d;
+}
+
+function pintarCarets(){
+  document.querySelectorAll('thead th.ord-col').forEach(th => {
+    const on = th.dataset.s === ORDEN.col;
+    th.classList.toggle('on', on);
+    th.querySelector('.car').textContent = on ? (ORDEN.dir === 'asc' ? '\u25B2' : '\u25BC') : '\u25B4\u25BE';
+  });
+}
+
 function visibles(){
   return ORDENES.filter(o => {
     const est = estadoDe(o.orden);
@@ -500,7 +532,7 @@ function visibles(){
       if (!norm(o.nombre).includes(q) && !o.orden.includes(QUERY.replace(/\D/g,''))) return false;
     }
     return true;
-  });
+  }).sort(cmp);
 }
 
 function render(){
@@ -527,6 +559,7 @@ function render(){
   : modo === 'turno'   ? '⚠ En tu último Excel solo 29 de 149 filas verdes tenían la emisión dentro de turno −7/+2. Con este modo la mayoría de las búsquedas vuelven vacías.'
   :                      'El userscript no toca las fechas: se busca solo por número de orden, con el filtro que PAMI traiga por defecto.';
 
+  pintarCarets();
   const rows = visibles();
   const tb = $('tb');
   if (!rows.length){
@@ -547,7 +580,7 @@ function render(){
       <td class="pract" title="${esc(o.practicas.join(' | '))}">${esc(o.practicas[0]||'')}${o.practicas.length>1?' +'+(o.practicas.length-1):''}</td>
       <td class="c-est"><span class="est ${est}">${est}</span></td>
       <td><div class="acts">
-        <button class="ib go"  data-a="go">▶ PAMI</button>
+        <button class="ib go"  data-a="go" title="Abrir esta orden en el portal de PAMI"><img src="pami-iso.png" alt="" width="16" height="16"/>PAMI</button>
         <button class="ib"     data-a="cp-o" title="Copiar nro. de orden">⧉ orden</button>
         <button class="ib"     data-a="cp-b" title="Copiar beneficio sin los 2 últimos dígitos">⧉ ${o.benBase}</button>
         <button class="ib ok"  data-a="ok"   title="Marcar validada">✓</button>
@@ -683,6 +716,12 @@ document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () =
   CFG.filtro = FILTRO; save(CFG_KEY, CFG);
   render();
 }));
+document.querySelectorAll('thead th.ord-col').forEach(th => th.addEventListener('click', () => {
+  const c = th.dataset.s;
+  ORDEN = (ORDEN.col === c) ? { col:c, dir: ORDEN.dir === 'asc' ? 'desc' : 'asc' } : { col:c, dir:'asc' };
+  CFG.orden = ORDEN; save(CFG_KEY, CFG);
+  render();
+}));
 $('q').addEventListener('input', e => { QUERY = e.target.value; render(); });
 $('btn-next').addEventListener('click', siguientePendiente);
 $('btn-export').addEventListener('click', exportar);
@@ -725,6 +764,8 @@ if (CFG.url && /(^|\/\/)po\.pami\.org\.ar/i.test(CFG.url)){
   save(CFG_KEY, CFG);
 }
 if (CFG.url)       $('pami-url').value   = CFG.url;
+if (CFG.orden && CFG.orden.col) ORDEN = CFG.orden;
+pintarCarets();
 if (CFG.filtro){
   FILTRO = CFG.filtro;
   document.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.f === FILTRO));
