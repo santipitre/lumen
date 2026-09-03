@@ -140,13 +140,33 @@ nav.tabs button:focus-visible{outline:2px solid var(--tarjeta);outline-offset:-2
 .cr{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;font-family:var(--mono);font-variant-numeric:tabular-nums}
 .cr span{color:var(--ink-2)}.cr b{font-weight:600}
 .cinta-actions{margin-top:34px;display:grid;gap:8px}
-.btn{background:#3A4152;color:var(--btn-fg);border:1px solid #3A4152;padding:9px 15px;border-radius:var(--r);cursor:pointer;font-weight:600;font-size:14.5px;transition:background .15s,border-color .15s}
-.btn:hover{background:#2C303C;border-color:#2C303C}.btn:focus-visible{outline:2px solid var(--tarjeta);outline-offset:2px}
-.btn.ghost{background:var(--panel);color:var(--ink);border-color:var(--linea)}
-.btn.ghost:hover{background:var(--linea-2)}
-.btn.danger{background:var(--alerta);border-color:var(--alerta);color:#FFF6F5}
-.btn.small{padding:6px 11px;font-size:13.5px;font-weight:600}
-.btn[disabled]{opacity:.45;cursor:not-allowed}
+/* Botones con relieve — receta del artboard 2a de la maqueta:
+   labio inferior sólido (mismo tono, L -12%) + sombra ambiente difusa +
+   luz interior. Al presionar baja 4px, el labio va a cero y la luz se
+   invierte, en 90 ms. Los tonos del labio salieron de OKLCH, no a ojo. */
+.btn{
+  --btn-bg:var(--manteca); --btn-labio:#D1BC96; --btn-ink:var(--manteca-ink); --btn-borde:transparent;
+  background:var(--btn-bg); color:var(--btn-ink); border:1px solid var(--btn-borde);
+  padding:10px 16px; border-radius:9px; cursor:pointer; font-weight:700; font-size:14.5px;
+  box-shadow:0 4px 0 var(--btn-labio), 0 6px 13px rgba(46,42,36,.13), inset 0 1px 0 rgba(255,255,255,.9);
+  transform:translateY(0);
+  transition:transform 90ms ease, box-shadow 90ms ease, filter 160ms ease;
+}
+.btn:hover{filter:brightness(1.035)}
+.btn:active{transform:translateY(4px);
+  box-shadow:0 0 0 var(--btn-labio), 0 1px 3px rgba(46,42,36,.18), inset 0 2px 4px rgba(46,42,36,.16)}
+.btn:focus-visible{outline:2px solid var(--tarjeta);outline-offset:3px}
+.btn.ghost{--btn-bg:var(--panel);--btn-labio:#D8D6D0;--btn-ink:var(--ink);--btn-borde:var(--linea)}
+.btn.danger{--btn-bg:var(--alerta-bg);--btn-labio:#DABEB9;--btn-ink:var(--alerta);--btn-borde:#F2CDC7}
+.btn.tinta{--btn-bg:var(--ink);--btn-labio:#26221C;--btn-ink:var(--btn-fg);--btn-borde:transparent;
+  box-shadow:0 4px 0 var(--btn-labio),0 6px 13px rgba(46,42,36,.22),inset 0 1px 0 rgba(255,255,255,.14)}
+.btn.small{padding:7px 12px;font-size:13.5px;border-radius:8px;
+  box-shadow:0 3px 0 var(--btn-labio),0 4px 9px rgba(46,42,36,.10),inset 0 1px 0 rgba(255,255,255,.85)}
+.btn.small:active{transform:translateY(3px);
+  box-shadow:0 0 0 var(--btn-labio),0 1px 2px rgba(46,42,36,.16),inset 0 2px 3px rgba(46,42,36,.14)}
+.btn[disabled],.btn[disabled]:hover{--btn-bg:#EDE7DA;--btn-labio:#C9C3B6;--btn-ink:var(--ink-3);
+  --btn-borde:transparent;cursor:not-allowed;filter:none;transform:none;
+  box-shadow:0 2px 0 var(--btn-labio)}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
 label.f{display:grid;gap:5px;font-size:12.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
 input[type=text],input[type=date],select,textarea{background:var(--linea-2);border:1px solid var(--linea);border-radius:var(--r);padding:7px 9px;color:var(--ink)}
@@ -378,6 +398,72 @@ header.top{border-top:0;border-bottom:1px solid var(--linea);background:var(--pa
   .panel>h2{display:block}
 }
 
+
+/* ============ RELIEVE Y MOVIMIENTO (artboard 2b) ============ */
+/* Fondo vivo: manchas pastel que derivan lento detrás del contenido. */
+.fondo-vivo{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.fondo-vivo i{position:absolute;display:block;border-radius:50%;filter:blur(70px);opacity:.55;
+  animation:deriva 24s ease-in-out infinite alternate}
+.fondo-vivo i:nth-child(1){width:46vw;height:46vw;left:-8vw;top:-10vw;background:var(--efectivo-bg);animation-duration:26s}
+.fondo-vivo i:nth-child(2){width:38vw;height:38vw;right:-6vw;top:8vh;background:var(--tarjeta-bg);animation-duration:19s;animation-delay:-4s}
+.fondo-vivo i:nth-child(3){width:42vw;height:42vw;left:22vw;bottom:-14vw;background:var(--billetera-bg);animation-duration:30s;animation-delay:-9s}
+.fondo-vivo i:nth-child(4){width:30vw;height:30vw;right:12vw;bottom:-6vw;background:var(--manteca);animation-duration:23s;animation-delay:-14s}
+@keyframes deriva{from{transform:translate3d(0,0,0) scale(1)}to{transform:translate3d(4vw,3vh,0) scale(1.12)}}
+
+/* Título: entra subiendo y le pasa un barrido de luz. El clip a texto va
+   detrás de @supports: si falla, el título quedaría invisible. */
+.marca-tit.entra{animation:subir .55s cubic-bezier(.2,.8,.2,1) both}
+@keyframes subir{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@supports ((-webkit-background-clip:text) or (background-clip:text)){
+  .marca-tit{background-image:linear-gradient(100deg,var(--ink) 42%,#B08F45 50%,var(--ink) 58%);
+    background-size:320% 100%;background-repeat:no-repeat;
+    -webkit-background-clip:text;background-clip:text;
+    -webkit-text-fill-color:transparent;color:transparent;
+    animation:barrido 7s ease-in-out 1.2s infinite}
+  .marca-tit.entra{animation:subir .55s cubic-bezier(.2,.8,.2,1) both,
+                             barrido 7s ease-in-out 1.2s infinite}
+}
+@keyframes barrido{0%{background-position:120% 0}55%,100%{background-position:-20% 0}}
+
+/* Tarjetas que se elevan al hover y barras que crecen al entrar. */
+.kpis{overflow:visible}
+.kpi{transition:transform .18s ease, box-shadow .18s ease}
+.kpi:first-child{border-radius:var(--r) 0 0 var(--r)}
+.kpi:last-child{border-radius:0 var(--r) var(--r) 0}
+.kpi:hover{transform:translateY(-3px);box-shadow:1px 0 0 var(--linea),0 1px 0 var(--linea),0 10px 20px rgba(46,42,36,.13);position:relative;z-index:1}
+.kpi .k{display:flex;align-items:center;gap:7px}
+.kpi-pt{width:7px;height:7px;border-radius:50%;flex:none;display:inline-block}
+.kpi-barra{margin-top:9px;height:5px;border-radius:99px;background:var(--linea-2);overflow:hidden}
+.kpi-barra i{display:block;height:100%;border-radius:99px;transform-origin:left center;
+  animation:crecer .75s cubic-bezier(.2,.8,.2,1) both}
+.kpi-pct{margin-top:6px;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--ink-3)}
+.bar-track>*{transform-origin:left center;animation:crecer .75s cubic-bezier(.2,.8,.2,1) both}
+@keyframes crecer{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.panel{transition:box-shadow .18s ease}
+.cinta-wrap:hover .cinta{box-shadow:0 10px 24px rgba(46,42,36,.10)}
+
+/* Chip de solo lectura, como en la maqueta */
+/* OJO: sólo el aspecto. El display lo maneja `body.ro #ro-banda` más arriba;
+   si acá ponés display:flex, el cartel aparece siempre. */
+#ro-banda{align-items:center;gap:7px;justify-content:center;
+  background:var(--efectivo-bg);color:var(--efectivo);border:1px solid var(--efectivo-soft);font-weight:600}
+body.ro #ro-banda{display:flex}
+#ro-banda::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--efectivo);flex:none}
+
+@media(prefers-reduced-motion:reduce){
+  .fondo-vivo i{animation:none}
+  .marca-tit,.marca-tit.entra{animation:none;background-image:none;
+    -webkit-text-fill-color:var(--ink);color:var(--ink)}
+  .kpi-barra i,.bar-track>*{animation:none}
+  .btn,.kpi{transition:none}
+}
+@media print{
+  .fondo-vivo{display:none!important}
+  .marca-tit{animation:none!important;background-image:none!important;
+    -webkit-text-fill-color:#16181D!important;color:#16181D!important}
+  .btn{box-shadow:none!important}
+  .kpi-barra i,.bar-track>*{animation:none!important}
+}
 </style>
 </head>
 <body>
@@ -421,6 +507,7 @@ header.top{border-top:0;border-bottom:1px solid var(--linea);background:var(--pa
     </div>
   </div>
 </div>
+<div class="fondo-vivo" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
 <div class="app">
 <aside class="riel">
   <div class="riel-marca">
@@ -795,11 +882,16 @@ function el(t,p={},...kids){
   return n;
 }
 let tT; function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(tT);tT=setTimeout(()=>t.classList.remove("on"),3400)}
-const kpi=(k,v,c)=>el("div",{class:"kpi"},el("div",{class:"k"},k),el("div",{class:"v",style:c?`color:${c}`:null},v));
+const kpi=(k,v,c,pct)=>el("div",{class:"kpi"},
+  el("div",{class:"k"},c?el("i",{class:"kpi-pt",style:`background:${c}`}):null,k),
+  el("div",{class:"v",style:c?`color:${c}`:null},v),
+  pct==null?null:el("div",{class:"kpi-barra"},
+    el("i",{style:`width:${Math.max(0,Math.min(100,pct))}%;background:${c||"var(--ink-3)"}`})),
+  pct==null?null:el("div",{class:"kpi-pct"},Math.round(pct)+"% del facturado"));
 function modal({titulo,cuerpo,acciones}){
   const d=$("#dlg"); $("#dlg-t").textContent=titulo; $("#dlg-b").replaceChildren(cuerpo);
   const f=$("#dlg-f"); f.replaceChildren();
-  for(const a of acciones) f.append(el("button",{class:"btn "+(a.clase||"ghost"),type:"button",onclick:async()=>{if(a.accion&&await a.accion()===false)return;d.close()}},a.texto));
+  for(const a of acciones) f.append(el("button",{class:"btn "+(a.clase==null?"ghost":a.clase),type:"button",onclick:async()=>{if(a.accion&&await a.accion()===false)return;d.close()}},a.texto));
   d.showModal(); const x=$("#dlg-b").querySelector("input,select,button"); if(x)x.focus(); return d;
 }
 /* ============================================================
@@ -830,7 +922,7 @@ function _dlg2({titulo,texto,acciones,peligro,kicker,campo}){
     let resuelto=false;
     const cerrar=v=>{if(resuelto)return;resuelto=true;d.close();resolve(v)};
     for(const a of acciones){
-      f.append(el("button",{class:"btn "+(a.clase||"ghost"),type:"button",onclick:()=>{
+      f.append(el("button",{class:"btn "+(a.clase==null?"ghost":a.clase),type:"button",onclick:()=>{
         if(a.valor&&campo){
           const v=ta.value.trim();
           if(v.length<(campo.minimo||1)){
@@ -1141,8 +1233,10 @@ function vistaDias(){
   const t=totales(gr);
   p.append(el("div",{class:"kpis",style:"margin-top:12px"},
     kpi("Días",numero(dias.length)),kpi("Comprobantes",numero(t.comps)),
-    kpi("Efectivo",plata(t.efectivo),"var(--efectivo)"),kpi("Tarjetas",plata(t.tarjeta),"var(--tarjeta)"),
-    kpi("Billetera",plata(t.billetera),"var(--billetera)"),kpi("Total",plata(t.total))));
+    kpi("Efectivo",plata(t.efectivo),"var(--efectivo)",t.total?t.efectivo/t.total*100:0),
+    kpi("Tarjetas",plata(t.tarjeta),"var(--tarjeta)",t.total?t.tarjeta/t.total*100:0),
+    kpi("Billetera",plata(t.billetera),"var(--billetera)",t.total?t.billetera/t.total*100:0),
+    kpi("Total",plata(t.total))));
   c.append(p); return c;
 }
 function verComps(g){
@@ -1827,7 +1921,9 @@ function render(){
   $("#main").replaceChildren(VISTAS[vista]());
   limpiarBotonesEdicion();
   for(const b of $("#tabs").children) b.setAttribute("aria-current",b.dataset.v===vista?"true":"false");
-  $("#titulo-vista").textContent=TITULOS[vista]||"";
+  const tv=$("#titulo-vista");
+  tv.textContent=TITULOS[vista]||"";
+  tv.classList.remove("entra"); void tv.offsetWidth; tv.classList.add("entra");
   pintarCinta();
 }
 $("#tabs").addEventListener("click",e=>{const b=e.target.closest("button[data-v]");if(!b)return;vista=b.dataset.v;render();window.scrollTo({top:0})});
