@@ -332,6 +332,11 @@
       transition: box-shadow .25s, border-color .25s, transform .25s;
     }
     .mod-fila.sub .mod-icono { width: 50px; height: 50px; padding: 7px; border-radius: 12px; }
+    /* Conciliacion y Validacion llevan logos de marca, no line-art: van a sangre */
+    .mod-fila.conciliacion .mod-icono,
+    .mod-fila.validacion   .mod-icono { padding: 3px; }
+    .mod-fila.sub.conciliacion .mod-icono,
+    .mod-fila.sub.validacion   .mod-icono { padding: 2px; }
     .mod-icono svg { width: 100%; height: 100%; display: block;
       filter: drop-shadow(0 0 6px rgba(34,219,174,.30)); transition: filter .25s; }
     .mod-fila:hover .mod-icono { transform: translateY(-1px); }
@@ -1033,12 +1038,12 @@ const MODULE_CARDS = {
   conciliacion: {
     clase: 'conciliacion', nombre: 'Conciliación FUESMEN ↔ PAMI', key: 'conciliacion',
     desc: 'Turnos vs bandeja de transmisi&oacute;n &middot; Validados &middot; Pendientes',
-    svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/><image href="fuesmen-iso.png" xlink:href="fuesmen-iso.png" x="16" y="56" width="66" height="66" preserveAspectRatio="xMidYMid meet"/><image href="pami-iso.png" xlink:href="pami-iso.png" x="118" y="56" width="66" height="66" preserveAspectRatio="xMidYMid meet"/><path d="M88 80 l24 0 m-7 -5 l7 5 l-7 5" fill="none" stroke="#22DBAE" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M112 102 l-24 0 m7 -5 l-7 5 l7 5" fill="none" stroke="#22DBAE" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/><text x="100" y="200" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">CONCILIACI&#211;N</text><text x="100" y="222" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">PAMI</text></svg>`
+    svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><image href="fuesmen-iso.png" xlink:href="fuesmen-iso.png" x="-6" y="4" width="112" height="112" preserveAspectRatio="xMidYMid meet"/><image href="pami-iso.png" xlink:href="pami-iso.png" x="94" y="58" width="112" height="112" preserveAspectRatio="xMidYMid meet"/></svg>`
   },
   validacion: {
     clase: 'validacion', nombre: 'Validación de órdenes PAMI', key: 'validacion',
     desc: 'Bandeja en verde &middot; Autocompletado en el portal &middot; Credencial',
-    svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/><image href="pami-iso.png" xlink:href="pami-iso.png" x="34" y="32" width="92" height="92" preserveAspectRatio="xMidYMid meet"/><circle cx="144" cy="120" r="31" fill="#0a1628" stroke="#22DBAE" stroke-width="4"/><path d="M130 120 l10 11 l20 -23" fill="none" stroke="#22DBAE" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/><text x="100" y="200" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">VALIDACI&#211;N</text><text x="100" y="222" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">PAMI</text></svg>`
+    svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><image href="pami-iso.png" xlink:href="pami-iso.png" x="8" y="2" width="136" height="136" preserveAspectRatio="xMidYMid meet"/><circle cx="150" cy="134" r="42" fill="#0a1628" stroke="#22DBAE" stroke-width="5.5"/><path d="M131 135 l14 15 l28 -31" fill="none" stroke="#22DBAE" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>`
   }
 };
 

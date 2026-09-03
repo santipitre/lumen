@@ -113,6 +113,12 @@
   .pract{font-size:13px;color:var(--muted);max-width:340px;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .ben-b{color:var(--lumen-accent-soft)} .ben-d{color:var(--warn)}
+  /* numeros que se copian con un clic: reemplazan a los botones ⧉ */
+  .cp{cursor:pointer;border-bottom:1px dashed rgba(148,163,184,.35);transition:all .13s;
+    padding-bottom:1px}
+  .cp:hover{border-bottom-color:currentColor;filter:brightness(1.3);
+    text-shadow:0 0 10px currentColor}
+  .cp:active{filter:brightness(.85)}
   .rng{font-size:13.5px;font-weight:600;color:#B6C4D6;white-space:nowrap;
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
   .verde-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#92D050;margin-right:6px;
@@ -175,7 +181,8 @@
 <div class="main">
   <h1 class="page">Validación de órdenes en PAMI</h1>
   <p class="page-sub">Subí la bandeja de transmisión. Las filas con <b>TURNO marcado en verde</b> se detectan solas.
-    Cada orden se dispara al portal de PAMI con el número, el rango de fechas y el beneficio ya partido.</p>
+    Cada orden se dispara al portal de PAMI con el número, el rango de fechas y el beneficio ya partido.
+    Los números de <b>orden</b> y de <b>beneficio</b> se copian con un clic.</p>
 
   <div class="modo" id="modo">
     <span class="dot"></span>
@@ -243,7 +250,7 @@
           <th class="ord-col" data-s="emision">Rango emisión<span class="car"></span></th>
           <th>Prácticas</th>
           <th class="ord-col" data-s="estado">Estado<span class="car"></span></th>
-          <th style="width:250px">Acciones</th>
+          <th style="width:150px">Acciones</th>
         </tr></thead>
         <tbody id="tb"></tbody>
       </table>
@@ -572,17 +579,15 @@ function render(){
     const rg  = rangoDe(o);
     return `<tr data-o="${o.orden}" class="e-${est}${activa===o.orden?' act':''}">
       <td>${o.verde ? '<span class="verde-dot" title="Marcada en verde"></span>' : ''}</td>
-      <td class="mono ord">${o.orden}</td>
+      <td class="mono ord"><span class="cp" data-cp="${o.orden}" data-lbl="Orden" title="Clic para copiar el nro. de orden">${o.orden}</span></td>
       <td class="nom">${esc(o.nombre)}</td>
       <td class="mono">${esc(o.turno)}</td>
-      <td class="mono"><span class="ben-b">${o.benBase}</span> / <span class="ben-d">${o.benDv}</span></td>
+      <td class="mono"><span class="ben-b cp" data-cp="${o.benBase}" data-lbl="Beneficio" title="Clic para copiar el beneficio sin los 2 últimos dígitos">${o.benBase}</span> / <span class="ben-d cp" data-cp="${o.benDv}" data-lbl="Verificador" title="Clic para copiar los 2 últimos dígitos">${o.benDv}</span></td>
       <td class="rng">${rg ? rg.desde + ' → ' + rg.hasta : '—'}</td>
       <td class="pract" title="${esc(o.practicas.join(' | '))}">${esc(o.practicas[0]||'')}${o.practicas.length>1?' +'+(o.practicas.length-1):''}</td>
       <td class="c-est"><span class="est ${est}">${est}</span></td>
       <td><div class="acts">
         <button class="ib go"  data-a="go" title="Abrir esta orden en el portal de PAMI"><img src="pami-iso.png" alt="" width="16" height="16"/>PAMI</button>
-        <button class="ib"     data-a="cp-o" title="Copiar nro. de orden">⧉ orden</button>
-        <button class="ib"     data-a="cp-b" title="Copiar beneficio sin los 2 últimos dígitos">⧉ ${o.benBase}</button>
         <button class="ib ok"  data-a="ok"   title="Marcar validada">✓</button>
         <button class="ib no"  data-a="no"   title="Marcar rechazada">✗</button>
         <button class="ib"     data-a="rst"  title="Volver a pendiente">↺</button>
@@ -697,13 +702,13 @@ window.addEventListener('load', () => {
 });
 
 $('tb').addEventListener('click', ev => {
+  const c = ev.target.closest('[data-cp]');
+  if (c){ copiar(c.dataset.cp, c.dataset.lbl); return; }
   const b = ev.target.closest('button[data-a]'); if (!b) return;
   const orden = b.closest('tr').dataset.o;
   const o = ORDENES.find(x => x.orden === orden); if (!o) return;
   switch (b.dataset.a){
     case 'go':   irAPami(o); break;
-    case 'cp-o': copiar(o.orden, 'Orden'); break;
-    case 'cp-b': copiar(o.benBase, 'Beneficio'); break;
     case 'ok':   setEstado(orden, 'validada'); break;
     case 'no':   setEstado(orden, 'rechazada'); break;
     case 'rst':  setEstado(orden, 'pendiente'); break;
