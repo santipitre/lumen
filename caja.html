@@ -725,6 +725,7 @@ const filaGrupo=g=>({id:g.id,sede:SEDE,fecha:g.fecha,cajero:g.cajero,medio:g.med
 const filaRetiro=r=>({id:r.id,sede:SEDE,fecha:r.fecha,responsable:r.responsable,
   monto:r.monto,detalle:r.detalle||null,tipo:r.tipo||"retiro",
   banco:r.banco||null,referencia:r.referencia||null,
+  desde:r.desde||null,hasta:r.hasta||null,
   creado_por:AUTHUID});
 const filaImport=i=>({id:i.id,sede:SEDE,archivos:i.archivo||null,filas_ok:i.filas||0,
   rango:i.rango||null,creado_por:AUTHUID});
@@ -780,6 +781,7 @@ async function cargarDesdeNube(){
   db.retiros=re.map(r=>({id:r.id,fecha:r.fecha,responsable:r.responsable,
     monto:Number(r.monto),detalle:r.detalle||"",tipo:r.tipo||"retiro",
     banco:r.banco||"",referencia:r.referencia||"",
+    desde:r.desde||"",hasta:r.hasta||"",
     creado:Date.parse(r.creado_en)||Date.now()}));
   db.revisados={};
   rv.forEach(r=>{db.revisados[r.fecha+"|"+r.cajero]=
@@ -852,9 +854,38 @@ function porDia(gr){
   }
   return [...m.values()].sort((a,b)=>a.fecha===b.fecha?a.cajero.localeCompare(b.cajero):a.fecha.localeCompare(b.fecha));
 }
-const saldoEfectivo=()=>db.grupos.filter(g=>g.categoria==="efectivo").reduce((s,g)=>s+g.monto,0)-db.retiros.reduce((s,r)=>s+r.monto,0);
+/* El retiro saca la plata de la caja. El deposito bancario NO: es la boleta que
+   rinde un retiro que ya salio, asi que no vuelve a bajar el saldo. Un mismo
+   retiro puede rendirse con varias boletas que entre todas suman su monto. */
+const saldoEfectivo=()=>db.grupos.filter(g=>g.categoria==="efectivo").reduce((s,g)=>s+g.monto,0)-db.retiros.filter(r=>!esDeposito(r)).reduce((s,r)=>s+r.monto,0);
 const ultimoRetiro=()=>{const r=retirosOrd().filter(x=>!esDeposito(x));return r.length?r[r.length-1]:null};
-function periodoAbierto(){const ur=ultimoRetiro();const d=ur?ur.fecha:null;return{desde:d,gr:db.grupos.filter(g=>!d||g.fecha>=d)}}
+
+/* --- periodo -----------------------------------------------
+   Retiro y boleta se atan por el par (desde,hasta): o son identicos o no son
+   el mismo periodo. Las filas viejas no lo tienen guardado, asi que el de un
+   retiro se deriva del retiro anterior; la derivacion es estable mientras no
+   se borren retiros del medio. */
+const diaSig=i=>{const d=new Date(i+"T12:00:00");d.setDate(d.getDate()+1);return d.toLocaleDateString("sv-SE")};
+const clavePer=o=>o&&o.desde&&o.hasta?o.desde+"|"+o.hasta:"";
+const perTexto=o=>clavePer(o)?fechaCorta(o.desde)+" \u2192 "+fechaCorta(o.hasta):"\u2014";
+function periodoDe(r){
+  if(r.desde&&r.hasta) return {desde:r.desde,hasta:r.hasta};
+  const rs=retirosOrd().filter(x=>!esDeposito(x));
+  const i=rs.findIndex(x=>x.id===r.id);
+  const pr=i>0?rs[i-1]:null;
+  const ini=pr?diaSig(pr.hasta||pr.fecha):(db.grupos.map(g=>g.fecha).sort()[0]||r.fecha);
+  return {desde:ini<=r.fecha?ini:r.fecha,hasta:r.fecha};
+}
+const boletasPeriodo=p=>{const k=clavePer(p);return k?db.retiros.filter(d=>esDeposito(d)&&clavePer(d)===k):[]};
+const rendidoDe=r=>boletasPeriodo(periodoDe(r)).reduce((a,d)=>a+d.monto,0);
+/* arranque del periodo abierto: el dia siguiente al cierre del ultimo retiro */
+function proxDesde(){
+  const ur=ultimoRetiro();
+  if(ur) return diaSig(ur.hasta||ur.fecha);
+  const f=db.grupos.map(g=>g.fecha).sort();
+  return f.length?f[0]:hoyISO();
+}
+function periodoAbierto(){const ur=ultimoRetiro();const d=ur?proxDesde():null;return{desde:d,gr:db.grupos.filter(g=>!d||g.fecha>=d)}}
 
 /* --- Anomalías, ahora a nivel día+cajero ------------------- */
 function anomaliasDia(d){
@@ -1200,8 +1231,13 @@ function vistaDias(){
     }
     if(ev.t==="r"){
       const r=ev.x;
-      tb.append(el("tr",{class:"fila-retiro"},el("td",{},fechaCorta(r.fecha)),el("td",{},(esDeposito(r)?"DEPÓSITO · ":"RETIRO · ")+r.responsable),
-        el("td",{class:"num"},"− "+plata(r.monto)),el("td",{class:"num"},"—"),el("td",{class:"num"},"—"),
+      const dp=esDeposito(r);
+      tb.append(el("tr",{class:"fila-retiro"},el("td",{},fechaCorta(r.fecha)),
+        el("td",{},(dp?"BOLETA · ":"RETIRO · ")+r.responsable+(dp&&clavePer(r)?"  ("+perTexto(r)+")":"")),
+        // la boleta no descuenta: la plata ya salió con el retiro del período
+        el("td",{class:"num",title:dp?"Rinde el retiro de ese período; no vuelve a bajar el saldo":null},
+          (dp?"":"− ")+plata(r.monto)),
+        el("td",{class:"num"},"—"),el("td",{class:"num"},"—"),
         el("td",{class:"num"},"—"),el("td",{class:"num"},plata(0)),el("td",{class:"num"},"—"),el("td",{},"")));
       continue;
     }
@@ -1311,7 +1347,8 @@ function vistaReportes(){
     kpi("Billetera virtual",plata(t.billetera),"var(--billetera)"),
     kpi("Otros valores",plata(t.otros),t.otros?"var(--otros)":null),
     kpi("Total valores",plata(t.total)),
-    kpi("Retirado",plata(rets.reduce((s,r)=>s+r.monto,0)))));
+    kpi("Retirado",plata(rets.filter(r=>!esDeposito(r)).reduce((s,r)=>s+r.monto,0))),
+    kpi("Rendido en boletas",plata(rets.filter(esDeposito).reduce((s,r)=>s+r.monto,0)))));
   c.append(p);
   if(!gr.length) return c;
 
@@ -1382,10 +1419,10 @@ function vistaReportes(){
 function vistaRetiros(){
   const c=el("div",{}); const p=el("div",{class:"panel"});
   p.append(el("h2",{},"Salidas de caja"));
-  p.append(el("p",{class:"hint"},"Hay dos maneras de que el efectivo salga de la caja: el retiro (se lo lleva el tesorero y cierra el período) y el depósito bancario (la plata va a la cuenta y el período sigue abierto). Las dos bajan el saldo. Tarjetas, billetera y otros valores no se tocan porque nunca entraron a la caja física."));
+  p.append(el("p",{class:"hint"},"El efectivo sale de la caja con el retiro: el tesorero se lleva la plata de un período y ese período queda cerrado. El depósito bancario es la boleta que rinde ese retiro, así que no vuelve a bajar el saldo; un mismo período puede rendirse con varias boletas que entre todas suman lo retirado. Tarjetas, billetera y otros valores no se tocan porque nunca entraron a la caja física."));
   p.append(el("div",{class:"row",style:"gap:8px"},
     el("button",{class:"btn",type:"button",onclick:dialogoRetiro,disabled:saldoEfectivo()<=0?"":null},"Registrar retiro"),
-    el("button",{class:"btn ghost",type:"button",onclick:dialogoDeposito,disabled:saldoEfectivo()<=0?"":null},"Registrar depósito")));
+    el("button",{class:"btn ghost",type:"button",onclick:dialogoDeposito,disabled:hayQueRendir()?null:""},"Registrar depósito")));
 
   const rets=retirosOrd().filter(r=>!esDeposito(r));
   const deps=retirosOrd().filter(esDeposito);
@@ -1407,23 +1444,29 @@ function vistaRetiros(){
   if(rets.length){
     p.append(rotulo("Retiros de efectivo"));
     const tab=el("table",{class:"data"});
-    tab.append(el("thead",{},el("tr",{},el("th",{},"Fecha"),el("th",{},"Tesorero"),el("th",{class:"num"},"Monto"),
+    tab.append(el("thead",{},el("tr",{},el("th",{},"Fecha"),el("th",{},"Período"),el("th",{},"Tesorero"),el("th",{class:"num"},"Monto"),
       el("th",{class:"num"},"Días"),el("th",{class:"num"},"Efectivo del período"),el("th",{class:"num"},"Diferencia"),
-      el("th",{},"Detalle"),el("th",{},"Comprobante"),el("th",{},""))));
+      el("th",{class:"num"},"Rendido"),el("th",{},"Detalle"),el("th",{},"Comprobante"),el("th",{},""))));
     const tb=el("tbody",{});
     for(let i=rets.length-1;i>=0;i--){
-      const r=rets[i], desde=i>0?rets[i-1].fecha:null;
-      const gp=db.grupos.filter(g=>g.fecha<=r.fecha&&(!desde||g.fecha>=desde));
+      const r=rets[i], pe=periodoDe(r);
+      const gp=db.grupos.filter(g=>g.fecha>=pe.desde&&g.fecha<=pe.hasta);
       const tp=totales(gp);
-      // el efectivo del período ya salió en parte si hubo depósitos en el medio
-      const dp=deps.filter(d=>d.fecha<=r.fecha&&(!desde||d.fecha>=desde)).reduce((a,d)=>a+d.monto,0);
-      const dif=tp.efectivo-dp-r.monto;
-      tb.append(el("tr",{},el("td",{},fechaCorta(r.fecha)),el("td",{},el("span",{class:"cajero-tag"},r.responsable)),
+      const dif=tp.efectivo-r.monto;
+      const bol=boletasPeriodo(pe), ren=bol.reduce((a,d)=>a+d.monto,0), falta=r.monto-ren;
+      const cerrado=Math.abs(falta)<.005;
+      tb.append(el("tr",{},el("td",{},fechaCorta(r.fecha)),
+        el("td",{style:"font-family:var(--mono);font-size:12px",
+          title:r.desde&&r.hasta?null:"Período deducido del retiro anterior: esta fila es vieja y no lo tiene guardado"},
+          perTexto(pe)+(r.desde&&r.hasta?"":" *")),
+        el("td",{},el("span",{class:"cajero-tag"},r.responsable)),
         el("td",{class:"num",style:"font-weight:700"},plata(r.monto)),
         el("td",{class:"num"},String(new Set(gp.map(g=>g.fecha)).size)),
-        el("td",{class:"num chip-ef",title:dp?"Ya se habían depositado "+plata(dp)+" en el banco":null},
-          plata(tp.efectivo-dp)),
+        el("td",{class:"num chip-ef"},plata(tp.efectivo)),
         el("td",{class:"num"+(Math.abs(dif)>0.5?" neg":"")},Math.abs(dif)<0.5?"—":plata(dif)),
+        el("td",{class:"num"+(ren&&!cerrado?" neg":""),
+          title:bol.length?bol.length+" boleta(s) de depósito en este período":"Todavía sin boletas de depósito"},
+          !ren?"—":(cerrado?plata(ren):plata(ren)+" / "+plata(r.monto))),
         el("td",{},r.detalle||"—"),
         celdaComps("retiro|"+r.id),
         el("td",{},el("button",{class:"btn ghost small",type:"button",onclick:borrar(r)},"Eliminar"))));
@@ -1434,12 +1477,14 @@ function vistaRetiros(){
   if(deps.length){
     p.append(rotulo("Depósitos bancarios"));
     const tab=el("table",{class:"data"});
-    tab.append(el("thead",{},el("tr",{},el("th",{},"Fecha"),el("th",{},"Depositó"),el("th",{class:"num"},"Monto"),
+    tab.append(el("thead",{},el("tr",{},el("th",{},"Fecha"),el("th",{},"Período que rinde"),el("th",{},"Depositó"),el("th",{class:"num"},"Monto"),
       el("th",{},"Banco"),el("th",{},"N° de boleta"),el("th",{},"Detalle"),el("th",{},"Comprobante"),el("th",{},""))));
     const tb=el("tbody",{});
     for(let i=deps.length-1;i>=0;i--){
       const r=deps[i];
-      tb.append(el("tr",{},el("td",{},fechaCorta(r.fecha)),el("td",{},el("span",{class:"cajero-tag"},r.responsable)),
+      tb.append(el("tr",{},el("td",{},fechaCorta(r.fecha)),
+        el("td",{style:"font-family:var(--mono);font-size:12px"},perTexto(r)),
+        el("td",{},el("span",{class:"cajero-tag"},r.responsable)),
         el("td",{class:"num",style:"font-weight:700"},plata(r.monto)),
         el("td",{},r.banco||"—"),
         el("td",{style:"font-family:var(--mono)"},r.referencia||"—"),
@@ -1455,14 +1500,17 @@ function vistaRetiros(){
 }
 
 /* Retiro y depósito comparten formulario. Difieren en quién figura, si piden
-   banco + N° de boleta, y en qué campos son obligatorios. Los dos restan del
-   efectivo; sólo el retiro cierra período. */
+   banco + N° de boleta, y en qué campos son obligatorios. El retiro saca la
+   plata de la caja y cierra el período; el depósito es la boleta que rinde un
+   retiro ya hecho, así que no vuelve a bajar el saldo. */
 const SALIDA={
   retiro:{
     titulo:"Registrar retiro", boton:"Registrar retiro",
     quien:"Tesorero", gente:()=>db.responsables,
     sinSaldo:"No hay efectivo para retirar.",
     detallePh:"Entrega de plata", pideBanco:false, compObligatorio:false,
+    rotuloPer:"Período que se retira",
+    hintPer:"Los días de caja que cubre esta plata. Se cierra con el retiro: el próximo empieza al día siguiente.",
     comp:"Comprobante del retiro",
     compHint:"Recibo firmado, foto del sobre o comprobante de transferencia. PNG, JPG, WEBP o PDF, hasta 400 KB.",
     todo:"Retira todo. El saldo queda en cero.",
@@ -1472,27 +1520,31 @@ const SALIDA={
   deposito:{
     titulo:"Registrar depósito bancario", boton:"Registrar depósito",
     quien:"Depositó", gente:()=>db.depositantes,
-    sinSaldo:"No hay efectivo para depositar.",
     detallePh:"Opcional: aclaración interna", pideBanco:true, compObligatorio:true,
+    rotuloPer:"Período que se rinde",
+    hintPer:"El retiro que estás rindiendo con esta boleta. Un mismo período puede tener varias boletas que entre todas suman el monto retirado.",
     comp:"Comprobante del depósito",
     compHint:"Boleta de depósito, ticket del cajero automático o captura del homebanking. PNG, JPG, WEBP o PDF, hasta 400 KB.",
-    todo:"Deposita todo. El saldo queda en cero.",
-    exceso:["Estás depositando %M% más de lo que hay registrado en caja.",
-            "Puede ser un error de carga, o efectivo que todavía no importaste."],
     ok:m=>`Depósito de ${plata(m)} registrado`}
 };
 const dialogoRetiro=()=>dialogoSalida("retiro");
 const dialogoDeposito=()=>dialogoSalida("deposito");
+/* hay algo para rendir cuando existe al menos un retiro */
+const hayQueRendir=()=>db.retiros.some(r=>!esDeposito(r));
 
 function dialogoSalida(tipo){
   const S=SALIDA[tipo];
+  const dep=tipo==="deposito";
   const saldo=saldoEfectivo();
-  if(saldo<=0){toast(S.sinSaldo);return}
+  if(!dep&&saldo<=0){toast(S.sinSaldo);return}
+  /* los retiros son los períodos que una boleta puede rendir, del más nuevo al más viejo */
+  const rets=retirosOrd().filter(r=>!esDeposito(r)).reverse();
+  if(dep&&!rets.length){toast("Primero registrá el retiro que vas a rendir con esta boleta.");return}
   const req=S.pideBanco?" *":"";
   const iF=el("input",{type:"date",value:hoyISO(),max:hoyISO()});
   const sR=el("select",{},...S.gente().map(r=>el("option",{value:r},r)));
   // los centavos importan: con Math.round() el remanente daba -$0,50
-  const iM=el("input",{class:"money",type:"text",value:montoTexto(saldo),
+  const iM=el("input",{class:"money",type:"text",value:dep?"":montoTexto(saldo),
     style:"width:170px;font-size:16px"});
   const iD=el("input",{type:"text",placeholder:S.detallePh,style:"width:100%"});
   const sB=S.pideBanco?el("select",{},el("option",{value:""},"Elegí el banco"),
@@ -1501,6 +1553,38 @@ function dialogoSalida(tipo){
     style:"width:100%;font-family:var(--mono)"}):null;
   const av=el("div",{style:"font-size:12.5px;margin-top:10px"});
   const err=el("p",{class:"err-campo",style:"display:none"});
+  const cab=el("div",{style:"font-family:var(--mono);font-size:13px;margin-bottom:14px;color:var(--ink-2)"});
+
+  /* --- período ------------------------------------------------
+     En el retiro se elige a mano (viene prellenado con el período abierto).
+     En la boleta se elige el retiro que rinde y las fechas salen de ahí; la
+     opción "Otro período" las desbloquea para casos sueltos. */
+  const iDe=el("input",{type:"date"}), iHa=el("input",{type:"date"});
+  const filaFechas=el("div",{class:"row",style:"margin-top:9px"},
+    el("label",{class:"f",style:"flex:0 1 200px"},"Desde"+req,iDe),
+    el("label",{class:"f",style:"flex:0 1 200px"},"Hasta"+req,iHa));
+  const sPer=dep?el("select",{style:"width:100%"},
+    ...rets.map((r,i)=>{
+      const p=periodoDe(r), falta=r.monto-rendidoDe(r);
+      return el("option",{value:String(i)},perTexto(p)+"  ·  retiro de "+plata(r.monto)+
+        (Math.abs(falta)<.005?"  ·  ya rendido":"  ·  faltan "+plata(falta)));
+    }),
+    el("option",{value:"otro"},"Otro período…")):null;
+
+  const retSel=()=>(dep&&sPer.value!=="otro")?rets[+sPer.value]:null;
+  function aplicarPer(){
+    const r=retSel();
+    if(r){
+      const p=periodoDe(r);
+      iDe.value=p.desde; iHa.value=p.hasta;
+      // el rango ya se lee en el select: mostrarlo dos veces sobra
+      filaFechas.style.display="none";
+      iM.value=montoTexto(Math.max(0,r.monto-rendidoDe(r)));
+    }else{
+      filaFechas.style.display="";
+    }
+    ck();
+  }
 
   /* --- comprobante: click o arrastrar --- */
   const buf=[]; const chips=el("div",{style:"margin-bottom:9px"});
@@ -1531,23 +1615,66 @@ function dialogoSalida(tipo){
   };
   pintarBuf();
 
-  const ck=()=>{const m=parseMonto(iM.value);const igual=Math.abs(m-saldo)<.005;
-    av.textContent=igual?S.todo:`Queda un remanente de ${plata(saldo-m)} en caja.`;
-    av.style.color=igual?"var(--efectivo)":"var(--aviso)"};
-  iM.addEventListener("input",ck); ck();
-  [iF,sR,iM,sB,iB].forEach(c=>c&&c.addEventListener("input",()=>{err.style.display="none"}));
+  /* aviso vivo: en el retiro habla del saldo, en la boleta de lo que falta rendir */
+  function ck(){
+    const m=parseMonto(iM.value);
+    if(!dep){
+      const igual=Math.abs(m-saldo)<.005;
+      av.textContent=igual?S.todo:`Queda un remanente de ${plata(saldo-m)} en caja.`;
+      av.style.color=igual?"var(--efectivo)":"var(--aviso)";
+      cab.replaceChildren("Efectivo en caja: ",el("b",{style:"color:var(--efectivo)"},plata(saldo)));
+      return;
+    }
+    const r=retSel();
+    if(!r){
+      cab.replaceChildren("Boleta suelta, sin retiro asociado.");
+      av.textContent=m>0?`Se registra una boleta de ${plata(m)}.`:"";
+      av.style.color="var(--ink-2)";
+      return;
+    }
+    const ya=rendidoDe(r), falta=r.monto-ya-m;
+    cab.replaceChildren("Retiro del período: ",el("b",{},plata(r.monto)),
+      ya?"  ·  ya rendido "+plata(ya):"  ·  sin rendir todavía");
+    if(Math.abs(falta)<.005){av.textContent="Con esta boleta el retiro queda rendido por completo.";av.style.color="var(--efectivo)"}
+    else if(falta>0){av.textContent=`Con esta boleta faltan rendir ${plata(falta)} de ese retiro.`;av.style.color="var(--aviso)"}
+    else{av.textContent=`Te pasás ${plata(-falta)} de lo que se retiró en ese período.`;av.style.color="var(--alerta)"}
+  }
+  iM.addEventListener("input",ck);
+  if(sPer) sPer.addEventListener("change",aplicarPer);
+  [iF,sR,iM,sB,iB,iDe,iHa].forEach(c=>c&&c.addEventListener("input",()=>{err.style.display="none"}));
+  if(dep) aplicarPer();
+  else{
+    /* si el período abierto todavía no arrancó (ya se retiró hoy), desde>hasta
+       daría un rango inválido de entrada */
+    const d0=proxDesde(), h0=hoyISO();
+    iDe.value=d0>h0?h0:d0; iHa.value=h0;
+    /* el cierre sigue a la fecha del retiro mientras no lo toquen a mano */
+    let haTocado=false;
+    iHa.addEventListener("change",()=>{haTocado=true});
+    iF.addEventListener("change",()=>{
+      if(!haTocado&&iF.value) iHa.value=iF.value<iDe.value?iDe.value:iF.value;
+    });
+    ck();
+  }
+
   const fallar=(txt,foco)=>{err.textContent=txt;err.style.display="";if(foco)foco.focus();return false};
 
+  const bloquePer=el("div",{style:"margin-top:14px;border-top:1px dashed var(--linea);padding-top:12px"},
+    el("div",{class:"f",style:"margin-bottom:5px"},S.rotuloPer+req),
+    el("p",{class:"hint",style:"margin:0 0 8px"},S.hintPer),
+    sPer,filaFechas);
+
   modal({titulo:S.titulo,cuerpo:el("div",{},
-    el("div",{style:"font-family:var(--mono);font-size:13px;margin-bottom:14px;color:var(--ink-2)"},
-      "Efectivo en caja: ",el("b",{style:"color:var(--efectivo)"},plata(saldo))),
-    el("div",{class:"row"},
+    cab,
+    dep?bloquePer:null,
+    el("div",{class:"row",style:dep?"margin-top:14px":null},
       el("label",{class:"f"},"Fecha"+req,iF),
       el("label",{class:"f"},S.quien+req,sR),
       el("label",{class:"f"},"Monto"+req,pesos(iM))),
     S.pideBanco?el("div",{class:"row",style:"margin-top:12px"},
       el("label",{class:"f",style:"flex:1 1 190px"},"Banco *",sB),
       el("label",{class:"f",style:"flex:1 1 190px"},"N° de boleta *",iB)):null,
+    dep?null:bloquePer,
     el("label",{class:"f",style:"margin-top:12px"},"Detalle"+(S.pideBanco?" (opcional)":""),iD),
     av,
     el("div",{style:"margin-top:16px;border-top:1px dashed var(--linea);padding-top:12px"},
@@ -1566,17 +1693,32 @@ function dialogoSalida(tipo){
         if(!sB.value)         return fallar("Elegí el banco.",sB);
         if(!iB.value.trim())  return fallar("Falta el N° de boleta.",iB);
       }
+      if(!iDe.value) return fallar("Falta la fecha de inicio del período.",iDe);
+      if(!iHa.value) return fallar("Falta la fecha de cierre del período.",iHa);
+      if(iDe.value>iHa.value) return fallar("El período arranca después de terminar.",iDe);
+      if(!dep&&iHa.value>iF.value)
+        return fallar("El período no puede cerrar después de la fecha del retiro.",iHa);
       if(S.compObligatorio&&!buf.length){
         zona.classList.add("falta");
         return fallar("Adjuntá el comprobante del depósito.",null);
       }
-      if(m>saldo+.5&&!await confirmar("El monto supera el saldo",
+      if(!dep&&m>saldo+.5&&!await confirmar("El monto supera el saldo",
         S.exceso.map(t=>t.replace("%M%",plata(m-saldo))),
         {ok:"Registrar igual"}))return false;
+      if(dep){
+        const r=retSel();
+        const ya=r?rendidoDe(r):boletasPeriodo({desde:iDe.value,hasta:iHa.value}).reduce((a,d)=>a+d.monto,0);
+        const tope=r?r.monto:0;
+        if(r&&ya+m>tope+.5&&!await confirmar("La boleta supera el retiro",
+          [`Entre las boletas de ese período vas a rendir ${plata(ya+m)} contra un retiro de ${plata(tope)}.`,
+           "Puede ser un error de carga, o plata de otro período que entró en la misma boleta."],
+          {ok:"Registrar igual"}))return false;
+      }
       const rid=uid();
       db.retiros.push({id:rid,fecha:iF.value,responsable:sR.value,monto:m,
         detalle:iD.value.trim(),tipo:tipo,
-        banco:sB?sB.value:"",referencia:iB?iB.value.trim():"",creado:Date.now()});
+        banco:sB?sB.value:"",referencia:iB?iB.value.trim():"",
+        desde:iDe.value,hasta:iHa.value,creado:Date.now()});
       guardar();
       let subidos=0;
       if(buf.length){
@@ -1874,15 +2016,22 @@ function exportarCSV(gr){
       return r.fecha>=f[0] && r.fecha<=f[f.length-1];
     }).sort((a,b)=>a.fecha.localeCompare(b.fecha));
     if(rt.length){
-      const ws2=XLSX.utils.aoa_to_sheet([["Fecha","Tipo","Responsable","Monto","Banco","N° de boleta","Detalle"],
-        ...rt.map(r=>[aFecha(r.fecha),esDeposito(r)?"Depósito":"Retiro",r.responsable,r.monto||0,
-                      r.banco||"",r.referencia||"",r.detalle||""])],{cellDates:true});
-      ws2["!cols"]=[{wch:12},{wch:11},{wch:18},{wch:15},{wch:16},{wch:18},{wch:34}];
+      // ojo con los índices: fecha=0, período desde=1 / hasta=2, monto=5
+      const ws2=XLSX.utils.aoa_to_sheet([["Fecha","Período desde","Período hasta","Tipo","Responsable","Monto","Banco","N° de boleta","Detalle"],
+        ...rt.map(r=>{
+          const pe=esDeposito(r)?{desde:r.desde,hasta:r.hasta}:periodoDe(r);
+          return [aFecha(r.fecha),pe.desde?aFecha(pe.desde):"",pe.hasta?aFecha(pe.hasta):"",
+                  esDeposito(r)?"Depósito":"Retiro",r.responsable,r.monto||0,
+                  r.banco||"",r.referencia||"",r.detalle||""];
+        })],{cellDates:true});
+      ws2["!cols"]=[{wch:12},{wch:14},{wch:14},{wch:11},{wch:18},{wch:15},{wch:16},{wch:18},{wch:34}];
       const rr=XLSX.utils.decode_range(ws2["!ref"]);
       for(let r=1;r<=rr.e.r;r++){
-        const cf=ws2[XLSX.utils.encode_cell({r,c:0})];
-        if(cf&&cf.t==="d") cf.z=FMT_FECHA;
-        const cel=ws2[XLSX.utils.encode_cell({r,c:3})];
+        for(const c of [0,1,2]){
+          const cf=ws2[XLSX.utils.encode_cell({r,c})];
+          if(cf&&cf.t==="d") cf.z=FMT_FECHA;
+        }
+        const cel=ws2[XLSX.utils.encode_cell({r,c:5})];
         if(cel&&cel.t==="n") cel.z=FMT_PESOS;
       }
       XLSX.utils.book_append_sheet(wb,ws2,"Retiros y depósitos");
@@ -1901,10 +2050,9 @@ function exportarCSV(gr){
    ============================================================ */
 function pintarCinta(){
   const s=saldoEfectivo(); const{desde,gr}=periodoAbierto(); const t=totales(gr);
-  const dep=db.retiros.filter(r=>esDeposito(r)&&(!desde||r.fecha>=desde)).reduce((a,r)=>a+r.monto,0);
   $("#saldo-monto").textContent=plata(s);
   $("#saldo-monto").style.color=s<0?"var(--alerta)":"var(--efectivo)";
-  $("#saldo-desde").textContent=desde?`Desde el retiro del ${fechaCorta(desde)}`:(db.grupos.length?"Desde el inicio":"Sin movimientos todavía");
+  $("#saldo-desde").textContent=desde?`Período abierto desde el ${fechaCorta(desde)}`:(db.grupos.length?"Desde el inicio":"Sin movimientos todavía");
   /* replaceChildren() convierte null en el texto "null": hay que filtrar. */
   $("#cinta-rows").replaceChildren(...[
     el("div",{class:"cr"},el("span",{},"Efectivo"),el("b",{style:"color:var(--efectivo)"},plata(t.efectivo))),
@@ -1912,11 +2060,11 @@ function pintarCinta(){
     el("div",{class:"cr"},el("span",{},"Billetera"),el("b",{style:"color:var(--billetera)"},plata(t.billetera))),
     t.otros?el("div",{class:"cr"},el("span",{},"Otros valores"),el("b",{style:"color:var(--otros)"},plata(t.otros))):null,
     el("div",{class:"cr",style:"border-top:1px dashed var(--linea);padding-top:7px"},el("span",{},"Facturado"),el("b",{},plata(t.total))),
-    dep?el("div",{class:"cr"},el("span",{},"Depositado"),el("b",{style:"color:var(--aviso)"},"− "+plata(dep))):null,
+
     el("div",{class:"cr"},el("span",{},"Días"),el("b",{},String(new Set(gr.map(g=>g.fecha)).size)))
   ].filter(Boolean));
   const r=diasARevisar().filter(x=>!estaRevisado(x.d)).length; $("#cnt-rev").textContent=r?`(${r})`:"";
-  $("#btn-retirar").disabled=s<=0; $("#btn-depositar").disabled=s<=0;
+  $("#btn-retirar").disabled=s<=0; $("#btn-depositar").disabled=!hayQueRendir();
 }
 const TITULOS={importar:"Importar listados",dias:"D\u00edas cargados",reportes:"Reportes",retiros:"Retiros y dep\u00f3sitos",revisar:"Revisar",manual:"Cargar a mano",datos:"Datos y respaldo"};
 const VISTAS={importar:vistaImportar,dias:vistaDias,reportes:vistaReportes,retiros:vistaRetiros,revisar:vistaRevisar,manual:vistaManual,datos:vistaDatos};
