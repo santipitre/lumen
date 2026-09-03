@@ -960,8 +960,11 @@ function vistaDias(){
     c.append(p); return c;
   }
   const rets=retirosOrd().filter(r=>(!filtro.desde||r.fecha>=filtro.desde)&&(!filtro.hasta||r.fecha<=filtro.hasta)&&!filtro.cajero);
+  // el día más reciente va arriba; dentro del día, los cajeros y al final el retiro/depósito
   const eventos=[...dias.map(d=>({t:"d",x:d})),...rets.map(r=>({t:"r",x:r}))]
-    .sort((a,b)=>a.x.fecha===b.x.fecha?(a.t==="r"?1:-1):a.x.fecha.localeCompare(b.x.fecha));
+    .sort((a,b)=>a.x.fecha===b.x.fecha
+      ? (a.t===b.t?0:(a.t==="r"?1:-1))
+      : b.x.fecha.localeCompare(a.x.fecha));
 
   const tab=el("table",{class:"data"});
   tab.append(el("thead",{},el("tr",{},el("th",{},"Fecha"),el("th",{},"Cajero"),
