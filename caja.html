@@ -147,6 +147,10 @@ input.money{font-family:var(--mono);text-align:right;font-variant-numeric:tabula
 .money-wrap:focus-within::before{color:var(--efectivo)}
 .drop{border:2px dashed var(--linea);border-radius:var(--r);padding:34px 20px;text-align:center;background:var(--linea-2);transition:.15s}
 .drop.hot{border-color:var(--efectivo);background:var(--efectivo-bg)}
+.drop.mini{padding:16px 14px;cursor:pointer}
+.drop.mini b{font-size:14px;margin-bottom:2px}
+.drop.falta{border-color:var(--alerta);background:var(--alerta-bg)}
+.err-campo{color:var(--alerta);font-size:12.5px;margin:8px 0 0;font-weight:600}
 .drop b{display:block;font-size:16px;margin-bottom:5px}
 .drop small{color:var(--ink-3)}
 .tabla-scroll{overflow:auto;max-height:64vh;border:1px solid var(--linea);border-radius:var(--r);background:var(--panel)}
@@ -493,8 +497,10 @@ const normMedio=m=>(m||"SIN MEDIO").toUpperCase().replace(/\s+/g," ").trim();
    Un grupo = fecha + cajero + medio. Sin nombres ni DNI.
    ============================================================ */
 const CAJEROS_INI=["ITORRES","JMONICA","ZABRAHAM","JAVILA","ASOSA","CMAIDA"];
-const RESP_INI=["SERGIO","MAXI"];
-let db={version:3,cajeros:CAJEROS_INI.slice(),responsables:RESP_INI.slice(),
+const RESP_INI=["SERGIO","MAXI"];      // se llevan el efectivo
+const DEPOS_INI=["LALIAS"];            // depositan en el banco
+const BANCOS=["SANTANDER"];
+let db={version:3,cajeros:CAJEROS_INI.slice(),responsables:RESP_INI.slice(),depositantes:DEPOS_INI.slice(),
         grupos:[],retiros:[],importaciones:[],revisados:{},comprobantes:{},sinRespaldo:0};
 
 let vista="importar";
@@ -512,7 +518,8 @@ const filaGrupo=g=>({id:g.id,sede:SEDE,fecha:g.fecha,cajero:g.cajero,medio:g.med
   categoria:g.categoria,monto:g.monto,n:g.n||0,comps:g.comps||[],
   imp:(g.imp&&g.imp!=="manual")?g.imp:null,creado_por:AUTHUID});
 const filaRetiro=r=>({id:r.id,sede:SEDE,fecha:r.fecha,responsable:r.responsable,
-  monto:r.monto,detalle:r.detalle||null,tipo:r.tipo||"retiro",referencia:r.referencia||null,
+  monto:r.monto,detalle:r.detalle||null,tipo:r.tipo||"retiro",
+  banco:r.banco||null,referencia:r.referencia||null,
   creado_por:AUTHUID});
 const filaImport=i=>({id:i.id,sede:SEDE,archivos:i.archivo||null,filas_ok:i.filas||0,
   rango:i.rango||null,creado_por:AUTHUID});
@@ -566,7 +573,8 @@ async function cargarDesdeNube(){
   db.grupos=gr.map(r=>({id:r.id,imp:r.imp||"manual",fecha:r.fecha,cajero:r.cajero,
     medio:r.medio,categoria:r.categoria,monto:Number(r.monto),n:r.n||0,comps:r.comps||[]}));
   db.retiros=re.map(r=>({id:r.id,fecha:r.fecha,responsable:r.responsable,
-    monto:Number(r.monto),detalle:r.detalle||"",tipo:r.tipo||"retiro",referencia:r.referencia||"",
+    monto:Number(r.monto),detalle:r.detalle||"",tipo:r.tipo||"retiro",
+    banco:r.banco||"",referencia:r.referencia||"",
     creado:Date.parse(r.creado_en)||Date.now()}));
   db.revisados={};
   rv.forEach(r=>{db.revisados[r.fecha+"|"+r.cajero]=
@@ -578,7 +586,8 @@ async function cargarDesdeNube(){
   cp.forEach(c=>{(db.comprobantes[c.clave]=db.comprobantes[c.clave]||[]).push(
     {id:c.id,nombre:c.nombre,bytes:c.bytes||0,path:c.path})});
   db.cajeros=[...new Set([...CAJEROS_INI,...db.grupos.map(g=>g.cajero)])].sort();
-  db.responsables=[...new Set([...RESP_INI,...db.retiros.map(r=>r.responsable)])].sort();
+  db.responsables=[...new Set([...RESP_INI,...db.retiros.filter(r=>!esDeposito(r)).map(r=>r.responsable)])].sort();
+  db.depositantes=[...new Set([...DEPOS_INI,...db.retiros.filter(esDeposito).map(r=>r.responsable)])].sort();
   db.sinRespaldo=0;
   snapshot();
 }
@@ -1211,13 +1220,14 @@ function vistaRetiros(){
     p.append(rotulo("Depósitos bancarios"));
     const tab=el("table",{class:"data"});
     tab.append(el("thead",{},el("tr",{},el("th",{},"Fecha"),el("th",{},"Depositó"),el("th",{class:"num"},"Monto"),
-      el("th",{},"Banco / N° de boleta"),el("th",{},"Detalle"),el("th",{},"Comprobante"),el("th",{},""))));
+      el("th",{},"Banco"),el("th",{},"N° de boleta"),el("th",{},"Detalle"),el("th",{},"Comprobante"),el("th",{},""))));
     const tb=el("tbody",{});
     for(let i=deps.length-1;i>=0;i--){
       const r=deps[i];
       tb.append(el("tr",{},el("td",{},fechaCorta(r.fecha)),el("td",{},el("span",{class:"cajero-tag"},r.responsable)),
         el("td",{class:"num",style:"font-weight:700"},plata(r.monto)),
-        el("td",{style:"font-family:var(--mono);font-size:12.5px"},r.referencia||"—"),
+        el("td",{},r.banco||"—"),
+        el("td",{style:"font-family:var(--mono)"},r.referencia||"—"),
         el("td",{},r.detalle||"—"),
         celdaComps("retiro|"+r.id),
         el("td",{},el("button",{class:"btn ghost small",type:"button",onclick:borrar(r)},"Eliminar"))));
@@ -1229,28 +1239,29 @@ function vistaRetiros(){
   c.append(p); return c;
 }
 
-/* Retiro y depósito comparten formulario: cambian los rótulos, el rótulo del
-   responsable y si piden número de boleta. Los dos restan del efectivo. */
+/* Retiro y depósito comparten formulario. Difieren en quién figura, si piden
+   banco + N° de boleta, y en qué campos son obligatorios. Los dos restan del
+   efectivo; sólo el retiro cierra período. */
 const SALIDA={
   retiro:{
     titulo:"Registrar retiro", boton:"Registrar retiro",
-    quien:"Tesorero", sinSaldo:"No hay efectivo para retirar.",
-    detalle:"Entrega de plata", ref:null,
+    quien:"Tesorero", gente:()=>db.responsables,
+    sinSaldo:"No hay efectivo para retirar.",
+    detallePh:"Entrega de plata", pideBanco:false, compObligatorio:false,
     comp:"Comprobante del retiro",
-    compHint:"Recibo firmado, foto del sobre o comprobante de transferencia. PNG, JPG, WEBP o PDF, hasta 400 KB. Se guarda junto al retiro y viaja en el respaldo .json.",
+    compHint:"Recibo firmado, foto del sobre o comprobante de transferencia. PNG, JPG, WEBP o PDF, hasta 400 KB.",
     todo:"Retira todo. El saldo queda en cero.",
-    resto:s=>`Queda un remanente de ${plata(s)} en caja.`,
     exceso:["Estás retirando %M% más de lo que hay registrado en caja.",
             "Puede ser un error de carga, o efectivo que todavía no importaste."],
     ok:m=>`Retiro de ${plata(m)} registrado`},
   deposito:{
     titulo:"Registrar depósito bancario", boton:"Registrar depósito",
-    quien:"Depositó", sinSaldo:"No hay efectivo para depositar.",
-    detalle:"Depósito en cuenta", ref:"Banco / N° de boleta",
+    quien:"Depositó", gente:()=>db.depositantes,
+    sinSaldo:"No hay efectivo para depositar.",
+    detallePh:"Opcional: aclaración interna", pideBanco:true, compObligatorio:true,
     comp:"Comprobante del depósito",
-    compHint:"Boleta de depósito, ticket del cajero automático o captura del homebanking. PNG, JPG, WEBP o PDF, hasta 400 KB. Se guarda junto al depósito y viaja en el respaldo .json.",
+    compHint:"Boleta de depósito, ticket del cajero automático o captura del homebanking. PNG, JPG, WEBP o PDF, hasta 400 KB.",
     todo:"Deposita todo. El saldo queda en cero.",
-    resto:s=>`Queda un remanente de ${plata(s)} en caja.`,
     exceso:["Estás depositando %M% más de lo que hay registrado en caja.",
             "Puede ser un error de carga, o efectivo que todavía no importaste."],
     ok:m=>`Depósito de ${plata(m)} registrado`}
@@ -1262,48 +1273,103 @@ function dialogoSalida(tipo){
   const S=SALIDA[tipo];
   const saldo=saldoEfectivo();
   if(saldo<=0){toast(S.sinSaldo);return}
+  const req=S.pideBanco?" *":"";
   const iF=el("input",{type:"date",value:hoyISO(),max:hoyISO()});
-  const sR=el("select",{},...db.responsables.map(r=>el("option",{value:r},r)));
-  const iM=el("input",{class:"money",type:"text",value:String(Math.round(saldo)),style:"width:170px;font-size:16px"});
-  const iD=el("input",{type:"text",placeholder:S.detalle,style:"width:100%"});
-  const iR=S.ref?el("input",{type:"text",placeholder:"Ej.: Nación · boleta 0012345",style:"width:100%"}):null;
+  const sR=el("select",{},...S.gente().map(r=>el("option",{value:r},r)));
+  // los centavos importan: con Math.round() el remanente daba -$0,50
+  const iM=el("input",{class:"money",type:"text",value:saldo.toFixed(2).replace(".",","),
+    style:"width:170px;font-size:16px"});
+  const iD=el("input",{type:"text",placeholder:S.detallePh,style:"width:100%"});
+  const sB=S.pideBanco?el("select",{},el("option",{value:""},"Elegí el banco"),
+    ...BANCOS.map(b=>el("option",{value:b},b))):null;
+  const iB=S.pideBanco?el("input",{type:"text",placeholder:"Ej.: 0012345",
+    style:"width:100%;font-family:var(--mono)"}):null;
   const av=el("div",{style:"font-size:12.5px;margin-top:10px"});
-  const buf=[]; const zona=el("div",{});
-  const fi=el("input",{type:"file",accept:"image/png,image/jpeg,image/webp,application/pdf",style:"display:none",
-    onchange:e=>{procesarArchivo(e.target.files[0],c=>{buf.push(c);pintarBuf()});e.target.value=""}});
+  const err=el("p",{class:"err-campo",style:"display:none"});
+
+  /* --- comprobante: click o arrastrar --- */
+  const buf=[]; const chips=el("div",{style:"margin-bottom:9px"});
+  const fi=el("input",{type:"file",multiple:"multiple",
+    accept:"image/png,image/jpeg,image/webp,application/pdf",style:"display:none",
+    onchange:e=>{[...e.target.files].forEach(f=>procesarArchivo(f,c=>{buf.push(c);pintarBuf()}));e.target.value=""}});
+  const zona=el("div",{class:"drop mini",onclick:()=>fi.click()},
+    el("b",{},"Arrastrá el comprobante acá"),
+    el("small",{},"o hacé clic para buscarlo"));
+  // sin stopPropagation el archivo lo agarra el drop global y se va a "Importar listados"
+  ["dragenter","dragover"].forEach(ev=>zona.addEventListener(ev,e=>{
+    e.preventDefault();e.stopPropagation();zona.classList.add("hot")}));
+  ["dragleave","dragend"].forEach(ev=>zona.addEventListener(ev,e=>{
+    e.preventDefault();e.stopPropagation();zona.classList.remove("hot")}));
+  zona.addEventListener("drop",e=>{
+    e.preventDefault();e.stopPropagation();zona.classList.remove("hot");
+    const fs=e.dataTransfer&&e.dataTransfer.files;
+    if(fs&&fs.length)[...fs].forEach(f=>procesarArchivo(f,c=>{buf.push(c);pintarBuf()}));
+  });
   const pintarBuf=()=>{
-    zona.replaceChildren();
-    buf.forEach((c,i)=>zona.append(el("span",{class:"comp-chip"},
-      el("a",{title:Math.round(c.bytes/1024)+" KB",onclick:()=>abrirComp(c)},c.nombre),
-      el("button",{type:"button",title:"Quitar",onclick:()=>{buf.splice(i,1);pintarBuf()}},"×"))));
-    zona.append(el("button",{class:"btn ghost small",type:"button",onclick:()=>fi.click()},
-      buf.length?"Adjuntar otro":"Adjuntar comprobante"),fi);
+    chips.replaceChildren();
+    buf.forEach((c,i)=>chips.append(el("span",{class:"comp-chip"},
+      el("a",{title:Math.round(c.bytes/1024)+" KB",onclick:e=>{e.stopPropagation();abrirComp(c)}},c.nombre),
+      el("button",{type:"button",title:"Quitar",onclick:e=>{e.stopPropagation();buf.splice(i,1);pintarBuf()}},"×"))));
+    zona.classList.remove("falta");
+    if(buf.length) err.style.display="none";
+    zona.firstChild.textContent=buf.length?"Arrastrá otro comprobante":"Arrastrá el comprobante acá";
   };
   pintarBuf();
-  const ck=()=>{const m=parseMonto(iM.value);const igual=Math.abs(m-saldo)<.5;
-    av.textContent=igual?S.todo:S.resto(saldo-m);
+
+  const ck=()=>{const m=parseMonto(iM.value);const igual=Math.abs(m-saldo)<.005;
+    av.textContent=igual?S.todo:`Queda un remanente de ${plata(saldo-m)} en caja.`;
     av.style.color=igual?"var(--efectivo)":"var(--aviso)"};
   iM.addEventListener("input",ck); ck();
+  [iF,sR,iM,sB,iB].forEach(c=>c&&c.addEventListener("input",()=>{err.style.display="none"}));
+  const fallar=(txt,foco)=>{err.textContent=txt;err.style.display="";if(foco)foco.focus();return false};
+
   modal({titulo:S.titulo,cuerpo:el("div",{},
-    el("div",{style:"font-family:var(--mono);font-size:13px;margin-bottom:14px;color:var(--ink-2)"},"Efectivo en caja: ",el("b",{style:"color:var(--efectivo)"},plata(saldo))),
-    el("div",{class:"row"},el("label",{class:"f"},"Fecha",iF),el("label",{class:"f"},S.quien,sR),el("label",{class:"f"},"Monto",pesos(iM))),
-    iR?el("label",{class:"f",style:"margin-top:12px"},S.ref,iR):null,
-    el("label",{class:"f",style:"margin-top:12px"},"Detalle",iD),av,
+    el("div",{style:"font-family:var(--mono);font-size:13px;margin-bottom:14px;color:var(--ink-2)"},
+      "Efectivo en caja: ",el("b",{style:"color:var(--efectivo)"},plata(saldo))),
+    el("div",{class:"row"},
+      el("label",{class:"f"},"Fecha"+req,iF),
+      el("label",{class:"f"},S.quien+req,sR),
+      el("label",{class:"f"},"Monto"+req,pesos(iM))),
+    S.pideBanco?el("div",{class:"row",style:"margin-top:12px"},
+      el("label",{class:"f",style:"flex:1 1 190px"},"Banco *",sB),
+      el("label",{class:"f",style:"flex:1 1 190px"},"N° de boleta *",iB)):null,
+    el("label",{class:"f",style:"margin-top:12px"},"Detalle"+(S.pideBanco?" (opcional)":""),iD),
+    av,
     el("div",{style:"margin-top:16px;border-top:1px dashed var(--linea);padding-top:12px"},
-      el("div",{class:"f",style:"margin-bottom:7px"},S.comp),
+      el("div",{class:"f",style:"margin-bottom:7px"},S.comp+(S.compObligatorio?" *":"")),
       el("p",{class:"hint",style:"margin:0 0 9px"},S.compHint),
-      zona)),
+      chips,zona,fi),
+    S.pideBanco?el("p",{class:"hint",style:"margin:12px 0 0"},"Los campos con * son obligatorios."):null,
+    err),
     acciones:[{texto:"Cancelar"},{texto:S.boton,clase:"",accion:async()=>{
+      err.style.display="none"; zona.classList.remove("falta");
       const m=parseMonto(iM.value);
-      if(m<=0){avisar("Monto inválido","El monto tiene que ser mayor a cero.");return false}
+      if(!iF.value) return fallar("Falta la fecha.",iF);
+      if(!sR.value) return fallar("Falta indicar quién.",sR);
+      if(m<=0)      return fallar("El monto tiene que ser mayor a cero.",iM);
+      if(S.pideBanco){
+        if(!sB.value)         return fallar("Elegí el banco.",sB);
+        if(!iB.value.trim())  return fallar("Falta el N° de boleta.",iB);
+      }
+      if(S.compObligatorio&&!buf.length){
+        zona.classList.add("falta");
+        return fallar("Adjuntá el comprobante del depósito.",null);
+      }
       if(m>saldo+.5&&!await confirmar("El monto supera el saldo",
         S.exceso.map(t=>t.replace("%M%",plata(m-saldo))),
         {ok:"Registrar igual"}))return false;
       const rid=uid();
       db.retiros.push({id:rid,fecha:iF.value,responsable:sR.value,monto:m,
-        detalle:iD.value.trim(),tipo:tipo,referencia:iR?iR.value.trim():"",creado:Date.now()});
-      for(const c of buf) if(!guardarEn("retiro|"+rid,c)) break;
-      guardar();toast(S.ok(m)+(buf.length?" con "+buf.length+" comprobante(s)":"")+".");render()}}]});
+        detalle:iD.value.trim(),tipo:tipo,
+        banco:sB?sB.value:"",referencia:iB?iB.value.trim():"",creado:Date.now()});
+      guardar();
+      let subidos=0;
+      if(buf.length){
+        toast(buf.length===1?"Subiendo el comprobante…":"Subiendo "+buf.length+" comprobantes…");
+        for(const c of buf) if(await subirComp("retiro|"+rid,c)) subidos++;
+      }
+      toast(S.ok(m)+(buf.length?` con ${subidos} de ${buf.length} comprobante(s)`:"")+".");
+      render()}}]});
 }
 
 /* ============================================================
@@ -1593,10 +1659,10 @@ function exportarCSV(gr){
       return r.fecha>=f[0] && r.fecha<=f[f.length-1];
     }).sort((a,b)=>a.fecha.localeCompare(b.fecha));
     if(rt.length){
-      const ws2=XLSX.utils.aoa_to_sheet([["Fecha","Tipo","Responsable","Monto","Banco / N° de boleta","Detalle"],
+      const ws2=XLSX.utils.aoa_to_sheet([["Fecha","Tipo","Responsable","Monto","Banco","N° de boleta","Detalle"],
         ...rt.map(r=>[aFecha(r.fecha),esDeposito(r)?"Depósito":"Retiro",r.responsable,r.monto||0,
-                      r.referencia||"",r.detalle||""])],{cellDates:true});
-      ws2["!cols"]=[{wch:12},{wch:11},{wch:18},{wch:15},{wch:26},{wch:38}];
+                      r.banco||"",r.referencia||"",r.detalle||""])],{cellDates:true});
+      ws2["!cols"]=[{wch:12},{wch:11},{wch:18},{wch:15},{wch:16},{wch:18},{wch:34}];
       const rr=XLSX.utils.decode_range(ws2["!ref"]);
       for(let r=1;r<=rr.e.r;r++){
         const cf=ws2[XLSX.utils.encode_cell({r,c:0})];
@@ -1698,7 +1764,7 @@ function borrarPaso2(){
         if(inp.value.trim()!=="BORRAR"){est.textContent="No coincide. Escribí BORRAR, en mayúsculas.";est.style.color="var(--alerta)";inp.focus();return false}
         if(!esAdmin()){toast("S\u00f3lo un administrador puede borrar todo.");return false}
         db.grupos=[];db.retiros=[];db.importaciones=[];db.revisados={};
-        db.cajeros=CAJEROS_INI.slice();db.responsables=RESP_INI.slice();
+        db.cajeros=CAJEROS_INI.slice();db.responsables=RESP_INI.slice();db.depositantes=DEPOS_INI.slice();
         guardar();toast("Todo borrado de la nube.");render();
       }}]});
   inp.focus();
@@ -1734,8 +1800,6 @@ async function marcarRevisado(d,on){
   guardar();toast(on?"Marcado como revisado.":"Reabierto para revisión.");render();
 }
 function pesos(inp){return el("span",{class:"money-wrap"},inp)}
-function guardarEn(){return true}
-
 function procesarArchivo(file,cb){
   if(!file)return;
   const esImg=/^image\/(png|jpeg|webp)$/.test(file.type);
@@ -1750,22 +1814,31 @@ function rutaComp(clave,nombre){
   return SEDE_SLUG+"/"+carpeta+"/"+uid()+"_"+limpio;
 }
 
+/* Sube UN comprobante ya validado por procesarArchivo. Devuelve true/false.
+   Es la única vía real de subida: la usan el botón "Adjuntar" de la tabla y
+   los diálogos de retiro/depósito. */
+async function subirComp(clave,c){
+  const path=rutaComp(clave,c.nombre);
+  try{
+    await stSubir(path,c.blob);
+    const fila=await sbInsert("caja_comprobantes",
+      {sede:SEDE,clave,path,nombre:c.nombre,bytes:c.bytes,creado_por:AUTHUID});
+    const r=Array.isArray(fila)?fila[0]:fila;
+    (db.comprobantes[clave]=db.comprobantes[clave]||[]).push(
+      {id:r.id,nombre:c.nombre,bytes:c.bytes,path});
+    return true;
+  }catch(e){
+    await stBorrar(path);
+    toast("No se pudo adjuntar "+c.nombre+": "+e.message);
+    return false;
+  }
+}
 function adjuntar(clave,file){
   if(!puedeEditar()){toast("Tu usuario es de solo lectura.");return}
   procesarArchivo(file,async c=>{
-    const path=rutaComp(clave,c.nombre);
-    try{
-      await stSubir(path,c.blob);
-      const fila=await sbInsert("caja_comprobantes",
-        {sede:SEDE,clave,path,nombre:c.nombre,bytes:c.bytes,creado_por:AUTHUID});
-      const r=Array.isArray(fila)?fila[0]:fila;
-      (db.comprobantes[clave]=db.comprobantes[clave]||[]).push(
-        {id:r.id,nombre:c.nombre,bytes:c.bytes,path});
+    if(await subirComp(clave,c)){
       toast("Comprobante adjuntado ("+Math.round(c.bytes/1024)+" KB).");
       render();
-    }catch(e){
-      await stBorrar(path);
-      toast("No se pudo adjuntar: "+e.message);
     }
   });
 }
