@@ -307,11 +307,11 @@ dialog.dlg-confirm .dlg-f{padding:20px 26px 22px;justify-content:flex-end;backgr
 .riel{position:sticky;top:0;height:100vh;background:var(--riel);border-right:1px solid var(--linea);
   display:flex;flex-direction:column;padding:20px 14px 16px;gap:4px}
 .riel-marca{display:flex;align-items:center;gap:10px;padding:0 8px 20px}
-.riel-l{width:30px;height:30px;flex:none;border-radius:50%;background:var(--manteca);
-  color:var(--manteca-ink);font-family:var(--serif);font-size:19px;
-  display:grid;place-items:center;line-height:1}
-.riel-marca b{display:block;font-size:14.5px;font-weight:700;letter-spacing:.06em;line-height:1.15}
-.riel-marca small{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.22em;color:var(--ink-3)}
+.riel-l{width:40px;height:40px;flex:none;display:block}
+.riel-l svg{width:100%;height:100%;display:block}
+.riel-marca b{display:block;font-size:20px;font-weight:800;letter-spacing:-.015em;line-height:1.05}
+.riel-marca small{display:block;font-family:var(--mono);font-size:9px;font-weight:500;
+  letter-spacing:.3em;text-transform:uppercase;color:var(--ink-3);margin-top:2px}
 .riel-sec{font-family:var(--mono);font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;
   color:var(--ink-3);padding:0 10px 8px}
 nav.tabs{display:flex;flex-direction:column;gap:2px;border-bottom:0;margin:0;padding:0;max-width:none}
@@ -345,9 +345,9 @@ header.top{border-top:0;border-bottom:1px solid var(--linea);background:var(--pa
 .top-right{font-family:var(--mono);font-size:11.5px;font-weight:500;letter-spacing:.13em;
   color:var(--ink-2);background:var(--panel);border:1px solid var(--linea);
   padding:7px 15px;border-radius:99px;white-space:nowrap}
-.marca-logos{display:flex;align-items:center;gap:15px}
-.marca-logos img{height:40px;width:auto;display:block}
-.marca-logos img.hi{height:46px}
+.marca-logos{display:flex;align-items:center;gap:20px}
+.marca-logos img{height:58px;width:auto;display:block}
+.marca-logos img.hi{height:66px}
 .shell{padding-top:20px}
 .panel>h2{display:none}
 /* cifras en serif, como la maqueta; los montos tabulares siguen en mono */
@@ -373,7 +373,7 @@ header.top{border-top:0;border-bottom:1px solid var(--linea);background:var(--pa
   .app{display:block}
   .marca{padding:0 0 8px!important}
   .marca-tit{color:#16181D!important;font-size:30px!important}
-  .marca-logos img{height:34px!important}.marca-logos img.hi{height:38px!important}
+  .marca-logos img{height:46px!important}.marca-logos img.hi{height:52px!important}
   .shell{padding-top:0}
   .panel>h2{display:block}
 }
@@ -424,8 +424,14 @@ header.top{border-top:0;border-bottom:1px solid var(--linea);background:var(--pa
 <div class="app">
 <aside class="riel">
   <div class="riel-marca">
-    <span class="riel-l">L</span>
-    <div><b>LUMEN</b><small>by Pyralis</small></div>
+    <span class="riel-l" aria-hidden="true"><svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="3" width="54" height="54" rx="13" fill="#0A0F14" stroke="#1F2937" stroke-width=".8"/>
+      <path d="M16 14 L16 46 L44 46" fill="none" stroke="#F1F5F9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="38" cy="22" r="9" fill="none" stroke="#F59E0B" stroke-width=".6" opacity=".4"/>
+      <circle cx="38" cy="22" r="4" fill="#F59E0B"/>
+      <circle cx="38" cy="22" r="1.8" fill="#FEF3C7"/>
+    </svg></span>
+    <div><b>Lumen</b><small>by Pyralis</small></div>
   </div>
   <div class="riel-sec">Caja</div>
   <nav class="tabs" id="tabs">
