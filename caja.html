@@ -91,6 +91,14 @@ body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:
 button,input,select,textarea{font:inherit;color:inherit}
 h1,h2,h3{margin:0;font-weight:650;letter-spacing:-0.015em}
 .shell{display:grid;grid-template-columns:minmax(0,1fr) 272px;gap:20px;max-width:1500px;margin:0 auto;padding:0 20px 60px}
+/* entre 1120 y 1520 la cinta se achica para que la tabla de días entre sin
+   barra horizontal */
+@media(max-width:1520px){.shell{grid-template-columns:minmax(0,1fr) 238px;gap:16px}}
+@media(max-width:1330px){
+  .shell{grid-template-columns:minmax(0,1fr) 218px;gap:13px}
+  table.data.compacta td,table.data.compacta th{padding:8px 5px}
+  table.data.compacta td:nth-child(2){max-width:138px}
+}
 @media(max-width:1120px){.shell{grid-template-columns:minmax(0,1fr)}.cinta-wrap{position:static!important}}
 header.top{border-bottom:1px solid var(--linea);border-top:3px solid var(--oro-2);background:var(--panel)}
 .top-in{align-items:center!important}
@@ -204,15 +212,35 @@ tr.fila-retiro td:first-child{box-shadow:inset 3px 0 0 var(--oro-2)}
 tr.fila-retiro:hover td{background:var(--fila-ret-h)}
 tr.detalle td{background:var(--linea-2);font-size:13.5px;color:var(--ink-2)}
 tr.dia-sep td{background:var(--panel);border-top:2px solid var(--oro-2);border-bottom:1px solid var(--linea);padding:9px 12px 8px;white-space:nowrap;vertical-align:middle}
+tr.dia-sep td:first-child{white-space:normal}
 tr.dia-sep:first-child td{border-top:0}
 tr.dia-sep:hover td{background:var(--panel)}
 .dsep{display:flex;align-items:baseline;justify-content:space-between;gap:14px;flex-wrap:wrap}
-.dsep-f{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--ink)}
+.dsep-f{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:13px;
+  letter-spacing:.09em;text-transform:uppercase;font-weight:700;color:var(--ink)}
 .dsep-f::before{content:"";width:3px;height:13px;border-radius:2px;background:var(--oro-2);flex:none}
 .dsep-m{display:flex;align-items:baseline;flex-wrap:wrap;justify-content:flex-end;gap:6px 15px;
   font-family:var(--mono);font-size:13.5px;font-variant-numeric:tabular-nums;color:var(--ink-3)}
 .dsep-sub{font-family:var(--mono);font-size:11.5px;letter-spacing:.03em;color:var(--ink-3);
-  margin-top:3px;padding-left:12px}
+  white-space:nowrap;text-align:left}
+/* el total del día no puede confundirse con el efectivo de cada cajero:
+   va en pastilla verde, con rótulo, y es lo único que se resalta */
+.dsep-tot{display:inline-flex;align-items:baseline;gap:6px;background:var(--efectivo-bg);
+  border:1px solid var(--efectivo-soft);border-radius:99px;padding:3px 9px;
+  font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:-.02em;
+  color:var(--efectivo);font-variant-numeric:tabular-nums;white-space:nowrap}
+.dsep-tot i{font-style:normal;font-size:9px;font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;opacity:.7}
+/* la tabla de días entra sin barra horizontal: menos aire y fechas cortas */
+table.data.compacta td,table.data.compacta th{padding:8px 6px}
+/* el renglón del retiro ("RETIRO · Sergio Arsani (01/09 → 01/09)") era el que
+   estiraba la columna Cajero: se recorta y el texto completo queda en el title */
+table.data.compacta td:nth-child(2){max-width:168px;overflow:hidden;text-overflow:ellipsis}
+table.data.compacta th{font-size:11px;letter-spacing:.03em}
+table.data.compacta td.num{font-size:13.5px}
+table.data.compacta .btn.small{padding:6px 9px;font-size:12.5px}
+table.data.compacta .tick{width:24px;height:24px;font-size:13px}
+table.data.compacta .acciones{gap:6px}
 .dsep-m b{color:var(--ink-2);font-weight:650}
 .dsep-m .ret{color:var(--otros)}
 .badge{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.05em;padding:1px 6px;border-radius:9px;text-transform:uppercase}
@@ -866,6 +894,13 @@ function parseMonto(t){
 }
 const hoyISO=()=>new Date().toLocaleDateString("sv-SE");
 const fechaCorta=i=>i?i.split("-").reverse().join("/"):"";
+/* en la lista de días el año ya está en el separador: la columna va sin año */
+const fechaDM=i=>i?i.split("-").reverse().slice(0,2).join("/"):"";
+/* el separador usa la fecha abreviada: la larga forzaba el ancho de la tabla */
+const DIA_S=["DOM","LUN","MAR","MIÉ","JUE","VIE","SÁB"];
+const MES_S=["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+const fechaSep=i=>{if(!i)return"";const d=new Date(i+"T12:00:00");
+  return DIA_S[d.getDay()]+" "+d.getDate()+" "+MES_S[d.getMonth()]+" "+d.getFullYear()};
 const fechaLarga=i=>i?new Date(i+"T12:00:00").toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long",year:"numeric"}):"";
 function parseFecha(v){
   if(v instanceof Date&&!isNaN(v)) return new Date(Date.UTC(v.getUTCFullYear(),v.getUTCMonth(),v.getUTCDate())).toISOString().slice(0,10);
@@ -996,6 +1031,14 @@ function el(t,p={},...kids){
   for(const kid of kids.flat()){if(kid===null||kid===undefined||kid===false)continue;n.append(kid.nodeType?kid:document.createTextNode(kid))}
   return n;
 }
+/* la tabla de días saca la columna Total según el ancho: hay que repintar al
+   cruzar ese umbral, pero solo al cruzarlo */
+let _anchoChico=null;
+window.addEventListener("resize",()=>{
+  const ch=window.innerWidth<1380;
+  if(_anchoChico===null){_anchoChico=ch;return}
+  if(ch!==_anchoChico){_anchoChico=ch; if(typeof render==="function") render()}
+});
 let tT; function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(tT);tT=setTimeout(()=>t.classList.remove("on"),3400)}
 const kpi=(k,v,c,pct)=>el("div",{class:"kpi"},
   el("div",{class:"k"},c?el("i",{class:"kpi-pt",style:`background:${c}`}):null,k),
@@ -1288,10 +1331,19 @@ function vistaDias(){
       ? (a.t===b.t?0:(a.t==="r"?1:-1))
       : b.x.fecha.localeCompare(a.x.fecha));
 
-  const tab=el("table",{class:"data"});
+  /* "Otros valores" casi siempre está vacío: si nadie lo usó en el rango, la
+     columna no se dibuja y la tabla entra sin barra horizontal. */
+  const hayOtros=dias.some(d=>d.otros>0);
+  /* En pantallas angostas también se cae la columna Total: es la suma de las
+     otras tres y es lo primero que sobra cuando no entra sin barra. */
+  const hayTotal=window.innerWidth>=1380;
+  const NC=7+(hayOtros?1:0)+(hayTotal?1:0);
+  const tab=el("table",{class:"data compacta"});
   tab.append(el("thead",{},el("tr",{},el("th",{},"Fecha"),el("th",{},"Cajero"),
     el("th",{class:"num"},"Efectivo"),el("th",{class:"num"},"Tarjetas"),el("th",{class:"num"},"Billetera"),
-    el("th",{class:"num"},"Otros"),el("th",{class:"num"},"Total"),el("th",{class:"num"},"Comp."),el("th",{},""))));
+    hayOtros?el("th",{class:"num"},"Otros"):null,
+    hayTotal?el("th",{class:"num"},"Total"):null,
+    el("th",{class:"num"},"Comp."),el("th",{},""))));
   const tb=el("tbody",{});
   const yaRet=diasRetirados();   // una sola vez: se consulta por cada día
   let fSep=null;
@@ -1299,52 +1351,51 @@ function vistaDias(){
     if(ev.x.fecha!==fSep){
       fSep=ev.x.fecha;
       const dd=dias.filter(x=>x.fecha===fSep);
-      const tot=dd.reduce((a,x)=>a+x.total,0);
       const efe=dd.reduce((a,x)=>a+x.efectivo,0);
       const salio=yaRet.has(fSep);
       const ret=rets.filter(x=>x.fecha===fSep&&!esDeposito(x)).reduce((a,x)=>a+x.monto,0);
       const dep=rets.filter(x=>x.fecha===fSep&&esDeposito(x)).reduce((a,x)=>a+x.monto,0);
       const sub=[dd.length?dd.length+(dd.length===1?" cajero":" cajeros"):null,
-                 salio?"efectivo ya retirado":null,
+                 salio?"ya retirado":null,
                  ret?"Retiros "+plata(ret):null,
                  dep?"Depósitos "+plata(dep):null].filter(Boolean).join("  ·  ");
       tb.append(el("tr",{class:"dia-sep"},
         el("td",{colspan:"2"},
-          el("div",{class:"dsep-f"},fechaLarga(fSep)),
-          sub?el("div",{class:"dsep-sub"},sub):null),
-        el("td",{class:"num chip-ef",title:dd.length?(salio?"Este día ya salió en un retiro"
-              :"Este efectivo todavía está en caja"):null},
-          dd.length?plata(efe):""),
-        el("td",{}),el("td",{}),el("td",{}),
-        el("td",{class:"num",style:"font-weight:650"},dd.length?plata(tot):""),
-        el("td",{}),
+          el("div",{class:"dsep-f",title:fechaLarga(fSep)},fechaSep(fSep))),
+        el("td",{class:"num",title:dd.length?(salio?"Efectivo del día · ya salió en un retiro"
+              :"Efectivo del día · todavía está en caja"):null},
+          dd.length?el("span",{class:"dsep-tot"},el("i",{},"Total"),plata(efe)):""),
+        // la bajada va en el hueco del medio: en la primera celda arrastraba
+        // el ancho de las columnas Fecha y Cajero
+        el("td",{colspan:String(NC-4)},sub?el("div",{class:"dsep-sub"},sub):null),
         el("td",{},dd.length?el("div",{class:"acciones"},tildeDia(dd)):null)));
     }
     if(ev.t==="r"){
       const r=ev.x;
       const dp=esDeposito(r);
-      tb.append(el("tr",{class:"fila-retiro"},el("td",{},fechaCorta(r.fecha)),
-        el("td",{},(dp?"BOLETA · ":"RETIRO · ")+r.responsable+(dp&&clavePer(r)?"  ("+perTexto(r)+")":"")),
+      const rot=(dp?"BOLETA · ":"RETIRO · ")+r.responsable+(dp&&clavePer(r)?"  ("+perTexto(r)+")":"");
+      tb.append(el("tr",{class:"fila-retiro"},el("td",{title:fechaCorta(r.fecha)},fechaDM(r.fecha)),
+        el("td",{title:rot},rot),
         // la boleta no descuenta: la plata ya salió con el retiro del período
         el("td",{class:"num",title:dp?"Rinde el retiro de ese período; no vuelve a bajar el saldo":null},
           (dp?"":"− ")+plata(r.monto)),
-        el("td",{class:"num"},"—"),el("td",{class:"num"},"—"),
-        el("td",{class:"num"},"—"),el("td",{class:"num"},plata(0)),el("td",{class:"num"},"—"),el("td",{},"")));
+        ...Array.from({length:NC-4},()=>el("td",{class:"num"},"—")),
+        el("td",{},"")));
       continue;
     }
     const d=ev.x, k=d.fecha+"|"+d.cajero, mot=anomaliasDia(d), ver=estaRevisado(d);
     tb.append(el("tr",{class:ver?"fila-verif":""},
-      el("td",{},fechaCorta(d.fecha)),
+      el("td",{title:fechaCorta(d.fecha)},fechaDM(d.fecha)),
       el("td",{},el("span",{class:"cajero-tag"},d.cajero)," ",
         (!ver&&mot.length)?el("span",{class:"badge rev",title:mot.join(" \u00b7 ")},"revisar"):null),
       el("td",{class:"num chip-ef"+(d.efectivo<0?" neg":"")},plata(d.efectivo)),
       el("td",{class:"num chip-ta"},d.tarjeta?plata(d.tarjeta):"—"),
       el("td",{class:"num chip-bi"},d.billetera?plata(d.billetera):"—"),
-      el("td",{class:"num chip-ot"},d.otros?plata(d.otros):"—"),
-      el("td",{class:"num",style:"font-weight:600"},plata(d.total)),
+      hayOtros?el("td",{class:"num chip-ot"},d.otros?plata(d.otros):"—"):null,
+      hayTotal?el("td",{class:"num",style:"font-weight:600"},plata(d.total)):null,
       el("td",{class:"num",style:"color:var(--ink-3)"},String(d.comps)),
       el("td",{},el("div",{class:"acciones"},
-        el("button",{class:"btn ghost small",type:"button",onclick:()=>{abiertos.has(k)?abiertos.delete(k):abiertos.add(k);render()}},abiertos.has(k)?"Ocultar":"Ver medios"),
+        el("button",{class:"btn ghost small",type:"button",onclick:()=>{abiertos.has(k)?abiertos.delete(k):abiertos.add(k);render()}},abiertos.has(k)?"Ocultar":"Medios"),
         tildeVerificado(d)))
     ));
     if(abiertos.has(k)){
@@ -1353,7 +1404,7 @@ function vistaDias(){
             (ORDEN_CAT.indexOf(a.categoria)-ORDEN_CAT.indexOf(b.categoria))||(b.monto-a.monto))){
         const cls=(CATS[g.categoria]||{}).clase||"";
         tb.append(el("tr",{class:"detalle"},el("td",{}),el("td",{colspan:"2",class:"medio "+cls},g.medio),
-          el("td",{class:"num "+cls,colspan:"4"},plata(g.monto)),
+          el("td",{class:"num "+cls,colspan:String(NC-5)},plata(g.monto)),
           el("td",{class:"num"},String(g.n)),
           el("td",{},el("div",{class:"acciones"},
             g.comps&&g.comps.length?el("button",{class:"btn ghost small",type:"button",onclick:()=>verComps(g,d)},"Comprobantes"):null,
