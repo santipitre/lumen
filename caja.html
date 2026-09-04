@@ -217,6 +217,26 @@ tr.fila-ok:hover td{background:var(--fila-ok-h)}
 .comp-chip button:hover{color:var(--alerta)}
 .cajero-tag{font-family:var(--mono);font-size:13.5px;font-weight:700;letter-spacing:.02em}
 .chip-ef{color:var(--efectivo)} .chip-ta{color:var(--tarjeta)} .chip-bi{color:var(--billetera)} .chip-ot{color:var(--otros)}
+tr.detalle td.chip-ef{color:var(--efectivo)} tr.detalle td.chip-ta{color:var(--tarjeta)}
+tr.detalle td.chip-bi{color:var(--billetera)} tr.detalle td.chip-ot{color:var(--otros)}
+tr.detalle td.medio{font-weight:650;letter-spacing:.01em}
+/* tilde de verificado: verde macizo cuando el dia fue dado por bueno */
+.acciones{display:flex;align-items:center;justify-content:flex-end;gap:9px}
+.tick{width:27px;height:27px;flex:none;padding:0;border-radius:50%;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;font-size:15px;line-height:1;
+  border:1.5px solid #CFC9BE;background:var(--panel);color:#A9A396;
+  transition:background .14s,border-color .14s,color .14s,transform .1s}
+.tick:hover{color:var(--efectivo-soft);border-color:var(--efectivo-soft)}
+.tick:active{transform:translateY(1px)}
+.tick.on{background:var(--efectivo);border-color:var(--efectivo);color:#fff}
+.tick.on:hover{filter:brightness(1.1);color:#fff}
+.tick:focus-visible{outline:2px solid var(--tarjeta);outline-offset:2px}
+.tick[disabled]{cursor:default;opacity:.45}
+.tick[disabled]:hover{color:#A9A396;border-color:#CFC9BE}
+.tick.on[disabled]:hover{color:#fff;border-color:var(--efectivo)}
+.tick.chico{width:23px;height:23px;font-size:13px}
+.dsep-m .tick{align-self:center;margin-left:4px}
+tr.fila-verif td:first-child{box-shadow:inset 3px 0 0 var(--efectivo-soft)}
 .neg{color:var(--alerta)}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:0;background:var(--panel);border:1px solid var(--linea);border-radius:var(--r);overflow:hidden;box-shadow:var(--sombra)}
 .kpi{background:var(--panel);padding:13px 14px;box-shadow:1px 0 0 var(--linea),0 1px 0 var(--linea)}
@@ -688,6 +708,7 @@ const CATS={
   billetera:{nombre:"Billetera virtual",color:"var(--billetera-soft)",clase:"chip-bi"},
   otros:{nombre:"Otros valores",color:"var(--otros-soft)",clase:"chip-ot"}
 };
+const ORDEN_CAT=Object.keys(CATS);
 function categoriaDe(medio){
   const m=(medio||"").toUpperCase().trim();
   if(m==="EFECTIVO"||m==="FONDO FIJO") return "efectivo";
@@ -749,11 +770,13 @@ async function sincronizar(){
   const rvFuera =[...SNAP.revisados].filter(k=>!rvAhora.has(k));
   if(rvNuevos.length) tareas.push(sbInsert("caja_revisados",rvNuevos.map(k=>{
     const v=db.revisados[k];
-    return {sede:SEDE,fecha:v.fecha,cajero:v.cajero,nota:v.nota||null,revisado_por:AUTHUID};
+    return {sede:SEDE,fecha:v.fecha,cajero:v.cajero,medio:v.medio||"",
+            nota:v.nota||null,revisado_por:AUTHUID};
   })));
   for(const k of rvFuera){
-    const [f,c]=k.split("|");
-    tareas.push(sbDel("caja_revisados",`sede=eq.${encodeURIComponent(SEDE)}&fecha=eq.${f}&cajero=eq.${encodeURIComponent(c)}`));
+    const [f,c,m]=k.split("|");
+    tareas.push(sbDel("caja_revisados",`sede=eq.${encodeURIComponent(SEDE)}&fecha=eq.${f}`+
+      `&cajero=eq.${encodeURIComponent(c)}&medio=eq.${encodeURIComponent(m||"")}`));
   }
   await Promise.all(tareas);
   snapshot();
@@ -784,8 +807,9 @@ async function cargarDesdeNube(){
     desde:r.desde||"",hasta:r.hasta||"",
     creado:Date.parse(r.creado_en)||Date.now()}));
   db.revisados={};
-  rv.forEach(r=>{db.revisados[r.fecha+"|"+r.cajero]=
-    {ts:Date.parse(r.revisado_en)||Date.now(),fecha:r.fecha,cajero:r.cajero,nota:r.nota||""}});
+  rv.forEach(r=>{db.revisados[r.fecha+"|"+r.cajero+(r.medio?"|"+r.medio:"")]=
+    {ts:Date.parse(r.revisado_en)||Date.now(),fecha:r.fecha,cajero:r.cajero,
+     medio:r.medio||"",nota:r.nota||""}});
   db.importaciones=im.map(r=>({id:r.id,archivo:r.archivos||"",cuando:Date.parse(r.creado_en)||Date.now(),
     filas:r.filas_ok||0,rango:r.rango||"",total:0}));
   db.importaciones.forEach(i=>{i.total=db.grupos.filter(g=>g.imp===i.id).reduce((a,g)=>a+g.monto,0)});
@@ -1227,7 +1251,8 @@ function vistaDias(){
             dd.length?el("span",{},dd.length+(dd.length===1?" cajero":" cajeros")):null,
             dd.length?el("span",{},"Total del día ",el("b",{},plata(tot))):null,
             ret?el("span",{class:"ret"},"Retiros "+plata(ret)):null,
-            dep?el("span",{class:"ret"},"Depósitos "+plata(dep)):null)))));
+            dep?el("span",{class:"ret"},"Dep\u00f3sitos "+plata(dep)):null,
+            dd.length?tildeDia(dd):null)))));
     }
     if(ev.t==="r"){
       const r=ev.x;
@@ -1241,30 +1266,32 @@ function vistaDias(){
         el("td",{class:"num"},"—"),el("td",{class:"num"},plata(0)),el("td",{class:"num"},"—"),el("td",{},"")));
       continue;
     }
-    const d=ev.x, k=d.fecha+"|"+d.cajero, mot=anomaliasDia(d);
-    tb.append(el("tr",{},
+    const d=ev.x, k=d.fecha+"|"+d.cajero, mot=anomaliasDia(d), ver=estaRevisado(d);
+    tb.append(el("tr",{class:ver?"fila-verif":""},
       el("td",{},fechaCorta(d.fecha)),
       el("td",{},el("span",{class:"cajero-tag"},d.cajero)," ",
-        estaRevisado(d)
-          ? el("span",{class:"badge ok",
-              title:"Revisado el "+new Date(db.revisados[k].ts).toLocaleDateString("es-AR")+
-                    (db.revisados[k].nota?" \u2014 "+db.revisados[k].nota:"")+
-                    (mot.length?" \u00b7 "+mot.join(" \u00b7 "):"")},"revisado")
-          : (mot.length?el("span",{class:"badge rev",title:mot.join(" \u00b7 ")},"revisar"):null)),
+        (!ver&&mot.length)?el("span",{class:"badge rev",title:mot.join(" \u00b7 ")},"revisar"):null),
       el("td",{class:"num chip-ef"+(d.efectivo<0?" neg":"")},plata(d.efectivo)),
       el("td",{class:"num chip-ta"},d.tarjeta?plata(d.tarjeta):"—"),
       el("td",{class:"num chip-bi"},d.billetera?plata(d.billetera):"—"),
       el("td",{class:"num chip-ot"},d.otros?plata(d.otros):"—"),
       el("td",{class:"num",style:"font-weight:600"},plata(d.total)),
       el("td",{class:"num",style:"color:var(--ink-3)"},String(d.comps)),
-      el("td",{},el("button",{class:"btn ghost small",type:"button",onclick:()=>{abiertos.has(k)?abiertos.delete(k):abiertos.add(k);render()}},abiertos.has(k)?"Ocultar":"Ver medios"))
+      el("td",{},el("div",{class:"acciones"},
+        el("button",{class:"btn ghost small",type:"button",onclick:()=>{abiertos.has(k)?abiertos.delete(k):abiertos.add(k);render()}},abiertos.has(k)?"Ocultar":"Ver medios"),
+        tildeVerificado(d)))
     ));
     if(abiertos.has(k)){
-      for(const g of d.grupos.slice().sort((a,b)=>b.monto-a.monto)){
-        tb.append(el("tr",{class:"detalle"},el("td",{}),el("td",{colspan:"2"},g.medio),
-          el("td",{class:"num",colspan:"4"},plata(g.monto)),
+      // el orden es el de los medios en la cabecera: efectivo, tarjetas, billetera, otros
+      for(const g of d.grupos.slice().sort((a,b)=>
+            (ORDEN_CAT.indexOf(a.categoria)-ORDEN_CAT.indexOf(b.categoria))||(b.monto-a.monto))){
+        const cls=(CATS[g.categoria]||{}).clase||"";
+        tb.append(el("tr",{class:"detalle"},el("td",{}),el("td",{colspan:"2",class:"medio "+cls},g.medio),
+          el("td",{class:"num "+cls,colspan:"4"},plata(g.monto)),
           el("td",{class:"num"},String(g.n)),
-          el("td",{},g.comps&&g.comps.length?el("button",{class:"btn ghost small",type:"button",onclick:()=>verComps(g)},"Comprobantes"):null)));
+          el("td",{},el("div",{class:"acciones"},
+            g.comps&&g.comps.length?el("button",{class:"btn ghost small",type:"button",onclick:()=>verComps(g)},"Comprobantes"):null,
+            tildeMedio(d,g)))));
       }
     }
   }
@@ -2143,14 +2170,65 @@ function borrarPaso2(){
 const MAX_ARCH=5*1024*1024, TOPE_DB=Infinity;
 function claveDia(d){return d.fecha+"|"+d.cajero}
 function estaRevisado(d){return !!db.revisados[claveDia(d)]}
+/* La marca vive en caja_revisados. medio="" es el cajero entero del dia;
+   con medio cargado es la tilde de ese medio de pago. */
+function claveRev(f,c,m){return f+"|"+c+(m?"|"+m:"")}
+function estaRevisadoMedio(d,g){return !!db.revisados[claveRev(d.fecha,d.cajero,g.medio)]}
+function ponerRev(f,c,m,nota){db.revisados[claveRev(f,c,m)]=
+  {ts:Date.now(),fecha:f,cajero:c,medio:m||"",nota:nota||""}}
+function sacarRev(f,c,m){delete db.revisados[claveRev(f,c,m)]}
+function marcarMedio(d,g,on){
+  if(!puedeEditar()){toast("Tu usuario es de solo lectura.");return}
+  on?ponerRev(d.fecha,d.cajero,g.medio):sacarRev(d.fecha,d.cajero,g.medio);
+  // el cajero se da por verificado solo cuando lo estan todos sus medios
+  const nota=(db.revisados[claveDia(d)]||{}).nota;
+  if(d.grupos.length&&d.grupos.every(x=>estaRevisadoMedio(d,x))) ponerRev(d.fecha,d.cajero,"",nota);
+  else sacarRev(d.fecha,d.cajero,"");
+  guardar();render();
+}
+function marcarDiaEntero(dd,on){
+  if(!puedeEditar()){toast("Tu usuario es de solo lectura.");return}
+  for(const d of dd){
+    if(on){ponerRev(d.fecha,d.cajero,""); d.grupos.forEach(g=>ponerRev(d.fecha,d.cajero,g.medio))}
+    else {sacarRev(d.fecha,d.cajero,""); d.grupos.forEach(g=>sacarRev(d.fecha,d.cajero,g.medio))}
+  }
+  guardar();toast(on?"D\u00eda verificado completo.":"D\u00eda reabierto.");render();
+}
+function tildeMedio(d,g){
+  const ok=estaRevisadoMedio(d,g);
+  const t=ok?"Verificado \u00b7 Clic para desmarcar":"Marcar este medio como verificado";
+  const b=el("button",{class:"tick chico"+(ok?" on":""),type:"button",title:t,"aria-label":t,
+    "aria-pressed":ok?"true":"false",onclick:()=>marcarMedio(d,g,!ok)},"\u2713");
+  if(!puedeEditar()) b.disabled=true;
+  return b;
+}
+function tildeDia(dd){
+  const ok=dd.length>0&&dd.every(x=>estaRevisado(x));
+  const t=ok?"Todo el d\u00eda verificado \u00b7 Clic para reabrirlo":"Verificar el d\u00eda entero";
+  const b=el("button",{class:"tick"+(ok?" on":""),type:"button",title:t,"aria-label":t,
+    "aria-pressed":ok?"true":"false",onclick:()=>marcarDiaEntero(dd,!ok)},"\u2713");
+  if(!puedeEditar()) b.disabled=true;
+  return b;
+}
 function compsDe(d){return db.comprobantes[claveDia(d)]||[]}
 function tamDB(){return 0}
+function tildeVerificado(d){
+  const k=claveDia(d), ok=estaRevisado(d), mot=anomaliasDia(d), r=ok?db.revisados[k]:null;
+  const t=ok
+    ? "Verificado el "+new Date(r.ts).toLocaleDateString("es-AR")
+      +(r.nota?" \u2014 "+r.nota:"")+" \u00b7 Clic para reabrir"
+    : (mot.length?"Sin verificar \u00b7 "+mot.join(" \u00b7 "):"Marcar como verificado");
+  const b=el("button",{class:"tick"+(ok?" on":""),type:"button",title:t,"aria-label":t,
+    "aria-pressed":ok?"true":"false",onclick:()=>marcarRevisado(d,!ok)},"\u2713");
+  if(!puedeEditar()) b.disabled=true;
+  return b;
+}
 async function marcarRevisado(d,on){
   if(!puedeEditar()){toast("Tu usuario es de solo lectura.");return}
   const k=claveDia(d);
   if(on){
     let nota="";
-    if(!compsDe(d).length){
+    if(!compsDe(d).length&&anomaliasDia(d).length){
       const r=await confirmar("Revisar sin comprobantes",
         [`El ${fechaCorta(d.fecha)} de ${d.cajero} no tiene ningún comprobante adjunto.`,
          "Podés darlo por revisado igual, pero dejá constancia de en qué te basaste. Queda guardado junto a la marca."],
@@ -2162,9 +2240,13 @@ async function marcarRevisado(d,on){
       if(!r) return;
       nota=r;
     }
-    db.revisados[k]={ts:Date.now(),fecha:d.fecha,cajero:d.cajero,nota};
-  }else delete db.revisados[k];
-  guardar();toast(on?"Marcado como revisado.":"Reabierto para revisión.");render();
+    db.revisados[k]={ts:Date.now(),fecha:d.fecha,cajero:d.cajero,medio:"",nota};
+    (d.grupos||[]).forEach(g=>ponerRev(d.fecha,d.cajero,g.medio));
+  }else{
+    delete db.revisados[k];
+    (d.grupos||[]).forEach(g=>sacarRev(d.fecha,d.cajero,g.medio));
+  }
+  guardar();toast(on?"Marcado como verificado.":"Reabierto para revisión.");render();
 }
 /* Los campos de plata se separan en miles mientras se escribe:
    8258782,5 -> 8.258.782,5. parseMonto ya entiende ese formato
