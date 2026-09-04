@@ -1768,6 +1768,19 @@ async function doLogout() {
 // ENTER APP (after login)
 // ============================================================
 async function enterApp() {
+  /* Si el usuario NO tiene el modulo operativo cargado en permisos.modulos,
+     esta pantalla no es la suya: volver al lanzador, que ya rutea a quien
+     tiene un solo modulo (ej. un consultor de caja cae directo en caja.html).
+     Solo aplica a usuarios con permisos.modulos definido; los legacy con
+     permisos vacio siguen entrando como siempre. */
+  try {
+    var _mods = currentUser && currentUser.permisos && currentUser.permisos.modulos;
+    if (_mods && !_mods.operativo && currentUser.rol !== 'admin') {
+      window.location.replace('app.html');
+      return;
+    }
+  } catch (e) { /* si algo falla, seguir como antes */ }
+
   document.getElementById('login-screen').classList.remove('active');
   document.getElementById('app-screen').classList.add('active');
 
