@@ -92,7 +92,7 @@ function pantallaError(titulo,texto){
     '<p class="pie">Lumen · Rendición de Caja</p>';
 }
 
-let datos=null, pinMemo=null;
+let datos=null, pinMemo=null, retiraMemo=null;
 
 async function arrancar(){
   if(!TOKEN){pantallaError('Link inválido','Este link no trae ningún retiro. Pedile a la caja que genere el QR de nuevo.');return}
@@ -147,13 +147,14 @@ async function firmar(){
   if(pin.length<4) return aviso('El PIN tiene al menos 4 dígitos.');
   btn.disabled=true; btn.innerHTML='<span class="spin"></span> Verificando…';
   let r;
-  try{ r=await rpc('caja_firmar_retiro',{p_token:TOKEN,p_pin:pin,p_ip:null,p_modo:'QR'}); }
+  try{ r=await rpc('caja_firmar_retiro',{p_token:TOKEN,p_pin:pin,p_ip:null,p_modo:'QR',p_retira:retiraMemo}); }
   catch(e){ btn.disabled=false; btn.textContent='Firmar el retiro'; return aviso('No se pudo conectar. Probá de nuevo.'); }
   btn.disabled=false; btn.textContent='Firmar el retiro';
   if(r&&r.ok) return pantallaFirmado(r.mensajero_nombre,r.firmado_at);
   inp.value='';
   const e=r&&r.error;
   if(e==='DEBE_CAMBIAR_PIN'){ pinMemo=pin; return pantallaCambioPin(r.mensajero_nombre); }
+  if(e==='NECESITA_RETIRA'){ pinMemo=pin; return pantallaRetira(r.firmante,r.opciones); }
   if(e==='PIN_INCORRECTO') return aviso('PIN incorrecto. Te quedan '+(r.intentos_restantes!=null?r.intentos_restantes:'pocos')+' intento(s) antes de que se bloquee este QR.');
   if(e==='DEMASIADOS_INTENTOS') return aviso('Demasiados intentos con este QR. Pedile a la caja que genere uno nuevo.');
   if(e==='BLOQUEADO_TEMPORALMENTE') return aviso('Tu usuario está bloqueado por unos minutos por intentos fallidos.');
@@ -186,15 +187,44 @@ async function cambiarYFirmar(){
   if(p1!==p2) return aviso('Los dos PIN no coinciden.');
   btn.disabled=true; btn.innerHTML='<span class="spin"></span> Procesando…';
   let r;
-  try{ r=await rpc('caja_cambiar_pin_y_firmar',{p_token:TOKEN,p_pin_actual:pinMemo,p_pin_nuevo:p1,p_ip:null,p_modo:'QR'}); }
+  try{ r=await rpc('caja_cambiar_pin_y_firmar',{p_token:TOKEN,p_pin_actual:pinMemo,p_pin_nuevo:p1,p_ip:null,p_modo:'QR',p_retira:retiraMemo}); }
   catch(e){ btn.disabled=false; btn.textContent='Cambiar el PIN y firmar'; return aviso('No se pudo conectar. Probá de nuevo.'); }
   btn.disabled=false; btn.textContent='Cambiar el PIN y firmar';
   if(r&&r.ok) return pantallaFirmado(r.mensajero_nombre,r.firmado_at,true);
   const e=r&&r.error;
+  if(e==='NECESITA_RETIRA'){ pinMemo=p1; return pantallaRetira(r.firmante,r.opciones); }
   if(e==='PIN_NUEVO_CORTO') return aviso('El PIN nuevo tiene al menos 4 dígitos.');
   if(e==='PIN_IGUAL') return aviso('El PIN nuevo tiene que ser distinto del anterior.');
   if(e==='PIN_INCORRECTO') return aviso('No se pudo validar tu PIN actual. Volvé a escanear el QR.');
   aviso('No se pudo firmar: '+(e||'error desconocido'));
+}
+
+/* Firma de caja: el que carga un movimiento viejo no es el que se llevo la
+   plata, asi que hay que preguntarlo antes de dejar la constancia. */
+function pantallaRetira(firmante,opciones){
+  card.innerHTML=cabecera+
+    '<p class="bajada">Firma '+esc(firmante||'')+' como carga administrativa. \u00bfQui\u00e9n se llev\u00f3 la plata?</p>'+
+    bloqueRetiro(datos)+
+    '<label class="pin-et" for="quien">Retir\u00f3</label>'+
+    '<select id="quien" class="pin" style="letter-spacing:normal;font-size:18px">'+
+      '<option value="">Eleg\u00ed qui\u00e9n retir\u00f3</option>'+
+      (opciones||[]).map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('')+
+    '</select>'+
+    '<button class="btn" id="btn">Confirmar y firmar</button>'+
+    '<div class="msj" id="msj"></div>';
+  document.getElementById('btn').onclick=async()=>{
+    const v=document.getElementById('quien').value;
+    if(!v) return aviso('Eleg\u00ed qui\u00e9n se llev\u00f3 la plata.');
+    retiraMemo=v;
+    const btn=document.getElementById('btn');
+    btn.disabled=true; btn.innerHTML='<span class="spin"></span> Firmando\u2026';
+    let r;
+    try{ r=await rpc('caja_firmar_retiro',{p_token:TOKEN,p_pin:pinMemo,p_ip:null,p_modo:'QR',p_retira:v}); }
+    catch(e){ btn.disabled=false; btn.textContent='Confirmar y firmar'; return aviso('No se pudo conectar. Prob\u00e1 de nuevo.'); }
+    if(r&&r.ok) return pantallaFirmado(r.mensajero_nombre,r.firmado_at);
+    btn.disabled=false; btn.textContent='Confirmar y firmar';
+    aviso('No se pudo firmar: '+((r&&r.error)||'error desconocido'));
+  };
 }
 
 function pantallaFirmado(nombre,cuando,pinCambiado){

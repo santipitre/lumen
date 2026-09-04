@@ -825,6 +825,7 @@ async function cargarDesdeNube(){
     desde:r.desde||"",hasta:r.hasta||"",dias:Array.isArray(r.dias)?r.dias:[],
     estado:r.estado||"FIRMADO",tesorero:r.tesorero||"",
     mensajero_id:r.mensajero_id||"",firmado_at:r.firmado_at||"",firma_modo:r.firma_modo||"",
+    firmado_por_nombre:r.firmado_por_nombre||"",retira_nombre:r.retira_nombre||"",
     qr_token:r.qr_token||"",qr_expires_at:r.qr_expires_at||"",
     creado:Date.parse(r.creado_en)||Date.now()}));
   db.revisados={};
@@ -1523,16 +1524,49 @@ function dialogoQR(r){
     "border:1px solid var(--linea);border-radius:14px"});
   const reloj=el("div",{style:"text-align:center;font-family:var(--mono);font-size:22px;font-weight:700;margin-top:10px"});
   const pieReloj=el("p",{class:"hint",style:"text-align:center;margin:2px 0 0"},"El QR vence a los 5 minutos");
-  const iPin=el("input",{type:"password",inputmode:"numeric",maxlength:"6",placeholder:"••••",
+  const pinCampo=()=>el("input",{type:"password",inputmode:"numeric",maxlength:"6",placeholder:"••••",
     style:"width:120px;text-align:center;font-family:var(--mono);font-size:19px;letter-spacing:.3em"});
+  const iPin=pinCampo();
   const errPin=el("p",{class:"err-campo",style:"display:none"});
+  const tituloAsis=el("div",{class:"f",style:"margin-bottom:5px"},"Firma asistida");
+  const hintAsis=el("p",{class:"hint",style:"margin:0 0 9px"},
+    "Si el mensajero no tiene el celular a mano, que tipee el PIN acá. También firmás vos con tu PIN si estás cargando un movimiento viejo.");
+  const filaAsis=el("div",{style:"display:flex;gap:9px;align-items:center;flex-wrap:wrap"});
   const bloqueAsistida=el("div",{style:"margin-top:16px;border-top:1px dashed var(--linea);padding-top:12px"},
-    el("div",{class:"f",style:"margin-bottom:5px"},"Firma asistida"),
-    el("p",{class:"hint",style:"margin:0 0 9px"},
-      "Si el mensajero no tiene el celular a mano, que tipee el PIN acá. Queda registrado como firma asistida."),
-    el("div",{style:"display:flex;gap:9px;align-items:center"},iPin,
-      el("button",{class:"btn ghost small",type:"button",onclick:()=>firmarAsistida()},"Confirmar firma")),
-    errPin);
+    tituloAsis,hintAsis,filaAsis,errPin);
+  let pinMemo="";   // PIN actual, para el cambio obligatorio de la primera vez
+  function pasoPin(){
+    tituloAsis.textContent="Firma asistida";
+    filaAsis.replaceChildren(iPin,
+      el("button",{class:"btn ghost small",type:"button",onclick:()=>firmarAsistida()},"Confirmar firma"));
+  }
+  function pasoCambioPin(quien){
+    tituloAsis.textContent="Primera vez: pon\u00e9 tu PIN personal";
+    hintAsis.textContent=(quien?quien+", el":"El")+" PIN gen\u00e9rico sirve una sola vez. Eleg\u00ed uno propio de 4 a 6 d\u00edgitos.";
+    const p1=pinCampo(), p2=pinCampo();
+    filaAsis.replaceChildren(p1,p2,
+      el("button",{class:"btn ghost small",type:"button",onclick:()=>{
+        const a=(p1.value||"").trim(), b=(p2.value||"").trim();
+        if(a.length<4) return falla("El PIN nuevo tiene al menos 4 dígitos.");
+        if(a!==b) return falla("Los dos PIN no coinciden.");
+        cambiarYFirmar(a);
+      }},"Guardar y firmar"));
+    p1.focus();
+  }
+  function pasoRetira(firmante,opciones){
+    tituloAsis.textContent="\u00bfQui\u00e9n se llev\u00f3 la plata?";
+    hintAsis.textContent="Firma "+firmante+" como carga administrativa. Indic\u00e1 qui\u00e9n retir\u00f3 en realidad: el comprobante va a decir las dos cosas.";
+    const sQ=el("select",{style:"min-width:190px"},
+      el("option",{value:""},"Elegí quién retiró"),
+      ...(opciones||[]).map(n=>el("option",{value:n},n)));
+    filaAsis.replaceChildren(sQ,
+      el("button",{class:"btn ghost small",type:"button",onclick:()=>{
+        if(!sQ.value) return falla("Elegí quién se llevó la plata.");
+        firmarAsistida(pinMemo,sQ.value);
+      }},"Confirmar"));
+  }
+  const falla=t=>{errPin.textContent=t;errPin.style.display=""};
+  pasoPin();
 
   try{
     if(typeof QRCode==="undefined") throw new Error("sin libreria");
@@ -1586,31 +1620,48 @@ function dialogoQR(r){
     }catch(e){console.warn("[caja] espera firma",e)}
   },2500));
 
-  async function firmarAsistida(){
-    errPin.style.display="none";
-    const pin=(iPin.value||"").trim();
-    if(pin.length<4){errPin.textContent="El PIN tiene al menos 4 d\u00edgitos.";errPin.style.display="";iPin.focus();return}
-    let j;
-    try{ j=await sbRpc("caja_firmar_retiro",{p_token:r.qr_token,p_pin:pin,p_ip:null,p_modo:"ASISTIDA"}); }
-    catch(e){ errPin.textContent="No se pudo conectar: "+e.message; errPin.style.display=""; return }
-    iPin.value="";
-    if(j&&j.ok){
-      pararQR();
-      const f=await sbQuery("caja_retiros","select=*&id=eq."+r.id).catch(()=>null);
-      aplicarFirma(r,(f&&f[0])||{estado:"FIRMADO",responsable:j.mensajero_nombre,
-        firmado_at:j.firmado_at,firma_modo:"ASISTIDA",mensajero_id:j.mensajero_id});
-      return;
-    }
+  async function trasFirmar(j){
+    pararQR();
+    const f=await sbQuery("caja_retiros","select=*&id=eq."+r.id).catch(()=>null);
+    aplicarFirma(r,(f&&f[0])||{estado:"FIRMADO",responsable:j.mensajero_nombre,
+      firmado_at:j.firmado_at,firma_modo:j.firma_modo||"ASISTIDA",
+      firmado_por_nombre:j.firmante,retira_nombre:j.mensajero_nombre,mensajero_id:j.mensajero_id});
+  }
+  function traducir(j){
     const e=j&&j.error;
-    errPin.textContent=
-      e==="PIN_INCORRECTO"?"PIN incorrecto. Quedan "+(j.intentos_restantes!=null?j.intentos_restantes:"pocos")+" intento(s).":
+    return e==="PIN_INCORRECTO"?"PIN incorrecto. Quedan "+(j.intentos_restantes!=null?j.intentos_restantes:"pocos")+" intento(s).":
       e==="DEMASIADOS_INTENTOS"?"Demasiados intentos con este QR. Cancelalo y registrá el retiro de nuevo.":
-      e==="DEBE_CAMBIAR_PIN"?"Ese PIN todavía es el inicial: tiene que cambiarlo desde el QR en su celular.":
-      e==="BLOQUEADO_TEMPORALMENTE"?"Ese mensajero está bloqueado unos minutos por intentos fallidos.":
+      e==="BLOQUEADO_TEMPORALMENTE"?"Ese usuario está bloqueado unos minutos por intentos fallidos.":
       e==="EXPIRADO"?"El QR venció. Cancelalo y registrá el retiro de nuevo.":
       e==="YA_PROCESADO"?"Este retiro ya estaba firmado.":
+      e==="PIN_CORTO"?"El PIN tiene al menos 4 dígitos.":
+      e==="PIN_NUEVO_CORTO"?"El PIN nuevo tiene al menos 4 dígitos.":
+      e==="PIN_IGUAL"?"El PIN nuevo tiene que ser distinto del genérico.":
       ("No se pudo firmar: "+(e||"error desconocido"));
-    errPin.style.display="";
+  }
+  async function firmarAsistida(pinDado,retira){
+    errPin.style.display="none";
+    const pin=(pinDado!=null?pinDado:(iPin.value||"")).trim();
+    if(pin.length<4){falla("El PIN tiene al menos 4 dígitos.");iPin.focus();return}
+    let j;
+    try{ j=await sbRpc("caja_firmar_retiro",
+      {p_token:r.qr_token,p_pin:pin,p_ip:null,p_modo:"ASISTIDA",p_retira:retira||null}); }
+    catch(e){ falla("No se pudo conectar: "+e.message); return }
+    iPin.value="";
+    if(j&&j.ok) return trasFirmar(j);
+    if(j&&j.error==="DEBE_CAMBIAR_PIN"){pinMemo=pin;return pasoCambioPin(j.mensajero_nombre)}
+    if(j&&j.error==="NECESITA_RETIRA"){pinMemo=pin;return pasoRetira(j.firmante,j.opciones)}
+    falla(traducir(j));
+  }
+  async function cambiarYFirmar(nuevo){
+    errPin.style.display="none";
+    let j;
+    try{ j=await sbRpc("caja_cambiar_pin_y_firmar",
+      {p_token:r.qr_token,p_pin_actual:pinMemo,p_pin_nuevo:nuevo,p_ip:null,p_modo:"ASISTIDA",p_retira:null}); }
+    catch(e){ falla("No se pudo conectar: "+e.message); return }
+    if(j&&j.ok){toast("PIN guardado.");return trasFirmar(j)}
+    if(j&&j.error==="NECESITA_RETIRA"){pinMemo=nuevo;toast("PIN guardado.");return pasoRetira(j.firmante,j.opciones)}
+    falla(traducir(j));
   }
 }
 
@@ -1618,6 +1669,8 @@ function dialogoQR(r){
 function aplicarFirma(r,fila){
   r.estado="FIRMADO";
   r.responsable=fila.responsable||r.responsable;
+  r.retira_nombre=fila.retira_nombre||fila.responsable||r.responsable;
+  r.firmado_por_nombre=fila.firmado_por_nombre||fila.responsable||"";
   r.mensajero_id=fila.mensajero_id||"";
   r.firmado_at=fila.firmado_at||new Date().toISOString();
   r.firma_modo=fila.firma_modo||"QR";
@@ -1675,10 +1728,13 @@ function comprobanteHTML(r){
   '</div>'+
   '<table style="border-collapse:collapse;margin:18px 0 4px">'+
     dato("Fecha del retiro",escHTML(fechaLarga(r.fecha)))+
-    dato("Mensajero que retira",escHTML(r.responsable||"\u2014")+
-      (r.firmado_at?'<span style="font-weight:400;color:#6B6558"> &middot; firm\u00f3 el '+
-        escHTML(new Date(r.firmado_at).toLocaleString("es-AR"))+
-        (r.firma_modo==="ASISTIDA"?" (firma asistida)":" (QR + PIN)")+'</span>':""))+
+    dato("Mensajero que retira",escHTML(r.retira_nombre||r.responsable||"\u2014"))+
+    (r.firmado_at?dato("Firma",
+      escHTML(r.firmado_por_nombre||r.responsable||"")+
+      '<span style="font-weight:400;color:#6B6558"> &middot; '+
+      escHTML(new Date(r.firmado_at).toLocaleString("es-AR"))+' &middot; '+
+      (r.firma_modo==="CARGA"?"carga administrativa":
+       r.firma_modo==="ASISTIDA"?"firma asistida":"QR + PIN")+'</span>'):"")+
     (r.tesorero?dato("Entregado al tesorero",escHTML(r.tesorero)):"")+
     dato("D\u00edas que cubre",escHTML(ds.length+(ds.length===1?" d\u00eda":" d\u00edas")+"  \u00b7  "+rango))+
     (r.detalle?dato("Detalle",escHTML(r.detalle)):"")+
@@ -1819,8 +1875,11 @@ function vistaRetiros(){
           esperaFirma(r)
             ? el("span",{class:"badge rev",title:"Todavía no firmó el mensajero: este monto no bajó del saldo"},"espera firma")
             : el("span",{class:"cajero-tag",
-                title:r.firmado_at?("Firmó el "+new Date(r.firmado_at).toLocaleString("es-AR")+
-                  (r.firma_modo==="ASISTIDA"?" · firma asistida":" · QR + PIN")):null},r.responsable||"—"),
+                title:r.firmado_at?("Firmó "+(r.firmado_por_nombre||r.responsable||"")+" el "+
+                  new Date(r.firmado_at).toLocaleString("es-AR")+
+                  (r.firma_modo==="CARGA"?" · carga administrativa":
+                   r.firma_modo==="ASISTIDA"?" · firma asistida":" · QR + PIN")):null},
+                (r.retira_nombre||r.responsable||"—")+(r.firma_modo==="CARGA"?" *":"")),
           r.tesorero?el("div",{class:"hint",style:"margin-top:3px"},"→ "+r.tesorero):null),
         el("td",{class:"num",style:"font-weight:700"+(esperaFirma(r)?";color:var(--aviso)":"")},plata(r.monto)),
         el("td",{class:"num"},String(new Set(gp.map(g=>g.fecha)).size)),
