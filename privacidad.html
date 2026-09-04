@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Privacidad · Lumen · Rendición de Caja</title>
+<meta name="theme-color" content="#F6F2EA"/>
+<meta name="robots" content="noindex"/>
+<style>
+/* Página suelta: no depende de ninguna hoja de estilo del resto de Lumen,
+   así se puede imprimir o mandar por separado. */
+:root{
+  --paper:#F6F2EA; --panel:#FDFBF6; --ink:#2B2721; --ink-2:#5A544A; --ink-3:#8B8477;
+  --linea:#E5E0D5; --linea-2:#F1EDE4; --oro:#B99A54; --oro-2:#CDB176;
+  --efectivo:#2E775C; --efectivo-bg:#E4F2EB; --aviso:#8A5A00; --aviso-bg:#FBEFD6;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --serif:ui-serif,Georgia,"Times New Roman",serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);
+  font-size:16px;line-height:1.62;-webkit-font-smoothing:antialiased}
+.hoja{max-width:760px;margin:0 auto;padding:26px 22px 70px}
+header.tapa{border-top:3px solid var(--oro-2);padding-top:20px;margin-bottom:26px}
+.marca{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-3)}
+h1{font-family:var(--serif);font-size:clamp(30px,5.5vw,42px);font-weight:400;letter-spacing:-.01em;
+  line-height:1.06;margin:10px 0 6px}
+.bajada{color:var(--ink-2);font-size:16.5px;margin:0}
+.meta{font-family:var(--mono);font-size:12px;color:var(--ink-3);margin-top:14px;
+  display:flex;flex-wrap:wrap;gap:6px 18px}
+.borrador{background:var(--aviso-bg);border:1px solid #E8CE96;border-radius:14px;
+  padding:15px 18px;margin:24px 0 30px;color:#7A4F06;font-size:15px}
+.borrador b{color:#6B4505}
+h2{font-size:19px;font-weight:700;letter-spacing:-.01em;margin:34px 0 10px;
+  padding-top:16px;border-top:1px solid var(--linea)}
+h2 .n{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--oro);
+  letter-spacing:.1em;margin-right:9px;vertical-align:2px}
+h3{font-size:15px;font-weight:700;margin:20px 0 6px}
+p{margin:0 0 12px}
+ul{margin:0 0 14px;padding:0;list-style:none}
+li{position:relative;padding-left:18px;margin-bottom:8px}
+li::before{content:"";position:absolute;left:0;top:10px;width:6px;height:6px;
+  border-radius:50%;background:var(--oro-2)}
+.caja{background:var(--panel);border:1px solid var(--linea);border-radius:14px;padding:16px 19px;margin:16px 0}
+.caja.ok{background:var(--efectivo-bg);border-color:#9ED3BC}
+.caja.ok b{color:var(--efectivo)}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14.5px}
+th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--linea-2);vertical-align:top}
+th{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-3);border-bottom:1px solid var(--linea);white-space:nowrap}
+td:first-child{font-weight:650;white-space:nowrap}
+a{color:var(--efectivo);font-weight:600}
+.mono{font-family:var(--mono);font-size:14px}
+footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--linea);
+  font-size:13.5px;color:var(--ink-3)}
+.volver{display:inline-block;margin-bottom:22px;font-family:var(--mono);font-size:12.5px;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);text-decoration:none}
+.volver:hover{color:var(--ink)}
+@media print{
+  body{background:#fff}
+  .hoja{max-width:none;padding:0}
+  .volver{display:none}
+  h2{break-after:avoid}
+}
+</style>
+</head>
+<body>
+<div class="hoja">
+
+<a class="volver" href="caja.html">&larr; Volver a Rendición de Caja</a>
+
+<header class="tapa">
+  <div class="marca">FUESMEN &middot; Hospital Italiano de Mendoza</div>
+  <h1>Cómo tratamos los datos personales</h1>
+  <p class="bajada">Lumen &middot; Rendición de Caja</p>
+  <div class="meta">
+    <span>Versión 1 — borrador</span>
+    <span>4 de septiembre de 2026</span>
+    <span>Ley 25.326</span>
+  </div>
+</header>
+
+<div class="borrador">
+  <b>Este texto es un borrador.</b> Describe lo que el sistema efectivamente guarda y hace,
+  pero todavía no fue revisado por el área legal de FUESMEN ni aprobado como política
+  institucional. No lo difundas como definitivo hasta que esa revisión esté hecha.
+</div>
+
+<h2><span class="n">01</span>De qué se trata</h2>
+<p>Lumen · Rendición de Caja es una aplicación interna de FUESMEN para llevar el control del
+efectivo y los medios de pago de la caja del Hospital Italiano de Mendoza. La usa solo
+personal de la institución, con usuario propio.</p>
+<p>Este documento explica qué datos personales maneja el sistema, para qué, quién puede verlos
+y qué puede pedir cada persona sobre los suyos. Está escrito según la
+<b>Ley 25.326 de Protección de Datos Personales</b> de la República Argentina.</p>
+
+<h2><span class="n">02</span>Qué datos guarda</h2>
+<table>
+  <thead><tr><th>De quién</th><th>Qué se guarda</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Usuarios del sistema</td>
+      <td>Nombre, nombre de usuario, correo de trabajo, nivel de acceso, y la fecha y hora de
+        cada ingreso. El correo es el que recibe el código para entrar.</td>
+    </tr>
+    <tr>
+      <td>Cajeros</td>
+      <td>El nombre de usuario con el que figuran en el listado del sistema de facturación,
+        asociado a los montos cobrados cada día.</td>
+    </tr>
+    <tr>
+      <td>Mensajeros y tesoreros</td>
+      <td>Nombre, DNI y teléfono; una clave personal, que se guarda cifrada y nunca en texto
+        claro; y el registro de cada firma: qué retiro firmó, cuándo y desde qué dirección IP.</td>
+    </tr>
+    <tr>
+      <td>Movimientos</td>
+      <td>Fecha, importe, medio de pago y número de comprobante; los retiros y depósitos, con
+        quién los retiró, quién los firmó y a qué tesorero fueron; y quién marcó cada día
+        como verificado.</td>
+    </tr>
+    <tr>
+      <td>Archivos adjuntos</td>
+      <td>Las fotos o PDF de recibos y boletas que se suben como respaldo de un movimiento.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="caja ok">
+  <p style="margin:0"><b>Lo que el sistema no guarda.</b> Al importar los listados de
+  facturación se descartan los <b>nombres de pacientes y sus documentos</b>: solo quedan los
+  números de comprobante, que son los que permiten auditar. Tampoco se guardan números de
+  tarjeta ni datos bancarios de ninguna persona.</p>
+</div>
+
+<h2><span class="n">03</span>Para qué se usan</h2>
+<ul>
+  <li><b>Controlar la caja.</b> Saber cuánto efectivo hay, de qué días y qué se retiró.</li>
+  <li><b>Dejar constancia.</b> Que quede escrito quién se llevó la plata, quién firmó, quién
+    la recibió y quién revisó cada día.</li>
+  <li><b>Auditar.</b> Poder reconstruir un movimiento hacia atrás cuando algo no cierra.</li>
+</ul>
+<p>Los datos <b>no se usan para evaluar el desempeño individual</b> de ninguna persona, no se
+comparten con terceros ajenos a la institución y no alimentan ningún sistema de decisiones
+automáticas.</p>
+
+<h2><span class="n">04</span>Quién puede verlos</h2>
+<p>Cada usuario tiene un nivel de acceso al módulo de Caja:</p>
+<table>
+  <thead><tr><th>Nivel</th><th>Puede</th></tr></thead>
+  <tbody>
+    <tr><td>Consulta</td><td>Ver, filtrar, imprimir y exportar. No puede modificar nada.</td></tr>
+    <tr><td>Carga</td><td>Además, importar listados y registrar retiros, depósitos y verificaciones.</td></tr>
+    <tr><td>Administración</td><td>Todo lo anterior, más el manejo de usuarios y accesos.</td></tr>
+  </tbody>
+</table>
+<p>El control no es solo visual: el servidor rechaza cualquier escritura que venga de un
+usuario sin permiso, aunque intente hacerla por fuera de la pantalla.</p>
+
+<h2><span class="n">05</span>Dónde están y por cuánto tiempo</h2>
+<p>Los datos se alojan en <b>Supabase</b>, un servicio de base de datos en la nube. Los
+servidores del proyecto están en <b>Estados Unidos</b>, lo que significa que la información
+sale del país. La conexión va siempre cifrada.</p>
+<div class="caja">
+  <p style="margin:0"><b>Punto abierto para el área legal.</b> La Ley 25.326 pone condiciones
+  a la transferencia internacional de datos personales. Antes de aprobar esta política hay que
+  definir si corresponde alojar los datos en el país, encuadrar la transferencia como
+  corresponde, o ambas cosas.</p>
+</div>
+<p>Los registros de caja se conservan mientras sean necesarios para el control contable y las
+auditorías de la institución. Los datos de un usuario que deja de trabajar en FUESMEN se dan
+de baja del acceso; lo que ya firmó o cargó queda en el historial, porque es justamente la
+constancia de una operación.</p>
+
+<h2><span class="n">06</span>Qué podés pedir sobre tus datos</h2>
+<p>Como titular de tus datos personales tenés derecho a:</p>
+<ul>
+  <li><b>Acceso.</b> Pedir qué datos tuyos hay en el sistema. Es gratuito, con intervalos no
+    menores a seis meses salvo que acredites un interés legítimo.</li>
+  <li><b>Rectificación.</b> Pedir que se corrija algo que está mal.</li>
+  <li><b>Actualización.</b> Pedir que se ponga al día un dato que cambió.</li>
+  <li><b>Supresión.</b> Pedir que se borre un dato, en los casos que la ley permite. Los
+    asientos que respaldan un movimiento de dinero no se pueden borrar sin más: son
+    documentación contable.</li>
+</ul>
+<p>Los pedidos se hacen por escrito al responsable que figura abajo, que tiene que contestar
+dentro de los plazos de la ley: diez días corridos para el acceso, cinco días hábiles para la
+rectificación o supresión.</p>
+<p>La autoridad de control es la <b>Agencia de Acceso a la Información Pública</b>, ante la
+cual se puede reclamar si el pedido no se resuelve.</p>
+
+<h2><span class="n">07</span>Cómo se protegen</h2>
+<ul>
+  <li><b>No hay contraseñas que se puedan olvidar o compartir.</b> Se entra con un código de
+    seis dígitos que llega al correo de trabajo, válido por unos minutos.</li>
+  <li><b>Las claves de firma se guardan cifradas.</b> El sistema puede verificar una clave
+    pero no puede leerla, ni siquiera quien administra la base.</li>
+  <li><b>Permisos en el servidor.</b> Cada consulta se valida contra el nivel de acceso del
+    usuario que la hace.</li>
+  <li><b>Todo queda registrado.</b> Cada firma guarda quién, cuándo y desde dónde.</li>
+</ul>
+
+<h2><span class="n">08</span>A quién dirigirse</h2>
+<p><b>Responsable de la base de datos:</b> Fundación Escuela de Medicina Nuclear (FUESMEN),
+Mendoza, Argentina.</p>
+<p><b>Contacto para pedidos sobre datos personales:</b>
+<span class="mono">— a completar por FUESMEN —</span></p>
+<p>Por dudas sobre el funcionamiento del sistema: Santiago Pitrella, administración del
+servicio de Diagnóstico por Imágenes.</p>
+
+<footer>
+  Lumen · Rendición de Caja — FUESMEN · Hospital Italiano de Mendoza.<br>
+  Borrador versión 1, 4 de septiembre de 2026. Pendiente de revisión legal.
+</footer>
+
+</div>
+</body>
+</html>
