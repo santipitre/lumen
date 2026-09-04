@@ -152,6 +152,12 @@ nav.tabs button:focus-visible{outline:2px solid var(--tarjeta);outline-offset:-2
 .cinta-monto{font-family:var(--mono);font-size:33px;font-weight:600;letter-spacing:-.03em;margin:6px 0 2px;font-variant-numeric:tabular-nums;color:var(--efectivo)}
 .cinta-sub{font-size:13px;color:var(--ink-2)}
 .cinta-rows{margin-top:16px;border-top:1px dashed var(--linea);padding-top:12px;display:grid;gap:7px}
+.cinta-sello{margin-top:14px;border-top:1px dashed var(--linea);padding-top:10px;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);display:flex;align-items:center;gap:7px;min-height:16px}
+.cinta-sello::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--linea);flex:none}
+.cinta-sello.vivo::before{background:var(--efectivo);box-shadow:0 0 0 3px rgba(46,119,92,.20)}
+.cinta-sello.alerta{color:var(--alerta)}
+.cinta-sello.alerta::before{background:var(--alerta)}
+@media print{.cinta-sello{display:none}}
 .cr{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;font-family:var(--mono);font-variant-numeric:tabular-nums}
 .cr span{color:var(--ink-2)}.cr b{font-weight:600}
 .cinta-actions{margin-top:34px;display:grid;gap:8px}
@@ -632,6 +638,7 @@ body.ro #ro-banda{display:flex}
       <div class="cinta-monto" id="saldo-monto">$ 0</div>
       <div class="cinta-sub" id="saldo-desde">Sin movimientos</div>
       <div class="cinta-rows" id="cinta-rows"></div>
+      <div class="cinta-sello" id="cinta-sello"></div>
     </div>
     <div class="cinta-actions">
       <button class="btn" id="btn-retirar">Registrar retiro</button>
@@ -853,6 +860,7 @@ async function sincronizar(){
 
 function guardar(cambio=true){
   if(!puedeEditar()){toast("Tu usuario es de solo lectura.");return}
+  YO_GUARDE=Date.now(); ULTIMA_CARGA=Date.now(); pintarSello();
   sincronizar().catch(e=>{
     toast("No se guard\u00f3 en la nube: "+e.message+". Actualiz\u00e1 la p\u00e1gina.");
     console.error("[caja] sync",e);
@@ -3049,6 +3057,95 @@ async function cerrarSesion(){
   location.href=location.pathname;
 }
 
+/* ============================================================
+   FRESCURA DE LOS DATOS
+   caja.html cargaba de la nube UNA sola vez, al entrar. Quien deja
+   la pestana abierta se queda mirando la foto del momento en que
+   entro y no tiene como saberlo. Tres capas:
+     1. Realtime sobre las tablas de caja -> repinta al toque.
+     2. Poll de respaldo, por si el canal se muere sin avisar.
+     3. Un sello en la cinta que dice de cuando son los numeros.
+   El refresco NUNCA pisa un dialogo abierto: queda pendiente.
+   ============================================================ */
+const RT_TABLAS=["caja_grupos","caja_retiros","caja_revisados","caja_comprobantes","caja_importaciones"];
+let RT_CANAL=null, RT_VIVO=false, RT_TIMER=null, RT_POLL=null;
+let ULTIMA_CARGA=0, RT_PENDIENTE=false, RT_ERROR="", YO_GUARDE=0;
+
+const hhmm=ts=>new Date(ts).toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit",hourCycle:"h23"});
+
+function pintarSello(){
+  const s=$("#cinta-sello"); if(!s) return;
+  if(!ULTIMA_CARGA){s.textContent="";s.className="cinta-sello";return}
+  if(RT_ERROR){
+    s.className="cinta-sello alerta";
+    s.textContent="Sin conexi\u00f3n \u00b7 dato de las "+hhmm(ULTIMA_CARGA);
+    s.title="No se pudo traer la ultima version: "+RT_ERROR+". Actualiza la pagina.";
+    return;
+  }
+  s.className="cinta-sello"+(RT_VIVO?" vivo":"");
+  s.textContent=RT_VIVO?"En vivo \u00b7 "+hhmm(ULTIMA_CARGA):"Datos al "+hhmm(ULTIMA_CARGA);
+  s.title=RT_VIVO?"La pantalla se actualiza sola cuando alguien carga o corrige algo."
+                 :"Sin conexion en vivo: se refresca cada un minuto.";
+}
+
+const ocupado=()=>!!document.querySelector("dialog[open]");
+
+async function refrescar(motivo){
+  if(ocupado()){RT_PENDIENTE=true;return}
+  RT_PENDIENTE=false;
+  const y=window.scrollY;
+  try{
+    await cargarDesdeNube();
+    ULTIMA_CARGA=Date.now(); RT_ERROR="";
+    render();
+    window.scrollTo(0,y);
+  }catch(e){
+    RT_ERROR=e.message||String(e);
+    console.warn("[caja] refrescar("+motivo+")",e);
+  }
+  pintarSello();
+}
+
+function pedirRefresco(motivo){
+  /* Lo que acabo de guardar yo ya esta en pantalla: no me repinto solo. */
+  if(Date.now()-YO_GUARDE<4000) return;
+  clearTimeout(RT_TIMER);
+  RT_TIMER=setTimeout(function(){refrescar(motivo)},800);
+}
+
+async function arrancarRealtime(){
+  if(!window.sbAuth||typeof window.sbAuth.channel!=="function") return;
+  try{
+    const {data}=await window.sbAuth.auth.getSession();
+    const tok=data&&data.session&&data.session.access_token;
+    if(tok&&window.sbAuth.realtime&&window.sbAuth.realtime.setAuth) window.sbAuth.realtime.setAuth(tok);
+  }catch(e){}
+  let ch=window.sbAuth.channel("caja-"+String(SEDE).replace(/\W+/g,"-").toLowerCase());
+  RT_TABLAS.forEach(function(t){
+    ch=ch.on("postgres_changes",{event:"*",schema:"public",table:t},function(){pedirRefresco(t)});
+  });
+  RT_CANAL=ch.subscribe(function(st){
+    RT_VIVO=(st==="SUBSCRIBED");
+    if(!RT_VIVO&&st) console.warn("[caja] realtime:",st);
+    pintarSello();
+  });
+  window.addEventListener("beforeunload",function(){
+    try{window.sbAuth.removeChannel(RT_CANAL)}catch(e){}
+  });
+}
+
+function arrancarRed(){
+  clearInterval(RT_POLL);
+  RT_POLL=setInterval(function(){
+    if(RT_PENDIENTE&&!ocupado()){refrescar("pendiente");return}
+    const limite=RT_VIVO?300000:60000;
+    if(Date.now()-ULTIMA_CARGA>=limite) refrescar("poll");
+  },20000);
+  document.addEventListener("visibilitychange",function(){
+    if(document.visibilityState==="visible"&&Date.now()-ULTIMA_CARGA>30000) refrescar("volver");
+  });
+}
+
 async function arrancar(){
   document.body.classList.add("cargando","gated");
   reloj();setInterval(reloj,30000);
@@ -3101,6 +3198,10 @@ async function arrancar(){
   document.body.classList.remove("cargando");
   if(db.grupos.length&&vista==="importar") vista="dias";
   render();
+  ULTIMA_CARGA=ULTIMA_CARGA||Date.now();
+  pintarSello();
+  arrancarRealtime();
+  arrancarRed();
 }
 
 arrancar();
