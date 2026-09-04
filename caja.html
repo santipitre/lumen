@@ -770,13 +770,14 @@ async function sincronizar(){
   const rvFuera =[...SNAP.revisados].filter(k=>!rvAhora.has(k));
   if(rvNuevos.length) tareas.push(sbInsert("caja_revisados",rvNuevos.map(k=>{
     const v=db.revisados[k];
-    return {sede:SEDE,fecha:v.fecha,cajero:v.cajero,medio:v.medio||"",
+    return {sede:SEDE,fecha:v.fecha,cajero:v.cajero,medio:v.medio||"",comp:v.comp||"",
             nota:v.nota||null,revisado_por:AUTHUID};
   })));
   for(const k of rvFuera){
-    const [f,c,m]=k.split("|");
+    const [f,c,m,x]=k.split("|");
     tareas.push(sbDel("caja_revisados",`sede=eq.${encodeURIComponent(SEDE)}&fecha=eq.${f}`+
-      `&cajero=eq.${encodeURIComponent(c)}&medio=eq.${encodeURIComponent(m||"")}`));
+      `&cajero=eq.${encodeURIComponent(c)}&medio=eq.${encodeURIComponent(m||"")}`+
+      `&comp=eq.${encodeURIComponent(x||"")}`));
   }
   await Promise.all(tareas);
   snapshot();
@@ -807,9 +808,9 @@ async function cargarDesdeNube(){
     desde:r.desde||"",hasta:r.hasta||"",
     creado:Date.parse(r.creado_en)||Date.now()}));
   db.revisados={};
-  rv.forEach(r=>{db.revisados[r.fecha+"|"+r.cajero+(r.medio?"|"+r.medio:"")]=
+  rv.forEach(r=>{db.revisados[claveRev(r.fecha,r.cajero,r.medio,r.comp)]=
     {ts:Date.parse(r.revisado_en)||Date.now(),fecha:r.fecha,cajero:r.cajero,
-     medio:r.medio||"",nota:r.nota||""}});
+     medio:r.medio||"",comp:r.comp||"",nota:r.nota||""}});
   db.importaciones=im.map(r=>({id:r.id,archivo:r.archivos||"",cuando:Date.parse(r.creado_en)||Date.now(),
     filas:r.filas_ok||0,rango:r.rango||"",total:0}));
   db.importaciones.forEach(i=>{i.total=db.grupos.filter(g=>g.imp===i.id).reduce((a,g)=>a+g.monto,0)});
@@ -1290,7 +1291,7 @@ function vistaDias(){
           el("td",{class:"num "+cls,colspan:"4"},plata(g.monto)),
           el("td",{class:"num"},String(g.n)),
           el("td",{},el("div",{class:"acciones"},
-            g.comps&&g.comps.length?el("button",{class:"btn ghost small",type:"button",onclick:()=>verComps(g)},"Comprobantes"):null,
+            g.comps&&g.comps.length?el("button",{class:"btn ghost small",type:"button",onclick:()=>verComps(g,d)},"Comprobantes"):null,
             tildeMedio(d,g)))));
       }
     }
@@ -1305,22 +1306,25 @@ function vistaDias(){
     kpi("Total",plata(t.total))));
   c.append(p); return c;
 }
-function verComps(g){
-  const cs=compsNorm(g.comps);
+function verComps(g,d){
+  const cs=compsNorm(g.comps).map((x,i)=>Object.assign({},x,{k:x.n||("#"+i)}));
   const conM=cs.filter(x=>x.sm), sum=conM.reduce((a,x)=>a+x.m,0);
   const cls=(CATS[g.categoria]||{}).clase||"";
   const orden=cs.slice().sort((a,b)=>b.m-a.m||a.n.localeCompare(b.n,"es",{numeric:true}));
   const tab=el("table",{class:"data"});
-  tab.append(el("thead",{},el("tr",{},el("th",{},"N\u00ba"),el("th",{class:"num"},"Importe"))));
+  tab.append(el("thead",{},el("tr",{},el("th",{},"N\u00ba"),el("th",{class:"num"},"Importe"),
+    d?el("th",{style:"width:1%"},""):null)));
   const tb=el("tbody",{});
   for(const x of orden)
     tb.append(el("tr",{},
       el("td",{style:"font-family:var(--mono)"},x.n||"sin n\u00famero"),
-      el("td",{class:"num "+(x.sm?cls:"")},x.sm?plata(x.m):"\u2014")));
+      el("td",{class:"num "+(x.sm?cls:"")},x.sm?plata(x.m):"\u2014"),
+      d?el("td",{style:"text-align:right"},tildeComp(d,g,x.k)):null));
   tab.append(tb);
   tab.append(el("tfoot",{},el("tr",{},
     el("th",{},conM.length===cs.length?"Total":`Total (${conM.length} de ${cs.length})`),
-    el("th",{class:"num"},plata(sum)))));
+    el("th",{class:"num"},plata(sum)),
+    d?el("th",{},""):null)));
   const dif=Math.round((g.monto-sum)*100)/100;
   const aviso=!conM.length
     ? el("p",{class:"hint",style:"color:var(--aviso)"},
@@ -1329,7 +1333,7 @@ function verComps(g){
         ? el("p",{class:"hint",style:"color:var(--aviso)"},
             `El grupo suma ${plata(g.monto)}: hay una diferencia de ${plata(dif)} con el desglose.`)
         : null);
-  modal({titulo:`${g.medio} \u00b7 ${fechaCorta(g.fecha)} \u00b7 ${g.cajero}`,
+  const dlg=modal({titulo:`${g.medio} \u00b7 ${fechaCorta(g.fecha)} \u00b7 ${g.cajero}`,
     cuerpo:el("div",{},
       el("p",{class:"hint"},`${g.n} comprobantes por ${plata(g.monto)}`),
       aviso,
@@ -1342,6 +1346,9 @@ function verComps(g){
           .catch(()=>toast("No se pudo copiar al portapapeles."));
         return false}},
       {texto:"Cerrar"}]});
+  // al cerrar se repinta la tabla: si quedaron todos tildados, el medio
+  // (y el cajero, y el dia) ya aparecen en verde
+  if(d) dlg.addEventListener("close",()=>render(),{once:true});
 }
 
 /* ============================================================
@@ -2172,27 +2179,62 @@ function claveDia(d){return d.fecha+"|"+d.cajero}
 function estaRevisado(d){return !!db.revisados[claveDia(d)]}
 /* La marca vive en caja_revisados. medio="" es el cajero entero del dia;
    con medio cargado es la tilde de ese medio de pago. */
-function claveRev(f,c,m){return f+"|"+c+(m?"|"+m:"")}
+function claveRev(f,c,m,x){return f+"|"+c+(m?"|"+m:"")+(x?"|"+x:"")}
 function estaRevisadoMedio(d,g){return !!db.revisados[claveRev(d.fecha,d.cajero,g.medio)]}
-function ponerRev(f,c,m,nota){db.revisados[claveRev(f,c,m)]=
-  {ts:Date.now(),fecha:f,cajero:c,medio:m||"",nota:nota||""}}
-function sacarRev(f,c,m){delete db.revisados[claveRev(f,c,m)]}
+function estaRevisadoComp(d,g,x){return !!db.revisados[claveRev(d.fecha,d.cajero,g.medio,x)]}
+function ponerRev(f,c,m,x,nota){db.revisados[claveRev(f,c,m,x)]=
+  {ts:Date.now(),fecha:f,cajero:c,medio:m||"",comp:x||"",nota:nota||""}}
+function sacarRev(f,c,m,x){delete db.revisados[claveRev(f,c,m,x)]}
+/* La identidad de un comprobante es su numero; los que vinieron sin numero
+   caen a su posicion dentro del grupo. compsClaves y verComps tienen que
+   generar la misma clave o la tilde no se encuentra a si misma. */
+function compsClaves(g){return compsNorm(g.comps).map((x,i)=>x.n||("#"+i))}
+function tildarGrupo(d,g,on){
+  const f=on?ponerRev:sacarRev;
+  f(d.fecha,d.cajero,g.medio);
+  compsClaves(g).forEach(k=>f(d.fecha,d.cajero,g.medio,k));
+}
+function recalcularMedio(d,g){
+  const ks=compsClaves(g);
+  if(!ks.length) return;   // grupo sin desglose: su tilde se pone a mano
+  if(ks.every(k=>estaRevisadoComp(d,g,k))) ponerRev(d.fecha,d.cajero,g.medio);
+  else sacarRev(d.fecha,d.cajero,g.medio);
+}
+function recalcularCajero(d){
+  const nota=(db.revisados[claveDia(d)]||{}).nota;
+  if(d.grupos.length&&d.grupos.every(x=>estaRevisadoMedio(d,x)))
+    ponerRev(d.fecha,d.cajero,"","",nota);
+  else sacarRev(d.fecha,d.cajero,"");
+}
+function marcarComp(d,g,k,on){
+  if(!puedeEditar()){toast("Tu usuario es de solo lectura.");return}
+  on?ponerRev(d.fecha,d.cajero,g.medio,k):sacarRev(d.fecha,d.cajero,g.medio,k);
+  recalcularMedio(d,g); recalcularCajero(d); guardar();
+}
 function marcarMedio(d,g,on){
   if(!puedeEditar()){toast("Tu usuario es de solo lectura.");return}
-  on?ponerRev(d.fecha,d.cajero,g.medio):sacarRev(d.fecha,d.cajero,g.medio);
-  // el cajero se da por verificado solo cuando lo estan todos sus medios
-  const nota=(db.revisados[claveDia(d)]||{}).nota;
-  if(d.grupos.length&&d.grupos.every(x=>estaRevisadoMedio(d,x))) ponerRev(d.fecha,d.cajero,"",nota);
-  else sacarRev(d.fecha,d.cajero,"");
+  tildarGrupo(d,g,on);
+  recalcularCajero(d);
   guardar();render();
 }
 function marcarDiaEntero(dd,on){
   if(!puedeEditar()){toast("Tu usuario es de solo lectura.");return}
   for(const d of dd){
-    if(on){ponerRev(d.fecha,d.cajero,""); d.grupos.forEach(g=>ponerRev(d.fecha,d.cajero,g.medio))}
-    else {sacarRev(d.fecha,d.cajero,""); d.grupos.forEach(g=>sacarRev(d.fecha,d.cajero,g.medio))}
+    if(on) ponerRev(d.fecha,d.cajero,""); else sacarRev(d.fecha,d.cajero,"");
+    d.grupos.forEach(g=>tildarGrupo(d,g,on));
   }
   guardar();toast(on?"D\u00eda verificado completo.":"D\u00eda reabierto.");render();
+}
+function tildeComp(d,g,k){
+  const pinta=b=>{const ok=estaRevisadoComp(d,g,k);
+    b.className="tick chico"+(ok?" on":"");
+    b.setAttribute("aria-pressed",ok?"true":"false");
+    b.title=ok?"Verificado \u00b7 Clic para desmarcar":"Marcar este comprobante como verificado"};
+  const b=el("button",{class:"tick chico",type:"button",onclick:()=>{
+    marcarComp(d,g,k,!estaRevisadoComp(d,g,k)); pinta(b)}},"\u2713");
+  pinta(b);
+  if(!puedeEditar()) b.disabled=true;
+  return b;
 }
 function tildeMedio(d,g){
   const ok=estaRevisadoMedio(d,g);
@@ -2240,11 +2282,11 @@ async function marcarRevisado(d,on){
       if(!r) return;
       nota=r;
     }
-    db.revisados[k]={ts:Date.now(),fecha:d.fecha,cajero:d.cajero,medio:"",nota};
-    (d.grupos||[]).forEach(g=>ponerRev(d.fecha,d.cajero,g.medio));
+    db.revisados[k]={ts:Date.now(),fecha:d.fecha,cajero:d.cajero,medio:"",comp:"",nota};
+    (d.grupos||[]).forEach(g=>tildarGrupo(d,g,true));
   }else{
     delete db.revisados[k];
-    (d.grupos||[]).forEach(g=>sacarRev(d.fecha,d.cajero,g.medio));
+    (d.grupos||[]).forEach(g=>tildarGrupo(d,g,false));
   }
   guardar();toast(on?"Marcado como verificado.":"Reabierto para revisión.");render();
 }
