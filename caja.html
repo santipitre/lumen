@@ -203,13 +203,16 @@ tr.fila-retiro td{background:var(--fila-ret);color:var(--ink);font-weight:600}
 tr.fila-retiro td:first-child{box-shadow:inset 3px 0 0 var(--oro-2)}
 tr.fila-retiro:hover td{background:var(--fila-ret-h)}
 tr.detalle td{background:var(--linea-2);font-size:13.5px;color:var(--ink-2)}
-tr.dia-sep td{background:var(--panel);border-top:2px solid var(--oro-2);border-bottom:1px solid var(--linea);padding:9px 10px 7px;white-space:normal}
+tr.dia-sep td{background:var(--panel);border-top:2px solid var(--oro-2);border-bottom:1px solid var(--linea);padding:9px 12px 8px;white-space:nowrap;vertical-align:middle}
 tr.dia-sep:first-child td{border-top:0}
 tr.dia-sep:hover td{background:var(--panel)}
 .dsep{display:flex;align-items:baseline;justify-content:space-between;gap:14px;flex-wrap:wrap}
 .dsep-f{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--ink)}
 .dsep-f::before{content:"";width:3px;height:13px;border-radius:2px;background:var(--oro-2);flex:none}
-.dsep-m{display:flex;align-items:baseline;gap:18px;font-family:var(--mono);font-size:13.5px;font-variant-numeric:tabular-nums;color:var(--ink-3)}
+.dsep-m{display:flex;align-items:baseline;flex-wrap:wrap;justify-content:flex-end;gap:6px 15px;
+  font-family:var(--mono);font-size:13.5px;font-variant-numeric:tabular-nums;color:var(--ink-3)}
+.dsep-sub{font-family:var(--mono);font-size:11.5px;letter-spacing:.03em;color:var(--ink-3);
+  margin-top:3px;padding-left:12px}
 .dsep-m b{color:var(--ink-2);font-weight:650}
 .dsep-m .ret{color:var(--otros)}
 .badge{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.05em;padding:1px 6px;border-radius:9px;text-transform:uppercase}
@@ -382,19 +385,23 @@ nav.tabs button[data-v=revisar]::before{background:var(--otros-soft)}
 
 header.top{border-top:0;border-bottom:1px solid var(--linea);background:var(--paper)}
 .top-in{display:block;max-width:none;padding:0}
-.marca{max-width:1500px;margin:0 auto;padding:26px 22px 20px;display:flex;
-  align-items:flex-end;justify-content:space-between;gap:26px;flex-wrap:wrap}
+/* encabezado centrado: los dos logos arriba, el titular y la vista debajo.
+   El reloj sale del flujo para no correr el centro. */
+.marca{position:relative;max-width:1500px;margin:0 auto;padding:22px 22px 20px;
+  display:flex;flex-direction:column;align-items:center;text-align:center;gap:0}
 .marca-tit{font-family:var(--serif);font-size:clamp(32px,3.9vw,50px);font-weight:400;
   letter-spacing:-.005em;color:var(--ink);line-height:.98;margin:0}
 .marca-vista{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.26em;
   text-transform:uppercase;color:var(--ink-3);margin-top:11px}
 .marca-der{display:flex;align-items:center;gap:20px}
+.marca>.top-right{position:absolute;right:22px;top:22px}
+@media(max-width:900px){.marca>.top-right{position:static;margin-top:13px}}
 .top-right{font-family:var(--mono);font-size:11.5px;font-weight:500;letter-spacing:.13em;
   color:var(--ink-2);background:var(--panel);border:1px solid var(--linea);
   padding:7px 15px;border-radius:99px;white-space:nowrap}
-.marca-logos{display:flex;align-items:center;gap:20px}
-.marca-logos img{height:58px;width:auto;display:block}
-.marca-logos img.hi{height:66px}
+.marca-logos{display:flex;align-items:center;justify-content:center;gap:26px;margin-bottom:15px}
+.marca-logos img{height:66px;width:auto;display:block}
+.marca-logos img.hi{height:76px}
 .shell{padding-top:20px}
 .panel>h2{display:none}
 /* cifras en serif, como la maqueta; los montos tabulares siguen en mono */
@@ -568,17 +575,13 @@ body.ro #ro-banda{display:flex}
 <div class="lienzo">
 <header class="top"><div class="top-in">
   <div class="marca" id="marca">
-    <div>
-      <h1 class="marca-tit">Rendici&oacute;n de Caja</h1>
-      <div class="marca-vista" id="titulo-vista">D&iacute;as cargados</div>
+    <div class="marca-logos">
+      <img src="fuesmen-logo.png" alt="FUESMEN">
+      <img src="hitaliano-logo.png" class="hi" alt="Hospital Italiano de Mendoza">
     </div>
-    <div class="marca-der">
-      <div class="top-right" id="reloj"></div>
-      <div class="marca-logos">
-        <img src="fuesmen-logo.png" alt="FUESMEN">
-        <img src="hitaliano-logo.png" class="hi" alt="Hospital Italiano de Mendoza">
-      </div>
-    </div>
+    <h1 class="marca-tit">Rendici&oacute;n de Caja</h1>
+    <div class="marca-vista" id="titulo-vista">D&iacute;as cargados</div>
+    <div class="top-right" id="reloj"></div>
   </div>
   <img id="escudo" class="escudo" alt="">
 </div></header>
@@ -1290,23 +1293,32 @@ function vistaDias(){
     el("th",{class:"num"},"Efectivo"),el("th",{class:"num"},"Tarjetas"),el("th",{class:"num"},"Billetera"),
     el("th",{class:"num"},"Otros"),el("th",{class:"num"},"Total"),el("th",{class:"num"},"Comp."),el("th",{},""))));
   const tb=el("tbody",{});
+  const yaRet=diasRetirados();   // una sola vez: se consulta por cada día
   let fSep=null;
   for(const ev of eventos){
     if(ev.x.fecha!==fSep){
       fSep=ev.x.fecha;
       const dd=dias.filter(x=>x.fecha===fSep);
       const tot=dd.reduce((a,x)=>a+x.total,0);
+      const efe=dd.reduce((a,x)=>a+x.efectivo,0);
+      const salio=yaRet.has(fSep);
       const ret=rets.filter(x=>x.fecha===fSep&&!esDeposito(x)).reduce((a,x)=>a+x.monto,0);
       const dep=rets.filter(x=>x.fecha===fSep&&esDeposito(x)).reduce((a,x)=>a+x.monto,0);
-      tb.append(el("tr",{class:"dia-sep"},el("td",{colspan:"9"},
-        el("div",{class:"dsep"},
-          el("span",{class:"dsep-f"},fechaLarga(fSep)),
-          el("span",{class:"dsep-m"},
-            dd.length?el("span",{},dd.length+(dd.length===1?" cajero":" cajeros")):null,
-            dd.length?el("span",{},"Total del día ",el("b",{},plata(tot))):null,
-            ret?el("span",{class:"ret"},"Retiros "+plata(ret)):null,
-            dep?el("span",{class:"ret"},"Dep\u00f3sitos "+plata(dep)):null,
-            dd.length?tildeDia(dd):null)))));
+      const sub=[dd.length?dd.length+(dd.length===1?" cajero":" cajeros"):null,
+                 salio?"efectivo ya retirado":null,
+                 ret?"Retiros "+plata(ret):null,
+                 dep?"Depósitos "+plata(dep):null].filter(Boolean).join("  ·  ");
+      tb.append(el("tr",{class:"dia-sep"},
+        el("td",{colspan:"2"},
+          el("div",{class:"dsep-f"},fechaLarga(fSep)),
+          sub?el("div",{class:"dsep-sub"},sub):null),
+        el("td",{class:"num chip-ef",title:dd.length?(salio?"Este día ya salió en un retiro"
+              :"Este efectivo todavía está en caja"):null},
+          dd.length?plata(efe):""),
+        el("td",{}),el("td",{}),el("td",{}),
+        el("td",{class:"num",style:"font-weight:650"},dd.length?plata(tot):""),
+        el("td",{}),
+        el("td",{},dd.length?el("div",{class:"acciones"},tildeDia(dd)):null)));
     }
     if(ev.t==="r"){
       const r=ev.x;
