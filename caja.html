@@ -77,6 +77,13 @@ body.gated nav.tabs,body.gated .shell,body.gated #ro-banda{display:none}
 body.ro #ro-banda{display:block}
 body.cargando .shell,body.cargando nav.tabs{opacity:.35;pointer-events:none}
 @media print{#gate,#ro-banda{display:none!important}}
+/* el comprobante se imprime solo: el resto de la pagina se apaga */
+#impresion{display:none}
+@media print{
+  body.imprimiendo>*{display:none!important}
+  body.imprimiendo>#impresion{display:block!important}
+  body.imprimiendo{background:#fff}
+}
 *{box-sizing:border-box}
 html{color-scheme:light}
 html,body{margin:0;padding:0}
@@ -595,6 +602,7 @@ body.ro #ro-banda{display:flex}
 </div></div>
 
 <div id="toast" role="status" aria-live="polite"></div>
+<div id="impresion" aria-hidden="true"></div>
 <dialog id="dlg"><form method="dialog">
   <div class="dlg-h"><h2 id="dlg-t"></h2></div>
   <div class="dlg-b" id="dlg-b"></div>
@@ -746,7 +754,7 @@ const filaGrupo=g=>({id:g.id,sede:SEDE,fecha:g.fecha,cajero:g.cajero,medio:g.med
 const filaRetiro=r=>({id:r.id,sede:SEDE,fecha:r.fecha,responsable:r.responsable,
   monto:r.monto,detalle:r.detalle||null,tipo:r.tipo||"retiro",
   banco:r.banco||null,referencia:r.referencia||null,
-  desde:r.desde||null,hasta:r.hasta||null,
+  desde:r.desde||null,hasta:r.hasta||null,dias:r.dias||[],
   creado_por:AUTHUID});
 const filaImport=i=>({id:i.id,sede:SEDE,archivos:i.archivo||null,filas_ok:i.filas||0,
   rango:i.rango||null,creado_por:AUTHUID});
@@ -805,7 +813,7 @@ async function cargarDesdeNube(){
   db.retiros=re.map(r=>({id:r.id,fecha:r.fecha,responsable:r.responsable,
     monto:Number(r.monto),detalle:r.detalle||"",tipo:r.tipo||"retiro",
     banco:r.banco||"",referencia:r.referencia||"",
-    desde:r.desde||"",hasta:r.hasta||"",
+    desde:r.desde||"",hasta:r.hasta||"",dias:Array.isArray(r.dias)?r.dias:[],
     creado:Date.parse(r.creado_en)||Date.now()}));
   db.revisados={};
   rv.forEach(r=>{db.revisados[claveRev(r.fecha,r.cajero,r.medio,r.comp)]=
@@ -900,6 +908,28 @@ function periodoDe(r){
   const pr=i>0?rs[i-1]:null;
   const ini=pr?diaSig(pr.hasta||pr.fecha):(db.grupos.map(g=>g.fecha).sort()[0]||r.fecha);
   return {desde:ini<=r.fecha?ini:r.fecha,hasta:r.fecha};
+}
+/* --- efectivo dia por dia ------------------------------------
+   El retiro se lleva dias concretos y los guarda en r.dias. Los retiros
+   viejos no tienen esa lista: se les atribuyen los dias de su periodo, asi
+   ningun dia queda disponible dos veces despues de haber salido de la caja. */
+function efectivoPorDia(){
+  const m=new Map();
+  for(const g of db.grupos) if(g.categoria==="efectivo") m.set(g.fecha,(m.get(g.fecha)||0)+g.monto);
+  return [...m].map(([fecha,monto])=>({fecha,monto})).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+}
+function diasCubiertos(r){
+  if(Array.isArray(r.dias)&&r.dias.length) return r.dias;
+  const p=periodoDe(r);
+  return efectivoPorDia().map(d=>d.fecha).filter(f=>f>=p.desde&&f<=p.hasta);
+}
+const diasRetirados=()=>new Set(db.retiros.filter(r=>!esDeposito(r)).flatMap(diasCubiertos));
+function diasPendientes(){const y=diasRetirados();return efectivoPorDia().filter(d=>!y.has(d.fecha))}
+const efectivoPendiente=()=>diasPendientes().reduce((s,d)=>s+d.monto,0);
+/* el efectivo de los dias que se lleva un retiro, para el comprobante */
+function detalleDias(r){
+  const ef=new Map(efectivoPorDia().map(d=>[d.fecha,d.monto]));
+  return diasCubiertos(r).slice().sort().map(f=>({fecha:f,monto:ef.get(f)||0}));
 }
 const boletasPeriodo=p=>{const k=clavePer(p);return k?db.retiros.filter(d=>esDeposito(d)&&clavePer(d)===k):[]};
 const rendidoDe=r=>boletasPeriodo(periodoDe(r)).reduce((a,d)=>a+d.monto,0);
@@ -1450,12 +1480,130 @@ function vistaReportes(){
 /* ============================================================
    VISTA: RETIROS
    ============================================================ */
+/* ============================================================
+   COMPROBANTE DE RETIRO
+   Se arma como HTML con los estilos en linea: el mismo string sirve para la
+   ventana de impresion y para el cuerpo del mail (los clientes de correo
+   descartan las hojas de estilo).
+   ============================================================ */
+const escHTML=t=>String(t==null?"":t).replace(/[&<>"]/g,
+  c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
+const nroComprobante=r=>"R-"+fechaCorta(r.fecha).split("/").reverse().join("")+
+  "-"+String(r.id).replace(/[^a-zA-Z0-9]/g,"").slice(0,6).toUpperCase();
+function comprobanteHTML(r){
+  const ds=detalleDias(r), suma=ds.reduce((a,d)=>a+d.monto,0), dif=r.monto-suma;
+  const TH="text-align:left;padding:7px 10px;border-bottom:1px solid #D9D4C9;font:600 11px/1.4 Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#6B6558";
+  const TD="padding:7px 10px;border-bottom:1px solid #EDE9E0;font:14px/1.45 Arial,sans-serif;color:#2B2721";
+  const TN="padding:7px 10px;border-bottom:1px solid #EDE9E0;font:600 14px/1.45 Consolas,monospace;color:#2E775C;text-align:right;white-space:nowrap";
+  const dato=(k,v)=>'<tr><td style="padding:3px 0;font:12px Arial,sans-serif;color:#6B6558;white-space:nowrap">'+k+
+    '</td><td style="padding:3px 0 3px 16px;font:600 14px Arial,sans-serif;color:#2B2721">'+v+'</td></tr>';
+  const rango=ds.length?fechaCorta(ds[0].fecha)+" a "+fechaCorta(ds[ds.length-1].fecha):"\u2014";
+  return '<div style="max-width:660px;margin:0 auto;padding:26px 30px;background:#fff;color:#2B2721;font-family:Arial,Helvetica,sans-serif">'+
+  '<div style="border-top:3px solid #B99A54;padding-top:14px">'+
+    '<div style="font:700 12px/1 Arial,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:#6B6558">FUESMEN &middot; Hospital Italiano de Mendoza</div>'+
+    '<h1 style="margin:9px 0 3px;font:700 25px/1.15 Georgia,serif;color:#2B2721">Comprobante de retiro de efectivo</h1>'+
+    '<div style="font:12px Consolas,monospace;color:#6B6558">N&deg; '+escHTML(nroComprobante(r))+' &middot; '+escHTML(SEDE)+'</div>'+
+  '</div>'+
+  '<table style="border-collapse:collapse;margin:18px 0 4px">'+
+    dato("Fecha del retiro",escHTML(fechaLarga(r.fecha)))+
+    dato("Tesorero que retira",escHTML(r.responsable))+
+    dato("D\u00edas que cubre",escHTML(ds.length+(ds.length===1?" d\u00eda":" d\u00edas")+"  \u00b7  "+rango))+
+    (r.detalle?dato("Detalle",escHTML(r.detalle)):"")+
+  '</table>'+
+  '<table style="width:100%;border-collapse:collapse;margin-top:16px"><thead><tr>'+
+    '<th style="'+TH+'">D\u00eda de caja</th>'+
+    '<th style="'+TH+';text-align:right">Efectivo</th></tr></thead><tbody>'+
+    ds.map(d=>'<tr><td style="'+TD+'">'+escHTML(fechaLarga(d.fecha))+'</td>'+
+      '<td style="'+TN+'">'+escHTML(plata(d.monto))+'</td></tr>').join("")+
+    '</tbody><tfoot><tr>'+
+    '<td style="padding:12px 10px;font:700 14px Arial,sans-serif">Total retirado</td>'+
+    '<td style="padding:12px 10px;text-align:right;font:700 19px Consolas,monospace;color:#2E775C">'+escHTML(plata(r.monto))+'</td>'+
+    '</tr>'+(Math.abs(dif)>.5?'<tr><td colspan="2" style="padding:0 10px 10px;font:12px Arial,sans-serif;color:#8A5A00">'+
+      'Los d\u00edas detallados suman '+escHTML(plata(suma))+': hay una diferencia de '+escHTML(plata(dif))+' con el monto retirado.</td></tr>':"")+
+    '</tfoot></table>'+
+  '<table style="width:100%;margin-top:54px;border-collapse:collapse"><tr>'+
+    '<td style="width:50%;padding-right:20px"><div style="border-top:1px solid #2B2721;padding-top:6px;font:12px Arial,sans-serif;color:#6B6558">Entrega &mdash; Caja</div></td>'+
+    '<td style="width:50%;padding-left:20px"><div style="border-top:1px solid #2B2721;padding-top:6px;font:12px Arial,sans-serif;color:#6B6558">Recibe &mdash; '+escHTML(r.responsable)+'</div></td>'+
+  '</tr></table>'+
+  '<p style="margin-top:26px;font:11px Arial,sans-serif;color:#9A9488">Emitido por Lumen &middot; Rendici\u00f3n de Caja el '+
+    escHTML(new Date().toLocaleString("es-AR"))+'.</p></div>';
+}
+function imprimirComprobante(r){
+  const z=$("#impresion"); z.innerHTML=comprobanteHTML(r);
+  document.body.classList.add("imprimiendo");
+  window.addEventListener("afterprint",()=>{
+    document.body.classList.remove("imprimiendo"); z.innerHTML="";
+  },{once:true});
+  setTimeout(()=>window.print(),60);
+}
+/* El envio sale por la edge function enviar-comprobante del proyecto: el
+   navegador no puede mandar mails y la clave del servicio no puede vivir en
+   un HTML publico. Si el secreto no esta cargado, la funcion contesta 503 con
+   el mensaje que se muestra tal cual. */
+const MAIL_GUARDADO="lumen_caja_mail";
+const leerMail=()=>{try{return localStorage.getItem(MAIL_GUARDADO)||""}catch(e){return""}};
+function dialogoMail(r){
+  const iP=el("input",{type:"text",placeholder:"tesoreria@ejemplo.com",
+    value:leerMail(),style:"width:100%"});
+  const iC=el("input",{type:"text",placeholder:"Opcional",style:"width:100%"});
+  const iA=el("input",{type:"text",style:"width:100%",
+    value:"Comprobante de retiro "+nroComprobante(r)+" \u00b7 "+plata(r.monto)});
+  const err=el("p",{class:"err-campo",style:"display:none"});
+  const fallar=(t,f)=>{err.textContent=t;err.style.display="";if(f)f.focus();return false};
+  modal({titulo:"Enviar el comprobante",cuerpo:el("div",{},
+      el("p",{class:"hint",style:"margin:0 0 12px"},
+        "El comprobante va en el cuerpo del mail. Pod\u00e9s poner varios destinatarios separados por coma."),
+      el("label",{class:"f"},"Para *",iP),
+      el("label",{class:"f",style:"margin-top:10px"},"Copia a",iC),
+      el("label",{class:"f",style:"margin-top:10px"},"Asunto",iA),
+      err),
+    acciones:[{texto:"Cancelar"},{texto:"Enviar",clase:"",accion:async()=>{
+      err.style.display="none";
+      const para=iP.value.trim();
+      if(!para) return fallar("Falta el destinatario.",iP);
+      toast("Enviando el comprobante\u2026");
+      let rs,j;
+      try{
+        const h=await getSBHeaders();
+        rs=await fetch(SUPABASE_URL+"/functions/v1/enviar-comprobante",{
+          method:"POST",headers:h,body:JSON.stringify({
+            para,copia:iC.value.trim(),asunto:iA.value.trim(),html:comprobanteHTML(r)})});
+        j=await rs.json().catch(()=>({}));
+      }catch(e){
+        return fallar("No se pudo llegar al servicio de env\u00edo: "+e.message,null);
+      }
+      if(!rs.ok){
+        if(j&&j.error==="sin_clave"){
+          avisar("Falta configurar el env\u00edo",
+            [j.mensaje,"Mientras tanto, guard\u00e1 el comprobante en PDF y adjuntalo a mano."]);
+          return true;
+        }
+        return fallar((j&&j.mensaje)||("El env\u00edo fall\u00f3 ("+rs.status+")."),null);
+      }
+      try{localStorage.setItem(MAIL_GUARDADO,para)}catch(e){}
+      toast("Comprobante enviado a "+para+".");
+    }}]});
+}
+function dialogoComprobante(r){
+  const vista=el("div",{style:"border:1px solid var(--linea);border-radius:12px;"+
+    "overflow:auto;max-height:52vh;background:#fff"});
+  vista.innerHTML=comprobanteHTML(r);
+  modal({titulo:"Comprobante de retiro",cuerpo:el("div",{},
+      el("p",{class:"hint",style:"margin:0 0 10px"},
+        "Guardalo en PDF para archivarlo o adjuntarlo, o mandalo por mail desde ac\u00e1."),
+      vista),
+    acciones:[{texto:"Cerrar"},
+      {texto:"Enviar por mail",accion:()=>{setTimeout(()=>dialogoMail(r),140)}},
+      {texto:"Imprimir o guardar en PDF",clase:"",accion:()=>{setTimeout(()=>imprimirComprobante(r),160)}}]});
+}
+
 function vistaRetiros(){
   const c=el("div",{}); const p=el("div",{class:"panel"});
   p.append(el("h2",{},"Salidas de caja"));
   p.append(el("p",{class:"hint"},"El efectivo sale de la caja con el retiro: el tesorero se lleva la plata de un período y ese período queda cerrado. El depósito bancario es la boleta que rinde ese retiro, así que no vuelve a bajar el saldo; un mismo período puede rendirse con varias boletas que entre todas suman lo retirado. Tarjetas, billetera y otros valores no se tocan porque nunca entraron a la caja física."));
   p.append(el("div",{class:"row",style:"gap:8px"},
-    el("button",{class:"btn",type:"button",onclick:dialogoRetiro,disabled:saldoEfectivo()<=0?"":null},"Registrar retiro"),
+    el("button",{class:"btn",type:"button",onclick:dialogoRetiro,
+      disabled:diasPendientes().length?null:""},"Registrar retiro"),
     el("button",{class:"btn ghost",type:"button",onclick:dialogoDeposito,disabled:hayQueRendir()?null:""},"Registrar depósito")));
 
   const rets=retirosOrd().filter(r=>!esDeposito(r));
@@ -1503,7 +1651,10 @@ function vistaRetiros(){
           !ren?"—":(cerrado?plata(ren):plata(ren)+" / "+plata(r.monto))),
         el("td",{},r.detalle||"—"),
         celdaComps("retiro|"+r.id),
-        el("td",{},el("button",{class:"btn ghost small",type:"button",onclick:borrar(r)},"Eliminar"))));
+        el("td",{},el("div",{class:"acciones"},
+          el("button",{class:"btn ghost small",type:"button",
+            onclick:()=>dialogoComprobante(r)},"Comprobante"),
+          el("button",{class:"btn ghost small",type:"button",onclick:borrar(r)},"Eliminar")))));
     }
     tab.append(tb); p.append(el("div",{class:"tabla-scroll"},tab));
   }
@@ -1570,7 +1721,10 @@ function dialogoSalida(tipo){
   const S=SALIDA[tipo];
   const dep=tipo==="deposito";
   const saldo=saldoEfectivo();
-  if(!dep&&saldo<=0){toast(S.sinSaldo);return}
+  const pend=dep?[]:diasPendientes();
+  if(!dep&&!pend.length){toast(saldo>0
+    ?"Todos los d\u00edas cargados ya salieron en un retiro. Import\u00e1 los listados de los d\u00edas nuevos."
+    :S.sinSaldo);return}
   /* los retiros son los períodos que una boleta puede rendir, del más nuevo al más viejo */
   const rets=retirosOrd().filter(r=>!esDeposito(r)).reverse();
   if(dep&&!rets.length){toast("Primero registrá el retiro que vas a rendir con esta boleta.");return}
@@ -1578,7 +1732,8 @@ function dialogoSalida(tipo){
   const iF=el("input",{type:"date",value:hoyISO(),max:hoyISO()});
   const sR=el("select",{},...S.gente().map(r=>el("option",{value:r},r)));
   // los centavos importan: con Math.round() el remanente daba -$0,50
-  const iM=el("input",{class:"money",type:"text",value:dep?"":montoTexto(saldo),
+  const iM=el("input",{class:"money",type:"text",
+    value:dep?"":montoTexto(pend.reduce((a,d)=>a+d.monto,0)),
     style:"width:170px;font-size:16px"});
   const iD=el("input",{type:"text",placeholder:S.detallePh,style:"width:100%"});
   const sB=S.pideBanco?el("select",{},el("option",{value:""},"Elegí el banco"),
@@ -1620,6 +1775,57 @@ function dialogoSalida(tipo){
     ck();
   }
 
+  /* --- dias que se retiran -------------------------------------
+     Se tildan los dias con efectivo que todavia no salio de la caja. El monto
+     sigue a lo tildado mientras no lo escriban a mano, y desde/hasta se
+     derivan del primero y el ultimo dia elegido: asi la boleta de deposito
+     sigue encontrando su retiro por el par (desde,hasta) de siempre. */
+  const sel=new Set(pend.map(d=>d.fecha));
+  let haTocadoMonto=false;
+  const totSel=()=>pend.filter(d=>sel.has(d.fecha)).reduce((a,d)=>a+d.monto,0);
+  const tbDias=el("tbody",{});
+  const resumen=el("div",{style:"display:flex;justify-content:space-between;align-items:baseline;"+
+    "gap:12px;margin-top:9px;font-family:var(--mono);font-size:13px;color:var(--ink-2)"});
+  const alternar=f=>{sel.has(f)?sel.delete(f):sel.add(f);pintarDias();sincroMonto();ck()};
+  function pintarDias(){
+    tbDias.replaceChildren();
+    for(const d of pend){
+      const on=sel.has(d.fecha);
+      tbDias.append(el("tr",{class:on?"fila-verif":"",style:"cursor:pointer",
+        onclick:()=>alternar(d.fecha)},
+        el("td",{},fechaLarga(d.fecha)),
+        el("td",{class:"num chip-ef"},plata(d.monto)),
+        el("td",{style:"text-align:right;width:1%"},
+          el("button",{class:"tick chico"+(on?" on":""),type:"button","aria-pressed":on?"true":"false",
+            title:on?"Sacar este d\u00eda del retiro":"Incluir este d\u00eda en el retiro",
+            onclick:e=>{e.stopPropagation();alternar(d.fecha)}},"\u2713"))));
+    }
+    resumen.replaceChildren(
+      el("span",{},sel.size+" de "+pend.length+(pend.length===1?" d\u00eda":" d\u00edas")),
+      el("span",{},"Suman ",el("b",{style:"color:var(--efectivo)"},plata(totSel()))));
+  }
+  function sincroMonto(){
+    const ds=[...sel].sort();
+    iDe.value=ds[0]||""; iHa.value=ds[ds.length-1]||"";
+    if(!haTocadoMonto) iM.value=montoTexto(totSel());
+  }
+  const tabDias=el("table",{class:"data"});
+  tabDias.append(el("thead",{},el("tr",{},el("th",{},"D\u00eda"),
+    el("th",{class:"num"},"Efectivo"),el("th",{},""))));
+  tabDias.append(tbDias);
+  const bloqueDias=el("div",{style:"margin-top:14px;border-top:1px dashed var(--linea);padding-top:12px"},
+    el("div",{style:"display:flex;justify-content:space-between;align-items:center;gap:10px"},
+      el("div",{class:"f"},"D\u00edas que se retiran *"),
+      el("div",{style:"display:flex;gap:7px"},
+        el("button",{class:"btn ghost small",type:"button",
+          onclick:()=>{pend.forEach(d=>sel.add(d.fecha));pintarDias();sincroMonto();ck()}},"Todos"),
+        el("button",{class:"btn ghost small",type:"button",
+          onclick:()=>{sel.clear();pintarDias();sincroMonto();ck()}},"Ninguno"))),
+    el("p",{class:"hint",style:"margin:6px 0 8px"},
+      "Cada d\u00eda suma el efectivo de todos sus cajeros. Los d\u00edas que ya salieron en un retiro anterior no aparecen ac\u00e1."),
+    el("div",{class:"tabla-scroll",style:"max-height:260px"},tabDias),
+    resumen);
+
   /* --- comprobante: click o arrastrar --- */
   const buf=[]; const chips=el("div",{style:"margin-bottom:9px"});
   const fi=el("input",{type:"file",multiple:"multiple",
@@ -1653,10 +1859,16 @@ function dialogoSalida(tipo){
   function ck(){
     const m=parseMonto(iM.value);
     if(!dep){
-      const igual=Math.abs(m-saldo)<.005;
-      av.textContent=igual?S.todo:`Queda un remanente de ${plata(saldo-m)} en caja.`;
-      av.style.color=igual?"var(--efectivo)":"var(--aviso)";
-      cab.replaceChildren("Efectivo en caja: ",el("b",{style:"color:var(--efectivo)"},plata(saldo)));
+      const t=totSel(), pendTot=efectivoPendiente(), queda=pendTot-m;
+      if(!sel.size){av.textContent="Tild\u00e1 al menos un d\u00eda.";av.style.color="var(--alerta)"}
+      else if(Math.abs(m-t)>=.005){
+        av.textContent=`Los d\u00edas tildados suman ${plata(t)} y est\u00e1s registrando ${plata(m)}.`;
+        av.style.color="var(--aviso)"}
+      else if(queda<.005){av.textContent=S.todo;av.style.color="var(--efectivo)"}
+      else{av.textContent=`Quedan ${plata(queda)} en caja, en ${pend.length-sel.size} d\u00eda(s) sin retirar.`;
+        av.style.color="var(--aviso)"}
+      cab.replaceChildren("Efectivo en caja: ",el("b",{style:"color:var(--efectivo)"},plata(saldo)),
+        Math.abs(saldo-pendTot)>.5?"  \u00b7  por d\u00edas sin retirar "+plata(pendTot):"");
       return;
     }
     const r=retSel();
@@ -1673,23 +1885,11 @@ function dialogoSalida(tipo){
     else if(falta>0){av.textContent=`Con esta boleta faltan rendir ${plata(falta)} de ese retiro.`;av.style.color="var(--aviso)"}
     else{av.textContent=`Te pasás ${plata(-falta)} de lo que se retiró en ese período.`;av.style.color="var(--alerta)"}
   }
-  iM.addEventListener("input",ck);
+  iM.addEventListener("input",()=>{haTocadoMonto=true;ck()});
   if(sPer) sPer.addEventListener("change",aplicarPer);
   [iF,sR,iM,sB,iB,iDe,iHa].forEach(c=>c&&c.addEventListener("input",()=>{err.style.display="none"}));
   if(dep) aplicarPer();
-  else{
-    /* si el período abierto todavía no arrancó (ya se retiró hoy), desde>hasta
-       daría un rango inválido de entrada */
-    const d0=proxDesde(), h0=hoyISO();
-    iDe.value=d0>h0?h0:d0; iHa.value=h0;
-    /* el cierre sigue a la fecha del retiro mientras no lo toquen a mano */
-    let haTocado=false;
-    iHa.addEventListener("change",()=>{haTocado=true});
-    iF.addEventListener("change",()=>{
-      if(!haTocado&&iF.value) iHa.value=iF.value<iDe.value?iDe.value:iF.value;
-    });
-    ck();
-  }
+  else{ pintarDias(); sincroMonto(); ck() }
 
   const fallar=(txt,foco)=>{err.textContent=txt;err.style.display="";if(foco)foco.focus();return false};
 
@@ -1708,7 +1908,7 @@ function dialogoSalida(tipo){
     S.pideBanco?el("div",{class:"row",style:"margin-top:12px"},
       el("label",{class:"f",style:"flex:1 1 190px"},"Banco *",sB),
       el("label",{class:"f",style:"flex:1 1 190px"},"N° de boleta *",iB)):null,
-    dep?null:bloquePer,
+    dep?null:bloqueDias,
     el("label",{class:"f",style:"margin-top:12px"},"Detalle"+(S.pideBanco?" (opcional)":""),iD),
     av,
     el("div",{style:"margin-top:16px;border-top:1px dashed var(--linea);padding-top:12px"},
@@ -1727,11 +1927,12 @@ function dialogoSalida(tipo){
         if(!sB.value)         return fallar("Elegí el banco.",sB);
         if(!iB.value.trim())  return fallar("Falta el N° de boleta.",iB);
       }
+      if(!dep&&!sel.size) return fallar("Tildá al menos un día para retirar.",null);
       if(!iDe.value) return fallar("Falta la fecha de inicio del período.",iDe);
       if(!iHa.value) return fallar("Falta la fecha de cierre del período.",iHa);
       if(iDe.value>iHa.value) return fallar("El período arranca después de terminar.",iDe);
       if(!dep&&iHa.value>iF.value)
-        return fallar("El período no puede cerrar después de la fecha del retiro.",iHa);
+        return fallar("Estás retirando días posteriores a la fecha del retiro.",iF);
       if(S.compObligatorio&&!buf.length){
         zona.classList.add("falta");
         return fallar("Adjuntá el comprobante del depósito.",null);
@@ -1752,7 +1953,7 @@ function dialogoSalida(tipo){
       db.retiros.push({id:rid,fecha:iF.value,responsable:sR.value,monto:m,
         detalle:iD.value.trim(),tipo:tipo,
         banco:sB?sB.value:"",referencia:iB?iB.value.trim():"",
-        desde:iDe.value,hasta:iHa.value,creado:Date.now()});
+        desde:iDe.value,hasta:iHa.value,dias:dep?[]:[...sel].sort(),creado:Date.now()});
       guardar();
       let subidos=0;
       if(buf.length){
@@ -1760,7 +1961,12 @@ function dialogoSalida(tipo){
         for(const c of buf) if(await subirComp("retiro|"+rid,c)) subidos++;
       }
       toast(S.ok(m)+(buf.length?` con ${subidos} de ${buf.length} comprobante(s)`:"")+".");
-      render()}}]});
+      render();
+      // el comprobante se abre solo: es lo que se imprime o se manda por mail
+      if(!dep) setTimeout(()=>{
+        const nr=db.retiros.find(x=>x.id===rid); if(nr) dialogoComprobante(nr);
+      },220);
+    }}]});
 }
 
 /* ============================================================
