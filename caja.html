@@ -406,9 +406,16 @@ nav.tabs button[data-v=revisar]::before{background:var(--otros-soft)}
   color:var(--otros);background:var(--otros-bg);border-radius:99px;padding:1px 7px}
 #cnt-rev:empty{display:none}
 .riel-pie{margin-top:auto;padding-top:16px;display:grid;gap:10px}
-.riel-legal{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
-  color:var(--ink-3);text-decoration:none;padding-top:2px}
-.riel-legal:hover{color:var(--ink-2);text-decoration:underline}
+/* Aviso de confidencialidad: va al pie de todas las vistas y también sale
+   impreso, que es donde de verdad importa. */
+.aviso-conf{max-width:1500px;margin:26px auto 0;padding:14px 20px 30px;
+  display:flex;align-items:flex-start;gap:12px;
+  border-top:1px solid var(--linea);font-size:12.5px;line-height:1.55;color:var(--ink-3)}
+.aviso-conf b{color:var(--ink-2)}
+.ac-sello{flex:none;width:19px;height:19px;border-radius:50%;background:var(--aviso-bg);
+  color:var(--aviso);border:1px solid #E8CE96;font-family:var(--mono);font-size:12px;
+  font-weight:700;display:inline-flex;align-items:center;justify-content:center;margin-top:1px}
+@media(max-width:760px){.aviso-conf{margin-top:18px;padding:12px 16px 26px}}
 .riel-sede{background:var(--panel);border:1px solid var(--linea);border-radius:var(--r);padding:10px 12px;display:grid;gap:1px}
 .riel-sede small{font-family:var(--mono);font-size:8.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-3)}
 .riel-sede b{font-size:14px;font-weight:700;line-height:1.2}
@@ -601,7 +608,6 @@ body.ro #ro-banda{display:flex}
   <div class="riel-pie">
     <div class="riel-sede"><small>Sede</small><b>Hospital Italiano</b><span>FUESMEN &middot; Mendoza</span></div>
     <div id="ro-banda">S&oacute;lo lectura &middot; pod&eacute;s mirar, exportar e imprimir</div>
-    <a class="riel-legal" href="privacidad.html">Privacidad y datos personales</a>
   </div>
 </aside>
 <div class="lienzo">
@@ -634,6 +640,16 @@ body.ro #ro-banda{display:flex}
     </div>
   </aside>
 </div>
+<footer class="aviso-conf">
+  <span class="ac-sello" aria-hidden="true">!</span>
+  <div>
+    <b>Información confidencial de uso interno.</b>
+    Los datos de esta página &mdash; montos, comprobantes, retiros y nombres del personal &mdash;
+    son de FUESMEN y del Hospital Italiano de Mendoza. No los compartas, reenv&iacute;es,
+    fotografíes ni publiques fuera de la instituci&oacute;n.
+    Lo que export&aacute;s o imprim&iacute;s sigue siendo confidencial.
+  </div>
+</footer>
 </div></div>
 
 <div id="toast" role="status" aria-live="polite"></div>
@@ -1822,7 +1838,10 @@ function comprobanteHTML(r){
     '<td style="width:50%;padding-left:20px"><div style="border-top:1px solid #2B2721;padding-top:6px;font:12px Arial,sans-serif;color:#6B6558">Recibe &mdash; '+escHTML(r.responsable)+'</div></td>'+
   '</tr></table>'+
   '<p style="margin-top:26px;font:11px Arial,sans-serif;color:#9A9488">Emitido por Lumen &middot; Rendici\u00f3n de Caja el '+
-    escHTML(new Date().toLocaleString("es-AR"))+'.</p></div>';
+    escHTML(new Date().toLocaleString("es-AR"))+'.</p>'+
+  '<p style="margin-top:8px;padding-top:8px;border-top:1px solid #EDE9E0;font:10px Arial,sans-serif;color:#8A5A00">'+
+    'Documento confidencial de uso interno de FUESMEN &middot; Hospital Italiano de Mendoza. '+
+    'No difundir fuera de la instituci\u00f3n.</p></div>';
 }
 function imprimirComprobante(r){
   const z=$("#impresion"); z.innerHTML=comprobanteHTML(r);
@@ -2543,6 +2562,8 @@ function hojaDeDias(dias){
     {ef:0,ta:0,bi:0,ot:0,to:0,n:0});
   filas.push([]);
   filas.push(["TOTAL","",tot.ef,tot.ta,tot.bi,tot.ot,tot.to,tot.n,""]);
+  filas.push([]);
+  filas.push(["CONFIDENCIAL - uso interno de FUESMEN / Hospital Italiano de Mendoza. No difundir fuera de la institucion."]);
 
   const ws=XLSX.utils.aoa_to_sheet([cab,...filas],{cellDates:true});
   ws["!cols"]=[{wch:12},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:15},{wch:14},{wch:11}];
