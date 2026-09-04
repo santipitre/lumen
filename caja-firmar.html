@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Firmar retiro de caja · Lumen</title>
+<meta name="theme-color" content="#F6F2EA"/>
+<style>
+/* Página suelta a propósito: la abre el celular del mensajero desde el QR,
+   así que no depende de ninguna hoja de estilo ni de ningún otro script. */
+:root{
+  --paper:#F6F2EA; --panel:#FDFBF6; --ink:#2B2721; --ink-2:#5A544A; --ink-3:#8B8477;
+  --linea:#E5E0D5; --linea-2:#EFEBE1; --oro:#B99A54; --oro-2:#CDB176;
+  --efectivo:#2E775C; --efectivo-bg:#D2F7E6; --alerta:#A6432F; --alerta-bg:#FBE3DE;
+  --aviso:#8A5A00; --aviso-bg:#FBEFD6;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;min-height:100%}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.5;
+  display:flex;align-items:flex-start;justify-content:center;padding:22px 16px 40px;-webkit-font-smoothing:antialiased}
+.card{width:100%;max-width:430px;background:var(--panel);border:1px solid var(--linea);
+  border-radius:18px;padding:22px 20px 24px;box-shadow:0 18px 50px rgba(43,39,33,.09);border-top:3px solid var(--oro-2)}
+.marca{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-3);text-align:center}
+h1{margin:8px 0 2px;font-size:21px;font-weight:700;letter-spacing:-.015em;text-align:center}
+.bajada{text-align:center;font-size:13.5px;color:var(--ink-2);margin:0 0 18px}
+.bloque{background:var(--linea-2);border:1px solid var(--linea);border-radius:13px;padding:14px 15px;margin-bottom:16px}
+.fila{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:5px 0;font-size:14px}
+.fila+.fila{border-top:1px dashed var(--linea)}
+.et{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);font-weight:700;white-space:nowrap}
+.va{font-weight:650;text-align:right}
+.monto{font-family:var(--mono);font-size:30px;font-weight:700;letter-spacing:-.03em;color:var(--efectivo);
+  text-align:center;margin:2px 0 4px;font-variant-numeric:tabular-nums}
+.monto-et{text-align:center;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+.dias{margin-top:10px;padding-top:10px;border-top:1px dashed var(--linea)}
+.dia{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:3px 0;color:var(--ink-2)}
+.dia b{font-family:var(--mono);color:var(--ink);font-weight:650}
+label.pin-et{display:block;font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);
+  font-weight:700;text-align:center;margin-bottom:9px}
+input.pin{width:100%;text-align:center;font-family:var(--mono);font-size:30px;letter-spacing:.4em;
+  padding:13px 10px;border:1.5px solid var(--linea);border-radius:12px;background:var(--panel);color:var(--ink)}
+input.pin:focus{outline:none;border-color:var(--efectivo)}
+.btn{width:100%;margin-top:14px;padding:15px 18px;border:1px solid var(--linea);border-radius:12px;
+  background:var(--oro-2);color:#2B2721;font-size:16px;font-weight:700;cursor:pointer;
+  box-shadow:0 4px 0 #A88F55;transition:transform .1s,box-shadow .1s}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 #A88F55}
+.btn[disabled]{opacity:.6;cursor:default}
+.btn.ghost{background:var(--panel);box-shadow:0 4px 0 #D8D6D0}
+.btn.ghost:active{box-shadow:0 1px 0 #D8D6D0}
+.msj{margin-top:13px;padding:11px 13px;border-radius:11px;font-size:13.5px;display:none}
+.msj.err{background:var(--alerta-bg);color:var(--alerta);display:block}
+.msj.avi{background:var(--aviso-bg);color:var(--aviso);display:block}
+.ok-sello{text-align:center;padding:8px 0 2px}
+.ok-tick{width:62px;height:62px;border-radius:50%;background:var(--efectivo);color:#fff;font-size:32px;
+  display:inline-flex;align-items:center;justify-content:center;margin-bottom:10px}
+.ok-tit{font-size:19px;font-weight:700;color:var(--efectivo)}
+.pie{text-align:center;font-size:11.5px;color:var(--ink-3);margin-top:18px}
+.spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(43,39,33,.25);
+  border-top-color:var(--ink);border-radius:50%;animation:g .8s linear infinite;vertical-align:-2px;margin-right:7px}
+@keyframes g{to{transform:rotate(360deg)}}
+.cargando{text-align:center;color:var(--ink-2);padding:26px 0}
+</style>
+</head>
+<body>
+<div class="card" id="card">
+  <div class="cargando"><span class="spin"></span> Cargando el retiro…</div>
+</div>
+
+<script>
+const SUPABASE_URL='https://erjdncsnomwymjiaslpx.supabase.co';
+const SUPABASE_KEY='sb_publishable_5qeVvqQO26a70lAj8dMXhw_fL_Cdu-2';
+const TOKEN=new URLSearchParams(location.search).get('token');
+const card=document.getElementById('card');
+
+async function rpc(fn,args){
+  const r=await fetch(SUPABASE_URL+'/rest/v1/rpc/'+fn,{method:'POST',
+    headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+SUPABASE_KEY,'Content-Type':'application/json'},
+    body:JSON.stringify(args)});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return r.json();
+}
+const esc=t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
+const nf=new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:2});
+const plata=n=>nf.format(Number(n)||0);
+const fechaLarga=i=>i?new Date(i+'T12:00:00').toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'}):'';
+const cabecera='<div class="marca">FUESMEN · Hospital Italiano</div><h1>Retiro de efectivo</h1>';
+
+function pantallaError(titulo,texto){
+  card.innerHTML=cabecera+'<p class="bajada">'+esc(titulo)+'</p>'+
+    '<div class="msj err" style="display:block">'+esc(texto)+'</div>'+
+    '<p class="pie">Lumen · Rendición de Caja</p>';
+}
+
+let datos=null, pinMemo=null;
+
+async function arrancar(){
+  if(!TOKEN){pantallaError('Link inválido','Este link no trae ningún retiro. Pedile a la caja que genere el QR de nuevo.');return}
+  let d;
+  try{ d=await rpc('caja_consultar_retiro_por_token',{p_token:TOKEN}); }
+  catch(e){ pantallaError('No se pudo conectar','Revisá la conexión del celular y volvé a escanear el QR.'); return }
+  if(!d||!d.ok){pantallaError('Link inválido','Este retiro no existe. Pedile a la caja que genere el QR de nuevo.');return}
+  datos=d;
+  if(d.estado==='FIRMADO') return pantallaFirmado(d.firmado_por,d.firmado_at);
+  if(d.estado==='EXPIRADO') return pantallaError('El QR venció','Pasaron más de 5 minutos. Pedile a la caja que genere uno nuevo.');
+  if(d.estado!=='PENDIENTE_FIRMA') return pantallaError('Retiro no disponible','Este retiro ya no está esperando firma.');
+  pantallaPin();
+}
+
+function bloqueRetiro(d){
+  const dias=Array.isArray(d.dias)?d.dias:[];
+  return '<div class="bloque">'+
+    '<div class="monto-et">Importe a retirar</div><div class="monto">'+esc(plata(d.monto))+'</div>'+
+    '<div class="fila"><span class="et">Fecha</span><span class="va">'+esc(fechaLarga(d.fecha))+'</span></div>'+
+    '<div class="fila"><span class="et">Sede</span><span class="va">'+esc(d.sede||'')+'</span></div>'+
+    (d.detalle?'<div class="fila"><span class="et">Detalle</span><span class="va">'+esc(d.detalle)+'</span></div>':'')+
+    (dias.length?'<div class="dias"><div class="et" style="margin-bottom:6px">Días que cubre</div>'+
+      dias.map(f=>'<div class="dia"><span>'+esc(fechaLarga(f))+'</span><b>'+esc(f.split('-').reverse().join('/'))+'</b></div>').join('')+
+      '</div>':'')+
+    '</div>';
+}
+
+function pantallaPin(){
+  card.innerHTML=cabecera+
+    '<p class="bajada">Revisá el importe y firmá con tu PIN.</p>'+
+    bloqueRetiro(datos)+
+    '<label class="pin-et" for="pin">Tu PIN</label>'+
+    '<input class="pin" id="pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="••••"/>'+
+    '<button class="btn" id="btn">Firmar el retiro</button>'+
+    '<div class="msj" id="msj"></div>'+
+    '<p class="pie">Tu PIN dice quién sos. Queda registrado con la fecha y la hora.</p>';
+  const inp=document.getElementById('pin');
+  document.getElementById('btn').onclick=firmar;
+  inp.addEventListener('keypress',e=>{if(e.key==='Enter')firmar()});
+  inp.focus();
+}
+
+function aviso(texto,clase){
+  const m=document.getElementById('msj');
+  if(!m) return;
+  m.className='msj '+(clase||'err'); m.textContent=texto;
+}
+
+async function firmar(){
+  const inp=document.getElementById('pin'), btn=document.getElementById('btn');
+  const pin=(inp.value||'').trim();
+  if(pin.length<4) return aviso('El PIN tiene al menos 4 dígitos.');
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span> Verificando…';
+  let r;
+  try{ r=await rpc('caja_firmar_retiro',{p_token:TOKEN,p_pin:pin,p_ip:null,p_modo:'QR'}); }
+  catch(e){ btn.disabled=false; btn.textContent='Firmar el retiro'; return aviso('No se pudo conectar. Probá de nuevo.'); }
+  btn.disabled=false; btn.textContent='Firmar el retiro';
+  if(r&&r.ok) return pantallaFirmado(r.mensajero_nombre,r.firmado_at);
+  inp.value='';
+  const e=r&&r.error;
+  if(e==='DEBE_CAMBIAR_PIN'){ pinMemo=pin; return pantallaCambioPin(r.mensajero_nombre); }
+  if(e==='PIN_INCORRECTO') return aviso('PIN incorrecto. Te quedan '+(r.intentos_restantes!=null?r.intentos_restantes:'pocos')+' intento(s) antes de que se bloquee este QR.');
+  if(e==='DEMASIADOS_INTENTOS') return aviso('Demasiados intentos con este QR. Pedile a la caja que genere uno nuevo.');
+  if(e==='BLOQUEADO_TEMPORALMENTE') return aviso('Tu usuario está bloqueado por unos minutos por intentos fallidos.');
+  if(e==='EXPIRADO') return pantallaError('El QR venció','Pasaron más de 5 minutos. Pedile a la caja que genere uno nuevo.');
+  if(e==='YA_PROCESADO') return pantallaError('Ya estaba firmado','Este retiro ya fue firmado.');
+  if(e==='PIN_CORTO') return aviso('El PIN tiene al menos 4 dígitos.');
+  aviso('No se pudo firmar: '+(e||'error desconocido'));
+}
+
+function pantallaCambioPin(nombre){
+  card.innerHTML=cabecera+
+    '<p class="bajada">Hola '+esc(nombre||'')+'. Antes de firmar tenés que cambiar tu PIN inicial.</p>'+
+    bloqueRetiro(datos)+
+    '<label class="pin-et" for="p1">PIN nuevo</label>'+
+    '<input class="pin" id="p1" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="••••"/>'+
+    '<label class="pin-et" for="p2" style="margin-top:14px">Repetilo</label>'+
+    '<input class="pin" id="p2" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="••••"/>'+
+    '<button class="btn" id="btn">Cambiar el PIN y firmar</button>'+
+    '<div class="msj" id="msj"></div>'+
+    '<p class="pie">El PIN nuevo te va a servir también en Mensajería.</p>';
+  document.getElementById('btn').onclick=cambiarYFirmar;
+  document.getElementById('p2').addEventListener('keypress',e=>{if(e.key==='Enter')cambiarYFirmar()});
+  document.getElementById('p1').focus();
+}
+
+async function cambiarYFirmar(){
+  const p1=document.getElementById('p1').value.trim(), p2=document.getElementById('p2').value.trim();
+  const btn=document.getElementById('btn');
+  if(p1.length<4) return aviso('El PIN nuevo tiene al menos 4 dígitos.');
+  if(p1!==p2) return aviso('Los dos PIN no coinciden.');
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span> Procesando…';
+  let r;
+  try{ r=await rpc('caja_cambiar_pin_y_firmar',{p_token:TOKEN,p_pin_actual:pinMemo,p_pin_nuevo:p1,p_ip:null,p_modo:'QR'}); }
+  catch(e){ btn.disabled=false; btn.textContent='Cambiar el PIN y firmar'; return aviso('No se pudo conectar. Probá de nuevo.'); }
+  btn.disabled=false; btn.textContent='Cambiar el PIN y firmar';
+  if(r&&r.ok) return pantallaFirmado(r.mensajero_nombre,r.firmado_at,true);
+  const e=r&&r.error;
+  if(e==='PIN_NUEVO_CORTO') return aviso('El PIN nuevo tiene al menos 4 dígitos.');
+  if(e==='PIN_IGUAL') return aviso('El PIN nuevo tiene que ser distinto del anterior.');
+  if(e==='PIN_INCORRECTO') return aviso('No se pudo validar tu PIN actual. Volvé a escanear el QR.');
+  aviso('No se pudo firmar: '+(e||'error desconocido'));
+}
+
+function pantallaFirmado(nombre,cuando,pinCambiado){
+  const h=cuando?new Date(cuando).toLocaleString('es-AR'):'';
+  card.innerHTML=cabecera+
+    '<div class="ok-sello"><div class="ok-tick">&#10003;</div><div class="ok-tit">Firmado</div></div>'+
+    '<p class="bajada" style="margin-top:6px">Ya podés llevarte el efectivo.</p>'+
+    '<div class="bloque">'+
+      '<div class="fila"><span class="et">Firmó</span><span class="va">'+esc(nombre||'')+'</span></div>'+
+      (h?'<div class="fila"><span class="et">Cuándo</span><span class="va">'+esc(h)+'</span></div>':'')+
+      (datos?'<div class="fila"><span class="et">Importe</span><span class="va">'+esc(plata(datos.monto))+'</span></div>':'')+
+    '</div>'+
+    (pinCambiado?'<div class="msj avi" style="display:block">Tu PIN quedó cambiado. Usá el nuevo de acá en adelante.</div>':'')+
+    '<p class="pie">Podés cerrar esta pantalla. La caja ya lo ve registrado.</p>';
+}
+
+arrancar();
+</script>
+</body>
+</html>

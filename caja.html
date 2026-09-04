@@ -616,6 +616,7 @@ body.ro #ro-banda{display:flex}
 </form></dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 /* Config y helpers de Supabase — embebidos para que caja.html funcione
    solo, sin depender de spcd-supabase.js estando al lado. */
@@ -681,6 +682,12 @@ let USUARIO=null, NIVEL=null, AUTHUID=null;
 const puedeEditar=()=>NIVEL==="edit"||NIVEL==="admin";
 const esAdmin=()=>NIVEL==="admin";
 
+async function sbPatch(tabla,filtro,datos){
+  const r=await fetch(`${SUPABASE_URL}/rest/v1/${tabla}?${filtro}`,
+    {method:"PATCH",headers:await getSBHeaders(),body:JSON.stringify(datos)});
+  if(!r.ok) throw new Error("PATCH "+tabla+": "+r.status+" "+(await r.text()));
+  return r.json().catch(()=>[]);
+}
 async function sbDel(tabla,filtro){
   const r=await fetch(`${SUPABASE_URL}/rest/v1/${tabla}?${filtro}`,{method:"DELETE",headers:await getSBHeaders()});
   if(!r.ok) throw new Error("Borrado "+r.status);
@@ -732,7 +739,7 @@ const normMedio=m=>(m||"SIN MEDIO").toUpperCase().replace(/\s+/g," ").trim();
    ============================================================ */
 const CAJEROS_INI=["ITORRES","JMONICA","ZABRAHAM","JAVILA","ASOSA","CMAIDA"];
 const RESP_INI=["SERGIO","MAXI"];      // se llevan el efectivo
-const DEPOS_INI=["LALIAS"];            // depositan en el banco
+const DEPOS_INI=["LALIAS","OGARCIA"];  // tesoreros: reciben del mensajero y depositan
 const BANCOS=["SANTANDER"];
 let db={version:3,cajeros:CAJEROS_INI.slice(),responsables:RESP_INI.slice(),depositantes:DEPOS_INI.slice(),
         grupos:[],retiros:[],importaciones:[],revisados:{},comprobantes:{},sinRespaldo:0};
@@ -755,6 +762,8 @@ const filaRetiro=r=>({id:r.id,sede:SEDE,fecha:r.fecha,responsable:r.responsable,
   monto:r.monto,detalle:r.detalle||null,tipo:r.tipo||"retiro",
   banco:r.banco||null,referencia:r.referencia||null,
   desde:r.desde||null,hasta:r.hasta||null,dias:r.dias||[],
+  estado:r.estado||"FIRMADO",tesorero:r.tesorero||null,
+  qr_token:r.qr_token||null,qr_expires_at:r.qr_expires_at||null,
   creado_por:AUTHUID});
 const filaImport=i=>({id:i.id,sede:SEDE,archivos:i.archivo||null,filas_ok:i.filas||0,
   rango:i.rango||null,creado_por:AUTHUID});
@@ -814,6 +823,9 @@ async function cargarDesdeNube(){
     monto:Number(r.monto),detalle:r.detalle||"",tipo:r.tipo||"retiro",
     banco:r.banco||"",referencia:r.referencia||"",
     desde:r.desde||"",hasta:r.hasta||"",dias:Array.isArray(r.dias)?r.dias:[],
+    estado:r.estado||"FIRMADO",tesorero:r.tesorero||"",
+    mensajero_id:r.mensajero_id||"",firmado_at:r.firmado_at||"",firma_modo:r.firma_modo||"",
+    qr_token:r.qr_token||"",qr_expires_at:r.qr_expires_at||"",
     creado:Date.parse(r.creado_en)||Date.now()}));
   db.revisados={};
   rv.forEach(r=>{db.revisados[claveRev(r.fecha,r.cajero,r.medio,r.comp)]=
@@ -873,6 +885,15 @@ const retirosOrd=()=>db.retiros.slice().sort((a,b)=>a.fecha.localeCompare(b.fech
 /* Una salida de caja es retiro (se la lleva el tesorero, cierra periodo) o
    deposito bancario (va a la cuenta). Las dos restan del efectivo. */
 const esDeposito=r=>r.tipo==="deposito";
+/* Un retiro nace PENDIENTE_FIRMA y no baja el saldo hasta que el mensajero
+   firma: la plata se va cuando se la lleva. Igual bloquea sus dias, para que
+   nadie arme otro retiro con los mismos mientras espera. */
+const estadoRet=r=>r.estado||"FIRMADO";
+const retiroVivo=r=>!esDeposito(r)&&estadoRet(r)!=="ANULADO"&&estadoRet(r)!=="EXPIRADO";
+const retiroFirmado=r=>retiroVivo(r)&&estadoRet(r)!=="PENDIENTE_FIRMA";
+const esperaFirma=r=>!esDeposito(r)&&estadoRet(r)==="PENDIENTE_FIRMA";
+const retirosFirmados=()=>db.retiros.filter(retiroFirmado);
+const hayPendientes=()=>db.retiros.some(esperaFirma);
 function totales(gr){
   const t={efectivo:0,tarjeta:0,billetera:0,otros:0,total:0,n:0,comps:0};
   for(const g of gr){t[g.categoria]+=g.monto;t.total+=g.monto;t.n++;t.comps+=g.n||0}
@@ -890,8 +911,9 @@ function porDia(gr){
 /* El retiro saca la plata de la caja. El deposito bancario NO: es la boleta que
    rinde un retiro que ya salio, asi que no vuelve a bajar el saldo. Un mismo
    retiro puede rendirse con varias boletas que entre todas suman su monto. */
-const saldoEfectivo=()=>db.grupos.filter(g=>g.categoria==="efectivo").reduce((s,g)=>s+g.monto,0)-db.retiros.filter(r=>!esDeposito(r)).reduce((s,r)=>s+r.monto,0);
-const ultimoRetiro=()=>{const r=retirosOrd().filter(x=>!esDeposito(x));return r.length?r[r.length-1]:null};
+const saldoEfectivo=()=>db.grupos.filter(g=>g.categoria==="efectivo").reduce((s,g)=>s+g.monto,0)-retirosFirmados().reduce((s,r)=>s+r.monto,0);
+const enEsperaDeFirma=()=>db.retiros.filter(esperaFirma).reduce((s,r)=>s+r.monto,0);
+const ultimoRetiro=()=>{const r=retirosOrd().filter(retiroFirmado);return r.length?r[r.length-1]:null};
 
 /* --- periodo -----------------------------------------------
    Retiro y boleta se atan por el par (desde,hasta): o son identicos o no son
@@ -903,7 +925,7 @@ const clavePer=o=>o&&o.desde&&o.hasta?o.desde+"|"+o.hasta:"";
 const perTexto=o=>clavePer(o)?fechaCorta(o.desde)+" \u2192 "+fechaCorta(o.hasta):"\u2014";
 function periodoDe(r){
   if(r.desde&&r.hasta) return {desde:r.desde,hasta:r.hasta};
-  const rs=retirosOrd().filter(x=>!esDeposito(x));
+  const rs=retirosOrd().filter(retiroFirmado);
   const i=rs.findIndex(x=>x.id===r.id);
   const pr=i>0?rs[i-1]:null;
   const ini=pr?diaSig(pr.hasta||pr.fecha):(db.grupos.map(g=>g.fecha).sort()[0]||r.fecha);
@@ -923,7 +945,7 @@ function diasCubiertos(r){
   const p=periodoDe(r);
   return efectivoPorDia().map(d=>d.fecha).filter(f=>f>=p.desde&&f<=p.hasta);
 }
-const diasRetirados=()=>new Set(db.retiros.filter(r=>!esDeposito(r)).flatMap(diasCubiertos));
+const diasRetirados=()=>new Set(db.retiros.filter(retiroVivo).flatMap(diasCubiertos));
 function diasPendientes(){const y=diasRetirados();return efectivoPorDia().filter(d=>!y.has(d.fecha))}
 const efectivoPendiente=()=>diasPendientes().reduce((s,d)=>s+d.monto,0);
 /* el efectivo de los dias que se lleva un retiro, para el comprobante */
@@ -1481,6 +1503,153 @@ function vistaReportes(){
    VISTA: RETIROS
    ============================================================ */
 /* ============================================================
+   FIRMA DEL MENSAJERO
+   El retiro queda PENDIENTE_FIRMA y se muestra un QR. El mensajero lo escanea
+   con el celular, abre caja-firmar.html y tipea su PIN: el PIN es lo que dice
+   si es Sergio o Maxi, no hay mensajero asignado de antemano. La firma la
+   resuelve la funcion caja_firmar_retiro en la base (SECURITY DEFINER), asi
+   que el hash del PIN nunca llega al navegador.
+   ============================================================ */
+const VENCE_QR=5*60*1000;
+const urlFirma=r=>location.origin+location.pathname.replace(/\/[^\/]*$/,"")+
+  "/caja-firmar.html?token="+encodeURIComponent(r.qr_token||"");
+let qrTimers=[];
+const pararQR=()=>{qrTimers.forEach(t=>clearInterval(t));qrTimers=[]};
+
+function dialogoQR(r){
+  if(!r.qr_token){toast("Este retiro no tiene QR. Eliminalo y registralo de nuevo.");return}
+  const url=urlFirma(r);
+  const lienzo=el("div",{style:"display:flex;justify-content:center;padding:14px;background:#fff;"+
+    "border:1px solid var(--linea);border-radius:14px"});
+  const reloj=el("div",{style:"text-align:center;font-family:var(--mono);font-size:22px;font-weight:700;margin-top:10px"});
+  const pieReloj=el("p",{class:"hint",style:"text-align:center;margin:2px 0 0"},"El QR vence a los 5 minutos");
+  const iPin=el("input",{type:"password",inputmode:"numeric",maxlength:"6",placeholder:"••••",
+    style:"width:120px;text-align:center;font-family:var(--mono);font-size:19px;letter-spacing:.3em"});
+  const errPin=el("p",{class:"err-campo",style:"display:none"});
+  const bloqueAsistida=el("div",{style:"margin-top:16px;border-top:1px dashed var(--linea);padding-top:12px"},
+    el("div",{class:"f",style:"margin-bottom:5px"},"Firma asistida"),
+    el("p",{class:"hint",style:"margin:0 0 9px"},
+      "Si el mensajero no tiene el celular a mano, que tipee el PIN acá. Queda registrado como firma asistida."),
+    el("div",{style:"display:flex;gap:9px;align-items:center"},iPin,
+      el("button",{class:"btn ghost small",type:"button",onclick:()=>firmarAsistida()},"Confirmar firma")),
+    errPin);
+
+  try{
+    if(typeof QRCode==="undefined") throw new Error("sin libreria");
+    new QRCode(lienzo,{text:url,width:224,height:224,
+      colorDark:"#2B2721",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M});
+  }catch(e){
+    lienzo.append(el("p",{class:"hint",style:"margin:0;text-align:center"},
+      "No se pudo dibujar el QR. Pasale el link de abajo al mensajero."));
+  }
+
+  const dlg=modal({titulo:"Esperando la firma del mensajero",cuerpo:el("div",{},
+      el("p",{class:"hint",style:"margin:0 0 12px"},
+        "Que escanee el QR con el celular y firme con su PIN. El efectivo baja de la caja reci\u00e9n cuando firma."),
+      el("div",{style:"display:flex;justify-content:space-between;gap:14px;font-family:var(--mono);"+
+        "font-size:13.5px;margin-bottom:12px"},
+        el("span",{},(r.dias||[]).length+" d\u00eda(s)"),
+        el("span",{},"Retira ",el("b",{style:"color:var(--efectivo)"},plata(r.monto)))),
+      lienzo,reloj,pieReloj,
+      el("p",{style:"margin:12px 0 0;font-family:var(--mono);font-size:11px;color:var(--ink-3);"+
+        "word-break:break-all;text-align:center"},url),
+      bloqueAsistida),
+    acciones:[
+      {texto:"Cancelar el retiro",clase:"danger",accion:async()=>{
+        if(!await confirmar("Cancelar el retiro",
+          [`Se borra el retiro de ${plata(r.monto)} que est\u00e1 esperando firma.`,
+           "Los d\u00edas vuelven a quedar disponibles."],{ok:"Cancelar el retiro",peligro:true})) return false;
+        pararQR();
+        db.retiros=db.retiros.filter(x=>x.id!==r.id);
+        guardar();toast("Retiro cancelado.");render();
+      }},
+      {texto:"Seguir despu\u00e9s"}]});
+  dlg.addEventListener("close",pararQR,{once:true});
+
+  /* cuenta regresiva */
+  const vence=Date.parse(r.qr_expires_at)||(Date.now()+VENCE_QR);
+  const pintarReloj=()=>{
+    const q=Math.max(0,Math.round((vence-Date.now())/1000));
+    reloj.textContent=Math.floor(q/60)+":"+String(q%60).padStart(2,"0");
+    reloj.style.color=q<=60?"var(--alerta)":(q<=120?"var(--aviso)":"var(--ink-2)");
+    if(q<=0){pararQR();pieReloj.textContent="El QR venci\u00f3. Cancelalo y registralo de nuevo.";}
+  };
+  pintarReloj(); qrTimers.push(setInterval(pintarReloj,1000));
+
+  /* espera de la firma */
+  qrTimers.push(setInterval(async()=>{
+    try{
+      const f=await sbQuery("caja_retiros","select=*&id=eq."+r.id);
+      const fila=f&&f[0]; if(!fila) return;
+      if(fila.estado==="FIRMADO"){pararQR();aplicarFirma(r,fila);}
+      else if(fila.estado==="EXPIRADO"){pararQR();pieReloj.textContent="El QR venci\u00f3.";}
+    }catch(e){console.warn("[caja] espera firma",e)}
+  },2500));
+
+  async function firmarAsistida(){
+    errPin.style.display="none";
+    const pin=(iPin.value||"").trim();
+    if(pin.length<4){errPin.textContent="El PIN tiene al menos 4 d\u00edgitos.";errPin.style.display="";iPin.focus();return}
+    let j;
+    try{ j=await sbRpc("caja_firmar_retiro",{p_token:r.qr_token,p_pin:pin,p_ip:null,p_modo:"ASISTIDA"}); }
+    catch(e){ errPin.textContent="No se pudo conectar: "+e.message; errPin.style.display=""; return }
+    iPin.value="";
+    if(j&&j.ok){
+      pararQR();
+      const f=await sbQuery("caja_retiros","select=*&id=eq."+r.id).catch(()=>null);
+      aplicarFirma(r,(f&&f[0])||{estado:"FIRMADO",responsable:j.mensajero_nombre,
+        firmado_at:j.firmado_at,firma_modo:"ASISTIDA",mensajero_id:j.mensajero_id});
+      return;
+    }
+    const e=j&&j.error;
+    errPin.textContent=
+      e==="PIN_INCORRECTO"?"PIN incorrecto. Quedan "+(j.intentos_restantes!=null?j.intentos_restantes:"pocos")+" intento(s).":
+      e==="DEMASIADOS_INTENTOS"?"Demasiados intentos con este QR. Cancelalo y registrá el retiro de nuevo.":
+      e==="DEBE_CAMBIAR_PIN"?"Ese PIN todavía es el inicial: tiene que cambiarlo desde el QR en su celular.":
+      e==="BLOQUEADO_TEMPORALMENTE"?"Ese mensajero está bloqueado unos minutos por intentos fallidos.":
+      e==="EXPIRADO"?"El QR venció. Cancelalo y registrá el retiro de nuevo.":
+      e==="YA_PROCESADO"?"Este retiro ya estaba firmado.":
+      ("No se pudo firmar: "+(e||"error desconocido"));
+    errPin.style.display="";
+  }
+}
+
+/* la firma vuelve de la base: se copia a la fila local sin re-insertarla */
+function aplicarFirma(r,fila){
+  r.estado="FIRMADO";
+  r.responsable=fila.responsable||r.responsable;
+  r.mensajero_id=fila.mensajero_id||"";
+  r.firmado_at=fila.firmado_at||new Date().toISOString();
+  r.firma_modo=fila.firma_modo||"QR";
+  snapshot();render();
+  toast("Firmó "+(r.responsable||"el mensajero")+".");
+  setTimeout(()=>dialogoTesorero(r),200);
+}
+
+/* despues de la firma: a que tesorero le entrega el mensajero esa plata */
+function dialogoTesorero(r){
+  const sT=el("select",{style:"width:100%"},
+    el("option",{value:""},"Elegí el tesorero"),
+    ...db.depositantes.map(t=>el("option",{value:t},t)));
+  if(r.tesorero) sT.value=r.tesorero;
+  const err=el("p",{class:"err-campo",style:"display:none"});
+  modal({titulo:"¿A qué tesorero va?",cuerpo:el("div",{},
+      el("p",{class:"hint",style:"margin:0 0 12px"},
+        "Firmó "+escHTML(r.responsable||"")+" y se lleva "+plata(r.monto)+
+        ". Indicá a qué tesorero le entrega esa plata: es quien después hace el depósito bancario."),
+      el("label",{class:"f"},"Tesorero que recibe",sT),err),
+    acciones:[{texto:"Ahora no"},{texto:"Guardar",clase:"",accion:async()=>{
+      if(!sT.value){err.textContent="Elegí el tesorero.";err.style.display="";return false}
+      try{ await sbPatch("caja_retiros","id=eq."+r.id,{tesorero:sT.value}); }
+      catch(e){ err.textContent="No se pudo guardar: "+e.message; err.style.display=""; return false }
+      r.tesorero=sT.value;
+      db.depositantes=[...new Set([...db.depositantes,sT.value])].sort();
+      render();toast("Entregado a "+sT.value+".");
+      setTimeout(()=>dialogoComprobante(r),180);
+    }}]});
+}
+
+/* ============================================================
    COMPROBANTE DE RETIRO
    Se arma como HTML con los estilos en linea: el mismo string sirve para la
    ventana de impresion y para el cuerpo del mail (los clientes de correo
@@ -1506,7 +1675,11 @@ function comprobanteHTML(r){
   '</div>'+
   '<table style="border-collapse:collapse;margin:18px 0 4px">'+
     dato("Fecha del retiro",escHTML(fechaLarga(r.fecha)))+
-    dato("Tesorero que retira",escHTML(r.responsable))+
+    dato("Mensajero que retira",escHTML(r.responsable||"\u2014")+
+      (r.firmado_at?'<span style="font-weight:400;color:#6B6558"> &middot; firm\u00f3 el '+
+        escHTML(new Date(r.firmado_at).toLocaleString("es-AR"))+
+        (r.firma_modo==="ASISTIDA"?" (firma asistida)":" (QR + PIN)")+'</span>':""))+
+    (r.tesorero?dato("Entregado al tesorero",escHTML(r.tesorero)):"")+
     dato("D\u00edas que cubre",escHTML(ds.length+(ds.length===1?" d\u00eda":" d\u00edas")+"  \u00b7  "+rango))+
     (r.detalle?dato("Detalle",escHTML(r.detalle)):"")+
   '</table>'+
@@ -1585,6 +1758,7 @@ function dialogoMail(r){
     }}]});
 }
 function dialogoComprobante(r){
+  if(esperaFirma(r)){dialogoQR(r);return}
   const vista=el("div",{style:"border:1px solid var(--linea);border-radius:12px;"+
     "overflow:auto;max-height:52vh;background:#fff"});
   vista.innerHTML=comprobanteHTML(r);
@@ -1606,7 +1780,7 @@ function vistaRetiros(){
       disabled:diasPendientes().length?null:""},"Registrar retiro"),
     el("button",{class:"btn ghost",type:"button",onclick:dialogoDeposito,disabled:hayQueRendir()?null:""},"Registrar depósito")));
 
-  const rets=retirosOrd().filter(r=>!esDeposito(r));
+  const rets=retirosOrd().filter(retiroVivo);
   const deps=retirosOrd().filter(esDeposito);
   if(!rets.length&&!deps.length){
     p.append(el("div",{class:"vacio"},el("b",{},"Todavía no hay salidas"),
@@ -1626,7 +1800,7 @@ function vistaRetiros(){
   if(rets.length){
     p.append(rotulo("Retiros de efectivo"));
     const tab=el("table",{class:"data"});
-    tab.append(el("thead",{},el("tr",{},el("th",{},"Fecha"),el("th",{},"Período"),el("th",{},"Tesorero"),el("th",{class:"num"},"Monto"),
+    tab.append(el("thead",{},el("tr",{},el("th",{},"Fecha"),el("th",{},"Período"),el("th",{},"Firma / Tesorero"),el("th",{class:"num"},"Monto"),
       el("th",{class:"num"},"Días"),el("th",{class:"num"},"Efectivo del período"),el("th",{class:"num"},"Diferencia"),
       el("th",{class:"num"},"Rendido"),el("th",{},"Detalle"),el("th",{},"Comprobante"),el("th",{},""))));
     const tb=el("tbody",{});
@@ -1641,8 +1815,14 @@ function vistaRetiros(){
         el("td",{style:"font-family:var(--mono);font-size:12px",
           title:r.desde&&r.hasta?null:"Período deducido del retiro anterior: esta fila es vieja y no lo tiene guardado"},
           perTexto(pe)+(r.desde&&r.hasta?"":" *")),
-        el("td",{},el("span",{class:"cajero-tag"},r.responsable)),
-        el("td",{class:"num",style:"font-weight:700"},plata(r.monto)),
+        el("td",{style:"white-space:normal;min-width:150px"},
+          esperaFirma(r)
+            ? el("span",{class:"badge rev",title:"Todavía no firmó el mensajero: este monto no bajó del saldo"},"espera firma")
+            : el("span",{class:"cajero-tag",
+                title:r.firmado_at?("Firmó el "+new Date(r.firmado_at).toLocaleString("es-AR")+
+                  (r.firma_modo==="ASISTIDA"?" · firma asistida":" · QR + PIN")):null},r.responsable||"—"),
+          r.tesorero?el("div",{class:"hint",style:"margin-top:3px"},"→ "+r.tesorero):null),
+        el("td",{class:"num",style:"font-weight:700"+(esperaFirma(r)?";color:var(--aviso)":"")},plata(r.monto)),
         el("td",{class:"num"},String(new Set(gp.map(g=>g.fecha)).size)),
         el("td",{class:"num chip-ef"},plata(tp.efectivo)),
         el("td",{class:"num"+(Math.abs(dif)>0.5?" neg":"")},Math.abs(dif)<0.5?"—":plata(dif)),
@@ -1652,8 +1832,10 @@ function vistaRetiros(){
         el("td",{},r.detalle||"—"),
         celdaComps("retiro|"+r.id),
         el("td",{},el("div",{class:"acciones"},
-          el("button",{class:"btn ghost small",type:"button",
-            onclick:()=>dialogoComprobante(r)},"Comprobante"),
+          esperaFirma(r)
+            ? el("button",{class:"btn small",type:"button",onclick:()=>dialogoQR(r)},"Ver QR")
+            : el("button",{class:"btn ghost small",type:"button",
+                onclick:()=>dialogoComprobante(r)},"Comprobante"),
           el("button",{class:"btn ghost small",type:"button",onclick:borrar(r)},"Eliminar")))));
     }
     tab.append(tb); p.append(el("div",{class:"tabla-scroll"},tab));
@@ -1715,7 +1897,7 @@ const SALIDA={
 const dialogoRetiro=()=>dialogoSalida("retiro");
 const dialogoDeposito=()=>dialogoSalida("deposito");
 /* hay algo para rendir cuando existe al menos un retiro */
-const hayQueRendir=()=>db.retiros.some(r=>!esDeposito(r));
+const hayQueRendir=()=>db.retiros.some(retiroFirmado);
 
 function dialogoSalida(tipo){
   const S=SALIDA[tipo];
@@ -1726,7 +1908,7 @@ function dialogoSalida(tipo){
     ?"Todos los d\u00edas cargados ya salieron en un retiro. Import\u00e1 los listados de los d\u00edas nuevos."
     :S.sinSaldo);return}
   /* los retiros son los períodos que una boleta puede rendir, del más nuevo al más viejo */
-  const rets=retirosOrd().filter(r=>!esDeposito(r)).reverse();
+  const rets=retirosOrd().filter(retiroFirmado).reverse();
   if(dep&&!rets.length){toast("Primero registrá el retiro que vas a rendir con esta boleta.");return}
   const req=S.pideBanco?" *":"";
   const iF=el("input",{type:"date",value:hoyISO(),max:hoyISO()});
@@ -1903,7 +2085,9 @@ function dialogoSalida(tipo){
     dep?bloquePer:null,
     el("div",{class:"row",style:dep?"margin-top:14px":null},
       el("label",{class:"f"},"Fecha"+req,iF),
-      el("label",{class:"f"},S.quien+req,sR),
+      dep?el("label",{class:"f"},S.quien+req,sR)
+         :el("div",{class:"f",style:"align-self:flex-end;padding-bottom:11px;color:var(--ink-2);font-weight:500"},
+             "Firma el mensajero con su PIN"),
       el("label",{class:"f"},"Monto"+req,pesos(iM))),
     S.pideBanco?el("div",{class:"row",style:"margin-top:12px"},
       el("label",{class:"f",style:"flex:1 1 190px"},"Banco *",sB),
@@ -1921,7 +2105,7 @@ function dialogoSalida(tipo){
       err.style.display="none"; zona.classList.remove("falta");
       const m=parseMonto(iM.value);
       if(!iF.value) return fallar("Falta la fecha.",iF);
-      if(!sR.value) return fallar("Falta indicar quién.",sR);
+      if(dep&&!sR.value) return fallar("Falta indicar quién.",sR);
       if(m<=0)      return fallar("El monto tiene que ser mayor a cero.",iM);
       if(S.pideBanco){
         if(!sB.value)         return fallar("Elegí el banco.",sB);
@@ -1950,21 +2134,26 @@ function dialogoSalida(tipo){
           {ok:"Registrar igual"}))return false;
       }
       const rid=uid();
-      db.retiros.push({id:rid,fecha:iF.value,responsable:sR.value,monto:m,
+      /* El retiro nace PENDIENTE_FIRMA: no baja el saldo hasta que el
+         mensajero firma con su PIN. El token del QR se genera acá. */
+      db.retiros.push({id:rid,fecha:iF.value,responsable:dep?sR.value:"",monto:m,
         detalle:iD.value.trim(),tipo:tipo,
         banco:sB?sB.value:"",referencia:iB?iB.value.trim():"",
-        desde:iDe.value,hasta:iHa.value,dias:dep?[]:[...sel].sort(),creado:Date.now()});
+        desde:iDe.value,hasta:iHa.value,dias:dep?[]:[...sel].sort(),
+        estado:dep?"FIRMADO":"PENDIENTE_FIRMA",tesorero:"",
+        qr_token:dep?"":uid(),qr_expires_at:dep?"":new Date(Date.now()+VENCE_QR).toISOString(),
+        creado:Date.now()});
       guardar();
       let subidos=0;
       if(buf.length){
         toast(buf.length===1?"Subiendo el comprobante…":"Subiendo "+buf.length+" comprobantes…");
         for(const c of buf) if(await subirComp("retiro|"+rid,c)) subidos++;
       }
-      toast(S.ok(m)+(buf.length?` con ${subidos} de ${buf.length} comprobante(s)`:"")+".");
       render();
-      // el comprobante se abre solo: es lo que se imprime o se manda por mail
-      if(!dep) setTimeout(()=>{
-        const nr=db.retiros.find(x=>x.id===rid); if(nr) dialogoComprobante(nr);
+      if(dep){toast(S.ok(m)+(buf.length?` con ${subidos} de ${buf.length} comprobante(s)`:"")+".");return}
+      toast("Retiro anotado. Falta la firma del mensajero.");
+      setTimeout(()=>{
+        const nr=db.retiros.find(x=>x.id===rid); if(nr) dialogoQR(nr);
       },220);
     }}]});
 }
@@ -2301,10 +2490,13 @@ function pintarCinta(){
     t.otros?el("div",{class:"cr"},el("span",{},"Otros valores"),el("b",{style:"color:var(--otros)"},plata(t.otros))):null,
     el("div",{class:"cr",style:"border-top:1px dashed var(--linea);padding-top:7px"},el("span",{},"Facturado"),el("b",{},plata(t.total))),
 
-    el("div",{class:"cr"},el("span",{},"Días"),el("b",{},String(new Set(gr.map(g=>g.fecha)).size)))
+    el("div",{class:"cr"},el("span",{},"Días"),el("b",{},String(new Set(gr.map(g=>g.fecha)).size))),
+    hayPendientes()?el("div",{class:"cr",style:"border-top:1px dashed var(--linea);padding-top:7px",
+      title:"Retiros anotados que todavía no firmó ningún mensajero: no bajan el saldo hasta que se firman"},
+      el("span",{},"Espera firma"),el("b",{style:"color:var(--aviso)"},plata(enEsperaDeFirma()))):null
   ].filter(Boolean));
   const r=diasARevisar().filter(x=>!estaRevisado(x.d)).length; $("#cnt-rev").textContent=r?`(${r})`:"";
-  $("#btn-retirar").disabled=s<=0; $("#btn-depositar").disabled=!hayQueRendir();
+  $("#btn-retirar").disabled=!diasPendientes().length; $("#btn-depositar").disabled=!hayQueRendir();
 }
 const TITULOS={importar:"Importar listados",dias:"D\u00edas cargados",reportes:"Reportes",retiros:"Retiros y dep\u00f3sitos",revisar:"Revisar",manual:"Cargar a mano",datos:"Datos y respaldo"};
 const VISTAS={importar:vistaImportar,dias:vistaDias,reportes:vistaReportes,retiros:vistaRetiros,revisar:vistaRevisar,manual:vistaManual,datos:vistaDatos};
