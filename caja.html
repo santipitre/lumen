@@ -1069,11 +1069,11 @@ function el(t,p={},...kids){
 }
 /* la tabla de días saca la columna Total según el ancho: hay que repintar al
    cruzar ese umbral, pero solo al cruzarlo */
-let _anchoChico=null;
+let _resizeT=null;
 window.addEventListener("resize",()=>{
-  const ch=window.innerWidth<1380;
-  if(_anchoChico===null){_anchoChico=ch;return}
-  if(ch!==_anchoChico){_anchoChico=ch; if(typeof render==="function") render()}
+  if(vista!=="dias")return;
+  clearTimeout(_resizeT);
+  _resizeT=setTimeout(()=>{ if(typeof render==="function") render() },150);
 });
 let tT; function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(tT);tT=setTimeout(()=>t.classList.remove("on"),3400)}
 const kpi=(k,v,c,pct)=>el("div",{class:"kpi"},
@@ -1340,7 +1340,7 @@ const compsNorm=cs=>(cs||[]).map(x=>(x&&typeof x==="object")
   :{n:String(x),m:0,sm:false});
 let filtro={desde:"",hasta:"",cajero:""};
 let abiertos=new Set();
-function vistaDias(){
+function vistaDias(sinTotalForzado){
   const c=el("div",{}); banners().forEach(b=>c.append(b));
   const p=el("div",{class:"panel"});
   p.append(el("h2",{},"Días cargados"));
@@ -1372,7 +1372,7 @@ function vistaDias(){
   const hayOtros=dias.some(d=>d.otros>0);
   /* En pantallas angostas también se cae la columna Total: es la suma de las
      otras tres y es lo primero que sobra cuando no entra sin barra. */
-  const hayTotal=window.innerWidth>=1380;
+  const hayTotal=!sinTotalForzado;
   const NC=7+(hayOtros?1:0)+(hayTotal?1:0);
   const tab=el("table",{class:"data compacta"});
   tab.append(el("thead",{},el("tr",{},el("th",{},"Fecha"),el("th",{},"Cajero"),
@@ -1472,7 +1472,7 @@ function vistaDias(){
     el("td",{class:"num"},numero(t.comps)),
     el("td",{}))));
 
-  p.append(el("div",{class:"tabla-scroll"},tab));
+  const cajaTabla=el("div",{class:"tabla-scroll"},tab); p.append(cajaTabla); if(hayTotal){ requestAnimationFrame(()=>{ if(vista!=="dias"||!cajaTabla.isConnected)return; if(cajaTabla.scrollWidth>cajaTabla.clientWidth+1){ $("#main").replaceChildren(vistaDias(true)); } }); }
   /* Los KPIs repiten el pie, con el reparto porcentual. */
   p.append(el("div",{class:"kpis",style:"margin-top:12px"},
     kpi("Días",numero(dias.length)),kpi("Comprobantes",numero(t.comps)),
