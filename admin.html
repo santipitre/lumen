@@ -371,11 +371,13 @@
       padding:3px 8px; background:rgba(85,231,139,.10); white-space:nowrap;
     }
     /* Contador "X arreglados" debajo del número del KPI automatizado. */
-    .kpi-arr { margin-top:5px; font-size:11px; font-weight:600; line-height:1.2; }
+    .kpi-arr { margin-top:5px; font-size:11px; font-weight:600; line-height:1.35; }
+    /* Cada contador entero o nada: el bloque envuelve entre ítems, nunca corta uno. */
+    .kpi-arr > span { white-space:nowrap; }
     .kpi-arr .arr-ok     { color:var(--green); }
     .kpi-arr .arr-pend   { color:var(--amber); font-weight:500; }
     .kpi-arr .arr-sinacc { color:var(--muted); font-weight:500; }
-    .kpi-arr .arr-fact   { color:var(--blue); font-weight:500; }
+    .kpi-arr .arr-fact   { color:var(--purple); font-weight:500; }
 
     /* ── ERRORES DE CARGA · rectángulos auto/manual ── */
     .err-block { margin-bottom:28px; }
@@ -399,9 +401,13 @@
     .ecard.manual .num { color:var(--red); }
     .ecard .ec-top { display:flex; align-items:center; justify-content:space-between; gap:10px; }
     .ecard .ec-label { font-family:'Rajdhani',sans-serif; font-size:14.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--text); }
-    .ecard .ec-sub { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:6px; }
-    .ecard .kpi-sub { font-size:11.5px; color:var(--muted); margin:0; }
-    .ecard .kpi-arr { margin:0; white-space:nowrap; }
+    /* Con 3 o 4 contadores la línea no entraba al lado del subtítulo: el nowrap la
+       desbordaba y encima estrangulaba al subtítulo a una columna de 2 palabras.
+       Ahora la fila envuelve: si entra va al lado, si no, los contadores bajan. */
+    .ecard .ec-sub { display:flex; flex-wrap:wrap; align-items:baseline;
+                     justify-content:space-between; gap:4px 10px; margin-top:6px; }
+    .ecard .kpi-sub { font-size:11.5px; color:var(--muted); margin:0; min-width:0; flex:1 1 150px; }
+    .ecard .kpi-arr { margin:0; white-space:normal; flex:0 1 auto; }
     .ecard .kpi-auto-badge, .ecard .ec-man-badge { position:static; display:inline-flex; align-items:center; margin:0; align-self:auto;
       font-size:10px; font-weight:700; letter-spacing:1px; padding:3px 9px; border-radius:20px; white-space:nowrap; text-transform:uppercase; }
     .ecard .kpi-auto-badge { color:var(--green); border:1px solid rgba(34,219,174,.4); background:rgba(34,219,174,.12); }
@@ -2450,8 +2456,8 @@ function mostrarArreglados(valId, rows, tipo) {
   // El número grande refleja SOLO lo pendiente (descuenta arreglados + sin acción del bot).
   val.textContent = pend.toLocaleString('es-AR');
   const partes = [];
-  if (arr)    partes.push(`<span class="arr-ok">✓ ${arr.toLocaleString('es-AR')} arreglados</span>`);
-  if (fact)   partes.push(`<span class="arr-fact">${fact.toLocaleString('es-AR')} ya facturadas</span>`);
+  if (arr)    partes.push(`<span class="arr-ok">✓ ${arr.toLocaleString('es-AR')} ${arr === 1 ? 'arreglado' : 'arreglados'}</span>`);
+  if (fact)   partes.push(`<span class="arr-fact">${fact.toLocaleString('es-AR')} ya ${fact === 1 ? 'facturada' : 'facturadas'}</span>`);
   if (sinacc) partes.push(`<span class="arr-sinacc">${sinacc.toLocaleString('es-AR')} sin acción</span>`);
   partes.push(`<span class="arr-pend">${pend.toLocaleString('es-AR')} pend.</span>`);
   el.innerHTML = partes.join(' · ');
