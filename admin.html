@@ -375,6 +375,7 @@
     .kpi-arr .arr-ok     { color:var(--green); }
     .kpi-arr .arr-pend   { color:var(--amber); font-weight:500; }
     .kpi-arr .arr-sinacc { color:var(--muted); font-weight:500; }
+    .kpi-arr .arr-fact   { color:var(--blue); font-weight:500; }
 
     /* ── ERRORES DE CARGA · rectángulos auto/manual ── */
     .err-block { margin-bottom:28px; }
@@ -1263,9 +1264,13 @@ let filtered = [];
 let charts   = {};
 // Set de turnos ya reparados por los bots: claves "tipo:turnoN" (estado OK/YA_OK).
 let REPARADOS = new Set();
-// Turnos que el bot cerró SIN corregir (NO_ENCONTRADO / OMITIDO_FECHA): no son error
-// (el bot no los va a reintentar) pero tampoco cuentan como "arreglados".
+// Turnos que el bot cerró SIN corregir (NO_ENCONTRADO / OMITIDO_FECHA / DESCARTADO):
+// no son error (el bot no los va a reintentar) pero tampoco cuentan como "arreglados".
 let SIN_ACCION = new Set();
+// Turnos cuya orden YA ESTÁ FACTURADA: el HIS no deja modificarlos y se dejan como
+// están (decisión administrativa, 2026-09-08). Se descuentan de los pendientes pero
+// llevan su propia etiqueta: NO son "arreglados", son errores que ya salieron facturados.
+let FACTURADOS = new Set();
 
 /* ══════════════════════════════════
    INIT
@@ -1355,17 +1360,19 @@ async function cargarReparaciones(force = true) {
     if (!force && ahora - _reparadosLastFetch < 8000) return; // evita spamear al alternar pestañas
     _reparadosLastFetch = ahora;
     const rows = await sbQuery('reparaciones', 'select=turno_n,tipo,estado&estado=in.(OK,YA_OK,NO_ENCONTRADO,OMITIDO_FECHA,DESCARTADO,FACTURADO)');
-    const ok = new Set(), sinacc = new Set();
+    const ok = new Set(), sinacc = new Set(), fact = new Set();
     (rows || []).forEach(r => {
       const key = `${r.tipo}:${String(r.turno_n).trim()}`;
       const e = String(r.estado || '').toUpperCase();
       if (e === 'OK' || e === 'YA_OK') ok.add(key);
-      else sinacc.add(key);   // NO_ENCONTRADO / OMITIDO_FECHA
+      else if (e === 'FACTURADO') fact.add(key);   // orden ya facturada: se deja como está
+      else sinacc.add(key);   // NO_ENCONTRADO / OMITIDO_FECHA / DESCARTADO
     });
-    const sig = [...ok].sort().join('|') + '##' + [...sinacc].sort().join('|');
+    const sig = [...ok].sort().join('|') + '##' + [...sinacc].sort().join('|')
+              + '##' + [...fact].sort().join('|');
     if (sig === _reparadosSig) return;   // sin cambios → no re-renderizar
     _reparadosSig = sig;
-    REPARADOS = ok; SIN_ACCION = sinacc;
+    REPARADOS = ok; SIN_ACCION = sinacc; FACTURADOS = fact;
     if (filtered && filtered.length) render(filtered);  // refresca sin recargar datos
   } catch (e) {
     console.warn('[reparaciones] no se pudo cargar el contador de arreglados:', e);
@@ -2427,21 +2434,24 @@ function mostrarArreglados(valId, rows, tipo) {
   }
   const total = rows.length;
   // Sin datos de Supabase todavía: el número queda en el total (ya seteado por calcKPIs).
-  const hayDatos = (REPARADOS && REPARADOS.size) || (SIN_ACCION && SIN_ACCION.size);
+  const hayDatos = (REPARADOS && REPARADOS.size) || (SIN_ACCION && SIN_ACCION.size)
+                || (FACTURADOS && FACTURADOS.size);
   if (!hayDatos) { el.textContent = ''; return; }
-  let arr = 0, sinacc = 0;
+  let arr = 0, sinacc = 0, fact = 0;
   for (const r of rows) {
     const tn = _safe(r['Turno N°'] ?? r['Turno N'] ?? r['Turno No']);
     if (!tn) continue;
     const k = tipo + ':' + tn;
     if (REPARADOS.has(k)) arr++;
+    else if (FACTURADOS.has(k)) fact++;      // ya facturado: se deja como está
     else if (SIN_ACCION.has(k)) sinacc++;   // el bot lo cerró sin corregir → no es error
   }
-  const pend = Math.max(0, total - arr - sinacc);
+  const pend = Math.max(0, total - arr - sinacc - fact);
   // El número grande refleja SOLO lo pendiente (descuenta arreglados + sin acción del bot).
   val.textContent = pend.toLocaleString('es-AR');
   const partes = [];
   if (arr)    partes.push(`<span class="arr-ok">✓ ${arr.toLocaleString('es-AR')} arreglados</span>`);
+  if (fact)   partes.push(`<span class="arr-fact">${fact.toLocaleString('es-AR')} ya facturadas</span>`);
   if (sinacc) partes.push(`<span class="arr-sinacc">${sinacc.toLocaleString('es-AR')} sin acción</span>`);
   partes.push(`<span class="arr-pend">${pend.toLocaleString('es-AR')} pend.</span>`);
   el.innerHTML = partes.join(' · ');
