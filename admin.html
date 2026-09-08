@@ -1354,7 +1354,7 @@ async function cargarReparaciones(force = true) {
     const ahora = Date.now();
     if (!force && ahora - _reparadosLastFetch < 8000) return; // evita spamear al alternar pestañas
     _reparadosLastFetch = ahora;
-    const rows = await sbQuery('reparaciones', 'select=turno_n,tipo,estado&estado=in.(OK,YA_OK,NO_ENCONTRADO,OMITIDO_FECHA)');
+    const rows = await sbQuery('reparaciones', 'select=turno_n,tipo,estado&estado=in.(OK,YA_OK,NO_ENCONTRADO,OMITIDO_FECHA,DESCARTADO)');
     const ok = new Set(), sinacc = new Set();
     (rows || []).forEach(r => {
       const key = `${r.tipo}:${String(r.turno_n).trim()}`;
