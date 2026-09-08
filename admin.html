@@ -221,16 +221,50 @@
     }
     .ti-mes-chip .m { font-size:11px; letter-spacing:.5px; text-transform:uppercase; color:var(--muted); }
     .ti-mes-chip .n { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:16px; color:var(--purple); line-height:1; }
-    /* Filas clickeables de "Detalle por aseguradora" */
-    #ti-aseg .ti-aseg-row { cursor:pointer; transition:background .15s; }
-    #ti-aseg .ti-aseg-row:hover { background:rgba(167,139,250,.12); }
-    #ti-aseg .ti-aseg-row:hover td:first-child { color:var(--purple); }
     .ti-meses-note { font-size:11px; color:var(--muted); margin-top:10px; font-style:italic; }
-    .ti-detalle-wrap { display:block; margin-bottom:8px; }
-    .ti-detalle-wrap .chart-card { width:100%; }
     @media(max-width:1100px){ .ti-aseg-grid{ grid-template-columns:repeat(3,1fr); } }
     @media(max-width:820px){ .ti-hero-row{ grid-template-columns:1fr; } .ti-aseg-grid{ grid-template-columns:repeat(2,1fr); } }
     @media(max-width:520px){ .ti-aseg-grid{ grid-template-columns:1fr; } }
+
+    /* ── Ausentes · Trámites Completos · sector exclusivo (gama roja) ── */
+    .au-exclusive {
+      margin-top:22px;
+      background:linear-gradient(180deg, rgba(248,113,113,.10), rgba(248,113,113,.02));
+      border-color:rgba(248,113,113,.38);
+      box-shadow:0 0 0 1px rgba(248,113,113,.07), 0 14px 44px rgba(248,113,113,.13);
+    }
+    .au-exclusive::before { background:linear-gradient(90deg, var(--red), #F97316 55%, transparent); }
+    .au-exclusive .ti-exclusive-head { border-bottom-color:rgba(248,113,113,.24); }
+    .au-exclusive .ti-ic { filter:drop-shadow(0 0 8px rgba(248,113,113,.6)); }
+    .au-exclusive .ti-tt { color:var(--red); }
+    /* Hero rojo */
+    .au-exclusive .kpi-card.ti-hero {
+      background:linear-gradient(135deg, rgba(248,113,113,.17), rgba(248,113,113,.03));
+      border-color:rgba(248,113,113,.45);
+    }
+    .au-exclusive .kpi-card.ti-hero:hover { border-color:var(--red); box-shadow:0 8px 28px rgba(248,113,113,.24); }
+    /* Chips de meses en rojo */
+    .au-exclusive .ti-mes-chip { background:rgba(248,113,113,.11); border-color:rgba(248,113,113,.26); }
+    .au-exclusive .ti-mes-chip .n { color:var(--red); }
+    /* Recuadro de carga en rojo */
+    .kpi-card.ti-drop.au-drop:hover { border-color:var(--red); background:rgba(248,113,113,.07); box-shadow:0 8px 28px rgba(248,113,113,.16); }
+    .kpi-card.ti-drop.au-drop.dragover { border-color:var(--red); border-style:solid; background:rgba(248,113,113,.15); box-shadow:0 0 0 2px rgba(248,113,113,.35) inset; }
+    .kpi-card.ti-drop.au-drop .ti-drop-title { color:var(--red); }
+    .kpi-card.ti-drop.au-drop.has-file { border-color:rgba(251,113,133,.55); background:rgba(251,113,133,.08); }
+    .kpi-card.ti-drop.au-drop.has-file .ti-drop-title { color:#FB7185; }
+    /* Paleta de las 5 tarjetas: degradé dentro de la gama roja */
+    .au-c1 .kpi-val { color:#FB7185; }  .au-c1::after { background:linear-gradient(90deg,#FB7185,transparent); }
+    .au-c1:hover { border-color:#FB7185; box-shadow:0 8px 28px rgba(251,113,133,.2); }
+    .au-c2 .kpi-val { color:#F97316; }  .au-c2::after { background:linear-gradient(90deg,#F97316,transparent); }
+    .au-c2:hover { border-color:#F97316; box-shadow:0 8px 28px rgba(249,115,22,.2); }
+    .au-c3 .kpi-val { color:#E11D48; }  .au-c3::after { background:linear-gradient(90deg,#E11D48,transparent); }
+    .au-c3:hover { border-color:#E11D48; box-shadow:0 8px 28px rgba(225,29,72,.24); }
+    .au-c4 .kpi-val { color:#FCA5A5; }  .au-c4::after { background:linear-gradient(90deg,#FCA5A5,transparent); }
+    .au-c4:hover { border-color:#FCA5A5; box-shadow:0 8px 28px rgba(252,165,165,.2); }
+    .au-c5 .kpi-val { color:#DC2626; }  .au-c5::after { background:linear-gradient(90deg,#DC2626,transparent); }
+    .au-c5:hover { border-color:#DC2626; box-shadow:0 8px 28px rgba(220,38,38,.24); }
+    #au-detail-overlay .ti-detail-body td.ti-col-aseg { color:#FB7185; }
+    #au-detail-overlay .ti-detail-body tr:hover td { background:rgba(248,113,113,.07); }
 
     /* ── KPI GRID ── */
     .kpi-section-label {
@@ -308,12 +342,12 @@
     }
     .ti-drop-clear:hover { background:rgba(248,113,113,.22); }
     /* ── Modal de detalle local (líneas leídas del Excel subido) ── */
-    #ti-detail-overlay {
+    #ti-detail-overlay, #au-detail-overlay {
       display:none; position:fixed; inset:0; z-index:1200;
       background:rgba(0,0,0,.66); backdrop-filter:blur(4px);
       align-items:center; justify-content:center; padding:24px;
     }
-    #ti-detail-overlay.open { display:flex; }
+    #ti-detail-overlay.open, #au-detail-overlay.open { display:flex; }
     .ti-detail-box {
       background:#0c1420; border:1px solid var(--border); border-radius:12px;
       width:min(1100px,96vw); max-height:88vh; display:flex; flex-direction:column;
@@ -919,14 +953,44 @@
       <div class="kpi-card red" onclick="tiCardClick('PARTICULAR')"><div class="kpi-icon">🧾</div><div class="kpi-label">Particular</div><div class="kpi-val" id="ti-PARTICULAR">—</div><div class="kpi-sub" id="ti-PARTICULAR-sub">a recepcionar</div><div class="kpi-hint">ver detalle →</div></div>
     </div>
 
-    <!-- Detalle por aseguradora · ancho completo -->
-    <div class="ti-detalle-wrap fade-in">
-      <div class="chart-card">
-        <div class="chart-title">Detalle por aseguradora <span style="font-size:10px;letter-spacing:1px;color:var(--muted);text-transform:none;font-weight:400">· click en una fila para ver y exportar</span></div>
-        <div id="ti-aseg"><div class="empty-state"><div class="e-icon">🏢</div><div class="e-text">Sin datos — corré la sincronización local</div></div></div>
+    <div id="ti-meta" style="color:var(--muted);font-size:11px;margin-top:2px"></div>
+   </section>
+
+   <!-- ══════ SECTOR EXCLUSIVO · AUSENTES / TRÁMITES COMPLETOS (gama roja) ══════ -->
+   <section class="ti-exclusive au-exclusive">
+    <div class="ti-exclusive-head">
+      <div class="ti-ic">🚫</div>
+      <div>
+        <div class="ti-tt">Ausentes · Trámites Completos</div>
+        <div class="ti-st">Turnos no presentados · por aseguradora</div>
       </div>
     </div>
-    <div id="ti-meta" style="color:var(--muted);font-size:11px;margin-top:-12px"></div>
+
+    <!-- Fila hero: total (headline) + carga de Excel -->
+    <div class="ti-hero-row fade-in">
+      <div class="kpi-card red ti-hero" onclick="auCardClick('TOTAL')"><div class="kpi-icon">🚫</div><div class="kpi-label">Total ausentes</div><div class="kpi-val" id="au-total">—</div><div class="kpi-sub" id="au-total-sub">turnos únicos</div><div class="ti-meses" id="au-total-meses"></div><div class="kpi-hint">ver detalle →</div></div>
+
+      <div class="kpi-card ti-drop au-drop" id="au-dropzone" onclick="auDrop.pick()" title="Click o arrastrá el Excel acá para alimentar los cuadros">
+        <input type="file" id="au-file-input" accept=".xlsx,.xlsm,.xls,.csv" style="display:none" onchange="auDrop.onInput(event)">
+        <div class="ti-drop-inner">
+          <div class="ti-drop-icon" id="au-drop-icon">📥</div>
+          <div class="ti-drop-title" id="au-drop-title">Subí el Excel</div>
+          <div class="ti-drop-sub" id="au-drop-sub">Click o arrastrá el archivo acá</div>
+          <button class="ti-drop-clear" id="au-drop-clear" style="display:none" onclick="event.stopPropagation(); auDrop.clear()">✕ quitar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Grilla pareja de aseguradoras -->
+    <div class="ti-aseg-grid fade-in">
+      <div class="kpi-card au-c1" onclick="auCardClick('FINAMED')"><div class="kpi-icon">🏢</div><div class="kpi-label">FINAMED</div><div class="kpi-val" id="au-FINAMED">—</div><div class="kpi-sub" id="au-FINAMED-sub">ausentes</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card au-c2" onclick="auCardClick('PAMI')"><div class="kpi-icon">🏢</div><div class="kpi-label">PAMI (INSSJYP)</div><div class="kpi-val" id="au-PAMI">—</div><div class="kpi-sub" id="au-PAMI-sub">ausentes</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card au-c3" onclick="auCardClick('HAREFIELD')"><div class="kpi-icon">🏢</div><div class="kpi-label">Harefield</div><div class="kpi-val" id="au-HAREFIELD">—</div><div class="kpi-sub" id="au-HAREFIELD-sub">ausentes</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card au-c4" onclick="auCardClick('OSOTRAS')"><div class="kpi-icon">🏢</div><div class="kpi-label">Otras OS / Prepagas</div><div class="kpi-val" id="au-OSOTRAS">—</div><div class="kpi-sub" id="au-OSOTRAS-sub">ausentes</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card au-c5" onclick="auCardClick('PARTICULAR')"><div class="kpi-icon">🧾</div><div class="kpi-label">Particular</div><div class="kpi-val" id="au-PARTICULAR">—</div><div class="kpi-sub" id="au-PARTICULAR-sub">ausentes</div><div class="kpi-hint">ver detalle →</div></div>
+    </div>
+
+    <div id="au-meta" style="color:var(--muted);font-size:11px;margin-top:2px"></div>
    </section>
   </div>
 
@@ -1126,6 +1190,28 @@
     </div>
     <div class="ti-detail-body" id="ti-detail-body"></div>
     <div class="ti-detail-foot" id="ti-detail-foot"></div>
+  </div>
+</div>
+
+<!-- ══════ MODAL DETALLE LOCAL (Ausentes · Trámites Completos) ══════ -->
+<div id="au-detail-overlay" onclick="if(event.target===this) auDrop.closeDetail()">
+  <div class="ti-detail-box">
+    <div class="ti-detail-head">
+      <div class="ti-detail-bar" id="au-detail-bar"></div>
+      <div>
+        <div class="ti-detail-title" id="au-detail-title">Detalle</div>
+        <div class="ti-detail-count" id="au-detail-count"></div>
+      </div>
+      <div class="ti-detail-actions">
+        <button class="ti-btn" onclick="auDrop.exportCurrent()">⬇ Exportar a Excel</button>
+        <button class="ti-btn ghost" onclick="auDrop.closeDetail()">✕ Cerrar</button>
+      </div>
+    </div>
+    <div class="ti-detail-search">
+      <input type="text" id="au-detail-search" placeholder="Buscar en el detalle…" oninput="auDrop.filterDetail(this.value)">
+    </div>
+    <div class="ti-detail-body" id="au-detail-body"></div>
+    <div class="ti-detail-foot" id="au-detail-foot"></div>
   </div>
 </div>
 
@@ -1517,6 +1603,17 @@ function renderTramitesInc(p, generado) {
    un Excel subido acá, estos 6 cuadros lo respetan (tiDrop.active).
 ══════════════════════════════════════════════════════════════════════ */
 const tiDrop = {
+  /* Identidad del módulo (permite clonarlo con otro prefijo de IDs · ver auDrop) */
+  PFX:'ti', STORE:'lumen_ti', TAG:'tiDrop',
+  XPFX:'Lumen_TI_', XTITLE:'TRÁMITES INCOMPLETOS', SUBTXT:'a recepcionar', MESTXT:'Trámites por mes',
+  P(sfx){ return this.PFX+'-'+sfx; },
+  /* Hook: filtro extra sobre las filas del Excel (por defecto, ninguno) */
+  filterRows(rows){ return rows; },
+  onClear(){
+    if(Array.isArray(rawData)&&rawData.length){ try{ renderTITab(filtered); }catch(e){} }
+    else { _tiSig=''; try{ cargarTramitesInc(true); }catch(e){} }
+  },
+
   active:false, rows:[], headers:[], colTurno:null, colAseg:null, colServ:null, colFecha:null, updatedAt:null,
   fileName:'', rawRows:[], dedupRows:[], byBucket:{}, byTurnos:{},
   detailKey:null, detailAll:[], detailLabel:'', detailTurnos:0, _asegArr:[],
@@ -1563,7 +1660,7 @@ const tiDrop = {
   /* ── Persistencia en IndexedDB (base propia 'lumen_ti', separada de la del dashboard) ──
      El Excel subido queda guardado y se restaura al recargar/volver a la página,
      hasta que el usuario apriete "quitar" o suba otro archivo. ── */
-  _idb(){ return new Promise((res,rej)=>{ try{ const rq=indexedDB.open('lumen_ti',1); rq.onupgradeneeded=()=>{ try{ rq.result.createObjectStore('kv'); }catch(e){} }; rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error); }catch(e){ rej(e); } }); },
+  _idb(){ return new Promise((res,rej)=>{ try{ const rq=indexedDB.open(this.STORE,1); rq.onupgradeneeded=()=>{ try{ rq.result.createObjectStore('kv'); }catch(e){} }; rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error); }catch(e){ rej(e); } }); },
   async _idbSet(key,val){ try{ const db=await this._idb(); await new Promise((res,rej)=>{ const tx=db.transaction('kv','readwrite'); tx.objectStore('kv').put(val,key); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); }); }catch(e){ console.warn('[tiDrop] idbSet',e); } },
   async _idbGet(key){ try{ const db=await this._idb(); return await new Promise((res,rej)=>{ const tx=db.transaction('kv','readonly'); const r=tx.objectStore('kv').get(key); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }catch(e){ console.warn('[tiDrop] idbGet',e); return null; } },
   async _idbDel(key){ try{ const db=await this._idb(); await new Promise((res)=>{ const tx=db.transaction('kv','readwrite'); tx.objectStore('kv').delete(key); tx.oncomplete=()=>res(); tx.onerror=()=>res(); }); }catch(e){} },
@@ -1583,35 +1680,35 @@ const tiDrop = {
       this.fileName=saved.fileName||'archivo guardado';
       if(!this.colTurno||!this.colAseg){ this._idbDel('current'); return; }
       this.active=true; this.compute();
-      const dz=document.getElementById('ti-dropzone'); if(dz) dz.classList.add('has-file');
+      const dz=document.getElementById(this.P('dropzone')); if(dz) dz.classList.add('has-file');
       const set=(id,t)=>{ const e=document.getElementById(id); if(e) e.textContent=t; };
-      set('ti-drop-icon','✅'); set('ti-drop-title','Archivo cargado');
-      set('ti-drop-sub', this.fileName+' · '+tiNum(this.rawRows.length)+' filas'+(this.fmtUpdated()?' · '+this.fmtUpdated():''));
-      const clr=document.getElementById('ti-drop-clear'); if(clr) clr.style.display='inline-block';
+      set(this.P('drop-icon'),'✅'); set(this.P('drop-title'),'Archivo cargado');
+      set(this.P('drop-sub'), this.fileName+' · '+tiNum(this.rawRows.length)+' filas'+(this.fmtUpdated()?' · '+this.fmtUpdated():''));
+      const clr=document.getElementById(this.P('drop-clear')); if(clr) clr.style.display='inline-block';
     }catch(e){ console.warn('[tiDrop] restore',e); }
   },
 
   setup(){
-    const dz=document.getElementById('ti-dropzone'); if(!dz) return;
+    const dz=document.getElementById(this.P('dropzone')); if(!dz) return;
     ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{ e.preventDefault(); e.stopPropagation(); dz.classList.add('dragover'); }));
     ['dragleave','dragend'].forEach(ev=>dz.addEventListener(ev,e=>{ e.preventDefault(); e.stopPropagation(); if(ev==='dragleave'&&dz.contains(e.relatedTarget)) return; dz.classList.remove('dragover'); }));
     dz.addEventListener('drop',e=>{ e.preventDefault(); e.stopPropagation(); dz.classList.remove('dragover'); const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) this.read(f); });
     // Evitar que el navegador abra un archivo soltado fuera del recuadro
     ['dragover','drop'].forEach(ev=>document.addEventListener(ev,e=>{ if(!dz.contains(e.target)) e.preventDefault(); }, false));
     // Escape cierra el modal de detalle local (antes que el handler global)
-    document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ const ov=document.getElementById('ti-detail-overlay'); if(ov&&ov.classList.contains('open')){ e.stopPropagation(); this.closeDetail(); } } }, true);
+    document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ const ov=document.getElementById(this.P('detail-overlay')); if(ov&&ov.classList.contains('open')){ e.stopPropagation(); this.closeDetail(); } } }, true);
     // Restaurar el Excel guardado (si lo hay) — persiste entre recargas hasta "quitar" o subir otro.
     this.restore();
   },
 
-  pick(){ const fi=document.getElementById('ti-file-input'); if(fi) fi.click(); },
+  pick(){ const fi=document.getElementById(this.P('file-input')); if(fi) fi.click(); },
   onInput(e){ const f=e.target.files&&e.target.files[0]; if(f) this.read(f); e.target.value=''; },
 
   async read(file){
-    const setIcon=t=>{ const el=document.getElementById('ti-drop-icon'); if(el) el.textContent=t; };
-    const setTitle=t=>{ const el=document.getElementById('ti-drop-title'); if(el) el.textContent=t; };
-    const setSub=t=>{ const el=document.getElementById('ti-drop-sub'); if(el) el.textContent=t; };
-    const dz=document.getElementById('ti-dropzone');
+    const setIcon=t=>{ const el=document.getElementById(this.P('drop-icon')); if(el) el.textContent=t; };
+    const setTitle=t=>{ const el=document.getElementById(this.P('drop-title')); if(el) el.textContent=t; };
+    const setSub=t=>{ const el=document.getElementById(this.P('drop-sub')); if(el) el.textContent=t; };
+    const dz=document.getElementById(this.P('dropzone'));
     try{
       setIcon('⏳'); setTitle('Leyendo…'); setSub(file.name);
       const buf=await file.arrayBuffer();
@@ -1633,20 +1730,20 @@ const tiDrop = {
       dz.classList.add('has-file');
       setIcon('✅'); setTitle('Archivo cargado');
       setSub(file.name+' · '+tiNum(this.rawRows.length)+' filas'+(this.fmtUpdated()?' · '+this.fmtUpdated():''));
-      document.getElementById('ti-drop-clear').style.display='inline-block';
+      document.getElementById(this.P('drop-clear')).style.display='inline-block';
       this.persist();   // queda guardado hasta "quitar" o subir otro archivo
     }catch(err){
       console.error('[tiDrop] read', err);
       this.active=false; if(dz) dz.classList.remove('has-file');
       setIcon('⚠️'); setTitle('No se pudo leer');
       setSub((err&&err.message)?err.message:'Error al leer el archivo');
-      document.getElementById('ti-drop-clear').style.display='inline-block';
+      document.getElementById(this.P('drop-clear')).style.display='inline-block';
     }
   },
 
   compute(){
     const S=this.S.bind(this);
-    const raw=this.rows.filter(r=> S(r[this.colTurno])!=='' || S(r[this.colAseg])!=='');
+    const raw=this.filterRows(this.rows.filter(r=> S(r[this.colTurno])!=='' || S(r[this.colAseg])!==''));
     this.rawRows=raw;
     const seen=new Set(), dedup=[];
     raw.forEach(r=>{ const t=S(r[this.colTurno]).toUpperCase(); if(t){ if(seen.has(t)) return; seen.add(t); } dedup.push(r); });
@@ -1658,17 +1755,17 @@ const tiDrop = {
     this.byBucket=by; this.byTurnos=byT;
 
     const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
-    set('ti-total', tiNum(dedup.length)); set('ti-total-sub', tiNum(raw.length)+' estudios');
-    this.BUCKETS.forEach(k=>{ set('ti-'+k, tiNum(byT[k])); set('ti-'+k+'-sub', tiNum(by[k].length)+' estudios'); });
+    set(this.P('total'), tiNum(dedup.length)); set(this.P('total-sub'), tiNum(raw.length)+' estudios');
+    this.BUCKETS.forEach(k=>{ set(this.P(k), tiNum(byT[k])); set(this.P(k+'-sub'), tiNum(by[k].length)+' estudios'); });
     this.renderMeses(dedup);
     this.renderPanels();
-    const meta=document.getElementById('ti-meta');
+    const meta=document.getElementById(this.P('meta'));
     if(meta) meta.textContent='Detalle calculado desde el Excel subido ('+this.fileName+') · '+tiNum(dedup.length)+' turnos / '+tiNum(raw.length)+' estudios · click en cada tarjeta para ver y exportar el detalle';
   },
 
   renderMeses(dedup){
     // Trámites (turnos únicos) por mes, según "Fecha Turno". Detecta el orden (m/d vs d/m) de los datos.
-    const cont=document.getElementById('ti-total-meses'); if(!cont) return;
+    const cont=document.getElementById(this.P('total-meses')); if(!cont) return;
     if(!this.colFecha){ cont.innerHTML='<div class="ti-meses-note">El Excel no tiene columna de fecha</div>'; return; }
     const RX=/(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/, ISO=/(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/;
     // Votación de orden: si un número es >12, ese es el día → define si el mes va 1° (m/d) o 2° (d/m)
@@ -1690,7 +1787,7 @@ const tiDrop = {
     const MES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
     const multi=new Set(keys.map(k=>k.split('-')[0])).size>1;
     const lbl=k=>{ const p=k.split('-'); return MES[(+p[1])-1] + (multi?" '"+p[0].slice(2):''); };
-    cont.innerHTML='<div class="ti-meses-title">Trámites por mes · '+tiEsc(this.colFecha)+'</div>'+
+    cont.innerHTML='<div class="ti-meses-title">'+this.MESTXT+' · '+tiEsc(this.colFecha)+'</div>'+
       '<div class="ti-meses-grid">'+
       keys.map(k=>
         '<div class="ti-mes-chip"><span class="m">'+lbl(k)+'</span><span class="n">'+tiNum(cnt[k])+'</span></div>'
@@ -1705,7 +1802,7 @@ const tiDrop = {
     raw.forEach(r=>{ const name=S(r[this.colAseg])||'—'; if(!g[name]) g[name]={t:new Set(),blank:0,l:0}; g[name].l++; const tn=S(r[this.colTurno]).toUpperCase(); if(tn) g[name].t.add(tn); else g[name].blank++; });
     const arr=Object.entries(g).map(([k,v])=>({aseg:k,turnos:v.t.size+v.blank,lineas:v.l})).sort((a,b)=>b.turnos-a.turnos);
     this._asegArr=arr;
-    const cont=document.getElementById('ti-aseg');
+    const cont=document.getElementById(this.P('aseg'));
     if(cont){ cont.innerHTML = arr.length ? (
       '<table style="width:100%;border-collapse:collapse;font-size:12.5px">' +
       '<thead><tr>' +
@@ -1722,7 +1819,7 @@ const tiDrop = {
       cont.onclick=(e)=>{ const tr=e.target.closest('tr[data-idx]'); if(!tr) return; const a=this._asegArr&&this._asegArr[+tr.dataset.idx]; if(a) this.openDetailAseg(a.aseg); };
     }
 
-    const sc=document.getElementById('ti-serv');
+    const sc=document.getElementById(this.P('serv'));
     if(sc){
       if(this.colServ){
         const serv={}; raw.forEach(r=>{ const s=S(r[this.colServ])||'—'; serv[s]=(serv[s]||0)+1; });
@@ -1744,12 +1841,12 @@ const tiDrop = {
     const rows = (key==='TOTAL') ? this.rawRows : (this.byBucket[key]||[]);
     const turnos = (key==='TOTAL') ? this.dedupRows.length : (this.byTurnos[key]||0);
     this.detailKey=key; this.detailAll=rows; this.detailLabel=this.LABEL[key]||'Detalle'; this.detailTurnos=turnos;
-    document.getElementById('ti-detail-title').textContent = this.detailLabel;
-    document.getElementById('ti-detail-count').textContent = tiNum(turnos)+' turnos · '+tiNum(rows.length)+' estudios';
-    document.getElementById('ti-detail-bar').style.background = this.COLOR[key]||'var(--blue)';
-    const srch=document.getElementById('ti-detail-search'); if(srch) srch.value='';
+    document.getElementById(this.P('detail-title')).textContent = this.detailLabel;
+    document.getElementById(this.P('detail-count')).textContent = tiNum(turnos)+' turnos · '+tiNum(rows.length)+' estudios';
+    document.getElementById(this.P('detail-bar')).style.background = this.COLOR[key]||'var(--blue)';
+    const srch=document.getElementById(this.P('detail-search')); if(srch) srch.value='';
     this.renderDetail(rows);
-    document.getElementById('ti-detail-overlay').classList.add('open');
+    document.getElementById(this.P('detail-overlay')).classList.add('open');
   },
 
   // Detalle de UNA aseguradora puntual (click en fila de "Detalle por aseguradora")
@@ -1762,12 +1859,12 @@ const tiDrop = {
     rows.forEach(r=>{ const tn=S(r[this.colTurno]).toUpperCase(); if(tn) seen.add(tn); else blank++; });
     const turnos=seen.size+blank;
     this.detailKey='ASEG'; this.detailAll=rows; this.detailLabel=name||'Detalle'; this.detailTurnos=turnos;
-    document.getElementById('ti-detail-title').textContent = this.detailLabel;
-    document.getElementById('ti-detail-count').textContent = tiNum(turnos)+' turnos · '+tiNum(rows.length)+' estudios';
-    document.getElementById('ti-detail-bar').style.background = 'var(--purple)';
-    const srch=document.getElementById('ti-detail-search'); if(srch) srch.value='';
+    document.getElementById(this.P('detail-title')).textContent = this.detailLabel;
+    document.getElementById(this.P('detail-count')).textContent = tiNum(turnos)+' turnos · '+tiNum(rows.length)+' estudios';
+    document.getElementById(this.P('detail-bar')).style.background = this.COLOR.TOTAL;
+    const srch=document.getElementById(this.P('detail-search')); if(srch) srch.value='';
     this.renderDetail(rows);
-    document.getElementById('ti-detail-overlay').classList.add('open');
+    document.getElementById(this.P('detail-overlay')).classList.add('open');
   },
 
   renderDetail(rows, total){
@@ -1775,8 +1872,8 @@ const tiDrop = {
     let html='<table><thead><tr>'+heads.map(h=>'<th>'+tiEsc(h)+'</th>').join('')+'</tr></thead><tbody>';
     html+=rows.map(r=>'<tr>'+heads.map(h=>{ const cls=(h===this.colAseg)?' class="ti-col-aseg"':''; return '<td'+cls+'>'+tiEsc(r[h])+'</td>'; }).join('')+'</tr>').join('');
     html+='</tbody></table>';
-    const body=document.getElementById('ti-detail-body'); if(body) body.innerHTML=html;
-    const foot=document.getElementById('ti-detail-foot');
+    const body=document.getElementById(this.P('detail-body')); if(body) body.innerHTML=html;
+    const foot=document.getElementById(this.P('detail-foot'));
     if(foot) foot.textContent = (total!=null) ? (tiNum(rows.length)+' de '+tiNum(total)+' líneas') : (tiNum(rows.length)+' líneas');
   },
 
@@ -1788,7 +1885,7 @@ const tiDrop = {
     this.renderDetail(f, this.detailAll.length);
   },
 
-  closeDetail(){ const ov=document.getElementById('ti-detail-overlay'); if(ov) ov.classList.remove('open'); },
+  closeDetail(){ const ov=document.getElementById(this.P('detail-overlay')); if(ov) ov.classList.remove('open'); },
 
   // Columnas que NO deben ir al Excel exportable (normalizadas con normH).
   EXPORT_EXCLUDE:['APELLIDOMATERNO','TELEFONOFIJO','EMAIL','RECEPORDEN','TECNICOIN','TECNICOOUT','INICIOESTUDIO','REPROGRAMAR','ACCESSIONNUMBER','INFORMEFINALIZADO','CENTRO','MOTIVORECITADO'],
@@ -1826,7 +1923,7 @@ const tiDrop = {
       const d=new Date();
       const stamp=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
       const safe=String(label).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,40)||key;
-      const fname='Lumen_TI_'+safe+'_'+stamp+'.xlsx';
+      const fname=this.XPFX+safe+'_'+stamp+'.xlsx';
 
       // Sin ExcelJS no hay diseño posible → fallback plano con SheetJS (no debería pasar en producción).
       if(typeof ExcelJS==='undefined'){
@@ -1854,7 +1951,7 @@ const tiDrop = {
       ws.getRow(1).height=46;
       try{ const logo=this.lumenLogoPNG(); const id=wb.addImage({base64:logo,extension:'png'}); ws.addImage(id,{ tl:{col:0,row:0}, ext:{width:210,height:44} }); }catch(e){ console.warn('[tiDrop] logo',e); }
       const tCol=totalCols>=4?3:1; ws.mergeCells(1,tCol,1,totalCols);
-      const tt=ws.getCell(1,tCol); tt.value='TRÁMITES INCOMPLETOS · '+String(label||'DETALLE').toUpperCase();
+      const tt=ws.getCell(1,tCol); tt.value=this.XTITLE+' · '+String(label||'DETALLE').toUpperCase();
       tt.font={name:'Calibri',size:13,bold:true,color:{argb:WHITE}}; tt.alignment={horizontal:'right',vertical:'middle',indent:1};
 
       // Fila 2: regla dorada
@@ -1910,16 +2007,15 @@ const tiDrop = {
   clear(){
     this.active=false; this.rows=[]; this.rawRows=[]; this.dedupRows=[]; this.byBucket={}; this.byTurnos={}; this.colServ=null;
     this._idbDel('current');   // borrar lo guardado: la próxima recarga NO restaura
-    const dz=document.getElementById('ti-dropzone'); if(dz) dz.classList.remove('has-file','dragover');
+    const dz=document.getElementById(this.P('dropzone')); if(dz) dz.classList.remove('has-file','dragover');
     const setTxt=(id,t)=>{ const el=document.getElementById(id); if(el) el.textContent=t; };
-    setTxt('ti-drop-icon','📥'); setTxt('ti-drop-title','Subí el Excel'); setTxt('ti-drop-sub','Click o arrastrá el archivo acá');
-    const clr=document.getElementById('ti-drop-clear'); if(clr) clr.style.display='none';
-    const fi=document.getElementById('ti-file-input'); if(fi) fi.value='';
+    setTxt(this.P('drop-icon'),'📥'); setTxt(this.P('drop-title'),'Subí el Excel'); setTxt(this.P('drop-sub'),'Click o arrastrá el archivo acá');
+    const clr=document.getElementById(this.P('drop-clear')); if(clr) clr.style.display='none';
+    const fi=document.getElementById(this.P('file-input')); if(fi) fi.value='';
     // Reset visual de los cuadros y revertir a la fuente original (dashboard o snapshot)
-    ['ti-total','ti-FINAMED','ti-PAMI','ti-HAREFIELD','ti-OSOTRAS','ti-PARTICULAR'].forEach(id=>setTxt(id,'—'));
-    setTxt('ti-total-sub','turnos únicos'); ['FINAMED','PAMI','HAREFIELD','OSOTRAS','PARTICULAR'].forEach(k=>setTxt('ti-'+k+'-sub','a recepcionar'));
-    if(Array.isArray(rawData)&&rawData.length){ try{ renderTITab(filtered); }catch(e){} }
-    else { _tiSig=''; try{ cargarTramitesInc(true); }catch(e){} }
+    ['total'].concat(this.BUCKETS).forEach(k=>setTxt(this.P(k),'—'));
+    setTxt(this.P('total-sub'),'turnos únicos'); this.BUCKETS.forEach(k=>setTxt(this.P(k+'-sub'), this.SUBTXT));
+    this.onClear();
   }
 };
 
@@ -1932,6 +2028,41 @@ function tiCardClick(key){
 // Auto-init del recuadro (drag&drop) apenas el DOM esté listo.
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>{ try{ tiDrop.setup(); }catch(e){ console.warn('[tiDrop] setup',e); } });
 else { try{ tiDrop.setup(); }catch(e){ console.warn('[tiDrop] setup',e); } }
+
+/* ══════════════════════════════════════════════════════════════════════
+   AUSENTES · TRÁMITES COMPLETOS  (sector propio, gama roja)
+   ----------------------------------------------------------------------
+   Mismo motor que "Trámites Incompletos" (tiDrop) clonado por prototipo:
+   sólo cambian el prefijo de IDs ('au-'), la base IndexedDB ('lumen_au'),
+   los textos y el nombre del Excel exportado. Reglas de conteo por defecto
+   (idénticas a TI, para que el recuadro funcione desde ya):
+     · Total   = turnos únicos por "N° Turno"
+     · Buckets = FINAMED / PAMI (INSSJYP) / HAREFIELD / PARTICULAR / OTRAS
+     · "estudios" = líneas antes de deduplicar
+   Si el criterio de "ausente" sale de una columna del Excel (p. ej. Estado),
+   se ajusta SOLO en auDrop.filterRows() — el resto del motor no se toca.
+══════════════════════════════════════════════════════════════════════ */
+const auDrop = Object.create(tiDrop);
+Object.assign(auDrop, {
+  PFX:'au', STORE:'lumen_au', TAG:'auDrop',
+  XPFX:'Lumen_AUS_', XTITLE:'AUSENTES · TRÁMITES COMPLETOS', SUBTXT:'ausentes', MESTXT:'Ausentes por mes',
+  // estado propio (no compartir referencias con tiDrop)
+  active:false, rows:[], headers:[], colTurno:null, colAseg:null, colServ:null, colFecha:null, updatedAt:null,
+  fileName:'', rawRows:[], dedupRows:[], byBucket:{}, byTurnos:{},
+  detailKey:null, detailAll:[], detailLabel:'', detailTurnos:0, _asegArr:[],
+  LABEL:{ TOTAL:'Total ausentes', FINAMED:'FINAMED', PAMI:'PAMI (INSSJYP)', HAREFIELD:'Harefield', OSOTRAS:'Otras OS / Prepagas', PARTICULAR:'Particular' },
+  COLOR:{ TOTAL:'var(--red)', FINAMED:'#FB7185', PAMI:'#F97316', HAREFIELD:'#E11D48', OSOTRAS:'#FCA5A5', PARTICULAR:'#DC2626' },
+  // Punto único de ajuste cuando definamos el criterio de "ausente".
+  filterRows(rows){ return rows; },
+  onClear(){ /* sector autónomo: sin fuente de respaldo */ }
+});
+
+function auCardClick(key){
+  if(typeof auDrop !== 'undefined' && auDrop.active) auDrop.openDetail(key);
+}
+
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>{ try{ auDrop.setup(); }catch(e){ console.warn('[auDrop] setup',e); } });
+else { try{ auDrop.setup(); }catch(e){ console.warn('[auDrop] setup',e); } }
 
 /* ══════════════════════════════════
    TRÁMITES INCOMPLETOS (pestaña) — versión Excel local (Opción A)
