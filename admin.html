@@ -1605,10 +1605,12 @@ function renderTramitesInc(p, generado) {
 const tiDrop = {
   /* Identidad del módulo (permite clonarlo con otro prefijo de IDs · ver auDrop) */
   PFX:'ti', STORE:'lumen_ti', TAG:'tiDrop',
-  XPFX:'Lumen_TI_', XTITLE:'TRÁMITES INCOMPLETOS', SUBTXT:'a recepcionar', MESTXT:'Trámites por mes',
+  XPFX:'Lumen_TI_', XTITLE:'TRÁMITES INCOMPLETOS', SUBTXT:'a recepcionar', MESTXT:'Trámites por mes', UNIDAD:'turnos',
   P(sfx){ return this.PFX+'-'+sfx; },
   /* Hook: filtro extra sobre las filas del Excel (por defecto, ninguno) */
   filterRows(rows){ return rows; },
+  /* Hook: columna por la que se quitan duplicados (por defecto, N° Turno) */
+  dedupCol(){ return this.colTurno; },
   onClear(){
     if(Array.isArray(rawData)&&rawData.length){ try{ renderTITab(filtered); }catch(e){} }
     else { _tiSig=''; try{ cargarTramitesInc(true); }catch(e){} }
@@ -1745,13 +1747,21 @@ const tiDrop = {
     const S=this.S.bind(this);
     const raw=this.filterRows(this.rows.filter(r=> S(r[this.colTurno])!=='' || S(r[this.colAseg])!==''));
     this.rawRows=raw;
+    const KC=this.dedupCol()||this.colTurno;
+    this.dedupColName=KC;
     const seen=new Set(), dedup=[];
-    raw.forEach(r=>{ const t=S(r[this.colTurno]).toUpperCase(); if(t){ if(seen.has(t)) return; seen.add(t); } dedup.push(r); });
+    raw.forEach(r=>{ const t=S(r[KC]).toUpperCase(); if(t){ if(seen.has(t)) return; seen.add(t); } dedup.push(r); });
     this.dedupRows=dedup;
+    // Aviso: si la clave elegida NO es el N° Turno, medir cuántos turnos distintos colapsa
+    this.colision=0;
+    if(KC!==this.colTurno && this.colTurno){
+      const g={}; raw.forEach(r=>{ const k=S(r[KC]).toUpperCase(); if(!k) return; (g[k]=g[k]||new Set()).add(S(r[this.colTurno]).toUpperCase()); });
+      this.colision=Object.keys(g).filter(k=>g[k].size>1).length;
+    }
     const by={ FINAMED:[], PAMI:[], HAREFIELD:[], OSOTRAS:[], PARTICULAR:[] };
     raw.forEach(r=>{ by[this.bucket(r[this.colAseg])].push(r); });
     const byT={};
-    Object.keys(by).forEach(k=>{ const s=new Set(); let t=0; by[k].forEach(r=>{ const tn=S(r[this.colTurno]).toUpperCase(); if(tn){ if(s.has(tn)) return; s.add(tn); } t++; }); byT[k]=t; });
+    Object.keys(by).forEach(k=>{ const s=new Set(); let t=0; by[k].forEach(r=>{ const tn=S(r[KC]).toUpperCase(); if(tn){ if(s.has(tn)) return; s.add(tn); } t++; }); byT[k]=t; });
     this.byBucket=by; this.byTurnos=byT;
 
     const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
@@ -1760,7 +1770,9 @@ const tiDrop = {
     this.renderMeses(dedup);
     this.renderPanels();
     const meta=document.getElementById(this.P('meta'));
-    if(meta) meta.textContent='Detalle calculado desde el Excel subido ('+this.fileName+') · '+tiNum(dedup.length)+' turnos / '+tiNum(raw.length)+' estudios · click en cada tarjeta para ver y exportar el detalle';
+    if(meta) meta.textContent='Detalle calculado desde el Excel subido ('+this.fileName+') · '+tiNum(dedup.length)+' '+this.UNIDAD+' / '+tiNum(raw.length)+' estudios · duplicados quitados por "'+(this.dedupColName||'—')+'"'+
+      (this.colision?' · ⚠ '+tiNum(this.colision)+' valor(es) de esa columna agrupan más de un N° Turno':'')+
+      ' · click en cada tarjeta para ver y exportar el detalle';
   },
 
   renderMeses(dedup){
@@ -1799,7 +1811,8 @@ const tiDrop = {
   renderPanels(){
     const S=this.S.bind(this), raw=this.rawRows;
     const g={};
-    raw.forEach(r=>{ const name=S(r[this.colAseg])||'—'; if(!g[name]) g[name]={t:new Set(),blank:0,l:0}; g[name].l++; const tn=S(r[this.colTurno]).toUpperCase(); if(tn) g[name].t.add(tn); else g[name].blank++; });
+    const KC=this.dedupColName||this.dedupCol()||this.colTurno;
+    raw.forEach(r=>{ const name=S(r[this.colAseg])||'—'; if(!g[name]) g[name]={t:new Set(),blank:0,l:0}; g[name].l++; const tn=S(r[KC]).toUpperCase(); if(tn) g[name].t.add(tn); else g[name].blank++; });
     const arr=Object.entries(g).map(([k,v])=>({aseg:k,turnos:v.t.size+v.blank,lineas:v.l})).sort((a,b)=>b.turnos-a.turnos);
     this._asegArr=arr;
     const cont=document.getElementById(this.P('aseg'));
@@ -1856,7 +1869,8 @@ const tiDrop = {
     const rows=this.rawRows.filter(r=> S(r[this.colAseg])===name);
     if(!rows.length) return;
     const seen=new Set(); let blank=0;
-    rows.forEach(r=>{ const tn=S(r[this.colTurno]).toUpperCase(); if(tn) seen.add(tn); else blank++; });
+    const KC=this.dedupColName||this.dedupCol()||this.colTurno;
+    rows.forEach(r=>{ const tn=S(r[KC]).toUpperCase(); if(tn) seen.add(tn); else blank++; });
     const turnos=seen.size+blank;
     this.detailKey='ASEG'; this.detailAll=rows; this.detailLabel=name||'Detalle'; this.detailTurnos=turnos;
     document.getElementById(this.P('detail-title')).textContent = this.detailLabel;
@@ -2045,7 +2059,7 @@ else { try{ tiDrop.setup(); }catch(e){ console.warn('[tiDrop] setup',e); } }
 const auDrop = Object.create(tiDrop);
 Object.assign(auDrop, {
   PFX:'au', STORE:'lumen_au', TAG:'auDrop',
-  XPFX:'Lumen_AUS_', XTITLE:'AUSENTES · TRÁMITES COMPLETOS', SUBTXT:'ausentes', MESTXT:'Ausentes por mes',
+  XPFX:'Lumen_AUS_', XTITLE:'AUSENTES · TRÁMITES COMPLETOS', SUBTXT:'ausentes', MESTXT:'Ausentes por mes', UNIDAD:'ausentes',
   // estado propio (no compartir referencias con tiDrop)
   active:false, rows:[], headers:[], colTurno:null, colAseg:null, colServ:null, colFecha:null, updatedAt:null,
   fileName:'', rawRows:[], dedupRows:[], byBucket:{}, byTurnos:{},
@@ -2054,6 +2068,10 @@ Object.assign(auDrop, {
   COLOR:{ TOTAL:'var(--red)', FINAMED:'#FB7185', PAMI:'#F97316', HAREFIELD:'#E11D48', OSOTRAS:'#FCA5A5', PARTICULAR:'#DC2626' },
   // Punto único de ajuste cuando definamos el criterio de "ausente".
   filterRows(rows){ return rows; },
+  /* Paso 1 de la carga: los duplicados se quitan por "Fecha Turno" (trae hora,
+     así que identifica el turno). Si el Excel no tiene esa columna, cae a N° Turno.
+     Si un mismo valor agrupara más de un N° Turno, el pie del sector lo avisa. */
+  dedupCol(){ return this.colFecha || this.colTurno; },
   onClear(){ /* sector autónomo: sin fuente de respaldo */ }
 });
 
