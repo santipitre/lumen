@@ -2211,13 +2211,23 @@ function esErrorCuentaInternados(r) {
   return cuenta === 'OSEP' || cuenta === 'PAMI';
 }
 
-// TC RM PAMI en FINAMED: REA + FINAMED SA - HOSP ITAL (PROV) + Cuenta PAMI/PAMI INTERNADOS
+// TC RM PAMI en FINAMED: REA + FINAMED (ID Aseguradora 1665 O el texto
+// "FINAMED SA - HOSP ITAL (PROV)") + Cuenta PAMI/PAMI INTERNADOS
 // + Servicio TOMOGRAFÍA/RESONANCIA MAGNÉTICA. Se reasigna a INSSJYP (cuenta 53) con el bot.
+// 2026-09-08: se excluyen los INT. Un turno INT con este perfil también lo toma
+// esErrorCuentaInternados (bot cuentaint), que lo manda a PAMI INTERNADOS — acción
+// incompatible con mandarlo a INSSJYP: los dos bots se pisaban sobre el mismo turno.
+// Mismo criterio que esErrorRxAmb, que exige AMB por esta misma razón.
+// El match de FINAMED acepta ID o texto: si en el HIS retocan el nombre, el ID sostiene
+// el contador y no se cae a 0 en silencio.
 function esErrorAseguradora(r) {
   const estado = (r['Estado']||'').trim().toUpperCase();
   if (estado !== 'REA') return false;
+  const idAseg = String(r['ID Aseguradora']||'').trim();
   const aseg = (r['Aseguradora']||'').trim().toUpperCase();
-  if (aseg !== 'FINAMED SA - HOSP ITAL (PROV)') return false;
+  if (idAseg !== '1665' && aseg !== 'FINAMED SA - HOSP ITAL (PROV)') return false;
+  const tt = (r['Tipo Turno']||'').trim().toUpperCase();
+  if (tt === 'INT') return false;
   const cuenta = (r['Cuenta']||'').trim().toUpperCase();
   if (cuenta !== 'PAMI' && cuenta !== 'PAMI INTERNADOS') return false;
   const serv = (r['Servicio']||'').trim().toUpperCase();
