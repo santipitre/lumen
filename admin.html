@@ -1423,6 +1423,7 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   window.addEventListener('focus', () => { cargarReparaciones(false); cargarTramitesInc(false); });
   cargarTramitesInc();   // pestaña Trámites Incompletos: lee de Supabase (ti_snapshot), independiente del Excel
+  cargarReparaciones();  // contador de arreglados: el sector Ausentes lo necesita aunque no haya Excel del dashboard
 
   const sede = localStorage.getItem('spcd_sede') || '';
   document.getElementById('bc-sede').textContent  = sede || 'Sede';
@@ -1485,6 +1486,8 @@ async function cargarReparaciones(force = true) {
     _reparadosSig = sig;
     REPARADOS = ok; SIN_ACCION = sinacc; FACTURADOS = fact;
     if (filtered && filtered.length) render(filtered);  // refresca sin recargar datos
+    // El sector Ausentes vive del Excel propio (auDrop), no de `filtered`: se repinta aparte.
+    try { if (typeof auDrop !== 'undefined' && auDrop.active) auDrop.aplicarArreglados(); } catch (e) { console.warn('[reparaciones] auDrop', e); }
   } catch (e) {
     console.warn('[reparaciones] no se pudo cargar el contador de arreglados:', e);
   }
@@ -2101,8 +2104,79 @@ Object.assign(auDrop, {
    PAMI y Particular quedan manuales a propósito.
 ────────────────────────────────────────────────────────────────────── */
 auDrop.AUTOMATIZADOS = ['FINAMED','HAREFIELD','OSOTRAS'];
+auDrop.TIPO_BOT = 'ausentes';   // clave con la que el bot escribe en la tabla `reparaciones`
+
+/* ¿Este turno ya lo devolvió el bot? REPARADOS viene de Supabase (cargarReparaciones)
+   con claves "<tipo>:<N° Turno>". OJO: el cruce va SIEMPRE por N° Turno, aunque el
+   sector dedupe las filas por "Fecha Turno" — el bot trabaja con el número. */
+auDrop.estaArreglado = function(row){
+  if (!REPARADOS || !REPARADOS.size || !this.colTurno) return false;
+  const tn = this.S(row[this.colTurno]);
+  return tn ? REPARADOS.has(this.TIPO_BOT + ':' + tn) : false;
+};
+
+/* Turnos ya devueltos por bucket + total, deduplicando con la misma clave que las tarjetas. */
+auDrop.contarArreglados = function(){
+  const out = { TOTAL:0 };
+  if (!this.active) return out;
+  const KC = this.dedupColName || this.dedupCol() || this.colTurno;
+  const S = this.S.bind(this);
+  const contar = (rows) => {
+    const vistos = new Set(); let n = 0;
+    rows.forEach(r => {
+      const k = S(r[KC]).toUpperCase();
+      if (k) { if (vistos.has(k)) return; vistos.add(k); }
+      if (this.estaArreglado(r)) n++;
+    });
+    return n;
+  };
+  this.BUCKETS.forEach(k => { out[k] = contar(this.byBucket[k] || []); });
+  out.TOTAL = contar(this.rawRows || []);
+  return out;
+};
+
+/* Pinta el estado "arreglado": el número de la tarjeta pasa a ser lo que FALTA
+   devolver y debajo aparece "✓ N devueltos · M pend.". Se llama al calcular y
+   cada vez que vuelve el contador de Supabase (F5, foco, o al cerrar el bot). */
+auDrop.aplicarArreglados = function(){
+  if (!this.active) return;
+  const arr = this.contarArreglados();
+  const hayDatos = !!(REPARADOS && REPARADOS.size);
+  const pintar = (id, totalTurnos, arreglados) => {
+    const val = document.getElementById(id);
+    if (!val) return;
+    const card = val.closest('.kpi-card');
+    val.textContent = tiNum(Math.max(0, totalTurnos - arreglados));
+    if (!card) return;
+    let el = card.querySelector('.kpi-arr');
+    if (!el) { el = document.createElement('div'); el.className = 'kpi-arr'; val.insertAdjacentElement('afterend', el); }
+    if (!hayDatos || !arreglados) { el.textContent = ''; return; }
+    el.innerHTML = '<span class="arr-ok">✓ ' + tiNum(arreglados) + ' devueltos</span> · ' +
+                   '<span class="arr-pend">' + tiNum(Math.max(0, totalTurnos - arreglados)) + ' pend.</span>';
+  };
+  pintar(this.P('total'), this.dedupRows.length, arr.TOTAL);
+  this.BUCKETS.forEach(k => pintar(this.P(k), this.byTurnos[k] || 0, arr[k] || 0));
+  // El pie sigue diciendo lo que trae el Excel; se aclara cuántos ya están devueltos
+  // para que no choque con el número (menor) de las tarjetas.
+  const meta = document.getElementById(this.P('meta'));
+  if (meta && hayDatos && arr.TOTAL) {
+    const base = meta.textContent.split(' · ✓ ')[0];
+    meta.textContent = base + ' · ✓ ' + tiNum(arr.TOTAL) + ' ya devueltos (las tarjetas muestran lo pendiente)';
+  }
+};
+
+/* Solo lo que todavía falta devolver: es lo que se le manda al bot. */
+auDrop.pendientes = function(rows){
+  return (rows || []).filter(r => !this.estaArreglado(r));
+};
 
 /* El botón del modal solo aparece si el detalle abierto es automatizable. */
+/* Después de recalcular desde el Excel, volver a descontar lo ya devuelto. */
+auDrop.compute = function(){
+  Object.getPrototypeOf(this).compute.call(this);
+  try { this.aplicarArreglados(); } catch(e){ console.warn('[auDrop] aplicarArreglados', e); }
+};
+
 auDrop.openDetail = function(key){
   Object.getPrototypeOf(this).openDetail.call(this, key);
   this._syncBotBtn(key);
@@ -2115,13 +2189,20 @@ auDrop._syncBotBtn = function(key){
 /* Detalle CONJUNTO de los tres buckets automatizados (una sola corrida del bot). */
 auDrop.openDetailAuto = function(){
   if(!this.active) return;
-  const rows=[]; this.AUTOMATIZADOS.forEach(k=>{ (this.byBucket[k]||[]).forEach(r=>rows.push(r)); });
-  if(!rows.length){ if(typeof spcdAlert==='function') spcdAlert('No hay ausentes en FINAMED, Harefield ni Otras OS/Prepagas con el Excel cargado.',{type:'info',title:'Nada para devolver'}); return; }
+  const todas=[]; this.AUTOMATIZADOS.forEach(k=>{ (this.byBucket[k]||[]).forEach(r=>todas.push(r)); });
+  const rows=this.pendientes(todas);
+  if(!rows.length){
+    if(typeof spcdAlert==='function') spcdAlert(todas.length
+      ? 'Los ' + tiNum(todas.length) + ' ausentes automatizados del Excel ya están devueltos.'
+      : 'No hay ausentes en FINAMED, Harefield ni Otras OS/Prepagas con el Excel cargado.',
+      {type:'info',title:'Nada para devolver'});
+    return;
+  }
   const S=this.S.bind(this), KC=this.dedupColName||this.dedupCol()||this.colTurno;
   const seen=new Set(); let blank=0;
   rows.forEach(r=>{ const t=S(r[KC]).toUpperCase(); if(t) seen.add(t); else blank++; });
   this.detailKey='AUTO'; this.detailAll=rows; this.detailLabel='Automatizados'; this.detailTurnos=seen.size+blank;
-  document.getElementById(this.P('detail-title')).textContent='Ausentes automatizados · FINAMED + Harefield + Otras OS';
+  document.getElementById(this.P('detail-title')).textContent='Ausentes automatizados pendientes · FINAMED + Harefield + Otras OS';
   document.getElementById(this.P('detail-count')).textContent=tiNum(this.detailTurnos)+' turnos · '+tiNum(rows.length)+' estudios';
   document.getElementById(this.P('detail-bar')).style.background=this.COLOR.TOTAL;
   const srch=document.getElementById(this.P('detail-search')); if(srch) srch.value='';
@@ -2159,6 +2240,20 @@ async function auReparar(){
   if(countTxt) countTxt.textContent='Generando Excel…';
   if(overlay)  overlay.classList.add('open');
   try{
+    // Al bot solo le van los que todavía no devolvió (el detalle conjunto ya viene filtrado).
+    if(key!=='AUTO'){
+      const pend=auDrop.pendientes(auDrop.detailAll);
+      if(!pend.length){
+        if(countTxt) countTxt.textContent='Todos los turnos de este cuadro ya están devueltos.';
+        return;
+      }
+      if(pend.length!==auDrop.detailAll.length){
+        const S=auDrop.S.bind(auDrop), KC=auDrop.dedupColName||auDrop.dedupCol()||auDrop.colTurno;
+        const v=new Set(); let b=0;
+        pend.forEach(r=>{ const t=S(r[KC]).toUpperCase(); if(t) v.add(t); else b++; });
+        auDrop.detailAll=pend; auDrop.detailTurnos=v.size+b;
+      }
+    }
     await auDrop.exportCurrent();
     if(countTxt) countTxt.textContent=tiNum(auDrop.detailTurnos)+' turno(s) exportado(s) · el bot devuelve TODAS las órdenes de cada turno con el motivo "AUSENTE, NO SE REALIZA ESTUDIO".';
     try{ window.location.href=cfg.protocolo; }catch(e){ console.warn('protocolo lumenbot no disponible:',e); }
