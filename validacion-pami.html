@@ -146,6 +146,24 @@
 
   .empty{padding:60px 20px;text-align:center;color:var(--muted);font-size:14px}
 
+  /* ── LUPA: clic para ver completo lo que la tabla trunca ────────────────── */
+  .zoomable{cursor:zoom-in}
+  .zoomable:hover, tbody tr:hover .zoomable{color:var(--pyralis-firefly)}
+  #lupa{position:fixed;z-index:200;max-width:min(470px,92vw);background:#111a26;
+    border:1px solid var(--border-a);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.7);
+    padding:14px 34px 14px 16px;line-height:1.5}
+  #lupa .lz-t{font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;
+    color:var(--muted);margin-bottom:7px}
+  #lupa .lz-big{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:23px;
+    font-weight:700;color:var(--pyralis-text);letter-spacing:.5px;line-height:1.3}
+  #lupa .lz-sub{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:15px;
+    color:#B6C4D6;letter-spacing:.4px}
+  #lupa .lz-li{font-size:15px;color:var(--pyralis-text);padding:7px 0;
+    border-top:1px solid rgba(148,163,184,.13)}
+  #lupa .lz-li:first-of-type{border-top:0;padding-top:0}
+  #lupa .lz-x{position:absolute;top:7px;right:11px;cursor:pointer;color:var(--muted);font-size:14px}
+  #lupa .lz-x:hover{color:var(--pyralis-text)}
+
   /* ── MEDIA PANTALLA ──────────────────────────────────────────────────────
      Medido 2026-09-09: con la ventana en 950px la tabla ocupaba 1435px, así que
      ESTADO y ACCIONES (las columnas que se usan) quedaban fuera de vista y había
@@ -612,8 +630,8 @@ function render(){
     return `<tr data-o="${o.orden}" class="e-${est}${activa===o.orden?' act':''}">
       <td>${o.verde ? '<span class="verde-dot" title="Marcada en verde"></span>' : ''}</td>
       <td class="mono ord"><span class="cp" data-cp="${o.orden}" data-lbl="Orden" title="Clic para copiar el nro. de orden">${o.orden}</span></td>
-      <td class="nom">${esc(o.nombre)}<span class="sub-l" title="${esc(o.practicas.join(' | '))}">${esc(o.practicas[0]||'')}${o.practicas.length>1?' +'+(o.practicas.length-1):''}</span></td>
-      <td class="mono">${esc(o.turno)}<span class="sub-l">${esc(o.emision||'')}</span></td>
+      <td class="nom">${esc(o.nombre)}<span class="sub-l zoomable" data-z="pract" title="Clic para ver la práctica completa">${esc(o.practicas[0]||'')}${o.practicas.length>1?' +'+(o.practicas.length-1):''}</span></td>
+      <td class="mono zoomable" data-z="turno" title="Clic para agrandar el turno">${esc(o.turno)}<span class="sub-l">${esc(o.emision||'')}</span></td>
       <td class="mono"><span class="ben-b cp" data-cp="${o.benBase}" data-lbl="Beneficio" title="Clic para copiar el beneficio sin los 2 últimos dígitos">${o.benBase}</span> / <span class="ben-d cp" data-cp="${o.benDv}" data-lbl="Verificador" title="Clic para copiar los 2 últimos dígitos">${o.benDv}</span></td>
       <td class="rng c-emi">${esc(o.emision || '—')}</td>
       <td class="pract c-pract" title="${esc(o.practicas.join(' | '))}">${esc(o.practicas[0]||'')}${o.practicas.length>1?' +'+(o.practicas.length-1):''}</td>
@@ -754,9 +772,57 @@ window.addEventListener('load', () => {
     'La página no va a poder leer el archivo hasta que se destrabe ese dominio en la red.';
 });
 
+/* ── lupa ──────────────────────────────────────────────────────────────
+   En media pantalla la práctica y el turno se truncan. Un clic sobre esos
+   textos abre una tarjeta con el contenido completo y en grande. El chequeo
+   va DESPUÉS de [data-cp] para no pisar el copiar-con-un-clic. */
+let LUPA = null;
+function cerrarLupa(){ if (LUPA){ LUPA.remove(); LUPA = null; } }
+function abrirLupa(el, o, tipo){
+  cerrarLupa();
+  const d = document.createElement('div');
+  d.id = 'lupa';
+  if (tipo === 'turno'){
+    d.innerHTML = '<span class="lz-x">\u2715</span>' +
+      '<div class="lz-t">Turno</div><div class="lz-big">' + esc(o.turno) + '</div>' +
+      (o.emision ? '<div class="lz-t" style="margin-top:13px">Fecha de emisión</div>' +
+                   '<div class="lz-sub">' + esc(o.emision) + '</div>' : '') +
+      '<div class="lz-t" style="margin-top:13px">Paciente</div>' +
+      '<div class="lz-sub">' + esc(o.nombre) + '</div>';
+  } else {
+    d.innerHTML = '<span class="lz-x">\u2715</span>' +
+      '<div class="lz-t">' + (o.practicas.length > 1 ? o.practicas.length + ' prácticas' : 'Práctica') + '</div>' +
+      (o.practicas.length ? o.practicas.map(p => '<div class="lz-li">' + esc(p) + '</div>').join('')
+                          : '<div class="lz-li">—</div>');
+  }
+  document.body.appendChild(d);
+  const r = el.getBoundingClientRect();
+  const w = d.offsetWidth, h = d.offsetHeight;
+  let left = Math.min(r.left, window.innerWidth  - w - 12);
+  let top  = r.bottom + 8;
+  if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 8);
+  d.style.left = Math.max(8, left) + 'px';
+  d.style.top  = top + 'px';
+  d.querySelector('.lz-x').addEventListener('click', cerrarLupa);
+  LUPA = d;
+}
+document.addEventListener('click', ev => {
+  if (LUPA && !ev.target.closest('#lupa') && !ev.target.closest('[data-z]')) cerrarLupa();
+});
+document.addEventListener('keydown', ev => { if (ev.key === 'Escape') cerrarLupa(); });
+window.addEventListener('scroll', cerrarLupa, true);
+window.addEventListener('resize', cerrarLupa);
+
 $('tb').addEventListener('click', ev => {
   const c = ev.target.closest('[data-cp]');
   if (c){ copiar(c.dataset.cp, c.dataset.lbl); return; }
+  const z = ev.target.closest('[data-z]');
+  if (z){
+    const tr = z.closest('tr');
+    const oz = tr && ORDENES.find(x => x.orden === tr.dataset.o);
+    if (oz) abrirLupa(z, oz, z.dataset.z);
+    return;
+  }
   const b = ev.target.closest('button[data-a]'); if (!b) return;
   const orden = b.closest('tr').dataset.o;
   const o = ORDENES.find(x => x.orden === orden); if (!o) return;
