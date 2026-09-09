@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
+<meta name="lumen-ver" content="2026-09-09-d"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Validación PAMI · LUMEN</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml"/>
@@ -145,6 +146,16 @@
   .ib.no:hover{border-color:var(--danger);color:#fca5a5}
 
   .empty{padding:60px 20px;text-align:center;color:var(--muted);font-size:14px}
+
+  /* Aviso de copia vieja en caché. GitHub Pages manda Cache-Control: max-age=600 y el
+     navegador se queda con el HTML viejo: pasó tres veces el 2026-09-09, con el push
+     hecho y la página viéndose igual. */
+  #ver-nueva{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:300;
+    display:flex;align-items:center;gap:12px;background:#3B2A08;border:1px solid var(--warn);
+    color:#FCD34D;border-radius:10px;padding:11px 15px;font-size:13px;
+    box-shadow:0 12px 34px rgba(0,0,0,.6)}
+  #ver-nueva button{background:var(--warn);color:#1a1206;border:0;border-radius:7px;
+    padding:7px 13px;font-weight:800;font-size:12px;cursor:pointer;letter-spacing:.5px}
 
   /* ── LUPA: clic para ver completo lo que la tabla trunca ────────────────── */
   .zoomable{cursor:zoom-in}
@@ -921,6 +932,29 @@ if (CFG.filtro){
   FILTRO = CFG.filtro;
   document.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.f === FILTRO));
 }
+
+/* ── ¿estoy viendo una copia vieja? ─────────────────────────────────────
+   Se pide el propio HTML salteando la caché y se compara el sello del <head>.
+   Si el servidor tiene otro, se ofrece recargar con cache-bust en la URL
+   (el Ctrl+Shift+R a mano se olvida; esto avisa solo). Al tocar este archivo,
+   BUMPEAR el content de <meta name="lumen-ver">. */
+(async function chequearVersion(){
+  try {
+    const mio = (document.querySelector('meta[name="lumen-ver"]') || {}).content || '';
+    const r = await fetch(location.pathname + '?cb=' + Date.now(), { cache:'reload' });
+    const t = await r.text();
+    const m = t.match(/name="lumen-ver" content="([^"]+)"/);
+    if (!mio || !m || m[1] === mio) return;
+    const b = document.createElement('div');
+    b.id = 'ver-nueva';
+    b.innerHTML = '<span>Estás viendo una copia vieja de esta página (caché del navegador).</span>' +
+                  '<button id="btn-recargar">Actualizar</button>';
+    document.body.appendChild(b);
+    document.getElementById('btn-recargar').addEventListener('click', () => {
+      location.replace(location.pathname + '?v=' + Date.now());
+    });
+  } catch(e){}
+})();
 
 /* bandeja de la sesión anterior */
 restaurarDatos();
