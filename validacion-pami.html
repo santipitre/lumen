@@ -206,14 +206,13 @@
     <div class="cfg">
       <div class="fld">
         <label>URL del portal PAMI</label>
-        <input type="text" id="pami-url" value="https://pe.pami.org.ar/controllers/efector.php"/>
+        <input type="text" id="pami-url" value="https://pe.pami.org.ar/controllers/transmision.php"/>
       </div>
       <div class="fld">
-        <label>Rango de fecha de emisión</label>
+        <label>Fechas de turno en PAMI</label>
         <select id="modo-fecha">
-          <option value="emision">Emisión de la orden ± N días (recomendado)</option>
-          <option value="turno">Turno −7 / +2 días (tu regla original)</option>
-          <option value="none">No tocar el filtro de fechas</option>
+          <option value="vaciar">Vaciar «Fecha turno desde/hasta» (regla de PAMI)</option>
+          <option value="none">No tocar las fechas</option>
         </select>
       </div>
       <div class="fld" id="fld-margen">
@@ -247,7 +246,7 @@
           <th class="ord-col" data-s="nombre">Apellido y nombre<span class="car"></span></th>
           <th class="ord-col" data-s="turno">Turno<span class="car"></span></th>
           <th>Beneficio / GP</th>
-          <th class="ord-col" data-s="emision">Rango emisión<span class="car"></span></th>
+          <th class="ord-col" data-s="emision">Emisión<span class="car"></span></th>
           <th>Prácticas</th>
           <th class="ord-col" data-s="estado">Estado<span class="car"></span></th>
           <th style="width:150px">Acciones</th>
@@ -276,7 +275,7 @@ const PAMI_ORIGINS = ['https://po.pami.org.ar','https://pe.pami.org.ar'];
 
 let ORDENES = [];      // [{orden, nombre, turno, turnoD, emision, emisionD, ben14, benBase, benDv, practicas:[], verde}]
 let FILTRO  = 'verdes';
-let ORDEN   = { col: 'turno', dir: 'asc' };   // columna y sentido de la tabla
+let ORDEN   = { col: 'turno', dir: 'desc' };  // turno, del mas reciente al mas viejo
 let QUERY   = '';
 let ESTADOS = load(EST_KEY, {});
 let CFG     = load(CFG_KEY, {});
@@ -314,6 +313,10 @@ function fmtFecha(d){
          String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
 }
 function addDias(d, n){ const x = new Date(d.getTime()); x.setDate(x.getDate()+n); return x; }
+function addMeses(d, n){ const x = new Date(d.getTime()); const dia = x.getDate();
+  x.setMonth(x.getMonth()+n);
+  if (x.getDate() < dia) x.setDate(0);   // 31/03 - 1 mes => 28/02, no 03/03
+  return x; }
 function fmtFechaHora(ts){
   const d = new Date(ts);
   return fmtFecha(d) + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
@@ -386,17 +389,10 @@ function pintarCabecera(){
 }
 
 /* ── rango de fechas según config ──────────────────────── */
-function rangoDe(o){
-  const modo = $('modo-fecha').value;
-  const n    = Math.max(0, parseInt($('margen').value, 10) || 0);
-  if (modo === 'none') return null;
-  if (modo === 'turno'){
-    if (!o.turnoD) return null;
-    return { desde: fmtFecha(addDias(o.turnoD, -7)), hasta: fmtFecha(addDias(o.turnoD, 2)) };
-  }
-  if (!o.emisionD) return null;
-  return { desde: fmtFecha(addDias(o.emisionD, -n)), hasta: fmtFecha(addDias(o.emisionD, n)) };
-}
+/* En transmision.php los campos son f_turno_desde/f_turno_hasta y la regla es
+   VACIARLOS: con el nro. de orden alcanza. Medido en vivo 09/09/2026: buscar sin
+   fecha y sin nro. de orden cuelga PAMI, por eso el userscript nunca busca sin orden. */
+function modoFechas(){ return $('modo-fecha').value === 'none' ? 'none' : 'vaciar'; }
 
 /* ── parseo del Excel ──────────────────────────────────── */
 const CAMPOS = {
@@ -559,12 +555,11 @@ function render(){
     stat('dang', cnt.rec,        'Rechazadas');
 
   const modo = $('modo-fecha').value;
-  $('fld-margen').style.display = modo === 'emision' ? '' : 'none';
-  $('hint-fecha').className = 'hint' + (modo === 'turno' ? ' warn' : '');
+  $('fld-margen').style.display = 'none';
+  $('hint-fecha').className = 'hint';
   $('hint-fecha').textContent =
-    modo === 'emision' ? 'El filtro de PAMI es por fecha de EMISIÓN, no por turno. Este modo usa la emisión de cada orden, así siempre cae dentro del rango.'
-  : modo === 'turno'   ? '⚠ En tu último Excel solo 29 de 149 filas verdes tenían la emisión dentro de turno −7/+2. Con este modo la mayoría de las búsquedas vuelven vacías.'
-  :                      'El userscript no toca las fechas: se busca solo por número de orden, con el filtro que PAMI traiga por defecto.';
+    modo === 'none' ? 'El userscript no toca las fechas: busca con el filtro que PAMI traiga por defecto.'
+  :                   'El userscript vacía «Fecha turno desde» y «Fecha turno hasta» y busca sólo por nro. de orden. Es la regla del Panel de prestaciones.';
 
   pintarCarets();
   const rows = visibles();
@@ -576,14 +571,13 @@ function render(){
 
   tb.innerHTML = rows.map(o => {
     const est = estadoDe(o.orden);
-    const rg  = rangoDe(o);
     return `<tr data-o="${o.orden}" class="e-${est}${activa===o.orden?' act':''}">
       <td>${o.verde ? '<span class="verde-dot" title="Marcada en verde"></span>' : ''}</td>
       <td class="mono ord"><span class="cp" data-cp="${o.orden}" data-lbl="Orden" title="Clic para copiar el nro. de orden">${o.orden}</span></td>
       <td class="nom">${esc(o.nombre)}</td>
       <td class="mono">${esc(o.turno)}</td>
       <td class="mono"><span class="ben-b cp" data-cp="${o.benBase}" data-lbl="Beneficio" title="Clic para copiar el beneficio sin los 2 últimos dígitos">${o.benBase}</span> / <span class="ben-d cp" data-cp="${o.benDv}" data-lbl="Verificador" title="Clic para copiar los 2 últimos dígitos">${o.benDv}</span></td>
-      <td class="rng">${rg ? rg.desde + ' → ' + rg.hasta : '—'}</td>
+      <td class="rng">${esc(o.emision || '—')}</td>
       <td class="pract" title="${esc(o.practicas.join(' | '))}">${esc(o.practicas[0]||'')}${o.practicas.length>1?' +'+(o.practicas.length-1):''}</td>
       <td class="c-est"><span class="est ${est}">${est}</span></td>
       <td><div class="acts">
@@ -600,7 +594,6 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp
 
 /* ── disparar a PAMI ───────────────────────────────────── */
 function irAPami(o){
-  const rg  = rangoDe(o);
   const pay = {
     v: 1, t: Date.now(),
     orden:   o.orden,
@@ -608,8 +601,9 @@ function irAPami(o){
     turno:   o.turno,
     benBase: o.benBase,
     benDv:   o.benDv,
-    desde:   rg ? rg.desde : null,
-    hasta:   rg ? rg.hasta : null
+    fechas:  modoFechas(),
+    desde:   null,
+    hasta:   null
   };
   const url = $('pami-url').value.trim() + '#lumen=' + encodeURIComponent(JSON.stringify(pay));
 
@@ -761,11 +755,27 @@ $('btn-export').addEventListener('click', exportar);
 })();
 
 /* config guardada */
+/* v2: rango fijo de 6 meses + orden por turno descendente. Pisa una sola vez lo guardado. */
+/* v3: el modulo pasa de efector.php (aceptacion) a transmision.php (validar
+   prestacion). Pisa una sola vez lo que hubiera guardado en la PC. */
+if (CFG.v !== 3){
+  CFG.v = 3;
+  CFG.modoFecha = 'vaciar';
+  CFG.orden     = { col:'turno', dir:'desc' };
+  CFG.url       = 'https://pe.pami.org.ar/controllers/transmision.php';
+  save(CFG_KEY, CFG);
+}
 if (CFG.modoFecha) $('modo-fecha').value = CFG.modoFecha;
 if (CFG.margen)    $('margen').value     = CFG.margen;
 /* po.pami.org.ar no resuelve (NXDOMAIN). Si quedó guardado de una versión vieja, se corrige solo. */
 if (CFG.url && /(^|\/\/)po\.pami\.org\.ar/i.test(CFG.url)){
   CFG.url = CFG.url.replace(/po\.pami\.org\.ar/ig, 'pe.pami.org.ar');
+  save(CFG_KEY, CFG);
+}
+/* efector.php es el Panel de ACEPTACION (paso anterior, lo hace otro).
+   Validar prestacion se hace en el Panel de PRESTACIONES. */
+if (CFG.url && /efector\.php/i.test(CFG.url)){
+  CFG.url = CFG.url.replace(/efector\.php/ig, 'transmision.php');
   save(CFG_KEY, CFG);
 }
 if (CFG.url)       $('pami-url').value   = CFG.url;
