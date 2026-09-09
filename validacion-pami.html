@@ -603,7 +603,11 @@ function irAPami(o){
     benDv:   o.benDv,
     fechas:  modoFechas(),
     desde:   null,
-    hasta:   null
+    hasta:   null,
+    /* fase 'gate': el userscript primero saca el DNI por la API de PAMI y chequea en el
+       HIS que el turno sea de un equipo del Hospital Italiano. Recien despues valida. */
+    fase:      'gate',
+    practicas: o.practicas || []
   };
   const url = $('pami-url').value.trim() + '#lumen=' + encodeURIComponent(JSON.stringify(pay));
 
@@ -658,7 +662,8 @@ window.addEventListener('message', ev => {
   if (d.accion === 'puente') return;   // solo servia para encender el modo automatico
   if (d.accion === 'estado' && d.orden){
     setEstado(d.orden, d.estado);
-    toast(d.orden + ' → ' + d.estado, d.estado === 'validada' ? 'ok' : '');
+    toast(d.orden + ' → ' + d.estado + (d.motivo ? ' · ' + d.motivo : ''),
+          d.estado === 'validada' ? 'ok' : (d.estado === 'rechazada' ? 'err' : ''));
     if (d.siguiente) setTimeout(siguientePendiente, 250);
   }
   if (d.accion === 'error') toast('PAMI: ' + d.msg, 'err');
