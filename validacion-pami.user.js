@@ -1,12 +1,16 @@
 // ==UserScript==
 // @name         Lumen · Validación PAMI
 // @namespace    https://santipitre.github.io/lumen/
-// @version      2.0.0
+// @version      2.1.0
 // @description  Recibe la orden desde Lumen, busca en el Panel de prestaciones, y lee el ícono de ACCIONES: si ya dice "Prestación validada" la marca sola en Lumen; si dice "Validar prestación" deja el afiliado copiado para la Credencial Provisoria.
 // @author       Pyralis / Lumen
 // @match        https://pe.pami.org.ar/*
 // @match        http://pe.pami.org.ar/*
+// @match        https://santipitre.github.io/lumen/*
 // @grant        GM_setClipboard
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_addValueChangeListener
 // @run-at       document-idle
 // @noframes
 // @downloadURL  https://santipitre.github.io/lumen/validacion-pami.user.js
@@ -37,6 +41,32 @@
 
   var LUMEN_ORIGIN = 'https://santipitre.github.io';
   var LAST_KEY     = 'lumen_val_last';   // distinto del bus de PAMI OME v3.3
+  var BUS_KEY      = 'lumen_val_bus';    // puente Tampermonkey PAMI -> Lumen
+
+  /* ─── EL PUENTE ───────────────────────────────────────────
+     El mismo userscript corre en la pagina de Lumen. El almacenamiento de
+     Tampermonkey (GM_setValue) es compartido entre pestanas y entre dominios,
+     asi que PAMI escribe ahi el resultado y esta mitad lo reenvia a la pagina
+     como un message same-origin. Ventaja sobre el postMessage por opener:
+     funciona aunque el popup lo haya bloqueado el navegador, aunque abras PAMI
+     a mano, y aunque recargues cualquiera de las dos pestanas.            */
+  if (location.hostname === 'santipitre.github.io') {
+    var reenviar = function (v) {
+      if (!v || !v.orden) return;
+      window.postMessage({
+        src: 'lumen-bridge', accion: 'estado',
+        orden: v.orden, estado: v.estado, siguiente: !!v.siguiente
+      }, location.origin);
+    };
+    try {
+      GM_addValueChangeListener(BUS_KEY, function (k, viejo, nuevo) { reenviar(nuevo); });
+    } catch (e) {}
+    // Encender el "modo automatico" apenas carga: asi se ve que esta instalado.
+    setTimeout(function () {
+      window.postMessage({ src: 'lumen-bridge', accion: 'puente' }, location.origin);
+    }, 400);
+    return;
+  }
 
   /* ─── helpers ─────────────────────────────────────────── */
 
@@ -188,7 +218,6 @@
       cuerpo =
         '<div class="lp-ok-big">✓ Prestación ya validada</div>' +
         (info.fecha ? '<div class="lp-sub2">' + esc(info.fecha) + '</div>' : '') +
-        (info.transmitida === 'N' ? '<div class="lp-msg">Validada pero <b>NO trasmitida</b>.</div>' : '') +
         '<div class="lp-tip">Se marca sola en Lumen con tilde verde.</div>';
     } else if (caso === 'falta') {
       cuerpo =
@@ -261,8 +290,14 @@
     var next   = function () { var c = document.getElementById('lp-nx'); return !c || c.checked; };
     var marcar = function (estado) {
       localStorage.setItem('lumen_auto_next', next() ? '1' : '0');
-      var ok = avisar({ accion: 'estado', orden: p.orden, estado: estado, siguiente: next() });
-      if (!ok) alert('No pude avisarle a Lumen (¿cerraste la pestaña de Lumen?). Marcá la orden a mano.');
+      var msg = { accion: 'estado', orden: p.orden, estado: estado, siguiente: next() };
+      var porOpener = avisar(msg);
+      var porBus    = false;
+      try { GM_setValue(BUS_KEY, { orden: p.orden, estado: estado, siguiente: next(), t: Date.now() }); porBus = true; }
+      catch (e) {}
+      if (!porOpener && !porBus) {
+        alert('No pude avisarle a Lumen por ningún camino. Marcá la orden a mano.');
+      }
       box.remove();
     };
 

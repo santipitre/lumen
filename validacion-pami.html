@@ -612,7 +612,15 @@ function irAPami(o){
     else { pamiWin = window.open(url, 'lumen_pami'); }
   } catch(e){ pamiWin = window.open(url, 'lumen_pami'); }
 
-  if (!pamiWin) { toast('El navegador bloqueó la ventana. Permití popups en Lumen.', 'err'); return; }
+  if (!pamiWin) {
+    /* Respaldo: un <a target> clickeado dentro del gesto del usuario no lo frena el
+       bloqueador de popups. Se pierde la referencia a la ventana, pero con el puente
+       de Tampermonkey ya no hace falta window.opener para la vuelta. */
+    const a = document.createElement('a');
+    a.href = url; a.target = 'lumen_pami'; a.rel = 'opener';
+    document.body.appendChild(a); a.click(); a.remove();
+    toast('Abrí PAMI en otra pestaña.', 'ok');
+  }
   activa = o.orden;
   guardarDatos();
   render();
@@ -631,15 +639,23 @@ function siguientePendiente(){
 
 /* ── mensajes del userscript ───────────────────────────── */
 window.addEventListener('message', ev => {
-  if (PAMI_ORIGINS.indexOf(ev.origin) === -1) return;
   const d = ev.data;
-  if (!d || d.src !== 'lumen-pami-us') return;
+  if (!d) return;
+  /* Dos caminos de vuelta desde PAMI:
+     1. postMessage directo por window.opener — se rompe si el popup no lo abrio Lumen.
+     2. PUENTE: el userscript tambien corre en esta pagina y reenvia lo que PAMI escribio
+        en el almacenamiento de Tampermonkey (GM_setValue), que si es compartido entre
+        pestanas y entre dominios. Este camino no necesita opener ni popup. */
+  const desdePami   = PAMI_ORIGINS.indexOf(ev.origin) !== -1 && d.src === 'lumen-pami-us';
+  const desdePuente = ev.origin === location.origin        && d.src === 'lumen-bridge';
+  if (!desdePami && !desdePuente) return;
 
   if (!autoOK){
     autoOK = true;
     $('modo').classList.add('auto');
-    $('modo-txt').innerHTML = 'Modo <b>automático</b> — el userscript está corriendo en PAMI.';
+    $('modo-txt').innerHTML = 'Modo <b>automático</b> — el userscript está instalado y respondiendo.';
   }
+  if (d.accion === 'puente') return;   // solo servia para encender el modo automatico
   if (d.accion === 'estado' && d.orden){
     setEstado(d.orden, d.estado);
     toast(d.orden + ' → ' + d.estado, d.estado === 'validada' ? 'ok' : '');
