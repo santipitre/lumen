@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lumen · Validación PAMI
 // @namespace    https://santipitre.github.io/lumen/
-// @version      2.1.0
+// @version      2.3.0
 // @description  Recibe la orden desde Lumen, busca en el Panel de prestaciones, y lee el ícono de ACCIONES: si ya dice "Prestación validada" la marca sola en Lumen; si dice "Validar prestación" deja el afiliado copiado para la Credencial Provisoria.
 // @author       Pyralis / Lumen
 // @match        https://pe.pami.org.ar/*
@@ -128,6 +128,38 @@
     return document.getElementById('filtrar') || null;
   }
 
+  /* PAMI RECUERDA LOS FILTROS ENTRE BUSQUEDAS. Si queda pegado un c_validada, un
+     n_bate (boca de atencion), una practica, etc., la busqueda por nro. de orden
+     vuelve VACIA y parece que la orden no existe. Santiago pidio explicitamente
+     limpiar c_validada y n_bate; se limpia TODO el formulario menos n_orden, porque
+     el mismo problema lo causa cualquiera de los otros campos. Equivale a apretar
+     "Limpiar" y tipear solo la orden. */
+  function limpiarFiltros(inOrden) {
+    var form = inOrden.form || document;
+    var els  = [].slice.call(form.querySelectorAll('input, select'));
+    els.forEach(function (el) {
+      if (el === inOrden) return;
+      if (el.name === 'registros_por_pagina') return;   // paginado, no es filtro
+      var t = (el.type || '').toLowerCase();
+      if (t === 'submit' || t === 'button' || t === 'hidden') return;
+
+      if (t === 'checkbox' || t === 'radio') {          // aceptadas_por_mi, urgentes, vigentes
+        if (el.checked) { el.checked = false; el.dispatchEvent(new Event('change', { bubbles: true })); }
+        return;
+      }
+      if (el.tagName === 'SELECT') {                    // c_validada, n_bate, transmitida, documentacion, modalidad_turno
+        var vacia = false;
+        for (var i = 0; i < el.options.length; i++) {
+          if (el.options[i].value === '') { vacia = true; break; }
+        }
+        // tipo_afiliado no tiene opcion vacia: se deja como esta (no filtra si n_afiliado quedo vacio)
+        if (vacia && el.value !== '') { el.value = ''; el.dispatchEvent(new Event('change', { bubbles: true })); }
+        return;
+      }
+      if (el.value !== '') setNativeValue(el, '');      // n_afiliado, practica, y las fechas
+    });
+  }
+
   /* ─── ejecutar el job que mandó Lumen ─────────────────── */
 
   function ejecutar(p) {
@@ -141,6 +173,7 @@
       return;
     }
 
+    limpiarFiltros(inOrden);          // c_validada, n_bate y todo lo demas a "---"
     setNativeValue(inOrden, p.orden);
 
     var f = camposFecha();
@@ -324,14 +357,17 @@
 
   /* ─── volver del submit: clasificar y actuar ──────────── */
 
-  function alVolver(p) {
+  function alVolver(p, auto) {
     var r = analizarFila(filaDe(p.orden));
     var warn = sessionStorage.getItem('lumen_warn_' + p.t) || '';
 
     if (r.caso === 'validada') {
       // Paso 5.1 del circuito: ya está, se marca sola en Lumen.
       var api = panel(p, 'validada', warn, r);
-      setTimeout(function () { api.marcar('validada'); }, 1400);
+      // Sólo se marca sola si la búsqueda la disparó este job. Si la tabla es la que
+      // PAMI restauró de la búsqueda anterior (recarga, volver a la pestaña), se
+      // muestra el panel y decide Santiago.
+      if (auto) setTimeout(function () { api.marcar('validada'); }, 1400);
       return;
     }
     if (r.caso === 'falta') {
@@ -359,11 +395,11 @@
     var p = leerPayload();
     if (p && p.orden) {
       if (!sessionStorage.getItem('lumen_done_' + p.t)) { ejecutar(p); return; }
-      alVolver(p);
+      alVolver(p, true);
       return;
     }
     var last = sessionStorage.getItem(LAST_KEY);
-    if (last) { try { var q = JSON.parse(last); if (filaDe(q.orden)) alVolver(q); } catch (e) {} }
+    if (last) { try { var q = JSON.parse(last); if (filaDe(q.orden)) alVolver(q, false); } catch (e) {} }
   }
 
   window.addEventListener('hashchange', function () {
