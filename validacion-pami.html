@@ -818,6 +818,10 @@ $('tb').addEventListener('click', ev => {
   if (c){ copiar(c.dataset.cp, c.dataset.lbl); return; }
   const z = ev.target.closest('[data-z]');
   if (z){
+    /* La lupa es SOLO visual: se corta el evento acá para que este clic no
+       pueda disparar irAPami() ni recargar la pestaña de PAMI/HIS. */
+    ev.preventDefault();
+    ev.stopPropagation();
     const tr = z.closest('tr');
     const oz = tr && ORDENES.find(x => x.orden === tr.dataset.o);
     if (oz) abrirLupa(z, oz, z.dataset.z);

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lumen · Validación PAMI
 // @namespace    https://santipitre.github.io/lumen/
-// @version      3.0.0
+// @version      3.1.0
 // @description  Recibe la orden desde Lumen, saca el DNI por la API interna de PAMI, chequea en el HIS que el turno sea de un equipo del Hospital Italiano y recién ahí valida la prestación.
 // @author       Pyralis / Lumen
 // @match        https://pe.pami.org.ar/*
@@ -303,7 +303,7 @@
     };
 
     var elegirFila = function (p, filas, aviso) {
-      var html = '<div class="lp-lbl">Turnos del paciente — elegí cuál corresponde</div>' +
+      var html = '<div class="lp-lbl">Turnos del Hospital Italiano — elegí cuál corresponde</div>' +
         filas.map(function (f, i) {
           return '<button class="lp-fila" data-i="' + i + '"><b>' + esc(f.equipo) + '</b><br>' +
                  esc(f.centro) + ' · ' + esc(f.estudio) + '<br>' + esc(f.fecha) + ' · ' + esc(f.estado) + '</button>';
@@ -322,14 +322,38 @@
           '<div class="lp-tip">Revisá a mano y marcá en Lumen.</div>');
         return;
       }
-      var mod = modalidadDePractica((p.practicas || []).join(' | ') || p.practica || '');
-      var cand = mod ? filas.filter(function (f) { return modalidadDeEquipo(f.equipo) === mod; }) : [];
+
+      /* PRIMERO la lista blanca: al elegir fila sólo se ofrecen turnos de equipos del
+         Hospital Italiano. Antes se listaban TODOS (aparecían RX y TC de Hospital
+         Central), que además contradecía el cartel de "N turnos de la modalidad". */
+      var habil = filas.filter(function (f) { return equipoHabilitado(f.equipo); });
+
+      if (!habil.length) {
+        /* Ninguno pasa. Se muestran los equipos que SÍ tenía, para que se vea por qué. */
+        var vistos = filas.map(function (f) { return f.equipo; })
+                          .filter(function (v, i, a) { return a.indexOf(v) === i; })
+                          .slice(0, 8);
+        var api0 = panel(p, 'err', '',
+          '<div class="lp-bad-big">✗ Ningún turno del Hospital Italiano</div>' +
+          '<div class="lp-lbl">Equipos que tiene el paciente (' + filas.length + ' turnos)</div>' +
+          vistos.map(function (v) { return '<div class="lp-equipo" style="margin-bottom:5px">' + esc(v) + '</div>'; }).join('') +
+          '<div class="lp-tip">Ninguno está en la lista blanca. Se marca rechazada en Lumen.</div>');
+        setTimeout(function () { api0.marcar('rechazada', 'sin turno del Italiano'); }, 1800);
+        return;
+      }
+
+      var mod  = modalidadDePractica((p.practicas || []).join(' | ') || p.practica || '');
+      var cand = mod ? habil.filter(function (f) { return modalidadDeEquipo(f.equipo) === mod; }) : [];
+
       if (cand.length === 1) { evaluarFila(p, cand[0]); return; }
-      if (filas.length === 1 && !mod) { evaluarFila(p, filas[0]); return; }
-      elegirFila(p, filas,
+      if (habil.length === 1) { evaluarFila(p, habil[0]); return; }
+
+      /* Se ofrecen las de la modalidad si las hay; si no, todas las habilitadas. */
+      var lista = cand.length ? cand : habil;
+      elegirFila(p, lista,
         cand.length > 1
-          ? 'Hay <b>' + cand.length + '</b> turnos de la misma modalidad (' + esc(mod) + '). Elegí vos.'
-          : 'No pude cruzar la práctica con ningún turno' + (mod ? ' de ' + esc(mod) : '') + '. Elegí vos.');
+          ? 'Hay <b>' + cand.length + '</b> turnos del Italiano de la misma modalidad (' + esc(mod) + '). Elegí vos.'
+          : 'No pude cruzar la práctica' + (mod ? ' (' + esc(mod) + ')' : '') + ' con ningún turno del Italiano. Elegí entre los <b>' + habil.length + '</b> habilitados.');
     };
 
     var arrancarHis = function () {
