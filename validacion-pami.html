@@ -150,10 +150,13 @@
      Medido 2026-09-09: con la ventana en 950px la tabla ocupaba 1435px, así que
      ESTADO y ACCIONES (las columnas que se usan) quedaban fuera de vista y había
      que scrollear al costado en cada fila. La página NO desbordaba: el scroll era
-     el de .tbl-wrap. Solución: por debajo de 1180px las columnas Emisión y
-     Prácticas se pliegan como segunda línea dentro de Turno y Nombre. */
+     el de .tbl-wrap. Solución: por debajo de 1480px las columnas Emisión y
+     Prácticas se pliegan como segunda línea dentro de Turno y Nombre.
+     EL BREAKPOINT NO ES ARBITRARIO: la tabla completa necesita 1435px + 44px de padding
+     de .main = ~1480px de viewport. Por debajo de eso NO entra, asi que se pliega.
+     Primero se puso en 1180 y fallo: la media pantalla real de Santiago es 1190px. */
   .sub-l{display:none}
-  @media (max-width:1180px){
+  @media (max-width:1480px){
     .main{padding:14px 12px 80px}
     .topbar{padding:0 12px;gap:9px}
     .page-sub{font-size:12.5px;margin-bottom:14px}
