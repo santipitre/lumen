@@ -328,6 +328,9 @@ const EST_KEY  = 'lumen.valpami.estados.v1';
 const CFG_KEY  = 'lumen.valpami.cfg.v1';
 const DATA_KEY = 'lumen.valpami.data.v1';
 const PAMI_ORIGINS = ['https://po.pami.org.ar','https://pe.pami.org.ar'];
+/* Version de userscript que espera esta pagina. Si el puente reporta otra, el cartel
+   avisa: Tampermonkey NO se actualiza solo por visitar la URL del .user.js. */
+const US_ESPERADO = '3.2.0';
 
 let ORDENES = [];      // [{orden, nombre, turno, turnoD, emision, emisionD, ben14, benBase, benDv, practicas:[], verde}]
 let FILTRO  = 'verdes';
@@ -710,10 +713,14 @@ window.addEventListener('message', ev => {
   const desdePuente = ev.origin === location.origin        && d.src === 'lumen-bridge';
   if (!desdePami && !desdePuente) return;
 
-  if (!autoOK){
+  if (!autoOK || d.ver){
     autoOK = true;
     $('modo').classList.add('auto');
-    $('modo-txt').innerHTML = 'Modo <b>automático</b> — el userscript está instalado y respondiendo.';
+    const v = d.ver ? ' · userscript <b>v' + esc(d.ver) + '</b>' : '';
+    const viejo = d.ver && d.ver !== US_ESPERADO;
+    $('modo-txt').innerHTML = 'Modo <b>automático</b> — el userscript está respondiendo' + v +
+      (viejo ? ' <span style="color:var(--warn)">⚠ hay v' + US_ESPERADO +
+               ' — <a href="validacion-pami.user.js" style="color:var(--warn)">actualizalo</a></span>' : '');
   }
   if (d.accion === 'puente') return;   // solo servia para encender el modo automatico
   if (d.accion === 'estado' && d.orden){

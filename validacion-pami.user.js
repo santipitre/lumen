@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lumen · Validación PAMI
 // @namespace    https://santipitre.github.io/lumen/
-// @version      3.1.0
+// @version      3.2.0
 // @description  Recibe la orden desde Lumen, saca el DNI por la API interna de PAMI, chequea en el HIS que el turno sea de un equipo del Hospital Italiano y recién ahí valida la prestación.
 // @author       Pyralis / Lumen
 // @match        https://pe.pami.org.ar/*
@@ -243,8 +243,13 @@
       }, location.origin);
     };
     try { GM_addValueChangeListener(BUS_KEY, function (k, viejo, nuevo) { reenviar(nuevo); }); } catch (e) {}
+    /* Se manda la version instalada para que Lumen la muestre. Sin esto no hay forma
+        de saber si Tampermonkey se quedo con una version vieja: la pagina se ve igual
+        y el circuito falla distinto. */
+    var VER = '?';
+    try { VER = (GM_info && GM_info.script && GM_info.script.version) || '?'; } catch (e) {}
     setTimeout(function () {
-      window.postMessage({ src: 'lumen-bridge', accion: 'puente' }, location.origin);
+      window.postMessage({ src: 'lumen-bridge', accion: 'puente', ver: VER }, location.origin);
     }, 400);
     return;
   }
