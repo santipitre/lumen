@@ -656,11 +656,18 @@ function updateChipCounts(){
   set('__marcados',marc);
 }
 function copiar(txt){ if(!txt) return;
+  // 2026-09-10: antes done() se llamaba SIEMPRE, incluso con writeText rechazado y
+  // execCommand devolviendo false -> el cartel decia "Copiado" con el portapapeles intacto.
+  // Ahora el aviso dice la verdad: si no se pudo copiar, avisa y muestra el numero.
   const done=()=>toast('Copiado: '+txt);
-  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(fb); }
-  else fb();
-  function fb(){ const ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
-    document.body.appendChild(ta); ta.select(); try{document.execCommand('copy')}catch(e){} ta.remove(); done(); }
+  const fail=(por)=>toast('NO se copio ('+por+'). Copialo a mano: '+txt);
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done).catch(e=>fb(String(e&&e.name||e)));
+  } else fb('sin API de portapapeles');
+  function fb(por){ const ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    let ok=false; try{ok=document.execCommand('copy')}catch(e){}
+    ta.remove(); ok?done():fail(por||'bloqueado'); }
 }
 
 function currentFiltered(){
