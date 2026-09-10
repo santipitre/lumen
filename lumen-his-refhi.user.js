@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         HIS FUESMEN · limpiar encabezado + N° Referencia HI
 // @namespace    lumen.santipitre
-// @version      1.7.0
+// @version      1.8.0
 // @description  Oculta los cuadros negros del encabezado del HIS y mueve el N° Ref (badge del Asistente FUESMEN v7.33) a la columna N° Afiliado en las filas H ITAL. No modifica el asistente: lee lo que ese ya pinta.
 // @match        http://his.fuesmen.edu.ar:8180/*
 // @match        https://his.fuesmen.edu.ar:8180/*
@@ -14,6 +14,10 @@
 (function () {
   'use strict';
   if (window.__lumenRefHI) return; window.__lumenRefHI = true;
+
+  // Unica fuente de la version en runtime. Antes estaba clavada en '1.6.0' y no
+  // servia para saber que version tenia instalada Tampermonkey.
+  var VER = '1.8.0';
 
   var LS = 'lumenHI.';
   // MEDIDO 2026-09-08: el header no matcheaba /^N°\s*Afiliado$/ (i:-1). Match laxo.
@@ -409,26 +413,30 @@
       }
 
       // ---- Turno ----
-      // MEDIDO: el N° visible NO está en span__TURNONRO_ (viene vacío/oculto); está en
-      // un <a href="javascript:abrirpopup(...)">4014098</a>. Y hay DOS headers "Turno"
-      // (índices 12 y 15), así que el índice de columna solo sirve de último recurso.
-      // 1) el número autoritativo: el input hidden _TURNONRO_XXXX
-      var inpT = tr.querySelector('input[name^="_TURNONRO_"], input[name^="TURNONRO_"]');
-      var nt = inpT ? String(inpT.value || '').replace(/[^0-9]/g, '') : '';
+      // MEDIDO EN VIVO 2026-09-10 sobre hturno (15 filas): en esta grilla NO existe
+      // span__TURNONRO_ NI input[name="_TURNONRO_"]. El unico portador del numero es
+      // un <a> de texto plano (td indice 15, la MISMA celda que el boton 📋 del
+      // Asistente v7.33). Por eso v1.6/v1.7 nunca pintaba el boton en Turno:
+      // nt quedaba vacio y el guard `if (celT && nt)` no se cumplia nunca.
+      // Orden nuevo: primero el <a>, que da numero Y celda de una sola vez.
+      var celT = null, nt = '', k, as, tx;
+      as = tr.querySelectorAll('a');
+      for (k = 0; k < as.length; k++) {
+        tx = (as[k].textContent || '').trim();
+        if (/^[0-9]{6,9}$/.test(tx)) { nt = tx; celT = as[k].closest('td'); break; }
+      }
+      // Respaldos historicos: otras vistas del HIS si traen el campo.
+      if (!nt) {
+        var inpT = tr.querySelector('input[name^="_TURNONRO_"], input[name^="TURNONRO_"]');
+        nt = inpT ? String(inpT.value || '').replace(/[^0-9]/g, '') : '';
+      }
       if (!nt) {
         var spT = tr.querySelector('[id*="TURNONRO"]');
         if (spT) nt = (spT.textContent || '').replace(/[^0-9]/g, '');
       }
-      // 2) la celda: la del <a> que muestra ese número, o la del botón 📋 del Asistente
-      var celT = null, k, as;
-      if (nt) {
-        as = tr.querySelectorAll('a');
-        for (k = 0; k < as.length; k++) {
-          if ((as[k].textContent || '').replace(/\s/g, '') === nt) { celT = as[k].closest('td'); break; }
-        }
-      }
+      // Respaldos para la celda.
       if (!celT) {
-        var clip = tr.querySelector('.fm-copy-turno');   // el botón del Asistente v7.33
+        var clip = tr.querySelector('.fm-copy-turno');   // el boton del Asistente v7.33
         if (clip) celT = clip.closest('td');
       }
       if (!celT && nt) {
@@ -545,6 +553,6 @@
     proto: function () { return PROTO; },
     aprender: function () { aprendiendo = true; lsSet('aprender', true); panel(); return 'Hacé click en Recepción de Orden'; },
     traer: function () { var b = document.querySelector('#lumen-b2'); if (b) b.click(); },
-    pintar: pintar, panel: panel, ocultos: function () { return HIDE; }, version: '1.6.0'
+    pintar: pintar, panel: panel, ocultos: function () { return HIDE; }, version: VER
   };
 })();
