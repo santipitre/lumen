@@ -396,6 +396,13 @@
     .ti-detail-body td { padding:7px 10px; border-bottom:1px solid rgba(255,255,255,.05); white-space:nowrap; color:#cdd8e6; }
     .ti-detail-body tr:hover td { background:rgba(59,130,246,.06); }
     .ti-detail-body td.ti-col-aseg { color:var(--cyan); font-weight:600; }
+    /* Marca "x N" en la columna N Turno: la fila agrupa N estudios del mismo turno. */
+    .ti-detail-body .ti-mult {
+      display:inline-block; margin-left:6px; padding:1px 6px; border-radius:999px;
+      font-size:10.5px; font-weight:700; letter-spacing:.2px; vertical-align:middle;
+      background:rgba(245,158,11,.14); color:var(--amber); border:1px solid rgba(245,158,11,.3);
+    }
+    #au-detail-overlay .ti-detail-body .ti-mult { background:rgba(251,113,133,.14); color:#FB7185; border-color:rgba(251,113,133,.32); }
     .ti-detail-foot { padding:10px 20px; border-top:1px solid var(--border); font-size:11px; color:var(--muted); }
     /* Cabecera de "Automatizados" con el botón de reparar TODO */
     .auto-head { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
@@ -1640,7 +1647,7 @@ const tiDrop = {
 
   active:false, rows:[], headers:[], colTurno:null, colAseg:null, colServ:null, colFecha:null, updatedAt:null,
   fileName:'', rawRows:[], dedupRows:[], byBucket:{}, byTurnos:{},
-  detailKey:null, detailAll:[], detailLabel:'', detailTurnos:0, _asegArr:[],
+  detailKey:null, detailAll:[], detailLabel:'', detailTurnos:0, detailLineas:0, _detailN:null, _asegArr:[],
 
   LABEL:{ TOTAL:'Total trámites', FINAMED:'FINAMED', PAMI:'PAMI (INSSJYP)', HAREFIELD:'Harefield', OSOTRAS:'Otras OS / Prepagas', PARTICULAR:'Particular' },
   COLOR:{ TOTAL:'var(--purple)', FINAMED:'var(--blue)', PAMI:'var(--amber)', HAREFIELD:'var(--cyan)', OSOTRAS:'var(--green)', PARTICULAR:'var(--red)' },
@@ -1869,18 +1876,52 @@ const tiDrop = {
     }
   },
 
+  /* -- Una fila por N Turno --------------------------------------------
+     Un turno con varios estudios llega al Excel como varias lineas identicas
+     en todo salvo la prestacion. En el DETALLE (y en el Excel que consume el
+     bot) eso no sirve: el turno es la unidad de trabajo y el bot ya devuelve
+     TODAS las ordenes del turno de una pasada, asi que mandarselo N veces lo
+     hace repetir el mismo trabajo. collapseTurnos deja la PRIMERA linea de
+     cada turno y anota cuantas agrupa en _detailN (WeakMap: no ensucia la fila
+     ni se filtra al Excel). Las filas sin N Turno no se agrupan.            */
+  collapseTurnos(rows){
+    const KC=this.colTurno;
+    this._detailN=new WeakMap();
+    const src=rows||[];
+    if(!KC) return src.slice();
+    const out=[], idx=new Map();
+    src.forEach(r=>{
+      const k=this.S(r[KC]).toUpperCase();
+      if(!k){ out.push(r); this._detailN.set(r,1); return; }
+      if(idx.has(k)){ const f=idx.get(k); this._detailN.set(f,(this._detailN.get(f)||1)+1); return; }
+      idx.set(k,r); this._detailN.set(r,1); out.push(r);
+    });
+    return out;
+  },
+  /* Punto UNICO por donde entran las filas del modal: colapsa, guarda cuantas
+     lineas habia (detailLineas) y deja detailTurnos coherente con lo que se ve. */
+  setDetailRows(rows, fallbackTurnos){
+    const src=rows||[];
+    this.detailLineas=src.length;
+    this.detailAll=this.collapseTurnos(src);
+    this.detailTurnos = this.colTurno ? this.detailAll.length
+                                      : (fallbackTurnos!=null?fallbackTurnos:src.length);
+    return this.detailAll;
+  },
+
   orderedHeads(){ const front=[this.colTurno,this.colAseg].filter(Boolean); const rest=this.headers.filter(h=>h!==this.colTurno&&h!==this.colAseg); return front.concat(rest); },
 
   openDetail(key){
     if(!this.active) return;
     const rows = (key==='TOTAL') ? this.rawRows : (this.byBucket[key]||[]);
     const turnos = (key==='TOTAL') ? this.dedupRows.length : (this.byTurnos[key]||0);
-    this.detailKey=key; this.detailAll=rows; this.detailLabel=this.LABEL[key]||'Detalle'; this.detailTurnos=turnos;
+    this.detailKey=key; this.detailLabel=this.LABEL[key]||'Detalle';
+    this.setDetailRows(rows, turnos);
     document.getElementById(this.P('detail-title')).textContent = this.detailLabel;
-    document.getElementById(this.P('detail-count')).textContent = tiNum(turnos)+' turnos · '+tiNum(rows.length)+' estudios';
+    document.getElementById(this.P('detail-count')).textContent = tiNum(this.detailTurnos)+' turnos · '+tiNum(this.detailLineas)+' estudios';
     document.getElementById(this.P('detail-bar')).style.background = this.COLOR[key]||'var(--blue)';
     const srch=document.getElementById(this.P('detail-search')); if(srch) srch.value='';
-    this.renderDetail(rows);
+    this.renderDetail(this.detailAll);
     document.getElementById(this.P('detail-overlay')).classList.add('open');
   },
 
@@ -1894,23 +1935,39 @@ const tiDrop = {
     const KC=this.dedupColName||this.dedupCol()||this.colTurno;
     rows.forEach(r=>{ const tn=S(r[KC]).toUpperCase(); if(tn) seen.add(tn); else blank++; });
     const turnos=seen.size+blank;
-    this.detailKey='ASEG'; this.detailAll=rows; this.detailLabel=name||'Detalle'; this.detailTurnos=turnos;
+    this.detailKey='ASEG'; this.detailLabel=name||'Detalle';
+    this.setDetailRows(rows, turnos);
     document.getElementById(this.P('detail-title')).textContent = this.detailLabel;
-    document.getElementById(this.P('detail-count')).textContent = tiNum(turnos)+' turnos · '+tiNum(rows.length)+' estudios';
+    document.getElementById(this.P('detail-count')).textContent = tiNum(this.detailTurnos)+' turnos · '+tiNum(this.detailLineas)+' estudios';
     document.getElementById(this.P('detail-bar')).style.background = this.COLOR.TOTAL;
     const srch=document.getElementById(this.P('detail-search')); if(srch) srch.value='';
-    this.renderDetail(rows);
+    this.renderDetail(this.detailAll);
     document.getElementById(this.P('detail-overlay')).classList.add('open');
   },
 
   renderDetail(rows, total){
     const heads=this.orderedHeads();
     let html='<table><thead><tr>'+heads.map(h=>'<th>'+tiEsc(h)+'</th>').join('')+'</tr></thead><tbody>';
-    html+=rows.map(r=>'<tr>'+heads.map(h=>{ const cls=(h===this.colAseg)?' class="ti-col-aseg"':''; return '<td'+cls+'>'+tiEsc(r[h])+'</td>'; }).join('')+'</tr>').join('');
+    const NW=this._detailN;
+    html+=rows.map(r=>'<tr>'+heads.map(h=>{
+      const cls=(h===this.colAseg)?' class="ti-col-aseg"':'';
+      let v=tiEsc(r[h]);
+      if(h===this.colTurno && NW){
+        const n=NW.get(r)||1;
+        if(n>1) v+=' <span class="ti-mult" title="'+n+' estudios en este turno">×'+n+'</span>';
+      }
+      return '<td'+cls+'>'+v+'</td>';
+    }).join('')+'</tr>').join('');
     html+='</tbody></table>';
     const body=document.getElementById(this.P('detail-body')); if(body) body.innerHTML=html;
     const foot=document.getElementById(this.P('detail-foot'));
-    if(foot) foot.textContent = (total!=null) ? (tiNum(rows.length)+' de '+tiNum(total)+' líneas') : (tiNum(rows.length)+' líneas');
+    if(foot){
+      const uni=this.colTurno?' turnos':' líneas';
+      const lin=this.detailLineas||rows.length;
+      foot.textContent = (total!=null)
+        ? (tiNum(rows.length)+' de '+tiNum(total)+uni)
+        : (tiNum(rows.length)+uni+((this.colTurno&&lin>rows.length)?(' · '+tiNum(lin)+' estudios'):''));
+    }
   },
 
   filterDetail(q){
@@ -1997,7 +2054,8 @@ const tiDrop = {
       // Fila 3: info
       ws.mergeCells(3,1,3,totalCols);
       const t2=ws.getCell(3,1);
-      t2.value='  Sede: '+sede+'   |   '+fecha+'   |   '+turnos.toLocaleString('es-AR')+' turnos   |   '+rows.length.toLocaleString('es-AR')+' estudios';
+      const lineas=this.detailLineas||rows.length;   // lineas del Excel original (la hoja lleva 1 fila por turno)
+      t2.value='  Sede: '+sede+'   |   '+fecha+'   |   '+turnos.toLocaleString('es-AR')+' turnos   |   '+lineas.toLocaleString('es-AR')+' estudios';
       t2.font={name:'Calibri',size:9,bold:true,color:{argb:GOLD}}; t2.fill={type:'pattern',pattern:'solid',fgColor:{argb:BLUED}};
       t2.alignment={horizontal:'center',vertical:'middle'}; ws.getRow(3).height=20;
 
@@ -2029,7 +2087,7 @@ const tiDrop = {
       for(let i=1;i<=totalCols;i++){ const fc=ws.getCell(r,i); fc.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}}; fc.border={top:{style:'thin',color:{argb:GOLD}}}; }
       ws.mergeCells(r,1,r,totalCols);
       const footer=ws.getCell(r,1);
-      footer.value='Lumen by Pyralis — '+d.toLocaleString('es-AR')+'  ·  '+turnos.toLocaleString('es-AR')+' turnos / '+rows.length.toLocaleString('es-AR')+' estudios';
+      footer.value='Lumen by Pyralis — '+d.toLocaleString('es-AR')+'  ·  '+turnos.toLocaleString('es-AR')+' turnos / '+(this.detailLineas||rows.length).toLocaleString('es-AR')+' estudios';
       footer.font={name:'Calibri',size:7,italic:true,color:{argb:MUTED}}; footer.alignment={horizontal:'right',vertical:'middle',indent:1};
       ws.getRow(r).height=16;
 
@@ -2085,7 +2143,7 @@ Object.assign(auDrop, {
   // estado propio (no compartir referencias con tiDrop)
   active:false, rows:[], headers:[], colTurno:null, colAseg:null, colServ:null, colFecha:null, updatedAt:null,
   fileName:'', rawRows:[], dedupRows:[], byBucket:{}, byTurnos:{},
-  detailKey:null, detailAll:[], detailLabel:'', detailTurnos:0, _asegArr:[],
+  detailKey:null, detailAll:[], detailLabel:'', detailTurnos:0, detailLineas:0, _detailN:null, _asegArr:[],
   LABEL:{ TOTAL:'Total ausentes', FINAMED:'FINAMED', PAMI:'PAMI (INSSJYP)', HAREFIELD:'Harefield', OSOTRAS:'Otras OS / Prepagas', PARTICULAR:'Particular' },
   COLOR:{ TOTAL:'var(--red)', FINAMED:'#FB7185', PAMI:'#F97316', HAREFIELD:'#E11D48', OSOTRAS:'#FCA5A5', PARTICULAR:'#DC2626' },
   // Punto único de ajuste cuando definamos el criterio de "ausente".
@@ -2201,12 +2259,13 @@ auDrop.openDetailAuto = function(){
   const S=this.S.bind(this), KC=this.dedupColName||this.dedupCol()||this.colTurno;
   const seen=new Set(); let blank=0;
   rows.forEach(r=>{ const t=S(r[KC]).toUpperCase(); if(t) seen.add(t); else blank++; });
-  this.detailKey='AUTO'; this.detailAll=rows; this.detailLabel='Automatizados'; this.detailTurnos=seen.size+blank;
+  this.detailKey='AUTO'; this.detailLabel='Automatizados';
+  this.setDetailRows(rows, seen.size+blank);
   document.getElementById(this.P('detail-title')).textContent='Ausentes automatizados pendientes · FINAMED + Harefield + Otras OS';
-  document.getElementById(this.P('detail-count')).textContent=tiNum(this.detailTurnos)+' turnos · '+tiNum(rows.length)+' estudios';
+  document.getElementById(this.P('detail-count')).textContent=tiNum(this.detailTurnos)+' turnos · '+tiNum(this.detailLineas)+' estudios';
   document.getElementById(this.P('detail-bar')).style.background=this.COLOR.TOTAL;
   const srch=document.getElementById(this.P('detail-search')); if(srch) srch.value='';
-  this.renderDetail(rows);
+  this.renderDetail(this.detailAll);
   document.getElementById(this.P('detail-overlay')).classList.add('open');
   this._syncBotBtn('AUTO');
 };
@@ -2251,7 +2310,9 @@ async function auReparar(){
         const S=auDrop.S.bind(auDrop), KC=auDrop.dedupColName||auDrop.dedupCol()||auDrop.colTurno;
         const v=new Set(); let b=0;
         pend.forEach(r=>{ const t=S(r[KC]).toUpperCase(); if(t) v.add(t); else b++; });
-        auDrop.detailAll=pend; auDrop.detailTurnos=v.size+b;
+        // Vuelve a colapsar: al bot le va UNA fila por N Turno.
+        auDrop.setDetailRows(pend, v.size+b);
+        auDrop.renderDetail(auDrop.detailAll);
       }
     }
     await auDrop.exportCurrent();
