@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         HIS FUESMEN · limpiar encabezado + N° Referencia HI
 // @namespace    lumen.santipitre
-// @version      1.9.0
+// @version      1.9.1
 // @description  Oculta los cuadros negros del encabezado del HIS y muestra el N° Referencia en la columna N° Afiliado: en las filas PAMI el rótulo pasa a N° OME, en las H ITAL a N° Referencia HI. No modifica el asistente: lee lo que ese ya pinta.
 // @match        http://his.fuesmen.edu.ar:8180/*
 // @match        https://his.fuesmen.edu.ar:8180/*
@@ -17,7 +17,7 @@
 
   // Unica fuente de la version en runtime. Antes estaba clavada en '1.6.0' y no
   // servia para saber que version tenia instalada Tampermonkey.
-  var VER = '1.9.0';
+  var VER = '1.9.1';
 
   var LS = 'lumenHI.';
   // MEDIDO 2026-09-08: el header no matcheaba /^N°\s*Afiliado$/ (i:-1). Match laxo.
@@ -54,10 +54,11 @@
     var sel = HIDE.filter(Boolean).join(',');
     st.textContent =
       (sel ? sel + '{display:none !important;}\n' : '') +
-      // MEDIDO 2026-09-09: sobre el azul del HIS el verde no se leia. Todo con
-      // !important porque el CSS del HIS pisaba el fondo y quedaba texto verde sin pastilla.
-      '.lumen-ref{color:#0b2a12 !important;background:#FFD84A !important;' +
-      'border:1px solid #B8860B !important;border-radius:5px;' +
+      // Santiago 2026-09-10: el numero va en BLANCO. La pastilla amarilla se va; queda
+      // un fondo apenas mas claro que el azul del HIS para que el numero no flote suelto.
+      // Todo con !important porque el CSS del HIS pisa color y fondo.
+      '.lumen-ref{color:#FFFFFF !important;background:rgba(255,255,255,.10) !important;' +
+      'border:1px solid rgba(255,255,255,.28) !important;border-radius:5px;' +
       'padding:1px 7px !important;font:800 13px/1.35 Segoe UI,sans-serif !important;' +
       'display:inline-block;letter-spacing:.3px;}\n' +
       '.lumen-ref-off{color:#8a8a8a;font:italic 11px Segoe UI,sans-serif;}\n' +
