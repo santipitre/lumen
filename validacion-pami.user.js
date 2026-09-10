@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Lumen · Validación PAMI
 // @namespace    https://santipitre.github.io/lumen/
-// @version      3.2.0
-// @description  Recibe la orden desde Lumen, saca el DNI por la API interna de PAMI, chequea en el HIS que el turno sea de un equipo del Hospital Italiano y recién ahí valida la prestación.
+// @version      4.0.0
+// @description  Tres ventanas abiertas al mismo tiempo (Lumen, PAMI, HIS): cada una se queda en su sitio y toma del bus el paso que le toca. Ninguna navega a otro dominio ni se cierra.
 // @author       Pyralis / Lumen
 // @match        https://pe.pami.org.ar/*
 // @match        http://pe.pami.org.ar/*
@@ -48,6 +48,16 @@
   var HIS_URL      = 'http://his.fuesmen.edu.ar:8180/his/servlet/hturno?0';
   var PAMI_VALIDAR = 'https://pe.pami.org.ar/controllers/transmision.php';
 
+  /* v4.0.0 — EL BUS. Claves compartidas entre pestanas Y entre dominios (GM_setValue). */
+  var JOB_KEY   = 'lumen_val_job';    /* el trabajo a hacer: {id, fase, dest, ...} */
+  var HB_PAMI   = 'lumen_hb_pami';    /* latido de la ventana de PAMI */
+  var HB_HIS    = 'lumen_hb_his';     /* latido de la ventana del HIS */
+  var JOB_LOCAL = 'lumen_job_local';  /* sessionStorage: el job sobrevive al submit */
+  var VISTO_KEY = 'lumen_job_visto';  /* ultimo job que tomo ESTA pestana */
+  var TAB_KEY   = 'lumen_tab_id';
+  var PAUSA     = 1800;               /* pausa visible entre saltos, en ms */
+  var ROL       = '';                 /* que ventana soy, para el cartel */
+
   /* Lista blanca de equipos, TAL CUAL la pidio Santiago (2026-09-09).
      Sabe que deja afuera 20 equipos del Italiano (entre ellos 6 "ECOG-DOPP H.ITALIAN" sin
      la O final y la RMN GE SIGNA HORIZON). Decision suya: no ampliarla sin que la pida.
@@ -88,7 +98,75 @@
     if (!m) return null;
     try { return JSON.parse(decodeURIComponent(m[1])); } catch (e) { return null; }
   }
-  function irA(base, p) { location.href = base + '#lumen=' + encodeURIComponent(JSON.stringify(p)); }
+  /* ══════════ EL BUS DE TRABAJOS (v4.0.0) ══════════
+     ANTES: una sola ventana saltaba PAMI -> HIS -> PAMI con location.href. Se veia
+     una cosa por vez, y la ventana del HIS que Santiago tenia abierta no se usaba
+     nunca (una ventana abierta a mano NO se puede alcanzar por nombre: window.open
+     con target solo encuentra ventanas del mismo grupo de navegacion).
+     AHORA: cada ventana se queda en su dominio y toma del bus el paso que le toca.
+     El bus es GM_setValue, que se comparte entre pestanas y entre dominios y NO
+     necesita opener. Nadie navega fuera de su sitio, nadie se cierra. */
+  function gmGet(k, d) { try { return GM_getValue(k, d); } catch (e) { return d; } }
+  function gmSet(k, v) { try { GM_setValue(k, v); return true; } catch (e) { return false; } }
+
+  function tabId() {
+    var t = ss(TAB_KEY);
+    if (!t) { t = Math.random().toString(36).slice(2) + Date.now().toString(36); ssSet(TAB_KEY, t); }
+    return t;
+  }
+  /* Latido. Lumen tiene que saber si la ventana esta abierta ANTES de disparar:
+     abrirle una ventana nueva le desarmaria la disposicion en pantalla. */
+  function latir(key, extraFn) {
+    var pulso = function () {
+      var v = { ts: Date.now(), tab: tabId(), url: location.href };
+      try { var e = extraFn && extraFn(); for (var k in (e || {})) v[k] = e[k]; } catch (er) {}
+      gmSet(key, v);
+    };
+    pulso();
+    setInterval(pulso, 2500);
+  }
+  function publicarJob(p) {
+    p.id = String(Date.now()) + '-' + Math.random().toString(36).slice(2);
+    p.ts = Date.now();
+    gmSet(JOB_KEY, p);
+    return p;
+  }
+  /* Cada pestana anota el ultimo job que tomo: asi el submit que recarga la pagina
+     no lo vuelve a disparar desde cero. */
+  function escucharJobs(dest, fn) {
+    var tomar = function (j) {
+      if (!j || !j.id || j.dest !== dest) return;
+      if (ss(VISTO_KEY) === j.id) return;
+      ssSet(VISTO_KEY, j.id);
+      /* Si por error hay DOS pestanas del mismo sitio abiertas, que trabaje una sola:
+         se marca el job y a los 200 ms se relee quien quedo. */
+      var mio = tabId();
+      gmSet('lumen_claim_' + j.id, mio);
+      setTimeout(function () {
+        if (gmGet('lumen_claim_' + j.id, mio) !== mio) return;
+        ssSet(JOB_LOCAL, JSON.stringify(j));
+        fn(j);
+      }, 200);
+    };
+    try { GM_addValueChangeListener(JOB_KEY, function (k, viejo, nuevo) { tomar(nuevo); }); } catch (e) {}
+    var j0 = gmGet(JOB_KEY, null);
+    if (j0 && j0.dest === dest && (Date.now() - (j0.ts || 0)) < 60000) tomar(j0);
+  }
+  function jobLocal() {
+    var t = ss(JOB_LOCAL);
+    if (!t) return null;
+    try { return JSON.parse(t); } catch (e) { return null; }
+  }
+  /* Compatibilidad con una copia vieja de Lumen que todavia navegue por hash. */
+  function adoptarHash(dest) {
+    var p = leerPayload();
+    if (!p || !p.orden) return null;
+    p.id = p.id || ('hash-' + p.t);
+    p.dest = dest;
+    ssSet(VISTO_KEY, p.id);
+    ssSet(JOB_LOCAL, JSON.stringify(p));
+    return p;
+  }
 
   /* Avisa a Lumen por los dos caminos: opener (se rompe si no abrio Lumen la pestana)
      y el bus de Tampermonkey (compartido entre pestanas y dominios). */
@@ -115,7 +193,43 @@
     elegir:   ['#1E3A8A', '#3B82F6', '#04101f']
   };
 
+  /* Cartel de PROGRESO: sin botones. Es lo que pidio Santiago — mirar las tres
+     ventanas al mismo tiempo y entender que esta haciendo cada una. */
+  function cerrarProg() { var e = document.getElementById('lumen-prog'); if (e) e.remove(); }
+
+  function panelProg(p, tono, titulo, detalle) {
+    if (!document.body) return null;
+    var col = COLORES[tono] || COLORES.elegir;
+    cerrarProg();
+    var box = document.createElement('div');
+    box.id = 'lumen-prog';
+    box.innerHTML =
+      '<style>#lumen-prog{position:fixed;top:14px;right:14px;z-index:2147482999;width:330px;overflow:hidden;' +
+      'font-family:Inter,system-ui,Segoe UI,sans-serif;background:#0E1521;color:#F1F5F9;' +
+      'border:1px solid rgba(148,163,184,.35);border-radius:13px;box-shadow:0 14px 44px rgba(0,0,0,.6);font-size:13px}' +
+      '#lumen-prog .pg-h{padding:9px 13px;background:linear-gradient(135deg,' + col[0] + ',' + col[1] + ');' +
+      'color:' + col[2] + ';font-weight:800;letter-spacing:1.4px;font-size:11px;text-transform:uppercase}' +
+      '#lumen-prog .pg-bar{height:3px;background:rgba(148,163,184,.18)}' +
+      '#lumen-prog .pg-bar i{display:block;height:3px;width:36%;background:' + col[1] + ';animation:lpg 1.15s ease-in-out infinite}' +
+      '@keyframes lpg{0%{margin-left:0}50%{margin-left:64%}100%{margin-left:0}}' +
+      '#lumen-prog .pg-b{padding:12px 13px}' +
+      '#lumen-prog .pg-t{font-weight:700;font-size:13.5px;line-height:1.35;margin-bottom:4px}' +
+      '#lumen-prog .pg-n{color:#94A3B8;font-size:11.5px;font-family:ui-monospace,Menlo,monospace;margin-bottom:9px}' +
+      '#lumen-prog .pg-d{font-size:11.5px;color:#8FA0B5;line-height:1.55}' +
+      '</style>' +
+      '<div class="pg-h">' + esc(ROL) + ' · trabajando</div>' +
+      '<div class="pg-bar"><i></i></div>' +
+      '<div class="pg-b">' +
+        '<div class="pg-t">' + titulo + '</div>' +
+        '<div class="pg-n">' + esc(p.nombre || '') + (p.orden ? ' · ' + esc(p.orden) : '') + '</div>' +
+        '<div class="pg-d">' + (detalle || '') + '</div>' +
+      '</div>';
+    document.body.appendChild(box);
+    return box;
+  }
+
   function panel(p, caso, aviso, cuerpoHTML, onMount) {
+    cerrarProg();
     var prev = document.getElementById('lumen-panel');
     if (prev) prev.remove();
     var col = COLORES[caso] || COLORES.falta;
@@ -243,6 +357,43 @@
       }, location.origin);
     };
     try { GM_addValueChangeListener(BUS_KEY, function (k, viejo, nuevo) { reenviar(nuevo); }); } catch (e) {}
+
+    /* La PAGINA no puede escribir en el bus (GM_* no existe en su contexto): le pasa
+       el trabajo al userscript por postMessage y el userscript lo publica. */
+    var ultimoOut = '';
+    var tomarDeLaPagina = function (raw) {
+      if (!raw || raw === ultimoOut) return;
+      ultimoOut = raw;
+      try { publicarJob(JSON.parse(raw)); } catch (e) {}
+    };
+    window.addEventListener('message', function (ev) {
+      if (ev.origin !== location.origin) return;
+      var d = ev.data;
+      if (!d || d.src !== 'lumen-page') return;
+      if (d.accion === 'job' && d.pay) tomarDeLaPagina(JSON.stringify(d.pay));
+    });
+    /* Segundo camino, por si postMessage no cruza el sandbox de Tampermonkey:
+       la pagina deja el trabajo en localStorage (mismo origen) y aca se lee. */
+    try { ultimoOut = localStorage.getItem('lumen_job_out') || ''; } catch (e) {}
+    setInterval(function () {
+      try { tomarDeLaPagina(localStorage.getItem('lumen_job_out')); } catch (e) {}
+    }, 300);
+
+    /* PRESENCIA de las otras dos ventanas. Lumen frena si falta alguna en vez de
+       abrirla: una ventana nueva le desarma a Santiago la disposicion en pantalla. */
+    var VIVO = 9000;
+    var mirar = function () {
+      var pa = gmGet(HB_PAMI, null), hi = gmGet(HB_HIS, null), n = Date.now();
+      window.postMessage({
+        src: 'lumen-bridge', accion: 'presencia',
+        pami:    !!(pa && (n - (pa.ts || 0)) < VIVO),
+        pamiUrl: (pa && pa.url) || '',
+        his:     !!(hi && (n - (hi.ts || 0)) < VIVO),
+        hisUrl:  (hi && hi.url) || '',
+        hisOk:   !!(hi && hi.lista)
+      }, location.origin);
+    };
+
     /* Se manda la version instalada para que Lumen la muestre. Sin esto no hay forma
         de saber si Tampermonkey se quedo con una version vieja: la pagina se ve igual
         y el circuito falla distinto. */
@@ -250,14 +401,16 @@
     try { VER = (GM_info && GM_info.script && GM_info.script.version) || '?'; } catch (e) {}
     setTimeout(function () {
       window.postMessage({ src: 'lumen-bridge', accion: 'puente', ver: VER }, location.origin);
+      mirar();
     }, 400);
+    setInterval(mirar, 2000);
     return;
   }
 
   /* ══════════════ MITAD HIS FUESMEN ══════════════ */
   if (/his\.fuesmen\.edu\.ar/i.test(location.hostname)) {
 
-    var HIS_JOB = 'lumen_his_job';
+    ROL = 'HIS FUESMEN';
 
     var filasHis = function () {
       var out = [], i = 1;
@@ -278,13 +431,15 @@
       return out;
     };
 
+    /* El HIS NO navega a PAMI: publica el trabajo y se queda donde esta. La ventana
+       de PAMI, que ya esta abierta al lado, lo levanta sola. */
     var seguirAValidar = function (p, fila) {
       var q = {};
       for (var k in p) q[k] = p[k];
-      q.fase = 'validar';
-      q.t = Date.now();
+      q.fase   = 'validar';
+      q.dest   = 'pami';
       q.equipo = fila ? fila.equipo : '';
-      irA(PAMI_VALIDAR, q);
+      publicarJob(q);
     };
 
     var evaluarFila = function (p, f) {
@@ -293,8 +448,8 @@
           '<div class="lp-ok-big">✓ Equipo habilitado</div>' +
           '<div class="lp-lbl">Equipo</div><div class="lp-equipo">' + esc(f.equipo) + '</div>' +
           '<div class="lp-tip">' + esc(f.centro) + ' · ' + esc(f.estudio) + ' · ' + esc(f.fecha) +
-          '<br>Sigo a PAMI a validar la prestación…</div>');
-        setTimeout(function () { seguirAValidar(p, f); }, 1200);
+          '<br>Le paso el trabajo a la ventana de <b>PAMI</b>. Esta ventana se queda acá.</div>');
+        setTimeout(function () { seguirAValidar(p, f); }, PAUSA);
         return;
       }
       /* RECHAZA. Se muestra el equipo encontrado A PROPOSITO: si empiezan a aparecer
@@ -361,20 +516,24 @@
           : 'No pude cruzar la práctica' + (mod ? ' (' + esc(mod) + ')' : '') + ' con ningún turno del Italiano. Elegí entre los <b>' + habil.length + '</b> habilitados.');
     };
 
-    var arrancarHis = function () {
-      var p = leerPayload();
-      if (p && p.dni) { ssSet(HIS_JOB, JSON.stringify(p)); }
-      else { var g = ss(HIS_JOB); if (g) { try { p = JSON.parse(g); } catch (e) { p = null; } } }
+    var correrHis = function (p) {
       if (!p || !p.dni) return;
-
       var campo = document.getElementById('_DOCUMENTOPERSONA');
-      if (!campo) return;
-
+      if (!campo) {
+        /* La ventana quedo en otra pantalla del HIS. Se vuelve a hturno: es navegacion
+           DENTRO del HIS, la ventana sigue siendo la del HIS y no se cierra. */
+        panelProg(p, 'elegir', 'Vuelvo a <b>Consulta de Turnos</b>…',
+          'Esta ventana no está en <b>hturno</b>. Navego dentro del HIS, no salgo de acá.');
+        setTimeout(function () { location.href = HIS_URL; }, 800);
+        return;
+      }
       var mismoDni = String(campo.value || '').replace(/\D/g, '') === String(p.dni).replace(/\D/g, '');
-      if ((mismoDni && document.getElementById('span__NOMBRE1_0001')) || ss('lumen_his_done_' + p.t)) {
+      if ((mismoDni && document.getElementById('span__NOMBRE1_0001')) || ss('lumen_his_done_' + p.id)) {
         evaluarHis(p); return;
       }
-      ssSet('lumen_his_done_' + p.t, '1');
+      ssSet('lumen_his_done_' + p.id, '1');
+      panelProg(p, 'elegir', 'Buscando el DNI <b>' + esc(p.dni) + '</b> en el HIS…',
+        'Completo <b>N° Doc.</b> y aprieto <b>BUSCAR</b>. La grilla se recarga sola y después leo los equipos.');
       setNativeValue(campo, String(p.dni));
       try { if (typeof unsafeWindow !== 'undefined' && unsafeWindow.gxonchange) unsafeWindow.gxonchange(campo); } catch (e) {}
       var btn = document.querySelector('input[name="BUTTON7"]');
@@ -382,7 +541,16 @@
         panel(p, 'err', 'No encontré el botón BUSCAR del HIS. Buscá vos el DNI <b>' + esc(p.dni) + '</b>.', '');
         return;
       }
-      setTimeout(function () { btn.click(); }, 150);
+      setTimeout(function () { btn.click(); }, 300);
+    };
+
+    var arrancarHis = function () {
+      latir(HB_HIS, function () { return { lista: !!document.getElementById('_DOCUMENTOPERSONA') }; });
+      escucharJobs('his', function (j) { setTimeout(function () { correrHis(j); }, 400); });
+      var ph = adoptarHash('his');
+      if (ph && ph.dni) { correrHis(ph); return; }
+      var p = jobLocal();
+      if (p && p.dni && p.dest === 'his') correrHis(p);
     };
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancarHis);
@@ -392,11 +560,16 @@
 
   /* ══════════════ MITAD PAMI ══════════════ */
 
+  ROL = 'PAMI';
+
   function enLogin() { return /cup\.pami\.org\.ar|loginController/i.test(location.href); }
 
   /* ── fase gate: sacar el DNI por la API interna ───────── */
   function gate(p) {
-    ssSet('lumen_gate_' + p.t, '1');
+    ssSet('lumen_gate_' + p.id, '1');
+    panelProg(p, 'elegir', 'Consultando el afiliado en PAMI…',
+      'API interna del portal. Saco el <b>DNI</b> y controlo que el beneficio que devuelve ' +
+      'sea el de <b>esta</b> orden (la página puede tener datos de otro paciente).');
     var body = new URLSearchParams({ orden: p.orden, estado: 'modificar', bene: p.benBase, gp: p.benDv });
     fetch('/controllers/ajax/efectores_detalle.php', {
       method: 'POST', credentials: 'same-origin',
@@ -425,9 +598,14 @@
       }
       if (!dni) { panel(p, 'err', 'PAMI no trajo el número de documento del afiliado.', ''); return; }
 
+      /* NO se navega al HIS: se publica el trabajo y la ventana del HIS, que ya esta
+         abierta al lado, lo levanta sola. Esta ventana se queda en PAMI. */
+      panelProg(p, 'validada', 'DNI <b>' + esc(dni) + '</b> ✓',
+        'Beneficio verificado. Le paso el trabajo a la ventana del <b>HIS</b>. ' +
+        'Esta ventana se queda acá, esperando para validar.');
       var q = {}; for (var k in p) q[k] = p[k];
-      q.dni = dni; q.fase = 'his'; q.t = Date.now();
-      irA(HIS_URL, q);
+      q.dni = dni; q.fase = 'his'; q.dest = 'his';
+      setTimeout(function () { publicarJob(q); }, PAUSA);
     })
     .catch(function () {
       panel(p, 'err', 'No pude consultar los datos del afiliado en PAMI (¿sesión caída o sin red?).', '');
@@ -490,11 +668,14 @@
     setNativeValue(inOrden, p.orden);
     var f = camposFecha();
     if (f && p.fechas !== 'none') { setNativeValue(f.desde, ''); setNativeValue(f.hasta, ''); }
-    ssSet('lumen_done_' + p.t, '1');
+    ssSet('lumen_done_' + p.id, '1');
     ssSet(LAST_KEY, JSON.stringify(p));
     var btn = botonBuscar();
     if (!btn) { panel(p, 'err', 'Completé los campos pero no encontré el botón <b>Buscar</b>. Apretalo vos.', ''); return; }
-    setTimeout(function () { btn.click(); }, 120);
+    panelProg(p, 'elegir', 'Buscando la orden en el Panel de prestaciones…',
+      'Limpié todos los filtros (PAMI los recuerda entre búsquedas), puse el nro. de orden ' +
+      'y vacié las fechas de turno. Apretando <b>Buscar</b>.');
+    setTimeout(function () { btn.click(); }, 250);
   }
 
   function filaDe(orden) {
@@ -557,26 +738,42 @@
       eq + '<div class="lp-tip">Revisá a mano y marcá en Lumen.</div>');
   }
 
-  function arrancarPami() {
-    if (enLogin()) return;   /* el reCAPTCHA no se automatiza; no hay nada que hacer aca */
-    var p = leerPayload();
-    if (p && p.orden) {
-      if (p.fase === 'gate' && !ss('lumen_gate_' + p.t)) { gate(p); return; }
-      if (p.fase === 'gate') return;                        /* ya se disparo, esperando */
-      if (!ss('lumen_done_' + p.t)) { ejecutar(p); return; }
-      alVolver(p, true);
+  /* El unico movimiento que hace esta ventana es DENTRO de pami.org.ar (ir al Panel
+     de prestaciones). Nunca sale a otro dominio y nunca se cierra. */
+  function correrPami(p) {
+    if (!p || !p.orden) return;
+    if (enLogin()) {
+      panel(p, 'err', 'Se cayó la sesión de PAMI (el reCAPTCHA no se automatiza). Entrá de nuevo y reintentá.', '');
       return;
     }
+    if (p.fase === 'gate') {
+      if (!ss('lumen_gate_' + p.id)) gate(p);
+      return;                                   /* ya se disparo: espera al HIS */
+    }
+    if (!/transmision\.php/i.test(location.pathname)) {
+      panelProg(p, 'elegir', 'Voy al <b>Panel de prestaciones</b>…',
+        'Navego dentro de PAMI, a <b>transmision.php</b>. Es la única página donde se valida.');
+      setTimeout(function () { location.href = PAMI_VALIDAR; }, 800);
+      return;
+    }
+    if (!ss('lumen_done_' + p.id)) { ejecutar(p); return; }
+    alVolver(p, true);
+  }
+
+  function arrancarPami() {
+    latir(HB_PAMI, function () { return { panel: /transmision\.php/i.test(location.pathname), login: enLogin() }; });
+    escucharJobs('pami', function (j) { setTimeout(function () { correrPami(j); }, 400); });
+
+    var ph = adoptarHash('pami');
+    if (ph) { correrPami(ph); return; }
+
+    var p = jobLocal();
+    if (p && p.dest === 'pami' && p.orden) { correrPami(p); return; }
+
+    if (enLogin()) return;
     var last = ss(LAST_KEY);
     if (last) { try { var q = JSON.parse(last); if (filaDe(q.orden)) alVolver(q, false); } catch (e) {} }
   }
-
-  window.addEventListener('hashchange', function () {
-    var p = leerPayload();
-    if (!p || !p.orden) return;
-    if (p.fase === 'gate' && !ss('lumen_gate_' + p.t)) { gate(p); return; }
-    if (p.fase !== 'gate' && !ss('lumen_done_' + p.t)) ejecutar(p);
-  });
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancarPami);
   else arrancarPami();

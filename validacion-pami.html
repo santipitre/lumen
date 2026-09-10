@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="lumen-ver" content="2026-09-09-d"/>
+<meta name="lumen-ver" content="2026-09-10-a"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Validación PAMI · LUMEN</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml"/>
@@ -221,6 +221,19 @@
   .modo.auto .dot{background:var(--ok);box-shadow:0 0 8px rgba(16,185,129,.8)}
   .modo b{color:var(--pyralis-text)}
   .modo a{color:var(--pyralis-firefly);text-decoration:none;border-bottom:1px dotted}
+  /* Semaforo de las tres ventanas. Lumen no dispara si falta alguna: abrirla sola
+     le desarma al usuario la disposicion en pantalla. */
+  .vent{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-4px 0 14px}
+  .vent .v{display:flex;align-items:center;gap:7px;border:1px solid var(--border);border-radius:999px;
+    padding:5px 12px 5px 10px;font-size:12px;color:var(--muted);background:rgba(148,163,184,.05)}
+  .vent .v i{width:8px;height:8px;border-radius:50%;background:var(--pyralis-text-dim);flex:none;font-style:normal}
+  .vent .v.on{border-color:rgba(16,185,129,.45);color:var(--pyralis-text);background:rgba(16,185,129,.07)}
+  .vent .v.on i{background:var(--ok);box-shadow:0 0 7px rgba(16,185,129,.8)}
+  .vent .v.off{border-color:rgba(248,113,113,.4);color:#fca5a5;background:rgba(248,113,113,.06)}
+  .vent .v.off i{background:#EF4444}
+  .vent .v b{color:inherit;font-weight:700}
+  .vent .v-ayuda{font-size:11.5px;color:var(--muted)}
+  .vent .v-ayuda a{color:var(--pyralis-firefly);text-decoration:none;border-bottom:1px dotted}
 
   /* toast */
   #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
@@ -255,6 +268,13 @@
     <span class="dot"></span>
     <span id="modo-txt">Modo <b>copiar/pegar</b> — instalá el userscript de Tampermonkey para que PAMI se complete solo.
       <a href="validacion-pami.user.js" id="lnk-us">Instalar userscript</a></span>
+  </div>
+
+  <div class="vent" id="vent">
+    <span class="v on" id="v-lumen"><i></i><b>Lumen</b></span>
+    <span class="v" id="v-pami"><i></i><b>PAMI</b></span>
+    <span class="v" id="v-his"><i></i><b>HIS FUESMEN</b></span>
+    <span class="v-ayuda" id="v-ayuda">Las tres ventanas trabajan a la vez y ninguna se cierra.</span>
   </div>
 
   <label class="drop" id="drop">
@@ -341,7 +361,7 @@ const DATA_KEY = 'lumen.valpami.data.v1';
 const PAMI_ORIGINS = ['https://po.pami.org.ar','https://pe.pami.org.ar'];
 /* Version de userscript que espera esta pagina. Si el puente reporta otra, el cartel
    avisa: Tampermonkey NO se actualiza solo por visitar la URL del .user.js. */
-const US_ESPERADO = '3.2.0';
+const US_ESPERADO = '4.0.0';
 
 let ORDENES = [];      // [{orden, nombre, turno, turnoD, emision, emisionD, ben14, benBase, benDv, practicas:[], verde}]
 let FILTRO  = 'verdes';
@@ -663,6 +683,34 @@ function stat(cls, n, lbl){ return `<div class="stat ${cls}"><b>${n}</b><span>${
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 /* ── disparar a PAMI ───────────────────────────────────── */
+/* ── las tres ventanas ─────────────────────────────────
+   El userscript late desde PAMI y desde el HIS. Si una de las dos no esta abierta,
+   Lumen NO dispara: prefiere avisar antes que abrir una ventana nueva y desarmar
+   la disposicion en pantalla. */
+let VENTANAS = { pami:false, his:false, hisOk:false };
+
+function pintarVentanas(){
+  const v = id => document.getElementById(id);
+  if (!autoOK){
+    ['v-pami','v-his'].forEach(id => { const e = v(id); if (e) e.classList.remove('on','off'); });
+    v('v-ayuda').innerHTML = 'Sin userscript no hay semáforo: PAMI se abre en otra pestaña, como antes.';
+    return;
+  }
+  [['v-pami', VENTANAS.pami], ['v-his', VENTANAS.his]].forEach(([id, on]) => {
+    const e = v(id); if (!e) return;
+    e.classList.toggle('on', !!on); e.classList.toggle('off', !on);
+  });
+  const faltan = [];
+  if (!VENTANAS.pami) faltan.push('<a href="https://pe.pami.org.ar/controllers/transmision.php" target="_blank" rel="noopener">PAMI</a>');
+  if (!VENTANAS.his)  faltan.push('<a href="http://his.fuesmen.edu.ar:8180/his/servlet/hturno?0" target="_blank" rel="noopener">el HIS</a>');
+  v('v-ayuda').innerHTML = faltan.length
+    ? 'Falta abrir ' + faltan.join(' y ') + '. Acomodá las ventanas y no las cierres.'
+    : 'Las tres trabajan a la vez y ninguna se cierra: mirá cada una mientras avanza.';
+}
+
+/* ── disparar ───────────────────────────────────────
+   El trabajo va al BUS, no a una ventana. Antes Lumen renavegaba UNA ventana que
+   despues saltaba sola PAMI -> HIS -> PAMI y por eso no se veia nada. */
 function irAPami(o){
   const pay = {
     v: 1, t: Date.now(),
@@ -677,12 +725,36 @@ function irAPami(o){
     /* fase 'gate': el userscript primero saca el DNI por la API de PAMI y chequea en el
        HIS que el turno sea de un equipo del Hospital Italiano. Recien despues valida. */
     fase:      'gate',
+    dest:      'pami',
     practicas: o.practicas || []
   };
+
+  /* CAMINO NORMAL: el userscript esta instalado y las tres ventanas abiertas. */
+  if (autoOK){
+    if (!VENTANAS.pami || !VENTANAS.his){
+      const f = [];
+      if (!VENTANAS.pami) f.push('PAMI');
+      if (!VENTANAS.his)  f.push('el HIS');
+      toast('No disparo: falta la ventana de ' + f.join(' y ') + '. Abrila y acomodala al lado.', 'err');
+      pintarVentanas();
+      return;
+    }
+    /* La pagina no puede escribir en el bus de Tampermonkey: le pasa el trabajo al
+       userscript, que corre tambien aca, y el lo publica. */
+    window.postMessage({ src:'lumen-page', accion:'job', pay }, location.origin);
+    /* Segundo camino, por si postMessage no cruza el sandbox de Tampermonkey. */
+    try { localStorage.setItem('lumen_job_out', JSON.stringify(pay)); } catch(e){}
+    activa = o.orden;
+    guardarDatos();
+    render();
+    return;
+  }
+
+  /* RESPALDO sin userscript: modo viejo, una sola pestana por hash. */
   const url = $('pami-url').value.trim() + '#lumen=' + encodeURIComponent(JSON.stringify(pay));
 
   try {
-    if (pamiWin && !pamiWin.closed){ pamiWin.location.href = url; pamiWin.focus(); }
+    if (pamiWin && !pamiWin.closed){ pamiWin.location.href = url; }
     else { pamiWin = window.open(url, 'lumen_pami'); }
   } catch(e){ pamiWin = window.open(url, 'lumen_pami'); }
 
@@ -733,7 +805,12 @@ window.addEventListener('message', ev => {
       (viejo ? ' <span style="color:var(--warn)">⚠ hay v' + US_ESPERADO +
                ' — <a href="validacion-pami.user.js" style="color:var(--warn)">actualizalo</a></span>' : '');
   }
-  if (d.accion === 'puente') return;   // solo servia para encender el modo automatico
+  if (d.accion === 'presencia'){
+    VENTANAS = { pami: !!d.pami, his: !!d.his, hisOk: !!d.hisOk };
+    pintarVentanas();
+    return;
+  }
+  if (d.accion === 'puente'){ pintarVentanas(); return; }
   if (d.accion === 'estado' && d.orden){
     setEstado(d.orden, d.estado);
     toast(d.orden + ' → ' + d.estado + (d.motivo ? ' · ' + d.motivo : ''),
@@ -958,6 +1035,7 @@ if (CFG.filtro){
 
 /* bandeja de la sesión anterior */
 restaurarDatos();
+pintarVentanas();
 </script>
 </body>
 </html>
