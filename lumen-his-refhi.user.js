@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         HIS FUESMEN · limpiar encabezado + N° Referencia HI
 // @namespace    lumen.santipitre
-// @version      1.8.0
-// @description  Oculta los cuadros negros del encabezado del HIS y mueve el N° Ref (badge del Asistente FUESMEN v7.33) a la columna N° Afiliado en las filas H ITAL. No modifica el asistente: lee lo que ese ya pinta.
+// @version      1.9.0
+// @description  Oculta los cuadros negros del encabezado del HIS y muestra el N° Referencia en la columna N° Afiliado: en las filas PAMI el rótulo pasa a N° OME, en las H ITAL a N° Referencia HI. No modifica el asistente: lee lo que ese ya pinta.
 // @match        http://his.fuesmen.edu.ar:8180/*
 // @match        https://his.fuesmen.edu.ar:8180/*
 // @run-at       document-end
@@ -17,13 +17,20 @@
 
   // Unica fuente de la version en runtime. Antes estaba clavada en '1.6.0' y no
   // servia para saber que version tenia instalada Tampermonkey.
-  var VER = '1.8.0';
+  var VER = '1.9.0';
 
   var LS = 'lumenHI.';
   // MEDIDO 2026-09-08: el header no matcheaba /^N°\s*Afiliado$/ (i:-1). Match laxo.
   var HDR_RE = /afiliado/i;
   var HDR_ORIG = 'N° Afiliado';
   var HDR_HI = 'N° Referencia HI';
+  /* Santiago 2026-09-10: en las filas PAMI la referencia del HIS ES el nro. de orden
+     de la OME, asi que ahi el rotulo tiene que decir N° OME. Las H ITAL siguen como
+     estaban (decision suya: SUMAR PAMI, no reemplazar). */
+  var HDR_OME = 'N° OME';
+  /* Para volver a encontrar la columna DESPUES de renombrarla hay que reconocer los
+     tres rotulos posibles; HDR_RE solo matchea el original. */
+  var HDR_ANY = /afiliado|referencia\s*hi|n\s*[°ºo]?\.?\s*ome\s*$/i;
 
   // Cuadros negros del encabezado del HIS (contador de notificaciones, contador de
   // chat y el iframe del botón de chat). Se editan en vivo con Alt+H.
@@ -268,7 +275,7 @@
   // Secuencial a propósito: GeneXus guarda estado de página por sesión;
   // 15 POST en paralelo se pisan entre sí.
   function traerReferencias(filas, onPaso, onFin) {
-    var pend = filas.filter(function (f) { return esHI(f.alias) && f.turno && !REFS[f.turno]; });
+    var pend = filas.filter(function (f) { return aplica(f.alias) && f.turno && !REFS[f.turno]; });
     if (!PROTO) { onFin('SIN_PROTO', 0); return; }
     if (!pend.length) { onFin('NADA', 0); return; }
     var i = 0, ok = 0;
@@ -346,7 +353,9 @@
      Fuente del dato: el badge .fm-his-pedido que ya pinta
      annotateHisGrid() del Asistente FUESMEN (PEDIDOMAP = worklist.pedido_med).
      ============================================================ */
-  var esHI = function (t) { return /\bH\s*ITAL/i.test(t || ''); };
+  var esHI   = function (t) { return /\bH\s*ITAL/i.test(t || ''); };
+  var esPAMI = function (t) { return /\bPAMI\b/i.test(t || ''); };
+  var aplica = function (t) { return esPAMI(t) || esHI(t); };
 
   // 1º el caché propio (traído del HIS), 2º el badge del Asistente (Supabase).
   function refDeFila(tr, turno) {
@@ -367,7 +376,7 @@
     }
     return -1;
   }
-  function colAfiliado() { return colPorHeader(HDR_RE, HDR_HI); }
+  function colAfiliado() { return colPorHeader(HDR_ANY); }
   function colDocumento() { return colPorHeader(/^N\s*[°ºo]?\.?\s*Doc/i); }
   function colTurno() { return colPorHeader(/^Turno$/i); }
 
@@ -452,10 +461,16 @@
     if (!filas.length) return;
     FILAS = filas;
 
-    var todasHI = filas.every(function (f) { return esHI(f.alias); });
+    /* El encabezado es UNO para toda la columna y la regla es por fila. Criterio de
+       Santiago (el mismo que ya regia para H ITAL): el rotulo cambia SOLO si todas las
+       filas son de la misma aseguradora; si la grilla viene mezclada queda "N° Afiliado"
+       y cada fila avisa con una pastilla. */
+    var todasHI   = filas.every(function (f) { return esHI(f.alias); });
+    var todasPAMI = filas.every(function (f) { return esPAMI(f.alias); });
+    var rotulado  = todasHI || todasPAMI;
 
     filas.forEach(function (f) {
-      if (!esHI(f.alias)) {
+      if (!aplica(f.alias)) {
         if (f.afi.dataset.lumenOrig != null) {
           f.afi.textContent = f.afi.dataset.lumenOrig;
           delete f.afi.dataset.lumenOrig;
@@ -465,15 +480,18 @@
       }
       if (f.afi.dataset.lumenOrig == null) f.afi.dataset.lumenOrig = f.afi.textContent;
 
-      var ref = refDeFila(f.tr, f.turno);
-      var chip = todasHI ? '' : '<span class="lumen-chip">REF HI</span>';
+      var pami = esPAMI(f.alias);
+      var rot  = pami ? HDR_OME : HDR_HI;
+      var ref  = refDeFila(f.tr, f.turno);
+      var chip = rotulado ? '' : '<span class="lumen-chip">' + (pami ? 'N° OME' : 'REF HI') + '</span>';
       var nuevo = ref
         ? '<span class="lumen-ref">' + ref + '</span>' + chip
-        : '<span class="lumen-ref-off" title="Ese turno no está en fuesmen_worklist (el parse va atrasado)">sin ref</span>' + chip;
-      if (f.afi.getAttribute('data-lumen-ref') !== (ref || '-')) {
+        : '<span class="lumen-ref-off" title="Todavía no traje la referencia de este turno (panel → Traer referencias)">sin ref</span>' + chip;
+      var clave = (ref || '-') + '|' + (rotulado ? '1' : '0') + '|' + (pami ? 'P' : 'H');
+      if (f.afi.getAttribute('data-lumen-ref') !== clave) {
         f.afi.innerHTML = nuevo;
-        f.afi.setAttribute('data-lumen-ref', ref || '-');
-        if (ref) ponerBoton(f.afi, ref, 'N° Referencia HI');
+        f.afi.setAttribute('data-lumen-ref', clave);
+        if (ref) ponerBoton(f.afi, ref, rot);
       }
 
       // El badge original queda duplicado en la celda del Turno. Se esconden TODOS
@@ -485,9 +503,12 @@
     var ths = document.querySelectorAll('th.GridTitle');
     for (i = 0; i < ths.length; i++) {
       var t = (ths[i].textContent || '').trim();
-      if (HDR_RE.test(t) || t === HDR_HI) {
-        if (ths[i].dataset.lumenTh == null) ths[i].dataset.lumenTh = t;
-        var quiero = todasHI ? HDR_HI : ths[i].dataset.lumenTh;
+      if (HDR_ANY.test(t)) {
+        /* lumenTh guarda el rotulo ORIGINAL del HIS: si ya lo renombramos antes, no
+           volver a guardarlo o se pierde "N° Afiliado" para siempre. */
+        if (ths[i].dataset.lumenTh == null && !/referencia\s*hi|ome/i.test(t)) ths[i].dataset.lumenTh = t;
+        var orig = ths[i].dataset.lumenTh || HDR_ORIG;
+        var quiero = todasPAMI ? HDR_OME : (todasHI ? HDR_HI : orig);
         if (t !== quiero) ths[i].textContent = quiero;
         break;
       }
@@ -506,7 +527,7 @@
   var FILAS = [];   // última foto de la grilla (la llena pintar())
 
   function panel() {
-    var hi = FILAS.filter(function (f) { return esHI(f.alias) && f.turno; });
+    var hi = FILAS.filter(function (f) { return aplica(f.alias) && f.turno; });
     var falta = hi.filter(function (f) { return !REFS[f.turno]; }).length;
     var p = document.getElementById('lumen-panel');
     if (!hi.length) { if (p) p.remove(); return; }
