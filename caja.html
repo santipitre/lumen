@@ -2128,10 +2128,15 @@ function dialogoSalida(tipo){
      el par (desde,hasta) exacto o la boleta nueva queda huérfana. Si se borra
      la boleta, el retiro vuelve solo al grupo de arriba. */
   const faltaDe=r=>r.monto-rendidoDe(r);
+  /* El color dice el estado de un vistazo, y son TRES, no dos: verde solo el
+     que cerró clavado; rojo lo que falta rendir; ámbar el que se pasó, que
+     está cerrado pero descuadrado y no merece luz verde. */
   const optRet=(r,i)=>{
-    const falta=faltaDe(r);
-    return el("option",{value:String(i)},perTexto(periodoDe(r))+"  ·  retiro de "+plata(r.monto)+
-      (Math.abs(falta)<.005?"  ·  ya rendido"
+    const falta=faltaDe(r), ok=Math.abs(falta)<.005;
+    return el("option",{value:String(i),
+      style:"color:var(--"+(ok?"efectivo":falta<0?"aviso":"alerta")+")"},
+      perTexto(periodoDe(r))+"  ·  retiro de "+plata(r.monto)+
+      (ok?"  ·  ya rendido"
        :falta<0?"  ·  rendido de más "+plata(-falta)
        :"  ·  faltan "+plata(falta)));
   };
