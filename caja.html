@@ -2123,7 +2123,7 @@ function dialogoSalida(tipo){
     el("label",{class:"f",style:"flex:0 1 200px"},"Desde"+req,iDe),
     el("label",{class:"f",style:"flex:0 1 200px"},"Hasta"+req,iHa));
   /* Un retiro que ya está rendido no se vuelve a ofrecer arriba: la boleta que
-     lo rinde ya se cargó. Queda abajo, en "Ya rendidos" y sin preseleccionar,
+     lo rinde ya se cargó. Queda abajo, en "Ya depositados" y sin preseleccionar,
      porque corregir una rendición cerrada por "Otro período…" obliga a tipear
      el par (desde,hasta) exacto o la boleta nueva queda huérfana. Si se borra
      la boleta, el retiro vuelve solo al grupo de arriba. */
@@ -2134,7 +2134,7 @@ function dialogoSalida(tipo){
   const optRet=(r,i)=>{
     const falta=faltaDe(r), ok=Math.abs(falta)<.005;
     return el("option",{value:String(i),
-      style:"color:var(--"+(ok?"efectivo":falta<0?"aviso":"alerta")+")"},
+      style:"font-weight:700;color:var(--"+(ok?"efectivo":falta<0?"aviso":"alerta")+")"},
       perTexto(periodoDe(r))+"  ·  retiro de "+plata(r.monto)+
       (ok?"  ·  ya rendido"
        :falta<0?"  ·  rendido de más "+plata(-falta)
@@ -2144,7 +2144,7 @@ function dialogoSalida(tipo){
   rets.forEach((r,i)=>(faltaDe(r)>.005?opsPend:opsRend).push(optRet(r,i)));
   const sPer=dep?el("select",{style:"width:100%"},
     ...opsPend,
-    ...(opsRend.length?[el("optgroup",{label:"Ya rendidos"},...opsRend)]:[]),
+    ...(opsRend.length?[el("optgroup",{label:"Ya depositados"},...opsRend)]:[]),
     el("option",{value:"otro"},"Otro período…")):null;
   // sin períodos abiertos no se preselecciona uno cerrado: arranca en "Otro período…"
   if(sPer&&!opsPend.length) sPer.value="otro";
