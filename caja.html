@@ -2122,13 +2122,27 @@ function dialogoSalida(tipo){
   const filaFechas=el("div",{class:"row",style:"margin-top:9px"},
     el("label",{class:"f",style:"flex:0 1 200px"},"Desde"+req,iDe),
     el("label",{class:"f",style:"flex:0 1 200px"},"Hasta"+req,iHa));
+  /* Un retiro que ya está rendido no se vuelve a ofrecer arriba: la boleta que
+     lo rinde ya se cargó. Queda abajo, en "Ya rendidos" y sin preseleccionar,
+     porque corregir una rendición cerrada por "Otro período…" obliga a tipear
+     el par (desde,hasta) exacto o la boleta nueva queda huérfana. Si se borra
+     la boleta, el retiro vuelve solo al grupo de arriba. */
+  const faltaDe=r=>r.monto-rendidoDe(r);
+  const optRet=(r,i)=>{
+    const falta=faltaDe(r);
+    return el("option",{value:String(i)},perTexto(periodoDe(r))+"  ·  retiro de "+plata(r.monto)+
+      (Math.abs(falta)<.005?"  ·  ya rendido"
+       :falta<0?"  ·  rendido de más "+plata(-falta)
+       :"  ·  faltan "+plata(falta)));
+  };
+  const opsPend=[],opsRend=[];
+  rets.forEach((r,i)=>(faltaDe(r)>.005?opsPend:opsRend).push(optRet(r,i)));
   const sPer=dep?el("select",{style:"width:100%"},
-    ...rets.map((r,i)=>{
-      const p=periodoDe(r), falta=r.monto-rendidoDe(r);
-      return el("option",{value:String(i)},perTexto(p)+"  ·  retiro de "+plata(r.monto)+
-        (Math.abs(falta)<.005?"  ·  ya rendido":"  ·  faltan "+plata(falta)));
-    }),
+    ...opsPend,
+    ...(opsRend.length?[el("optgroup",{label:"Ya rendidos"},...opsRend)]:[]),
     el("option",{value:"otro"},"Otro período…")):null;
+  // sin períodos abiertos no se preselecciona uno cerrado: arranca en "Otro período…"
+  if(sPer&&!opsPend.length) sPer.value="otro";
 
   const retSel=()=>(dep&&sPer.value!=="otro")?rets[+sPer.value]:null;
   function aplicarPer(){
