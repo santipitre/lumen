@@ -985,7 +985,7 @@ function porDia(gr){
 }
 /* El retiro saca la plata de la caja. El deposito bancario NO: es la boleta que
    rinde un retiro que ya salio, asi que no vuelve a bajar el saldo. Un mismo
-   retiro puede rendirse con varias boletas que entre todas suman su monto. */
+   retiro puede depositarse con varias boletas que entre todas suman su monto. */
 const saldoEfectivo=()=>db.grupos.filter(g=>g.categoria==="efectivo").reduce((s,g)=>s+g.monto,0)-retirosFirmados().reduce((s,r)=>s+r.monto,0);
 const enEsperaDeFirma=()=>db.retiros.filter(esperaFirma).reduce((s,r)=>s+r.monto,0);
 const ultimoRetiro=()=>{const r=retirosOrd().filter(retiroFirmado);return r.length?r[r.length-1]:null};
@@ -1558,7 +1558,7 @@ function vistaReportes(){
     kpi("Otros valores",plata(t.otros),t.otros?"var(--otros)":null),
     kpi("Total valores",plata(t.total)),
     kpi("Retirado",plata(rets.filter(r=>!esDeposito(r)).reduce((s,r)=>s+r.monto,0))),
-    kpi("Rendido en boletas",plata(rets.filter(esDeposito).reduce((s,r)=>s+r.monto,0)))));
+    kpi("Depositado en boletas",plata(rets.filter(esDeposito).reduce((s,r)=>s+r.monto,0)))));
   c.append(p);
   if(!gr.length) return c;
 
@@ -1986,7 +1986,7 @@ function vistaRetiros(){
     const tab=el("table",{class:"data"});
     tab.append(el("thead",{},el("tr",{},el("th",{},"Fecha"),el("th",{},"Período"),el("th",{},"Firma / Tesorero"),el("th",{class:"num"},"Monto"),
       el("th",{class:"num"},"Días"),el("th",{class:"num"},"Efectivo del período"),el("th",{class:"num"},"Diferencia"),
-      el("th",{class:"num"},"Rendido"),el("th",{},"Detalle"),el("th",{},"Comprobante"),el("th",{},""))));
+      el("th",{class:"num"},"Depositado"),el("th",{},"Detalle"),el("th",{},"Comprobante"),el("th",{},""))));
     const tb=el("tbody",{});
     for(let i=rets.length-1;i>=0;i--){
       const r=rets[i], pe=periodoDe(r);
@@ -2014,8 +2014,12 @@ function vistaRetiros(){
         el("td",{class:"num"},String(new Set(gp.map(g=>g.fecha)).size)),
         el("td",{class:"num chip-ef"},plata(tp.efectivo)),
         el("td",{class:"num"+(Math.abs(dif)>0.5?" neg":"")},Math.abs(dif)<0.5?"—":plata(dif)),
-        el("td",{class:"num"+(ren&&!cerrado?" neg":""),
-          title:bol.length?bol.length+" boleta(s) de depósito en este período":"Todavía sin boletas de depósito"},
+        /* mismo criterio que el diálogo: retiro − depositado. Positivo es
+           faltante (rojo), negativo es sobrante (ámbar). */
+        el("td",{class:"num"+(ren&&!cerrado&&falta>0?" neg":""),
+          style:ren&&falta<-.005?"color:var(--aviso);font-weight:700":null,
+          title:(bol.length?bol.length+" boleta(s) de depósito en este período":"Todavía sin boletas de depósito")+
+            (ren&&!cerrado?"  ·  "+(falta>0?"faltante "+plata(falta):"sobrante "+plata(-falta)):"")},
           !ren?"—":(cerrado?plata(ren):plata(ren)+" / "+plata(r.monto))),
         el("td",{},r.detalle||"—"),
         celdaComps("retiro|"+r.id),
@@ -2032,7 +2036,7 @@ function vistaRetiros(){
   if(deps.length){
     p.append(rotulo("Depósitos bancarios"));
     const tab=el("table",{class:"data"});
-    tab.append(el("thead",{},el("tr",{},el("th",{},"Fecha"),el("th",{},"Período que rinde"),el("th",{},"Depositó"),el("th",{class:"num"},"Monto"),
+    tab.append(el("thead",{},el("tr",{},el("th",{},"Fecha"),el("th",{},"Período depositado"),el("th",{},"Depositó"),el("th",{class:"num"},"Monto"),
       el("th",{},"Banco"),el("th",{},"N° de boleta"),el("th",{},"Detalle"),el("th",{},"Comprobante"),el("th",{},""))));
     const tb=el("tbody",{});
     for(let i=deps.length-1;i>=0;i--){
@@ -2076,15 +2080,15 @@ const SALIDA={
     titulo:"Registrar depósito bancario", boton:"Registrar depósito",
     quien:"Depositó", gente:()=>db.depositantes,
     detallePh:"Opcional: aclaración interna", pideBanco:true, compObligatorio:true,
-    rotuloPer:"Período que se rinde",
-    hintPer:"El retiro que estás rindiendo con esta boleta. Un mismo período puede tener varias boletas que entre todas suman el monto retirado.",
+    rotuloPer:"Período que se deposita",
+    hintPer:"El retiro que estás depositando con esta boleta. Un mismo período puede tener varias boletas que entre todas suman el monto retirado.",
     comp:"Comprobante del depósito",
     compHint:"Boleta de depósito, ticket del cajero automático o captura del homebanking. PNG, JPG, WEBP o PDF, hasta 400 KB.",
     ok:m=>`Depósito de ${plata(m)} registrado`}
 };
 const dialogoRetiro=()=>dialogoSalida("retiro");
 const dialogoDeposito=()=>dialogoSalida("deposito");
-/* hay algo para rendir cuando existe al menos un retiro */
+/* hay algo para depositar cuando existe al menos un retiro */
 const hayQueRendir=()=>db.retiros.some(retiroFirmado);
 
 function dialogoSalida(tipo){
@@ -2095,9 +2099,9 @@ function dialogoSalida(tipo){
   if(!dep&&!pend.length){toast(saldo>0
     ?"Todos los d\u00edas cargados ya salieron en un retiro. Import\u00e1 los listados de los d\u00edas nuevos."
     :S.sinSaldo);return}
-  /* los retiros son los períodos que una boleta puede rendir, del más nuevo al más viejo */
+  /* los retiros son los períodos que una boleta puede depositar, del más nuevo al más viejo */
   const rets=retirosOrd().filter(retiroFirmado).reverse();
-  if(dep&&!rets.length){toast("Primero registrá el retiro que vas a rendir con esta boleta.");return}
+  if(dep&&!rets.length){toast("Primero registrá el retiro que vas a depositar con esta boleta.");return}
   const req=S.pideBanco?" *":"";
   const iF=el("input",{type:"date",value:hoyISO(),max:hoyISO()});
   const sR=el("select",{},...S.gente().map(r=>el("option",{value:r},r)));
@@ -2122,23 +2126,23 @@ function dialogoSalida(tipo){
   const filaFechas=el("div",{class:"row",style:"margin-top:9px"},
     el("label",{class:"f",style:"flex:0 1 200px"},"Desde"+req,iDe),
     el("label",{class:"f",style:"flex:0 1 200px"},"Hasta"+req,iHa));
-  /* Un retiro que ya está rendido no se vuelve a ofrecer arriba: la boleta que
+  /* Un retiro ya depositado no se vuelve a ofrecer arriba: la boleta que
      lo rinde ya se cargó. Queda abajo, en "Ya depositados" y sin preseleccionar,
-     porque corregir una rendición cerrada por "Otro período…" obliga a tipear
+     porque corregir un período cerrado por "Otro período…" obliga a tipear
      el par (desde,hasta) exacto o la boleta nueva queda huérfana. Si se borra
      la boleta, el retiro vuelve solo al grupo de arriba. */
   const faltaDe=r=>r.monto-rendidoDe(r);
   /* El color dice el estado de un vistazo, y son TRES, no dos: verde solo el
-     que cerró clavado; rojo lo que falta rendir; ámbar el que se pasó, que
+     que cerró clavado; rojo el faltante; ámbar el sobrante, que
      está cerrado pero descuadrado y no merece luz verde. */
   const optRet=(r,i)=>{
     const falta=faltaDe(r), ok=Math.abs(falta)<.005;
     return el("option",{value:String(i),
       style:"font-weight:700;color:var(--"+(ok?"efectivo":falta<0?"aviso":"alerta")+")"},
       perTexto(periodoDe(r))+"  ·  retiro de "+plata(r.monto)+
-      (ok?"  ·  ya rendido"
-       :falta<0?"  ·  rendido de más "+plata(-falta)
-       :"  ·  faltan "+plata(falta)));
+      (ok?"  ·  sin diferencia"
+       :falta<0?"  ·  sobrante "+plata(-falta)
+       :"  ·  faltante "+plata(falta)));
   };
   const opsPend=[],opsRend=[];
   rets.forEach((r,i)=>(faltaDe(r)>.005?opsPend:opsRend).push(optRet(r,i)));
@@ -2244,7 +2248,7 @@ function dialogoSalida(tipo){
   };
   pintarBuf();
 
-  /* aviso vivo: en el retiro habla del saldo, en la boleta de lo que falta rendir */
+  /* aviso vivo: en el retiro habla del saldo, en la boleta del faltante/sobrante */
   function ck(){
     const m=parseMonto(iM.value);
     if(!dep){
@@ -2269,10 +2273,12 @@ function dialogoSalida(tipo){
     }
     const ya=rendidoDe(r), falta=r.monto-ya-m;
     cab.replaceChildren("Retiro del período: ",el("b",{},plata(r.monto)),
-      ya?"  ·  ya rendido "+plata(ya):"  ·  sin rendir todavía");
-    if(Math.abs(falta)<.005){av.textContent="Con esta boleta el retiro queda rendido por completo.";av.style.color="var(--efectivo)"}
-    else if(falta>0){av.textContent=`Con esta boleta faltan rendir ${plata(falta)} de ese retiro.`;av.style.color="var(--aviso)"}
-    else{av.textContent=`Te pasás ${plata(-falta)} de lo que se retiró en ese período.`;av.style.color="var(--alerta)"}
+      ya?"  ·  ya depositado "+plata(ya):"  ·  sin depositar todavía");
+    /* mismo criterio que el select: retiro − depositado. Positivo = faltante,
+       negativo = sobrante. El aviso usa las mismas dos palabras a propósito. */
+    if(Math.abs(falta)<.005){av.textContent="Con esta boleta el período queda sin diferencia.";av.style.color="var(--efectivo)"}
+    else if(falta>0){av.textContent=`Con esta boleta queda un faltante de ${plata(falta)} en ese período.`;av.style.color="var(--alerta)"}
+    else{av.textContent=`Con esta boleta queda un sobrante de ${plata(-falta)}: depositás más de lo que se retiró.`;av.style.color="var(--aviso)"}
   }
   iM.addEventListener("input",()=>{haTocadoMonto=true;ck()});
   if(sPer) sPer.addEventListener("change",aplicarPer);
@@ -2336,7 +2342,7 @@ function dialogoSalida(tipo){
         const ya=r?rendidoDe(r):boletasPeriodo({desde:iDe.value,hasta:iHa.value}).reduce((a,d)=>a+d.monto,0);
         const tope=r?r.monto:0;
         if(r&&ya+m>tope+.5&&!await confirmar("La boleta supera el retiro",
-          [`Entre las boletas de ese período vas a rendir ${plata(ya+m)} contra un retiro de ${plata(tope)}.`,
+          [`Entre las boletas de ese período vas a depositar ${plata(ya+m)} contra un retiro de ${plata(tope)}, o sea un sobrante de ${plata(ya+m-tope)}.`,
            "Puede ser un error de carga, o plata de otro período que entró en la misma boleta."],
           {ok:"Registrar igual"}))return false;
       }
