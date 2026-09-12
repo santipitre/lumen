@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Caja · Listados y tesorería</title>
-<link rel="stylesheet" href="caja.css">
+<link rel="stylesheet" href="caja.css?v=9974eba3">
 </head>
 <body>
 <div id="gate">
@@ -167,13 +167,13 @@ async function sbInsert(t,d){const r=await fetch(`${SUPABASE_URL}/rest/v1/${t}`,
 async function sbRpc(fn,args){const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:'POST',headers:await getSBHeaders(),body:JSON.stringify(args)});
   if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.message||'RPC '+r.status)} return r.json();}
 </script>
-<script src="xlsx.min.js"></script>
-<script src="caja-utils.js"></script>
-<script src="caja-datos.js"></script>
-<script src="caja-importar.js"></script>
-<script src="caja-retiros.js"></script>
-<script src="caja-revisar.js"></script>
-<script src="caja-app.js"></script>
+<script src="xlsx.min.js?v=82d32e9e"></script>
+<script src="caja-utils.js?v=c8a21e23"></script>
+<script src="caja-datos.js?v=9ccd1a98"></script>
+<script src="caja-importar.js?v=62419a86"></script>
+<script src="caja-retiros.js?v=586c09b0"></script>
+<script src="caja-revisar.js?v=7b9ccbd4"></script>
+<script src="caja-app.js?v=ec926a4a"></script>
 <script>
 arrancar();
 </script>
