@@ -284,6 +284,57 @@ function imprimirComprobante(r){
    el mensaje que se muestra tal cual. */
 const MAIL_GUARDADO="lumen_caja_mail";
 const leerMail=()=>{try{return localStorage.getItem(MAIL_GUARDADO)||""}catch(e){return""}};
+/* ------------------------------------------------------------
+   Mandar por Outlook, a mano. Sin servicio de envío ni secretos:
+   Lumen arma el mail (destinatario, asunto, cuerpo en texto) y lo
+   abre en Outlook web con la cuenta institucional; el comprobante
+   completo con formato queda copiado al portapapeles para pegar
+   con Ctrl+V. Lo manda una persona, desde su casilla, y queda en
+   sus Enviados. Para plata, eso es una ventaja, no un defecto.
+   ------------------------------------------------------------ */
+function resumenComprobanteTexto(r){
+  const ds=detalleDias(r);
+  const L=[];
+  L.push("COMPROBANTE DE RETIRO DE EFECTIVO  "+nroComprobante(r));
+  L.push("FUESMEN · Hospital Italiano de Mendoza · "+SEDE);
+  L.push("");
+  L.push("Fecha del retiro:     "+fechaLarga(r.fecha));
+  L.push("Mensajero que retira: "+(r.retira_nombre||r.responsable||"—"));
+  if(r.tesorero) L.push("Entregado a:          "+r.tesorero);
+  L.push("Total retirado:       "+plata(r.monto));
+  if(ds.length){
+    L.push("");
+    L.push("Días que cubre ("+ds.length+"):");
+    for(const d of ds) L.push("  · "+fechaCorta(d.fecha)+"   "+plata(d.monto));
+  }
+  if(r.detalle){ L.push(""); L.push("Detalle: "+r.detalle); }
+  L.push("");
+  L.push("El comprobante completo va pegado debajo de esta línea (o adjunto en PDF).");
+  L.push("Emitido por Lumen · Rendición de Caja.");
+  return L.join("\n");
+}
+/* Outlook web: los espacios van como %20, no como + (encodeURIComponent lo hace bien). */
+const urlOutlook=(r,para,copia)=>"https://outlook.office.com/mail/deeplink/compose"+
+  "?to="+encodeURIComponent(para)+
+  (copia?"&cc="+encodeURIComponent(copia):"")+
+  "&subject="+encodeURIComponent("Comprobante de retiro "+nroComprobante(r)+" · "+plata(r.monto))+
+  "&body="+encodeURIComponent(resumenComprobanteTexto(r))+
+  "&online=1";
+/* Copia el comprobante con formato (text/html) y en texto plano como respaldo.
+   Devuelve true si quedó copiado. Necesita un clic del usuario para tener permiso. */
+async function copiarComprobante(r){
+  const html=comprobanteHTML(r), texto=resumenComprobanteTexto(r);
+  try{
+    if(navigator.clipboard&&window.ClipboardItem){
+      await navigator.clipboard.write([new ClipboardItem({
+        "text/html":new Blob([html],{type:"text/html"}),
+        "text/plain":new Blob([texto],{type:"text/plain"})})]);
+      return true;
+    }
+    if(navigator.clipboard){ await navigator.clipboard.writeText(texto); return true; }
+  }catch(e){ console.warn("[caja] portapapeles",e); }
+  return false;
+}
 function dialogoMail(r){
   const iP=el("input",{type:"text",placeholder:"tesoreria@ejemplo.com",
     value:leerMail(),style:"width:100%"});
@@ -294,12 +345,25 @@ function dialogoMail(r){
   const fallar=(t,f)=>{err.textContent=t;err.style.display="";if(f)f.focus();return false};
   modal({titulo:"Enviar el comprobante",cuerpo:el("div",{},
       el("p",{class:"hint",style:"margin:0 0 12px"},
-        "El comprobante va en el cuerpo del mail. Pod\u00e9s poner varios destinatarios separados por coma."),
+        "Abrir en Outlook arma el mail con tu cuenta y deja el comprobante copiado: en el cuerpo, peg\u00e1s con Ctrl+V y envi\u00e1s. "+
+        "Pod\u00e9s poner varios destinatarios separados por coma."),
       el("label",{class:"f"},"Para *",iP),
       el("label",{class:"f",style:"margin-top:10px"},"Copia a",iC),
       el("label",{class:"f",style:"margin-top:10px"},"Asunto",iA),
       err),
-    acciones:[{texto:"Cancelar"},{texto:"Enviar",clase:"",accion:async()=>{
+    acciones:[{texto:"Cancelar"},
+      {texto:"Abrir en Outlook",clase:"",accion:async()=>{
+        err.style.display="none";
+        const para=iP.value.trim();
+        if(!para) return fallar("Falta el destinatario.",iP);
+        const copiado=await copiarComprobante(r);
+        const w=window.open(urlOutlook(r,para,iC.value.trim()),"_blank","noopener");
+        if(!w){ return fallar("El navegador bloque\u00f3 la ventana de Outlook. Permit\u00ed las ventanas emergentes para esta p\u00e1gina y volv\u00e9 a intentar.",null); }
+        toast(copiado
+          ?"Se abri\u00f3 Outlook. El comprobante est\u00e1 copiado: pegalo en el cuerpo con Ctrl+V."
+          :"Se abri\u00f3 Outlook con el resumen. No pude copiar el comprobante: adjuntalo en PDF.");
+      }},
+      {texto:"Enviar autom\u00e1tico",accion:async()=>{
       err.style.display="none";
       const para=iP.value.trim();
       if(!para) return fallar("Falta el destinatario.",iP);
@@ -317,7 +381,7 @@ function dialogoMail(r){
       if(!rs.ok){
         if(j&&j.error==="sin_clave"){
           avisar("Falta configurar el env\u00edo",
-            [j.mensaje,"Mientras tanto, guard\u00e1 el comprobante en PDF y adjuntalo a mano."]);
+            [j.mensaje,"Us\u00e1 Abrir en Outlook: arma el mail con tu cuenta y no necesita ninguna clave."]);
           return true;
         }
         return fallar((j&&j.mensaje)||("El env\u00edo fall\u00f3 ("+rs.status+")."),null);
