@@ -85,8 +85,14 @@ function procesar(archivos){
   if(!archivos.length){toast("Ningún archivo legible.");return}
   const grupos=new Map(); const rechazos=[]; let filasOK=0; const nombres=[];
   const medios=new Set();
-  const otrasSuc=new Map();   // sucursal -> filas dejadas afuera
+  const otrasSuc=new Map();   // sucursal -> filas dejadas afuera (cajero ajeno)
   let sinColumnaSuc=false;
+  /* Un cajero de otra sucursal que YA trabajó en esta caja es un reemplazo:
+     probablemente vino a cubrir una licencia y no se pidió el cambio de caja
+     en el sistema, así que su plata figura en la sucursal equivocada. No se
+     descarta ni se importa sola: se muestra aparte y decide el usuario. */
+  const conHistoria=new Set([...db.cajeros,...db.grupos.map(g=>g.cajero)]);
+  const reGrupos=new Map(); let reFilas=0; const reSuc=new Set();
 
   for(const a of archivos){
     nombres.push(a.nombre);
@@ -105,9 +111,13 @@ function procesar(archivos){
       const cj=String(r[idx.cajero]||"").trim().toUpperCase();
       /* Otra sucursal: no es un rechazo, es plata de otra caja. Se cuenta aparte
          y se muestra en la previsualización para que nunca desaparezca en silencio. */
+      let esReemplazo=false;
       if(idx.sucursal>=0){
         const suc=normSucursal(r[idx.sucursal]);
-        if(suc&&!esDeLaSede(suc)){ otrasSuc.set(suc,(otrasSuc.get(suc)||0)+1); continue; }
+        if(suc&&!esDeLaSede(suc)){
+          if(cj&&conHistoria.has(cj)){ esReemplazo=true; reSuc.add(suc); }
+          else { otrasSuc.set(suc,(otrasSuc.get(suc)||0)+1); continue; }
+        }
       }
       if(!f||!cj){ if(r.some(v=>String(v).trim())) rechazos.push({archivo:a.nombre,linea:i+1,motivo:!f?"fecha ilegible":"sin cajero"}); continue; }
       if(idx.anulada>=0&&String(r[idx.anulada]||"").trim()){ rechazos.push({archivo:a.nombre,linea:i+1,motivo:"comprobante anulado"}); continue; }
@@ -116,12 +126,14 @@ function procesar(archivos){
       medios.add(medio);
       const nro=idx.numero>=0?String(r[idx.numero]||"").replace(/\.0$/,""):"";
       const k=[f,cj,medio].join("|");
-      if(!grupos.has(k)) grupos.set(k,{fecha:f,cajero:cj,medio,categoria:categoriaDe(medio),monto:0,n:0,comps:[]});
-      const g=grupos.get(k); g.monto+=monto; g.n++; if(g.comps.length<400)g.comps.push({n:nro||"",m:monto});
-      filasOK++;
+      const mapa=esReemplazo?reGrupos:grupos;
+      if(!mapa.has(k)) mapa.set(k,{fecha:f,cajero:cj,medio,categoria:categoriaDe(medio),monto:0,n:0,comps:[]});
+      const g=mapa.get(k); g.monto+=monto; g.n++; if(g.comps.length<400)g.comps.push({n:nro||"",m:monto});
+      if(esReemplazo) reFilas++; else filasOK++;
     }
   }
-  if(!grupos.size){
+  const reemplazos={grupos:[...reGrupos.values()],filas:reFilas,sucursales:[...reSuc]};
+  if(!grupos.size&&!reemplazos.filas){
     modal({titulo:"No se importó nada",cuerpo:el("div",{},
       el("p",{},"No pude leer ninguna fila válida."),
       rechazos.length?el("p",{class:"hint"},`Ejemplo: ${rechazos[0].archivo}, línea ${rechazos[0].linea} — ${rechazos[0].motivo}.`):null,
@@ -129,11 +141,29 @@ function procesar(archivos){
     ),acciones:[{texto:"Cerrar"}]});
     return;
   }
-  previsualizar([...grupos.values()],rechazos,nombres,filasOK,[...medios],otrasSuc,sinColumnaSuc);
+  previsualizar([...grupos.values()],rechazos,nombres,filasOK,[...medios],otrasSuc,sinColumnaSuc,reemplazos,false);
 }
 
-function previsualizar(nuevos,rechazos,nombres,filasOK,medios,otrasSuc,sinColumnaSuc){
+function previsualizar(nuevos,rechazos,nombres,filasOK,medios,otrasSuc,sinColumnaSuc,reemplazos,incluirRe){
   otrasSuc=otrasSuc||new Map();
+  reemplazos=reemplazos||{grupos:[],filas:0,sucursales:[]};
+  const nuevosOriginal=nuevos, filasOKOriginal=filasOK;
+  const reTot=totales(reemplazos.grupos);
+  const reCajeros=[...new Set(reemplazos.grupos.map(g=>g.cajero))];
+  /* Si el usuario los incluye, los grupos del reemplazo se suman a los normales
+     por la misma clave fecha|cajero|medio (puede haber días con la caja bien
+     puesta en algunas filas y mal en otras). */
+  if(incluirRe&&reemplazos.grupos.length){
+    /* copias: el usuario puede destildar y hay que volver a los originales */
+    const m=new Map(nuevos.map(g=>[g.fecha+"|"+g.cajero+"|"+g.medio,
+                                   {...g,comps:(g.comps||[]).slice()}]));
+    for(const g of reemplazos.grupos){
+      const k=g.fecha+"|"+g.cajero+"|"+g.medio, y=m.get(k);
+      if(y){ y.monto+=g.monto; y.n+=g.n; y.comps=(y.comps||[]).concat(g.comps||[]).slice(0,400); }
+      else m.set(k,{...g});
+    }
+    nuevos=[...m.values()]; filasOK+=reemplazos.filas;
+  }
   const dias=porDia(nuevos);
   const t=totales(nuevos);
   const cajerosNuevos=[...new Set(nuevos.map(g=>g.cajero))].filter(c=>!db.cajeros.includes(c));
@@ -162,6 +192,17 @@ function previsualizar(nuevos,rechazos,nombres,filasOK,medios,otrasSuc,sinColumn
       kpi("Billetera",plata(t.billetera),"var(--billetera)"),
       kpi("Total valores",plata(t.total))),
     el("p",{class:"hint",style:"margin:0 0 12px"},`${nombres.length} archivo(s) · ${rango} · ${dias.length} combinación(es) día + cajero`),
+    reemplazos.filas?el("div",{class:"banner rojo"},
+      el("b",{},reemplazos.filas+" fila(s) de "+reemplazos.sucursales.join(" / ")+" son de "+
+        reCajeros.join(", ")+", que ya trabajó en esta caja. "),
+      "Puede ser un reemplazo al que no se le pidió el cambio de caja en el sistema: "+
+      "en ese caso la plata estuvo acá aunque figure en la otra sucursal. "+
+      plata(reTot.efectivo)+" de efectivo · "+plata(reTot.total)+" en total.",
+      el("label",{class:"row",style:"gap:7px;margin-top:9px;align-items:center;cursor:pointer"},
+        el("input",{type:"checkbox",checked:incluirRe?"checked":null,
+          onchange:()=>previsualizar(nuevosOriginal,rechazos,nombres,filasOKOriginal,medios,
+                                     otrasSuc,sinColumnaSuc,reemplazos,!incluirRe)}),
+        el("b",{},"Incluir estas "+reemplazos.filas+" filas en la importación"))):null,
     otrasSuc.size?el("div",{class:"banner"},
       el("b",{},[...otrasSuc.values()].reduce((x,y)=>x+y,0)+" fila(s) de otras sucursales quedaron afuera: "),
       [...otrasSuc.entries()].sort((x,y)=>y[1]-x[1]).map(([s2,n2])=>s2+" ("+n2+")").join(" · ")):null,
