@@ -4,6 +4,10 @@
 _*.html
 _*.sql
 
+# Red de seguridad de caja.html: trae exports reales del HIS con
+# nombres de pacientes y DNI. NUNCA se publica.
+_test/
+
 # Archivos del sistema
 .DS_Store
 Thumbs.db
