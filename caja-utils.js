@@ -164,8 +164,15 @@ const COLS={
   monto:["monto","importe"],
   total:["total"],
   letra:["letra"], numero:["numero","número","nro","n° comprobante"], tc:["tc","tipo comprobante"],
-  anulada:["anulada"]
+  anulada:["anulada"],
+  sucursal:["sucursal","sede","establecimiento nombre"]
 };
+/* El Listado del HIS trae TODAS las sucursales de FUESMEN. Esta caja es la del
+   Hospital Italiano: lo de las otras no es plata de acá y no tiene que entrar.
+   Si el archivo no trae la columna, no se filtra nada y se avisa. */
+const SUCURSAL_SEDE=["HOSP ITALIANO","HOSPITAL ITALIANO","HOSP. ITALIANO"];
+const normSucursal=s=>String(s||"").toUpperCase().replace(/\s+/g," ").trim();
+const esDeLaSede=s=>SUCURSAL_SEDE.includes(normSucursal(s));
 function mapear(cab){
   const norm=cab.map(h=>String(h||"").toLowerCase().replace(/\s+/g," ").trim());
   const idx={};

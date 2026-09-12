@@ -85,6 +85,8 @@ function procesar(archivos){
   if(!archivos.length){toast("Ningún archivo legible.");return}
   const grupos=new Map(); const rechazos=[]; let filasOK=0; const nombres=[];
   const medios=new Set();
+  const otrasSuc=new Map();   // sucursal -> filas dejadas afuera
+  let sinColumnaSuc=false;
 
   for(const a of archivos){
     nombres.push(a.nombre);
@@ -95,11 +97,18 @@ function procesar(archivos){
       if(m.fecha>=0&&m.cajero>=0&&(m.monto>=0||m.total>=0)){hi=i;idx=m;break}
     }
     if(hi<0){ rechazos.push({archivo:a.nombre,linea:1,motivo:"no encontré las columnas Fecha / Cajero / Monto"}); continue; }
+    if(idx.sucursal<0) sinColumnaSuc=true;
 
     for(let i=hi+1;i<a.filas.length;i++){
       const r=a.filas[i]; if(!r||!r.length)continue;
       const f=parseFecha(r[idx.fecha]);
       const cj=String(r[idx.cajero]||"").trim().toUpperCase();
+      /* Otra sucursal: no es un rechazo, es plata de otra caja. Se cuenta aparte
+         y se muestra en la previsualización para que nunca desaparezca en silencio. */
+      if(idx.sucursal>=0){
+        const suc=normSucursal(r[idx.sucursal]);
+        if(suc&&!esDeLaSede(suc)){ otrasSuc.set(suc,(otrasSuc.get(suc)||0)+1); continue; }
+      }
       if(!f||!cj){ if(r.some(v=>String(v).trim())) rechazos.push({archivo:a.nombre,linea:i+1,motivo:!f?"fecha ilegible":"sin cajero"}); continue; }
       if(idx.anulada>=0&&String(r[idx.anulada]||"").trim()){ rechazos.push({archivo:a.nombre,linea:i+1,motivo:"comprobante anulado"}); continue; }
       const monto=parseMonto(idx.monto>=0?r[idx.monto]:r[idx.total]);
@@ -120,10 +129,11 @@ function procesar(archivos){
     ),acciones:[{texto:"Cerrar"}]});
     return;
   }
-  previsualizar([...grupos.values()],rechazos,nombres,filasOK,[...medios]);
+  previsualizar([...grupos.values()],rechazos,nombres,filasOK,[...medios],otrasSuc,sinColumnaSuc);
 }
 
-function previsualizar(nuevos,rechazos,nombres,filasOK,medios){
+function previsualizar(nuevos,rechazos,nombres,filasOK,medios,otrasSuc,sinColumnaSuc){
+  otrasSuc=otrasSuc||new Map();
   const dias=porDia(nuevos);
   const t=totales(nuevos);
   const cajerosNuevos=[...new Set(nuevos.map(g=>g.cajero))].filter(c=>!db.cajeros.includes(c));
@@ -152,6 +162,11 @@ function previsualizar(nuevos,rechazos,nombres,filasOK,medios){
       kpi("Billetera",plata(t.billetera),"var(--billetera)"),
       kpi("Total valores",plata(t.total))),
     el("p",{class:"hint",style:"margin:0 0 12px"},`${nombres.length} archivo(s) · ${rango} · ${dias.length} combinación(es) día + cajero`),
+    otrasSuc.size?el("div",{class:"banner"},
+      el("b",{},[...otrasSuc.values()].reduce((x,y)=>x+y,0)+" fila(s) de otras sucursales quedaron afuera: "),
+      [...otrasSuc.entries()].sort((x,y)=>y[1]-x[1]).map(([s2,n2])=>s2+" ("+n2+")").join(" · ")):null,
+    sinColumnaSuc?el("div",{class:"banner ambar"},el("b",{},"El archivo no trae columna Sucursal: "),
+      "no pude filtrar por sede. Verificá que sea el listado del Hospital Italiano."):null,
     cajerosNuevos.length?el("div",{class:"banner ambar"},el("b",{},"Cajeros nuevos: "),cajerosNuevos.join(", ")):null,
     mediosRaros.length?el("div",{class:"banner ambar"},el("b",{},"Medios fuera de lo común: "),mediosRaros.join(", ")+". Van a la columna Otros valores y quedan para revisar."):null,
     yaExisten.length?el("div",{class:"banner rojo"},el("b",{},`${yaExisten.length} día(s) ya cargados`),"Si importás igual, esos días quedan duplicados. Elegí Reemplazar."):null,
