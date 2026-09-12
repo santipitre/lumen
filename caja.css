@@ -248,6 +248,14 @@ table.data.compacta td.num{font-size:13.5px}
 table.data.compacta .btn.small{padding:6px 9px;font-size:12.5px}
 table.data.compacta .tick{width:24px;height:24px;font-size:13px}
 table.data.compacta .acciones{gap:6px}
+table.data.salidas td .sub{font-size:11.5px;color:var(--ink-3);font-weight:500;margin-top:2px;white-space:nowrap}
+table.data.salidas td .sub.mono{font-family:var(--mono);font-size:11.5px}
+table.data.salidas td.num .sub{font-family:var(--sans)}
+table.data.salidas td{vertical-align:middle}
+table.data.salidas .comp-chip{max-width:130px}
+.acciones.col{flex-direction:column;align-items:stretch;gap:5px}
+.acciones.col .btn{width:100%;padding:4px 8px;font-size:12px}
+table.data.salidas td .sub.mono{font-size:11px}
 .dsep-m b{color:var(--ink-2);font-weight:650}
 .dsep-m .ret{color:var(--otros)}
 .badge{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.05em;padding:1px 6px;border-radius:9px;text-transform:uppercase}

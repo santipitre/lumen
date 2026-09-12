@@ -35,7 +35,9 @@ function pintarCinta(){
       el("span",{},"Espera firma"),el("b",{style:"color:var(--aviso)"},plata(enEsperaDeFirma()))):null
   ].filter(Boolean));
   const r=diasARevisar().filter(x=>!estaRevisado(x.d)).length; $("#cnt-rev").textContent=r?`(${r})`:"";
-  $("#btn-retirar").disabled=!diasPendientes().length; $("#btn-depositar").disabled=!hayQueRendir();
+  $("#btn-retirar").disabled=!diasPendientes().length;
+  const bd=$("#btn-depositar"); bd.disabled=!hayQueRendir();
+  bd.title=bd.disabled?"No hay retiros pendientes de depositar":"";
 }
 const TITULOS={importar:"Importar listados",dias:"D\u00edas cargados",reportes:"Reportes",retiros:"Retiros y dep\u00f3sitos",revisar:"Revisar",manual:"Cargar a mano",datos:"Datos y respaldo"};
 const VISTAS={importar:vistaImportar,dias:vistaDias,reportes:vistaReportes,retiros:vistaRetiros,revisar:vistaRevisar,manual:vistaManual,datos:vistaDatos};
@@ -303,8 +305,8 @@ function chipsComps(clave,quitar){
       quitar?el("button",{type:"button",title:"Quitar",onclick:()=>quitar(c.id)},"\u00d7"):null));
   return out;
 }
-function celdaComps(clave){
-  const cont=el("td",{style:"white-space:normal;min-width:190px"});
+function celdaComps(clave,ancho){
+  const cont=el("td",{style:"white-space:normal;min-width:"+(ancho||190)+"px"});
   chipsComps(clave,puedeEditar()?(id=>quitarComp(clave,id)):null).forEach(x=>cont.append(x));
   if(!puedeEditar()){
     if(!cont.childNodes.length)cont.append(el("span",{class:"hint"},"\u2014"));
