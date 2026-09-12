@@ -439,8 +439,8 @@ header.top{border-top:0;border-bottom:1px solid var(--linea);background:var(--pa
 .marca-vista{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.26em;
   text-transform:uppercase;color:var(--ink-3);margin-top:11px}
 .marca-der{display:flex;align-items:center;gap:20px}
-.marca>.top-right{position:absolute;right:22px;top:22px}
-@media(max-width:900px){.marca>.top-right{position:static;margin-top:13px}}
+.marca>.top-right-wrap{position:absolute;right:22px;top:22px;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+@media(max-width:900px){.marca>.top-right-wrap{position:static;margin-top:13px;align-items:center}}
 .top-right{font-family:var(--mono);font-size:11.5px;font-weight:500;letter-spacing:.13em;
   color:var(--ink-2);background:var(--panel);border:1px solid var(--linea);
   padding:7px 15px;border-radius:99px;white-space:nowrap}
@@ -545,4 +545,60 @@ body.ro #ro-banda{display:flex}
   .marca-vista.entra{animation:none!important}
   .btn{box-shadow:none!important}
   .kpi-barra i,.bar-track>*{animation:none!important}
+}
+
+/* ============================================================
+   MODO OSCURO — un interruptor abajo de la fecha, y la misma
+   paleta en oscuro. Se guarda por usuario en la nube
+   (usuarios.permisos.tema); el JS pone html[data-tema="oscuro"].
+   Sólo en pantalla: la impresión y el comprobante siguen claros.
+   ============================================================ */
+.tema-sw{display:inline-flex;align-items:center;gap:8px;padding:3px 4px 3px 11px;border-radius:99px;
+  border:1px solid var(--linea);background:var(--linea-2);color:var(--ink-2);cursor:pointer;
+  font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;line-height:1}
+.tema-sw:hover{color:var(--ink)}
+.tema-sw:focus-visible{outline:2px solid var(--tarjeta);outline-offset:2px}
+.tema-sw-riel{position:relative;width:34px;height:18px;border-radius:99px;background:var(--linea);transition:background .18s ease;flex:none}
+.tema-sw-bola{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--panel);
+  box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .18s ease}
+.tema-sw[aria-checked="true"] .tema-sw-riel{background:var(--oro)}
+.tema-sw[aria-checked="true"] .tema-sw-bola{transform:translateX(16px)}
+@media(prefers-reduced-motion:reduce){.tema-sw-riel,.tema-sw-bola{transition:none}}
+
+@media screen{
+  html[data-tema="oscuro"]{
+    color-scheme:dark;
+    --oro:#E9CE96; --oro-2:#7A5E12;
+    --ink:#ECE6DA; --ink-2:#B8AF9F; --ink-3:#8F8676;
+    --paper:#17161A; --panel:#211F24; --linea:#38353D; --linea-2:#2B292F;
+    --fondo:#17161A;
+    --riel:#1D1C21; --manteca:#D9BC78; --manteca-2:#B8973F; --manteca-ink:#2A2008;
+    --btn-fg:#17161A;
+    --sombra:0 1px 2px rgba(0,0,0,.35),0 8px 22px rgba(0,0,0,.30);
+    --efectivo:#6CD5AD; --efectivo-bg:#173A2C; --efectivo-soft:#2E775C;
+    --tarjeta:#80C4FF; --tarjeta-bg:#1B3247; --tarjeta-soft:#3F6D98;
+    --billetera:#CFABF9; --billetera-bg:#32264A; --billetera-soft:#785F94;
+    --otros:#F79EC5; --otros-bg:#45263A; --otros-soft:#8D5970;
+    --alerta:#FFA097; --alerta-bg:#4A2320; --alerta-soft:#AD4741;
+    --aviso:#E6B463; --aviso-bg:#3F2F14; --aviso-soft:#896421;
+    --fila-ok:#1C2A22; --fila-ok-h:#22332A;
+    --fila-ret:#2E2718; --fila-ret-h:#382F1C;
+    --cinta:#211F24;
+    --marca:#8FB4E0; --marca-2:#B9D2EE;
+  }
+  /* lo que en claro tenía un color fijo */
+  html[data-tema="oscuro"] .btn{--btn-labio:#8A6F2C;box-shadow:0 4px 0 var(--btn-labio),0 6px 13px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.10)}
+  html[data-tema="oscuro"] .btn.ghost{--btn-labio:#2A282E}
+  html[data-tema="oscuro"] .btn.danger{--btn-labio:#3A1B18;--btn-borde:#6B3530}
+  html[data-tema="oscuro"] .btn.tinta{--btn-labio:#B8AF9F}
+  html[data-tema="oscuro"] .btn[disabled],html[data-tema="oscuro"] .btn[disabled]:hover{--btn-bg:#2B292F;--btn-labio:#1D1C21}
+  html[data-tema="oscuro"] .tick{border-color:#4A4750;color:#6E6A63}
+  html[data-tema="oscuro"] .tick[disabled]:hover{color:#6E6A63;border-color:#4A4750}
+  html[data-tema="oscuro"] .tick.on,html[data-tema="oscuro"] .tick.on:hover,html[data-tema="oscuro"] .tick.on[disabled]:hover{color:#17161A}
+  html[data-tema="oscuro"] nav.tabs button:hover{background:rgba(255,255,255,.05)}
+  html[data-tema="oscuro"] dialog::backdrop{background:rgba(0,0,0,.55)}
+  html[data-tema="oscuro"] input[type=date]{color-scheme:dark}
+  html[data-tema="oscuro"] #toast{background:var(--oro);color:#17161A}
+  /* los logos son azules sobre transparente: en oscuro van sobre una placa clara */
+  html[data-tema="oscuro"] .marca-logos img{background:#F7F4EE;border-radius:10px;padding:5px}
 }

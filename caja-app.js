@@ -328,6 +328,28 @@ const TABS_EDICION=["importar","manual","datos"];
 const BOTONES_EDICION=["adjuntar","registrar retiro","registrar depósito","eliminar","marcar revisado",
   "reabrir","deshacer","guardar","borrar","agregar","importar","reemplazar","sumar","\u00d7"];
 
+/* ============================================================
+   TEMA — claro u oscuro, a gusto de cada usuario.
+   Se guarda en la nube (usuarios.permisos.tema, RPC caja_guardar_tema)
+   así te sigue a cualquier computadora. Si nunca eligió: claro.
+   ============================================================ */
+const TEMAS=["claro","oscuro"];
+const temaDelUsuario=()=>(USUARIO&&USUARIO.permisos&&USUARIO.permisos.tema)||"claro";
+const temaActual=()=>document.documentElement.dataset.tema==="oscuro"?"oscuro":"claro";
+function aplicarTema(t){
+  t=TEMAS.includes(t)?t:"claro";
+  document.documentElement.dataset.tema=t;
+  const sw=$("#tema-sw");
+  if(sw){sw.setAttribute("aria-checked",String(t==="oscuro"));sw.title=t==="oscuro"?"Pasar a modo claro":"Pasar a modo oscuro"}
+}
+async function cambiarTema(t){
+  aplicarTema(t);
+  if(USUARIO) USUARIO.permisos=Object.assign({},USUARIO.permisos||{},{tema:t});
+  try{ await sbRpc("caja_guardar_tema",{p_tema:t}); }
+  catch(e){ toast("El modo cambió acá, pero no pude guardarlo para la próxima vez: "+e.message); }
+}
+$("#tema-sw").addEventListener("click",()=>cambiarTema(temaActual()==="oscuro"?"claro":"oscuro"));
+
 function aplicarModo(){
   const ro=!puedeEditar();
   document.body.classList.toggle("ro",ro);
@@ -540,6 +562,7 @@ async function arrancar(){
   }
 
   ocultarGate();
+  aplicarTema(temaDelUsuario());
   aplicarModo();
   try{
     await cargarDesdeNube();

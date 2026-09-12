@@ -313,27 +313,70 @@ function resumenComprobanteTexto(r){
   L.push("Emitido por Lumen · Rendición de Caja.");
   return L.join("\n");
 }
+/* El cuerpo del mail es corto a propósito: el comprobante va pegado como imagen. */
+function cuerpoMailComprobante(r){
+  const ds=detalleDias(r);
+  const rango=ds.length?(ds.length===1?fechaCorta(ds[0].fecha):fechaCorta(ds[0].fecha)+" a "+fechaCorta(ds[ds.length-1].fecha)):"";
+  return "Comprobante de retiro de efectivo "+nroComprobante(r)+" por "+plata(r.monto)+
+    (ds.length?" ("+ds.length+(ds.length===1?" día":" días")+(rango?": "+rango:"")+")":"")+
+    ", retirado por "+(r.retira_nombre||r.responsable||"—")+".\n\n"+
+    "El comprobante va pegado debajo.\n\nEmitido por Lumen · Rendición de Caja.";
+}
 /* Outlook web: los espacios van como %20, no como + (encodeURIComponent lo hace bien). */
 const urlOutlook=(r,para,copia)=>"https://outlook.office.com/mail/deeplink/compose"+
   "?to="+encodeURIComponent(para)+
   (copia?"&cc="+encodeURIComponent(copia):"")+
   "&subject="+encodeURIComponent("Comprobante de retiro "+nroComprobante(r)+" · "+plata(r.monto))+
-  "&body="+encodeURIComponent(resumenComprobanteTexto(r))+
+  "&body="+encodeURIComponent(cuerpoMailComprobante(r))+
   "&online=1";
-/* Copia el comprobante con formato (text/html) y en texto plano como respaldo.
-   Devuelve true si quedó copiado. Necesita un clic del usuario para tener permiso. */
+/* El comprobante como IMAGEN (PNG). Es el mismo HTML que se imprime, dibujado
+   en un lienzo a través de un SVG con foreignObject: sin librerías, sin red,
+   y se ve igual que el PDF. Sólo usa fuentes del sistema, así que el SVG no
+   necesita cargar nada de afuera (y el lienzo no queda "sucio"). */
+const ANCHO_COMPROBANTE=720;
+async function imagenComprobante(r,escala){
+  escala=escala||2;
+  const host=el("div",{style:"position:fixed;left:-20000px;top:0;width:"+ANCHO_COMPROBANTE+"px;background:#fff"});
+  host.innerHTML=comprobanteHTML(r);
+  document.body.append(host);
+  const w=ANCHO_COMPROBANTE, h=Math.ceil(host.getBoundingClientRect().height);
+  /* XMLSerializer da XHTML válido: cierra los tags y convierte las entidades. */
+  const xhtml=new XMLSerializer().serializeToString(host);
+  host.remove();
+  const svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+w+'" height="'+h+'">'+
+    '<foreignObject width="100%" height="100%">'+
+    xhtml.replace(/position:\s*fixed;left:-20000px;top:0;/,"")+
+    '</foreignObject></svg>';
+  const img=new Image();
+  await new Promise((ok,ko)=>{img.onload=ok;img.onerror=()=>ko(new Error("no se pudo dibujar el comprobante"));
+    img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg)});
+  const c=document.createElement("canvas"); c.width=w*escala; c.height=h*escala;
+  const g=c.getContext("2d"); g.scale(escala,escala);
+  g.fillStyle="#fff"; g.fillRect(0,0,w,h); g.drawImage(img,0,0,w,h);
+  const blob=await new Promise(res=>c.toBlob(res,"image/png"));
+  if(!blob) throw new Error("el navegador no dejó exportar la imagen");
+  return {blob,w:c.width,h:c.height};
+}
+/* Copia la IMAGEN del comprobante al portapapeles. Si no se puede, cae al
+   HTML con formato, y en último caso al texto. Devuelve qué quedó copiado. */
 async function copiarComprobante(r){
-  const html=comprobanteHTML(r), texto=resumenComprobanteTexto(r);
+  if(!navigator.clipboard) return "";
   try{
-    if(navigator.clipboard&&window.ClipboardItem){
+    if(window.ClipboardItem){
+      let png=null;
+      try{ png=(await imagenComprobante(r)).blob; }catch(e){ console.warn("[caja] imagen",e); }
+      if(png){
+        await navigator.clipboard.write([new ClipboardItem({"image/png":png})]);
+        return "imagen";
+      }
       await navigator.clipboard.write([new ClipboardItem({
-        "text/html":new Blob([html],{type:"text/html"}),
-        "text/plain":new Blob([texto],{type:"text/plain"})})]);
-      return true;
+        "text/html":new Blob([comprobanteHTML(r)],{type:"text/html"}),
+        "text/plain":new Blob([resumenComprobanteTexto(r)],{type:"text/plain"})})]);
+      return "html";
     }
-    if(navigator.clipboard){ await navigator.clipboard.writeText(texto); return true; }
-  }catch(e){ console.warn("[caja] portapapeles",e); }
-  return false;
+    await navigator.clipboard.writeText(resumenComprobanteTexto(r));
+    return "texto";
+  }catch(e){ console.warn("[caja] portapapeles",e); return ""; }
 }
 function dialogoMail(r){
   const iP=el("input",{type:"text",placeholder:"tesoreria@ejemplo.com",
@@ -345,7 +388,7 @@ function dialogoMail(r){
   const fallar=(t,f)=>{err.textContent=t;err.style.display="";if(f)f.focus();return false};
   modal({titulo:"Enviar el comprobante",cuerpo:el("div",{},
       el("p",{class:"hint",style:"margin:0 0 12px"},
-        "Abrir en Outlook arma el mail con tu cuenta y deja el comprobante copiado: en el cuerpo, peg\u00e1s con Ctrl+V y envi\u00e1s. "+
+        "Abrir en Outlook arma el mail con tu cuenta y deja la imagen del comprobante copiada: en el cuerpo, peg\u00e1s con Ctrl+V y envi\u00e1s. "+
         "Pod\u00e9s poner varios destinatarios separados por coma."),
       el("label",{class:"f"},"Para *",iP),
       el("label",{class:"f",style:"margin-top:10px"},"Copia a",iC),
@@ -359,9 +402,11 @@ function dialogoMail(r){
         const copiado=await copiarComprobante(r);
         const w=window.open(urlOutlook(r,para,iC.value.trim()),"_blank","noopener");
         if(!w){ return fallar("El navegador bloque\u00f3 la ventana de Outlook. Permit\u00ed las ventanas emergentes para esta p\u00e1gina y volv\u00e9 a intentar.",null); }
-        toast(copiado
-          ?"Se abri\u00f3 Outlook. El comprobante est\u00e1 copiado: pegalo en el cuerpo con Ctrl+V."
-          :"Se abri\u00f3 Outlook con el resumen. No pude copiar el comprobante: adjuntalo en PDF.");
+        toast(copiado==="imagen"
+          ?"Se abri\u00f3 Outlook. La imagen del comprobante est\u00e1 copiada: pegala en el cuerpo con Ctrl+V."
+          :copiado
+          ?"Se abri\u00f3 Outlook. No pude armar la imagen; qued\u00f3 copiado el comprobante con formato: pegalo con Ctrl+V."
+          :"Se abri\u00f3 Outlook. No pude copiar el comprobante: guardalo en PDF y adjuntalo.");
       }},
       {texto:"Enviar autom\u00e1tico",accion:async()=>{
       err.style.display="none";
