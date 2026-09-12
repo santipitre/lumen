@@ -11,6 +11,7 @@
 
    Separado de caja.html el 2026-09-12 (paso 3, rebanada 1).
    ============================================================ */
+"use strict";
 
 const CATS={
   efectivo:{nombre:"Efectivo",color:"var(--efectivo-soft)",clase:"chip-ef"},
