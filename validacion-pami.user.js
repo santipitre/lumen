@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lumen · Validación PAMI
 // @namespace    https://santipitre.github.io/lumen/
-// @version      4.1.0
+// @version      4.1.1
 // @description  Tres ventanas abiertas al mismo tiempo (Lumen, PAMI, HIS): cada una se queda en su sitio y toma del bus el paso que le toca. Ninguna navega a otro dominio ni se cierra. v4.1: identidad del paciente en todos los carteles, watchdog cuando el circuito se corta, y cruce contra el HIS por region anatomica + hora del turno.
 // @author       Pyralis / Lumen
 // @match        https://pe.pami.org.ar/*
@@ -531,7 +531,49 @@
       publicarJob(q);
     };
 
+    /* ─── v4.1.1: RESALTAR LA FILA EN LA GRILLA DEL HIS ───
+       Desde que el cruce por region+hora elige solo, el panel decia "elegi este turno" y
+       Santiago no tenia como ver CUAL de las filas era. Ahora se pinta en la grilla:
+       verde la elegida, roja la rechazada, azul las candidatas cuando hay que elegir. */
+    var estilosHl = function () {
+      if (document.getElementById('lumen-hl-css')) return;
+      var st = document.createElement('style');
+      st.id = 'lumen-hl-css';
+      st.textContent =
+        '.lumen-hl td{background:rgba(16,185,129,.30)!important;}' +
+        '.lumen-hl td:first-child{box-shadow:inset 5px 0 0 #10B981!important;}' +
+        '.lumen-hl-no td{background:rgba(239,68,68,.28)!important;}' +
+        '.lumen-hl-no td:first-child{box-shadow:inset 5px 0 0 #EF4444!important;}' +
+        '.lumen-hl-cand td{background:rgba(59,130,246,.22)!important;}' +
+        '.lumen-hl-cand td:first-child{box-shadow:inset 5px 0 0 #3B82F6!important;}' +
+        '.lumen-hl-foco td{background:rgba(59,130,246,.48)!important;}' +
+        '.lumen-hl td:first-child::after,.lumen-hl-no td:first-child::after{' +
+        'content:"LUMEN";font:700 9px/1 Inter,system-ui,sans-serif;letter-spacing:1px;' +
+        'vertical-align:middle;margin-left:4px;opacity:.85}';
+      (document.head || document.documentElement).appendChild(st);
+    };
+    var trDe = function (f) {
+      var e = document.getElementById('span__NOMBRE1_' + f.suf);
+      return e ? (e.closest ? e.closest('tr') : null) : null;
+    };
+    var limpiarHl = function () {
+      ['lumen-hl', 'lumen-hl-no', 'lumen-hl-cand', 'lumen-hl-foco'].forEach(function (c) {
+        [].slice.call(document.querySelectorAll('.' + c)).forEach(function (tr) { tr.classList.remove(c); });
+      });
+    };
+    /* limpia = false para ir sumando (las candidatas se pintan todas juntas). */
+    var resaltar = function (f, clase, limpia, traer) {
+      estilosHl();
+      if (limpia !== false) limpiarHl();
+      var tr = trDe(f);
+      if (!tr) return null;
+      tr.classList.add(clase);
+      if (traer) { try { tr.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { tr.scrollIntoView(); } }
+      return tr;
+    };
+
     var evaluarFila = function (p, f, porQue) {
+      resaltar(f, equipoHabilitado(f.equipo) ? 'lumen-hl' : 'lumen-hl-no', true, true);
       if (equipoHabilitado(f.equipo)) {
         panel(p, 'validada', '',
           '<div class="lp-ok-big">✓ Equipo habilitado</div>' +
@@ -561,14 +603,26 @@
 
     var elegirFila = function (p, filas, aviso) {
       avisarEspera(p, 'Encontró ' + filas.length + ' turnos posibles y necesita que elijas vos.');
-      var html = '<div class="lp-lbl">Turnos del Hospital Italiano — elegí cuál corresponde</div>' +
+      /* Las candidatas se pintan TODAS en la grilla: el panel y la tabla dicen lo mismo. */
+      limpiarHl();
+      filas.forEach(function (f, i) { resaltar(f, 'lumen-hl-cand', false, i === 0); });
+      var html = '<div class="lp-lbl">Turnos del Hospital Italiano — elegí cuál corresponde ' +
+                 '<span style="color:#93C5FD">(pintados en la grilla)</span></div>' +
         filas.map(function (f, i) {
           return '<button class="lp-fila" data-i="' + i + '"><b>' + esc(f.equipo) + '</b><br>' +
                  esc(f.centro) + ' · ' + esc(f.estudio) + '<br>' + esc(f.fecha) + ' · ' + esc(f.estado) + '</button>';
         }).join('');
       panel(p, 'elegir', aviso, html, function (box) {
         [].slice.call(box.querySelectorAll('.lp-fila')).forEach(function (b) {
-          b.onclick = function () { box.remove(); evaluarFila(p, filas[+b.getAttribute('data-i')], 'lo elegiste vos'); };
+          var f = filas[+b.getAttribute('data-i')];
+          /* Pasar el mouse por una opción del panel marca su fila en la grilla: antes de
+             hacer clic se ve a cuál corresponde. */
+          b.onmouseenter = function () {
+            var tr = trDe(f);
+            if (tr) { tr.classList.add('lumen-hl-foco'); try { tr.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {} }
+          };
+          b.onmouseleave = function () { var tr = trDe(f); if (tr) tr.classList.remove('lumen-hl-foco'); };
+          b.onclick = function () { box.remove(); evaluarFila(p, f, 'lo elegiste vos'); };
         });
       });
     };
