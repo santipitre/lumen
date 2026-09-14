@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lumen · Validación PAMI
 // @namespace    https://santipitre.github.io/lumen/
-// @version      4.1.2
+// @version      4.2.0
 // @description  Tres ventanas abiertas al mismo tiempo (Lumen, PAMI, HIS): cada una se queda en su sitio y toma del bus el paso que le toca. Ninguna navega a otro dominio ni se cierra. v4.1: identidad del paciente en todos los carteles, watchdog cuando el circuito se corta, y cruce contra el HIS por region anatomica + hora del turno.
 // @author       Pyralis / Lumen
 // @match        https://pe.pami.org.ar/*
@@ -236,6 +236,73 @@
      ventanas al mismo tiempo y entender que esta haciendo cada una. */
   function cerrarProg() { var e = document.getElementById('lumen-prog'); if (e) e.remove(); }
 
+  /* ══════════ v4.2.0 — LOS CARTELES SE ARRASTRAN DE LA BARRA ══════════
+     Pedido de Santiago (2026-09-14): los dos carteles se paran arriba a la derecha y tapan
+     justo la zona de ACCIONES de PAMI y las ultimas columnas de la grilla del HIS.
+     Se arrastran agarrando la barra de titulo. La posicion se recuerda POR DOMINIO
+     (localStorage), asi el de PAMI y el del HIS pueden vivir en lugares distintos.
+     Al arrastrar se pasa a left/top y se anula el right original. */
+  var POS_KEY = 'lumen_val_pos';
+
+  function posGuardada() {
+    try { return JSON.parse(localStorage.getItem(POS_KEY) || 'null'); } catch (e) { return null; }
+  }
+  function guardarPos(x, y) {
+    try { localStorage.setItem(POS_KEY, JSON.stringify({ x: x, y: y })); } catch (e) {}
+  }
+  /* Que no quede nunca fuera de la pantalla (ventana achicada, pantalla cambiada). */
+  function acomodar(box, x, y) {
+    var w = box.offsetWidth || 330, h = 40;
+    x = Math.max(4, Math.min(x, (window.innerWidth || 1200) - w - 4));
+    y = Math.max(4, Math.min(y, (window.innerHeight || 800) - h - 4));
+    box.style.left = x + 'px';
+    box.style.top = y + 'px';
+    box.style.right = 'auto';
+    return [x, y];
+  }
+
+  function arrastrable(box, handle) {
+    if (!box || !handle) return;
+    handle.style.cursor = 'move';
+    handle.title = 'Arrastrá para mover el cartel';
+
+    var p = posGuardada();
+    if (p) acomodar(box, p.x, p.y);
+
+    var dx = 0, dy = 0, moviendo = false;
+
+    var mover = function (ev) {
+      if (!moviendo) return;
+      ev.preventDefault();
+      acomodar(box, ev.clientX - dx, ev.clientY - dy);
+    };
+    var soltar = function () {
+      if (!moviendo) return;
+      moviendo = false;
+      box.style.transition = '';
+      document.removeEventListener('mousemove', mover, true);
+      document.removeEventListener('mouseup', soltar, true);
+      guardarPos(parseInt(box.style.left, 10) || 0, parseInt(box.style.top, 10) || 0);
+    };
+
+    handle.addEventListener('mousedown', function (ev) {
+      /* La ✕ de cerrar vive en la barra: si se agarra ahi, no es un arrastre. */
+      if (ev.target && ev.target.id === 'lp-x') return;
+      if (ev.button !== 0) return;
+      var r = box.getBoundingClientRect();
+      /* Antes del primer arrastre el cartel esta anclado con `right`: se pasa a left/top
+         con la posicion que YA tiene en pantalla, si no pega un salto al empezar. */
+      acomodar(box, r.left, r.top);
+      dx = ev.clientX - r.left;
+      dy = ev.clientY - r.top;
+      moviendo = true;
+      box.style.transition = 'none';
+      ev.preventDefault();
+      document.addEventListener('mousemove', mover, true);
+      document.addEventListener('mouseup', soltar, true);
+    });
+  }
+
   /* v4.1.0 — IDENTIDAD EN TODOS LOS CARTELES.
      El 2026-09-14 quedaron dos jobs distintos en pantalla al mismo tiempo (VAZQUEZ en la
      ventana de PAMI, VALERIANO en la del HIS) y las dos ventanas se leian como si fueran
@@ -278,6 +345,7 @@
         '<div class="pg-d">' + (detalle || '') + '</div>' +
       '</div>';
     document.body.appendChild(box);
+    arrastrable(box, box.querySelector('.pg-h'));
     return box;
   }
 
@@ -341,6 +409,7 @@
       '</div>';
 
     document.body.appendChild(box);
+    arrastrable(box, box.querySelector('.lp-h'));
 
     var next = function () { var c = document.getElementById('lp-nx'); return !c || c.checked; };
     var marcar = function (estado, motivo) {

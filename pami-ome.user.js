@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PAMI OME - Copiar datos con un clic
 // @namespace    lumen.santipitre
-// @version      3.4.0
+// @version      3.5.0
 // @description  1 clic en el N Turno de la conciliacion busca en FUESMEN + PAMI a la vez (PAMI SIEMPRE por Nro. Documento/DNI, en Prestaciones y Aceptacion). Ademas copiar N Orden/Beneficiario/DNI y Pegar en QR.
 // @author       Santiago
 // @include      https://santipitre.github.io/lumen/*
@@ -53,7 +53,13 @@
     toastTimer = setTimeout(function () { toastEl.style.opacity = '0'; }, 2200);
   }
 
-  var badge = null;
+  /* v3.5.0 — el badge SE VA SOLO a los 4 s.
+     Santiago (2026-09-14): "sacar ese cartel que aparece en la parte inferior".
+     No se borra del todo a proposito: es la unica senal visible de que el userscript se
+     inyecto en esta pestana, y distinguir "codigo roto" de "pestana sin inyeccion" ya costo
+     media tarde (ver checkpoint 2026-09-10). Aparece, avisa, y desaparece. */
+  var badge = null, badgeT = null;
+  var BADGE_MS = 4000;
   function setBadge(txt) {
     if (!badge) {
       badge = document.createElement('div');
@@ -63,9 +69,18 @@
       s.borderRadius = '8px'; s.padding = '7px 12px'; s.fontSize = '12px';
       s.fontFamily = 'system-ui,sans-serif'; s.zIndex = '2147483647';
       s.boxShadow = '0 4px 16px rgba(0,0,0,.4)'; s.opacity = '.92';
+      s.transition = 'opacity .5s';
+      s.pointerEvents = 'none';          /* que nunca tape un click de la pagina */
       document.body.appendChild(badge);
     }
     badge.textContent = txt;
+    badge.style.opacity = '.92';
+    clearTimeout(badgeT);
+    badgeT = setTimeout(function () {
+      if (!badge) return;
+      badge.style.opacity = '0';
+      setTimeout(function () { if (badge && badge.parentNode) { badge.remove(); badge = null; } }, 600);
+    }, BADGE_MS);
   }
 
   function flash(el, color) {
