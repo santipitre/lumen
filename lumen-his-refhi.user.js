@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         HIS FUESMEN · limpiar encabezado + N° Referencia HI
 // @namespace    lumen.santipitre
-// @version      1.10.1
+// @version      1.10.2
 // @description  Oculta los cuadros negros del encabezado del HIS y muestra el N° Referencia en la columna N° Afiliado: en las filas PAMI el rótulo pasa a N° OME, en las H ITAL a N° Referencia HI. No modifica el asistente: lee lo que ese ya pinta.
 // @match        http://his.fuesmen.edu.ar:8180/*
 // @match        https://his.fuesmen.edu.ar:8180/*
@@ -17,7 +17,7 @@
 
   // Unica fuente de la version en runtime. Antes estaba clavada en '1.6.0' y no
   // servia para saber que version tenia instalada Tampermonkey.
-  var VER = '1.10.1';
+  var VER = '1.10.2';
 
   var LS = 'lumenHI.';
   // MEDIDO 2026-09-08: el header no matcheaba /^N°\s*Afiliado$/ (i:-1). Match laxo.
@@ -119,6 +119,13 @@
     if (e.altKey && e.shiftKey && /^r$/i.test(e.key)) {
       HIDE = HIDE_DEFAULT.slice(); lsSet('hide', HIDE); pintarCss();
       hud('Ocultos reseteados a los 3 por defecto.', 2500); return;
+    }
+    /* v1.10.2 — Olvidar POST se fue del panel a un atajo: se usa una vez cada tanto (cuando
+       el POST aprendido deja de servir) y no tiene por qué estar siempre a un click. */
+    if (e.altKey && /^o$/i.test(e.key)) {
+      PROTO = null; lsSet('post', null);
+      hud('POST olvidado. El panel va a pedirte <b>Aprender (1 click)</b> de nuevo.', 4000);
+      pintar(); panel(); return;
     }
     if (e.altKey && /^h$/i.test(e.key)) {
       picking = !picking;
@@ -580,6 +587,13 @@
     var falta = hi.filter(function (f) { return !REFS[f.turno]; }).length;
     var p = document.getElementById('lumen-panel');
     if (!hi.length) { if (p) p.remove(); return; }
+    /* v1.10.2 — EL PANEL APARECE SOLO SI HAY ALGO QUE HACER.
+       Santiago: "no quiero que me aparezca siempre". Con todo resuelto el panel no decía
+       nada útil ("0 sin referencia · 9 en caché") y sólo dejaba a mano un botón peligroso
+       (Olvidar POST), tapando la grilla. Ahora: sin PROTO aparece (hay que aprender), con
+       filas pendientes aparece (está trabajando), y si no falta nada se va solo.
+       Olvidar POST queda en Alt+O y en LumenRefHI.olvidar(). */
+    if (PROTO && !falta && !TRAYENDO) { if (p) p.remove(); return; }
     if (!p) {
       p = document.createElement('div');
       p.id = 'lumen-panel';
@@ -600,9 +614,11 @@
           'cualquier fila y volvé con Atrás. Se hace una sola vez.';
       btn = aprendiendo ? '' : '<button id="lumen-b1">Aprender (1 click)</button>';
     } else {
-      txt = '<b>' + falta + '</b> sin referencia · ' + Object.keys(REFS).length + ' en caché.';
-      btn = falta ? '<button id="lumen-b2">Traer referencias</button>' : '';
-      btn += '<button id="lumen-b3" style="background:#30363d">Olvidar POST</button>';
+      txt = TRAYENDO
+        ? 'Trayendo los N° de referencia al HIS…'
+        : '<b>' + falta + '</b> sin referencia · ' + Object.keys(REFS).length + ' en caché.';
+      /* Sin "Olvidar POST" acá: es mantenimiento, no trabajo diario (Alt+O). */
+      btn = falta && !TRAYENDO ? '<button id="lumen-b2">Traer referencias</button>' : '';
     }
     p.innerHTML = '<div style="margin-bottom:6px">' + txt + '</div><div id="lumen-bts">' + btn + '</div>';
     [].forEach.call(p.querySelectorAll('button'), function (b) {
@@ -611,7 +627,7 @@
     });
     var b1 = p.querySelector('#lumen-b1'), b2 = p.querySelector('#lumen-b2'), b3 = p.querySelector('#lumen-b3');
     if (b1) b1.onclick = function () { aprendiendo = true; lsSet('aprender', true); panel(); };
-    if (b3) b3.onclick = function () { PROTO = null; lsSet('post', null); panel(); };
+    if (b3) b3.onclick = function () { PROTO = null; lsSet('post', null); panel(); };   /* ya no se dibuja: queda por compatibilidad */
     if (b2) b2.onclick = function () {
       b2.disabled = true;
       traerReferencias(FILAS,
@@ -627,7 +643,8 @@
     refs: function () { return REFS; },
     proto: function () { return PROTO; },
     aprender: function () { aprendiendo = true; lsSet('aprender', true); panel(); return 'Hacé click en Recepción de Orden'; },
-    traer: function () { var b = document.querySelector('#lumen-b2'); if (b) b.click(); },
+    traer: function () { autoTraer(); return 'pidiendo las que falten'; },
+    olvidar: function () { PROTO = null; lsSet('post', null); pintar(); panel(); return 'POST olvidado (igual que Alt+O)'; },
     pintar: pintar, panel: panel, ocultos: function () { return HIDE; }, version: VER
   };
 })();
