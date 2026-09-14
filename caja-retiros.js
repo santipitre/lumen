@@ -323,12 +323,9 @@ function cuerpoMailComprobante(r){
     "El comprobante va pegado debajo.\n\nEmitido por Lumen · Rendición de Caja.";
 }
 /* Outlook web: los espacios van como %20, no como + (encodeURIComponent lo hace bien). */
-const urlOutlook=(r,para,copia)=>"https://outlook.office.com/mail/deeplink/compose"+
-  "?to="+encodeURIComponent(para)+
-  (copia?"&cc="+encodeURIComponent(copia):"")+
-  "&subject="+encodeURIComponent("Comprobante de retiro "+nroComprobante(r)+" · "+plata(r.monto))+
-  "&body="+encodeURIComponent(cuerpoMailComprobante(r))+
-  "&online=1";
+const urlOutlook=(r,para,copia)=>urlOutlookCompose({para,copia,
+  asunto:"Comprobante de retiro "+nroComprobante(r)+" · "+plata(r.monto),
+  cuerpo:cuerpoMailComprobante(r)});
 /* El comprobante como IMAGEN (PNG). Es el mismo HTML que se imprime, dibujado
    en un lienzo a través de un SVG con foreignObject: sin librerías, sin red,
    y se ve igual que el PDF. Sólo usa fuentes del sistema, así que el SVG no

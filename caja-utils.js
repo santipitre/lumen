@@ -88,6 +88,14 @@ const diaSig=i=>{const d=new Date(i+"T12:00:00");d.setDate(d.getDate()+1);return
 const clavePer=o=>o&&o.desde&&o.hasta?o.desde+"|"+o.hasta:"";
 const perTexto=o=>clavePer(o)?fechaCorta(o.desde)+" \u2192 "+fechaCorta(o.hasta):"\u2014";
 const $=s=>document.querySelector(s);
+/* Un mail armado en Outlook web (deeplink compose). Los espacios van como %20,
+   nunca como +, y los saltos de línea como %0A: encodeURIComponent lo hace bien. */
+const urlOutlookCompose=o=>"https://outlook.office.com/mail/deeplink/compose"+
+  "?to="+encodeURIComponent(o.para||"")+
+  (o.copia?"&cc="+encodeURIComponent(o.copia):"")+
+  "&subject="+encodeURIComponent(o.asunto||"")+
+  "&body="+encodeURIComponent(o.cuerpo||"")+
+  "&online=1";
 function el(t,p={},...kids){
   const n=document.createElement(t);
   for(const[k,v]of Object.entries(p)){

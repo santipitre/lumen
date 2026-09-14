@@ -111,11 +111,11 @@ function procesar(archivos){
       const cj=String(r[idx.cajero]||"").trim().toUpperCase();
       /* Otra sucursal: no es un rechazo, es plata de otra caja. Se cuenta aparte
          y se muestra en la previsualización para que nunca desaparezca en silencio. */
-      let esReemplazo=false;
+      let esReemplazo=false, sucAjena="";
       if(idx.sucursal>=0){
         const suc=normSucursal(r[idx.sucursal]);
         if(suc&&!esDeLaSede(suc)){
-          if(cj&&conHistoria.has(cj)){ esReemplazo=true; reSuc.add(suc); }
+          if(cj&&conHistoria.has(cj)){ esReemplazo=true; sucAjena=suc; reSuc.add(suc); }
           else { otrasSuc.set(suc,(otrasSuc.get(suc)||0)+1); continue; }
         }
       }
@@ -127,7 +127,8 @@ function procesar(archivos){
       const nro=idx.numero>=0?String(r[idx.numero]||"").replace(/\.0$/,""):"";
       const k=[f,cj,medio].join("|");
       const mapa=esReemplazo?reGrupos:grupos;
-      if(!mapa.has(k)) mapa.set(k,{fecha:f,cajero:cj,medio,categoria:categoriaDe(medio),monto:0,n:0,comps:[]});
+      if(!mapa.has(k)) mapa.set(k,{fecha:f,cajero:cj,medio,categoria:categoriaDe(medio),monto:0,n:0,comps:[],
+        ...(esReemplazo?{origen:sucAjena}:{})});
       const g=mapa.get(k); g.monto+=monto; g.n++; if(g.comps.length<400)g.comps.push({n:nro||"",m:monto});
       if(esReemplazo) reFilas++; else filasOK++;
     }
@@ -157,10 +158,13 @@ function previsualizar(nuevos,rechazos,nombres,filasOK,medios,otrasSuc,sinColumn
     /* copias: el usuario puede destildar y hay que volver a los originales */
     const m=new Map(nuevos.map(g=>[g.fecha+"|"+g.cajero+"|"+g.medio,
                                    {...g,comps:(g.comps||[]).slice()}]));
+    /* el grupo queda marcado: bajo qué sucursal salió (origen) y cuánto de
+       lo suyo vino así (re_monto) — de eso viven el aviso y la marca en Revisar */
     for(const g of reemplazos.grupos){
       const k=g.fecha+"|"+g.cajero+"|"+g.medio, y=m.get(k);
-      if(y){ y.monto+=g.monto; y.n+=g.n; y.comps=(y.comps||[]).concat(g.comps||[]).slice(0,400); }
-      else m.set(k,{...g});
+      if(y){ y.monto+=g.monto; y.n+=g.n; y.comps=(y.comps||[]).concat(g.comps||[]).slice(0,400);
+             y.origen=g.origen; y.re_monto=(y.re_monto||0)+g.monto; }
+      else m.set(k,{...g,re_monto:g.monto});
     }
     nuevos=[...m.values()]; filasOK+=reemplazos.filas;
   }
@@ -224,7 +228,10 @@ function previsualizar(nuevos,rechazos,nombres,filasOK,medios,otrasSuc,sinColumn
     for(const c of cajerosNuevos) db.cajeros.push(c);
     for(const g of nuevos) db.grupos.push({id:uid(),imp:impId,...g});
     db.importaciones.push({id:impId,archivo:nombres.join(", "),cuando:Date.now(),filas:filasOK,total:t.total,rango});
-    guardar(); toast(`${filasOK} comprobantes importados · ${plata(t.total)}`);
+    guardar();
+    const conCambio=new Set(nuevos.filter(g=>g.origen).map(g=>g.fecha+"|"+g.cajero)).size;
+    toast(`${filasOK} comprobantes importados · ${plata(t.total)}`+
+      (conCambio?` · ${conCambio} día(s) con cambio de caja pendiente: avisale a ITASSO desde Revisar`:""));
     vista="dias"; render();
   };
   const acciones=[{texto:"Cancelar"}];

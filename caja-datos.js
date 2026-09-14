@@ -71,6 +71,9 @@ const CAJEROS_INI=["ITORRES","JMONICA","ZABRAHAM","JAVILA","ASOSA","CMAIDA"];
 const RESP_INI=["SERGIO","MAXI"];      // se llevan el efectivo
 const DEPOS_INI=["LALIAS","OGARCIA"];  // tesoreros: reciben del mensajero y depositan
 const BANCOS=["SANTANDER"];
+/* A quién se le avisa cuando un reemplazo cobró bajo otra sucursal (falta el
+   cambio de caja en el sistema). Es informativo: el cambio lo pide Santiago. */
+const AVISO_CAJA_PARA="itasso@fuesmen.edu.ar";
 let db={version:3,cajeros:CAJEROS_INI.slice(),responsables:RESP_INI.slice(),depositantes:DEPOS_INI.slice(),
         grupos:[],retiros:[],importaciones:[],revisados:{},comprobantes:{},sinRespaldo:0};
 
@@ -84,7 +87,9 @@ function snapshot(){
 }
 const filaGrupo=g=>({id:g.id,sede:SEDE,fecha:g.fecha,cajero:g.cajero,medio:g.medio,
   categoria:g.categoria,monto:g.monto,n:g.n||0,comps:g.comps||[],
-  imp:(g.imp&&g.imp!=="manual")?g.imp:null,creado_por:AUTHUID});
+  imp:(g.imp&&g.imp!=="manual")?g.imp:null,creado_por:AUTHUID,
+  /* reemplazo de otra sucursal: bajo qué sucursal salió y cuánto de este grupo */
+  origen:g.origen||null,re_monto:g.re_monto||null});
 const filaRetiro=r=>({id:r.id,sede:SEDE,fecha:r.fecha,responsable:r.responsable,
   monto:r.monto,detalle:r.detalle||null,tipo:r.tipo||"retiro",
   banco:r.banco||null,referencia:r.referencia||null,
@@ -146,7 +151,8 @@ async function cargarDesdeNube(){
     sbQuery("caja_comprobantes","select=*&"+q)
   ]);
   db.grupos=gr.map(r=>({id:r.id,imp:r.imp||"manual",fecha:r.fecha,cajero:r.cajero,
-    medio:r.medio,categoria:r.categoria,monto:Number(r.monto),n:r.n||0,comps:r.comps||[]}));
+    medio:r.medio,categoria:r.categoria,monto:Number(r.monto),n:r.n||0,comps:r.comps||[],
+    ...(r.origen?{origen:r.origen,re_monto:Number(r.re_monto||0)}:{})}));
   db.retiros=re.map(r=>({id:r.id,fecha:r.fecha,responsable:r.responsable,
     monto:Number(r.monto),detalle:r.detalle||"",tipo:r.tipo||"retiro",
     banco:r.banco||"",referencia:r.referencia||"",
@@ -254,7 +260,29 @@ function anomaliasDia(d){
   if(d.otros!==0) out.push("Valores fuera de efectivo, tarjeta y billetera");
   const origenes=new Set(d.grupos.map(g=>g.imp||"—"));
   if(origenes.size>1) out.push("Cargado desde dos orígenes distintos");
+  const suc=sucursalesAjenas(d);
+  if(suc.length) out.push("Cobrado bajo "+suc.join(" / ")+": falta el cambio de caja");
   return out;
+}
+/* Reemplazos que cobraron bajo otra sucursal (se importaron a propósito, ver
+   caja-importar.js). Quedan marcados hasta que el sistema se corrija y el día
+   se reimporte, o hasta que se marquen revisados. */
+const sucursalesAjenas=d=>[...new Set(d.grupos.filter(g=>g.origen).map(g=>g.origen))];
+const montoAjeno=d=>d.grupos.reduce((a,g)=>a+(g.origen?(g.re_monto||g.monto):0),0);
+const efectivoAjeno=d=>d.grupos.reduce((a,g)=>a+(g.origen&&g.categoria==="efectivo"?(g.re_monto||g.monto):0),0);
+const diasCambioCaja=()=>porDia(db.grupos).filter(d=>sucursalesAjenas(d).length&&!estaRevisado(d));
+function avisoCambioCaja(dias){
+  const cajeros=[...new Set(dias.map(d=>d.cajero))];
+  const tot=dias.reduce((a,d)=>a+montoAjeno(d),0), totEf=dias.reduce((a,d)=>a+efectivoAjeno(d),0);
+  const lineas=dias.map(d=>"- "+fechaCorta(d.fecha)+" · "+d.cajero+" · bajo "+sucursalesAjenas(d).join(" / ")+
+    " · "+plata(montoAjeno(d))+" en total ("+plata(efectivoAjeno(d))+" en efectivo)");
+  return {
+    asunto:"Cambio de caja pendiente · Hospital Italiano · "+cajeros.join(", ")+" · "+
+      (dias.length===1?fechaCorta(dias[0].fecha):dias.length+" días"),
+    cuerpo:"Hola,\n\nTe aviso que estos cobros de la caja del Hospital Italiano quedaron cargados en el sistema bajo otra sucursal, porque no se pidió el cambio de caja del reemplazo:\n\n"+
+      lineas.join("\n")+"\n\nTotal: "+plata(tot)+" en "+dias.length+(dias.length===1?" día":" días")+", de los cuales "+plata(totEf)+" en efectivo.\n\n"+
+      "La plata sí estuvo en esta caja y ya la tengo registrada en Lumen. El cambio de caja lo pido yo; es sólo para que lo tengas registrado.\n\nSantiago"
+  };
 }
 const diasARevisar=()=>porDia(db.grupos).map(d=>({d,motivos:anomaliasDia(d)})).filter(x=>x.motivos.length);
 

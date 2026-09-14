@@ -51,7 +51,25 @@ function vistaRevisar(){
 
   const p1=el("div",{class:"panel"});
   p1.append(el("h2",{},"Pendientes de revisar"+(pend.length?" ("+pend.length+")":"")));
-  p1.append(el("p",{class:"hint"},"Nada se bloquea: se marca. Aparecen ac\u00e1 los d\u00edas con efectivo neto negativo, valores fuera de los tres medios comunes, fechas imposibles, o cargados desde dos importaciones distintas. Los montos no se comparan contra ning\u00fan promedio. Adjunt\u00e1 el comprobante y marcalo revisado para que deje de aparecer ac\u00e1."));
+  /* Reemplazos cobrados bajo otra sucursal: un solo aviso a ITASSO con todos
+     los días pendientes, armado en Outlook web (lo manda Santiago). */
+  const cc=diasCambioCaja();
+  if(cc.length){
+    const cajeros=[...new Set(cc.map(d=>d.cajero))].join(", ");
+    const sucs=[...new Set(cc.flatMap(sucursalesAjenas))].join(" / ");
+    const tot=cc.reduce((a,d)=>a+montoAjeno(d),0), totEf=cc.reduce((a,d)=>a+efectivoAjeno(d),0);
+    p1.append(el("div",{class:"banner rojo cambio-caja"},
+      el("div",{},el("b",{},cc.length+(cc.length===1?" día":" días")+" de "+cajeros+" cobrado"+(cc.length===1?"":"s")+" bajo "+sucs+
+          " · "+plata(totEf)+" de efectivo · "+plata(tot)+" en total"),
+        el("div",{class:"hint",style:"margin-top:3px"},"Falta el cambio de caja en el sistema. La plata ya está registrada acá; el aviso es para que ITASSO lo tenga anotado. Después de mandarlo, marcá esos días como revisados.")),
+      el("button",{class:"btn small",type:"button",id:"btn-aviso-caja",onclick:()=>{
+        const a=avisoCambioCaja(cc);
+        const w=window.open(urlOutlookCompose({para:AVISO_CAJA_PARA,asunto:a.asunto,cuerpo:a.cuerpo}),"_blank","noopener");
+        toast(w?"Se abri\u00f3 Outlook con el aviso para ITASSO: revisalo y envialo desde ah\u00ed."
+               :"El navegador bloque\u00f3 la ventana de Outlook. Permit\u00ed las ventanas emergentes para esta p\u00e1gina.");
+      }},"Avisar a ITASSO por Outlook")));
+  }
+  p1.append(el("p",{class:"hint"},"Nada se bloquea: se marca. Aparecen ac\u00e1 los d\u00edas con efectivo neto negativo, valores fuera de los tres medios comunes, fechas imposibles, cargados desde dos importaciones distintas, o cobrados por un reemplazo bajo otra sucursal. Los montos no se comparan contra ning\u00fan promedio. Adjunt\u00e1 el comprobante y marcalo revisado para que deje de aparecer ac\u00e1."));
   if(pend.length) p1.append(tabla(pend,false));
   else p1.append(el("div",{class:"vacio"},el("b",{},todos.length?"Todo revisado":"No hay nada raro"),
     todos.length?"Los "+todos.length+" d\u00edas marcados ya fueron revisados.":"Todos los d\u00edas pasan los controles."));
