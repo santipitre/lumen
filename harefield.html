@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<script>
+/* Lumen Auth Gate · igual que admin.html · HAREFIELD hereda el permiso administrativo de escritura */
+(function(){
+  var KEY='spcd_session', TO=8*60*60*1000;
+  var DEFAULTS={ admin:{admin:'edit'}, consultor:{admin:'view'} };
+  try{
+    var s=JSON.parse(localStorage.getItem(KEY));
+    if(!s||!s.user||(Date.now()-s.ts)>=TO) throw 0;
+    var pm=(s.user.permisos&&s.user.permisos.modulos)?s.user.permisos.modulos:(DEFAULTS[s.user.rol]||{});
+    if(!(pm.admin==='edit'||pm.admin==='admin'||pm.harefield)) throw 0;
+    window.__spcd_user=s.user;
+  }catch(e){ location.replace('app.html'); }
+})();
+</script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="lumen-ver" content="harefield-1.0.0"/>
+<title>Harefield · Lumen by Pyralis</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml"/>
+<link rel="stylesheet" href="spcd-theme.css"/>
+<link rel="stylesheet" href="spcd-components.css"/>
+<style>
+  :root{
+    --acc:#FB923C; --acc-soft:#FDBA74; --acc-dim:rgba(251,146,60,.12); --acc-ring:rgba(251,146,60,.34);
+    --fin:#60A5FA; --fin-dim:rgba(96,165,250,.14);
+    --ok:#10B981; --warn:#FBBF24; --danger:#F87171;
+    --glass:rgba(30,58,138,.12); --border:rgba(148,163,184,.16); --border-a:rgba(251,146,60,.38);
+  }
+  html,body{font-size:14px;line-height:1.5}
+  .main{max-width:1640px;margin:0 auto;padding:22px 22px 90px}
+
+  /* Topbar (misma anatomía que conciliacion-pami.html) */
+  .topbar{position:sticky;top:0;z-index:50;background:rgba(10,15,20,.9);backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--border);padding:0 22px;display:flex;align-items:center;gap:14px;height:56px}
+  .tb-crumb{font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--acc);font-size:15px}
+  .tb-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+  .ses-chip{font-size:11px;letter-spacing:.5px;color:var(--muted);border:1px solid var(--border);border-radius:20px;padding:5px 12px;background:var(--glass)}
+  .ses-chip b{color:var(--pyralis-text)}
+  .tb-back{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);text-decoration:none;border:1px solid var(--border);border-radius:6px;padding:6px 12px}
+  .tb-back:hover,.tb-back:focus-visible{color:var(--acc);border-color:var(--border-a);outline:none}
+
+  h1.page{font-family:'Rajdhani',sans-serif;font-size:26px;font-weight:700;letter-spacing:1px;margin:18px 0 4px}
+  .page-sub{color:var(--muted);font-size:12.5px;margin-bottom:20px;max-width:760px}
+  .page-sub b{color:var(--pyralis-text);font-weight:600}
+
+  .restored-bar{display:none;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 18px;padding:10px 14px;
+    border:1px solid rgba(6,182,212,.35);background:rgba(6,182,212,.08);border-radius:10px;font-size:12.5px;color:var(--lumen-accent-soft)}
+  .restored-bar.show{display:flex}
+  .link-btn{margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:inherit}
+  .link-btn:hover,.link-btn:focus-visible{color:var(--acc);border-color:var(--border-a);outline:none}
+
+  /* Mes a cerrar */
+  .mesbar{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-bottom:18px}
+  .mesbar label{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+  .mes-ctl{display:inline-flex;align-items:stretch;border:1px solid var(--border);border-radius:8px;background:var(--pyralis-bg-input);overflow:hidden}
+  .mes-ctl button{background:transparent;border:0;color:var(--muted);width:34px;cursor:pointer;font-size:14px;font-family:inherit}
+  .mes-ctl button:hover,.mes-ctl button:focus-visible{color:var(--acc);background:var(--acc-dim);outline:none}
+  .mes-ctl select{background:transparent;border:0;border-left:1px solid var(--border);border-right:1px solid var(--border);color:var(--pyralis-text);
+    font-family:'Rajdhani',sans-serif;font-weight:700;font-size:17px;letter-spacing:1px;padding:6px 14px;min-width:190px;cursor:pointer}
+  .mes-ctl select:focus{outline:none}
+  .mes-ctl select option{background:#0E1521}
+  .mes-hint{font-size:11.5px;color:var(--muted)}
+
+  /* Dropzones */
+  .drops{display:grid;grid-template-columns:1.2fr 1.2fr 1fr;gap:14px;margin-bottom:20px}
+  @media(max-width:900px){.drops{grid-template-columns:1fr}}
+  .drop{position:relative;border:1.5px dashed var(--border-a);border-radius:14px;padding:20px 18px 16px;text-align:left;
+    background:rgba(251,146,60,.03);transition:border-color .15s,background .15s;cursor:pointer;display:block}
+  .drop:hover,.drop:focus-within{background:rgba(251,146,60,.06)}
+  .drop.dragover{border-style:solid;background:rgba(251,146,60,.10);box-shadow:0 0 0 2px var(--acc-ring) inset}
+  .drop.loaded{border-color:rgba(16,185,129,.55);background:rgba(16,185,129,.05)}
+  .drop.err{border-color:var(--danger);background:rgba(248,113,113,.06)}
+  .drop-head{display:flex;align-items:baseline;gap:10px}
+  .drop-title{font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1.5px;font-size:15px;color:var(--acc)}
+  .drop.loaded .drop-title{color:#34d399}
+  .drop-tag{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);border:1px solid var(--border);border-radius:10px;padding:1px 8px}
+  .drop-sub{font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.45}
+  .drop-status{font-size:12px;margin-top:12px;min-height:20px;color:var(--pyralis-text)}
+  .drop-status .cnt{font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700}
+  .drop-status .fn{color:var(--muted);font-size:11px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+  .drop input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+
+  .btn{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;
+    border-radius:7px;padding:10px 18px;cursor:pointer;border:1px solid transparent;transition:filter .15s,border-color .15s,color .15s}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:var(--glass);border-color:var(--border);color:var(--pyralis-text)}
+  .btn-ghost:hover:not(:disabled),.btn-ghost:focus-visible{border-color:var(--border-a);color:var(--acc);outline:none}
+  .btn-excel{background:rgba(16,185,129,.14);border-color:rgba(16,185,129,.4);color:#34d399}
+  .btn-excel:hover:not(:disabled),.btn-excel:focus-visible{background:rgba(16,185,129,.22);border-color:#10B981;color:#6ee7b7;outline:none}
+
+  /* Revisar antes de cerrar */
+  .review{display:none;border:1px solid rgba(251,191,36,.35);background:rgba(251,191,36,.05);border-radius:12px;margin-bottom:20px;overflow:hidden}
+  .review.show{display:block}
+  .review.ok{border-color:rgba(16,185,129,.35);background:rgba(16,185,129,.05)}
+  .review-head{display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;user-select:none}
+  .review-head h2{font-family:'Rajdhani',sans-serif;font-size:16px;letter-spacing:1.5px;text-transform:uppercase;color:var(--warn);font-weight:700}
+  .review.ok .review-head h2{color:#34d399}
+  .review-n{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;color:#1a1206;background:var(--warn);border-radius:10px;padding:0 9px;line-height:20px}
+  .review.ok .review-n{background:var(--ok);color:#04120c}
+  .review-sub{font-size:11.5px;color:var(--muted)}
+  .review-tog{margin-left:auto;color:var(--muted);font-size:12px}
+  .review-body{display:none;border-top:1px solid rgba(251,191,36,.2);padding:6px 16px 14px}
+  .review.open .review-body{display:block}
+  .rv-grp{margin-top:12px}
+  .rv-grp h3{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--pyralis-text);margin-bottom:6px;font-weight:600}
+  .rv-grp h3 span{color:var(--muted);font-weight:500;letter-spacing:.3px;text-transform:none;margin-left:6px}
+  .rv-item{display:grid;grid-template-columns:8px 1fr;gap:10px;align-items:start;padding:6px 0;border-bottom:1px dashed rgba(148,163,184,.12);font-size:12.5px}
+  .rv-item:last-child{border-bottom:0}
+  .rv-dot{width:8px;height:8px;border-radius:50%;margin-top:6px;background:var(--warn)}
+  .rv-dot.red{background:var(--danger)} .rv-dot.blue{background:var(--fin)} .rv-dot.grey{background:var(--muted)}
+  .rv-item b{color:var(--pyralis-text);font-weight:600}
+  .rv-item .how{display:block;color:var(--muted);font-size:11.5px;margin-top:1px}
+  .rv-item .how em{font-style:normal;color:var(--acc-soft)}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;background:rgba(148,163,184,.12);border-radius:4px;padding:1px 5px}
+
+  /* Reparto del mes — la barra */
+  .split{display:none;border:1px solid var(--border);border-radius:14px;background:var(--glass);padding:16px 18px 14px;margin-bottom:18px}
+  .split.show{display:block}
+  .split-bar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:rgba(148,163,184,.12);margin:10px 0 12px}
+  .split-bar .h{background:linear-gradient(90deg,#C2410C,var(--acc));transition:width .35s}
+  .split-bar .f{background:linear-gradient(90deg,#2563EB,var(--fin));transition:width .35s}
+  .split-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:760px){.split-row{grid-template-columns:1fr}}
+  .ledger{display:grid;grid-template-columns:auto 1fr;gap:2px 16px;align-items:baseline;font-size:12.5px}
+  .ledger .who{grid-column:1/-1;display:flex;align-items:baseline;gap:10px;margin-bottom:4px}
+  .ledger .who b{font-family:'Rajdhani',sans-serif;font-size:18px;letter-spacing:2px;text-transform:uppercase}
+  .ledger.h .who b{color:var(--acc)} .ledger.f .who b{color:var(--fin)}
+  .ledger .who span{color:var(--muted);font-size:11.5px}
+  .ledger .k{color:var(--muted)} .ledger .v{font-variant-numeric:tabular-nums;text-align:right;color:var(--pyralis-text)}
+  .ledger .v.big{font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700}
+  .split-note{font-size:11px;color:var(--muted);margin-top:10px}
+
+  /* Pestañas + acciones */
+  .tabs{display:none;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .tabs.show{display:flex}
+  .tab{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;letter-spacing:1.5px;text-transform:uppercase;padding:9px 18px;border-radius:9px;
+    border:1px solid var(--border);background:var(--glass);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+  .tab:hover,.tab:focus-visible{color:var(--pyralis-text);outline:none}
+  .tab.active.h{background:var(--acc-dim);border-color:var(--acc);color:var(--acc)}
+  .tab.active.f{background:var(--fin-dim);border-color:var(--fin);color:var(--fin)}
+  .tab-n{font-size:11px;font-family:'Inter',sans-serif;font-weight:600;background:rgba(148,163,184,.18);border-radius:10px;padding:1px 7px;color:var(--pyralis-text)}
+  .tab.active.h .tab-n{background:rgba(251,146,60,.28)} .tab.active.f .tab-n{background:rgba(96,165,250,.28)}
+  .tabs .spacer{flex:1}
+  .tabs input[type=search]{padding:8px 12px;border-radius:7px;background:var(--pyralis-bg-input);border:1px solid var(--border);color:var(--pyralis-text);font-family:inherit;font-size:12.5px;min-width:220px}
+  .tabs input[type=search]:focus{outline:none;border-color:var(--acc)}
+
+  /* Tabla */
+  .tbl-wrap{border:1px solid var(--border);border-radius:12px;overflow:auto;max-height:66vh;display:none}
+  .tbl-wrap.show{display:block}
+  table.liq{width:100%;border-collapse:collapse;font-size:11.5px}
+  table.liq th{position:sticky;top:0;background:#0c1420;text-align:left;padding:7px 8px;white-space:nowrap;font-size:9.5px;letter-spacing:.5px;
+    text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);z-index:1}
+  table.liq th.num,table.liq td.num{text-align:right;font-variant-numeric:tabular-nums}
+  table.liq td{padding:4px 8px;border-bottom:1px solid rgba(148,163,184,.08);vertical-align:middle;white-space:nowrap}
+  table.liq td.pac{max-width:230px;overflow:hidden;text-overflow:ellipsis}
+  table.liq td.pre{max-width:300px;overflow:hidden;text-overflow:ellipsis}
+  table.liq tr:hover td{background:rgba(251,146,60,.04)}
+  table.liq tr.first td{border-top:1px solid rgba(148,163,184,.18)}
+  table.liq tr.moved td{background:rgba(251,191,36,.07)}
+  table.liq td.warn{color:var(--warn)}
+  table.liq td.warn abbr{text-decoration:underline dotted;cursor:help}
+  table.liq tfoot td{position:sticky;bottom:0;background:#0c1420;font-weight:700;border-top:2px solid var(--border-a);padding:8px}
+  .why{font-size:10.5px;color:var(--muted)} .why b{color:var(--fin);font-weight:600}
+  table.liq td.int{max-width:250px;overflow:hidden;text-overflow:ellipsis}
+  .mv{font-size:10.5px;padding:3px 8px;border-radius:5px;border:1px solid var(--border);background:var(--glass);color:var(--muted);cursor:pointer;font-family:inherit;white-space:nowrap}
+  .mv:hover,.mv:focus-visible{color:var(--acc);border-color:var(--border-a);outline:none}
+  .mv.undo{color:var(--warn);border-color:rgba(251,191,36,.4)}
+  .empty{padding:44px 20px;text-align:center;color:var(--muted);border:1px dashed var(--border);border-radius:12px;font-size:13px}
+  .empty b{color:var(--pyralis-text);font-weight:600}
+
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#111a26;border:1px solid var(--border-a);border-radius:10px;
+    padding:12px 20px;font-size:13px;z-index:200;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw}
+  .toast.show{opacity:1}
+  @media (prefers-reduced-motion:reduce){ .split-bar .h,.split-bar .f,.toast,.drop{transition:none} }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="lumen-wordmark">L<span class="firefly-o">u</span>men</span>
+  <span class="tb-crumb">· Harefield</span>
+  <div class="tb-right">
+    <span class="ses-chip" id="ses">sin sesión</span>
+    <a class="tb-back" href="admin.html">← Admin</a>
+  </div>
+</div>
+
+<div class="main">
+  <h1 class="page">Liquidación Harefield</h1>
+  <p class="page-sub">Cruza la liquidación mensual de HAREFIELD con las internaciones en <b>cama prestada</b> (CCV → Hospital Italiano).
+    Un estudio cuya <b>fecha y hora de turno</b> cae dentro de una internación pasa a la pestaña FINAMED; el resto queda en HAREFIELD.
+    Todo se procesa en tu navegador. Nada sale de esta máquina.</p>
+
+  <div class="restored-bar" id="restored">
+    <span>↻ Datos restaurados de tu última sesión (<span id="restored-when"></span>).</span>
+    <button class="link-btn" onclick="HF.limpiarMes()">Borrar este mes</button>
+  </div>
+
+  <div class="mesbar">
+    <label for="mes-sel">Mes a cerrar</label>
+    <div class="mes-ctl">
+      <button type="button" onclick="HF.stepMes(-1)" aria-label="Mes anterior">‹</button>
+      <select id="mes-sel" onchange="HF.selectMes(this.value)"></select>
+      <button type="button" onclick="HF.stepMes(1)" aria-label="Mes siguiente">›</button>
+    </div>
+    <span class="mes-hint" id="mes-hint">El mes se toma de la fecha de turno de la liquidación que subas.</span>
+  </div>
+
+  <div class="drops">
+    <label class="drop" id="drop-liq" for="in-liq">
+      <div class="drop-head"><span class="drop-title">Liquidación</span><span class="drop-tag">mensual</span></div>
+      <div class="drop-sub"><code>Liquidacion####.xls</code> del HIS — la de HAREFIELD S.A. Arrastrá o hacé clic.</div>
+      <div class="drop-status" id="st-liq"></div>
+      <input type="file" id="in-liq" accept=".xls,.xlsx"/>
+    </label>
+    <label class="drop" id="drop-cam" for="in-cam">
+      <div class="drop-head"><span class="drop-title">Camas prestadas</span><span class="drop-tag">mensual · todas las hojas</span></div>
+      <div class="drop-sub"><code>CAMAS PRESTADAS EN CCV.xlsx</code> bajado del Drive. Se leen todas las hojas: una internación de mayo puede terminar en junio.</div>
+      <div class="drop-status" id="st-cam"></div>
+      <input type="file" id="in-cam" accept=".xls,.xlsx"/>
+    </label>
+    <label class="drop" id="drop-nom" for="in-nom">
+      <div class="drop-head"><span class="drop-title">Nomenclador</span><span class="drop-tag">se guarda</span></div>
+      <div class="drop-sub">Sólo se usa para controlar el precio de cada código. Queda guardado hasta que subas uno nuevo.</div>
+      <div class="drop-status" id="st-nom"></div>
+      <input type="file" id="in-nom" accept=".xls,.xlsx"/>
+    </label>
+  </div>
+
+  <section class="review" id="review">
+    <div class="review-head" onclick="HF.toggleReview()">
+      <h2>Revisar antes de cerrar</h2>
+      <span class="review-n" id="review-n">0</span>
+      <span class="review-sub" id="review-sub"></span>
+      <span class="review-tog" id="review-tog">mostrar ▾</span>
+    </div>
+    <div class="review-body" id="review-body"></div>
+  </section>
+
+  <section class="split" id="split">
+    <div class="ledger-title" style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)">Reparto del mes · <span id="split-mes"></span></div>
+    <div class="split-bar"><div class="h" id="bar-h" style="width:100%"></div><div class="f" id="bar-f" style="width:0%"></div></div>
+    <div class="split-row">
+      <div class="ledger h">
+        <div class="who"><b>Harefield</b><span id="lh-sub"></span></div>
+        <span class="k">Total</span><span class="v big" id="lh-total">—</span>
+        <span class="k">FUESMEN</span><span class="v" id="lh-fu">—</span>
+        <span class="k">FADESA</span><span class="v" id="lh-fa">—</span>
+        <span class="k">Profesionales</span><span class="v" id="lh-pr">—</span>
+      </div>
+      <div class="ledger f">
+        <div class="who"><b>Finamed</b><span id="lf-sub"></span></div>
+        <span class="k">Total</span><span class="v big" id="lf-total">—</span>
+        <span class="k">FUESMEN</span><span class="v" id="lf-fu">—</span>
+        <span class="k">FADESA</span><span class="v" id="lf-fa">—</span>
+        <span class="k">Profesionales</span><span class="v" id="lf-pr">—</span>
+      </div>
+    </div>
+    <div class="split-note">Reparto: ecografía y ecodoppler 40 % FUESMEN · 40 % FADESA · 20 % Profesionales. Todo lo demás 50 % · 50 %. Total = Precio × Cantidad.</div>
+  </section>
+
+  <div class="tabs" id="tabs">
+    <button class="tab h active" id="tab-H" onclick="HF.setTab('H')">Harefield <span class="tab-n" id="n-H">0</span></button>
+    <button class="tab f" id="tab-F" onclick="HF.setTab('F')">Finamed <span class="tab-n" id="n-F">0</span></button>
+    <span class="spacer"></span>
+    <input type="search" id="q" placeholder="Buscar paciente, DNI o turno" oninput="HF.render()"/>
+    <button class="btn btn-excel" id="btn-xlsx" onclick="HF.exportXLSX()">⬇ Exportar Excel</button>
+  </div>
+
+  <div class="tbl-wrap" id="tbl-wrap"></div>
+  <div class="empty" id="empty">Subí la <b>liquidación</b> y el archivo de <b>camas prestadas</b> del mes. El cruce se arma solo.</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   HAREFIELD · núcleo puro (sin DOM) — se prueba aparte en Node
+   ═══════════════════════════════════════════════════════════════ */
+const HFCore = (function(){
+  const MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const norm=s=>String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  const pad=n=>String(n).padStart(2,'0');
+  const cleanDNI=v=>String(v==null?'':v).replace(/\D/g,'').replace(/^0+/,'');
+  const num=v=>{ if(v==null||v==='') return 0; if(typeof v==='number') return v;
+    const s=String(v).trim().replace(/\./g,'').replace(',','.'); const n=parseFloat(s); return isNaN(n)?0:n; };
+
+  /* Fecha: serial Excel → Date local; string dd/mm/yyyy o yyyy-mm-dd; otra cosa → null */
+  function parseFecha(v){
+    if(v==null||v==='') return null;
+    if(v instanceof Date) return isNaN(v)?null:v;
+    if(typeof v==='number'){
+      if(v<20000||v>80000) return null;
+      const p=XLSX.SSF.parse_date_code(v); if(!p) return null;
+      return new Date(p.y,p.m-1,p.d,p.H||0,p.M||0,p.S||0);
+    }
+    const s=String(v).trim();
+    let m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+    if(m){ const d=new Date(+m[3],+m[2]-1,+m[1],+(m[4]||0),+(m[5]||0),+(m[6]||0)); return isNaN(d)?null:d; }
+    m=s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+    if(m){ const d=new Date(+m[1],+m[2]-1,+m[3],+(m[4]||0),+(m[5]||0),+(m[6]||0)); return isNaN(d)?null:d; }
+    return null;
+  }
+  /* Hora: número <1 → fracción de día; 1≤n<24 → "hh.mm" tipeado en celda de hora; string "10.47" / "10:47:00" / "0.19"; otra cosa → null */
+  function parseHora(v){
+    if(v==null||v==='') return null;
+    if(v instanceof Date){ if(isNaN(v)) return null; return {h:v.getHours(),m:v.getMinutes()}; }
+    if(typeof v==='number'){
+      if(v>=0&&v<1){ const t=Math.round(v*86400); return {h:Math.floor(t/3600),m:Math.floor((t%3600)/60)}; }
+      if(v>=1&&v<24){ const h=Math.floor(v), m=Math.round((v-h)*100); if(m<60) return {h,m}; }
+      return null;
+    }
+    const m=String(v).trim().match(/^(\d{1,2})[.:,;](\d{1,2})/);
+    if(m){ const h=+m[1], mi=+m[2]; if(h<24&&mi<60) return {h,m:mi}; }
+    return null;
+  }
+  const ymd=d=>d?d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()):'';
+  const fmtF=d=>d?pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear():'';
+  const fmtFH=d=>d?fmtF(d)+' '+pad(d.getHours())+':'+pad(d.getMinutes()):'';
+  const mesKey=d=>d?d.getFullYear()+'-'+pad(d.getMonth()+1):'';
+  const mesLabel=k=>{ const [y,m]=k.split('-'); return MESES[+m-1]+' '+y; };
+  const mesUpper=k=>{ const [y,m]=k.split('-'); return MESES[+m-1].toUpperCase()+'_'+y; };
+  const finDeMes=k=>{ const [y,m]=k.split('-').map(Number); return new Date(y,m,0,23,59,59); };
+  const iniDeMes=k=>{ const [y,m]=k.split('-').map(Number); return new Date(y,m-1,1,0,0,0); };
+  const rows=ws=>XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+
+  /* ── LIQUIDACIÓN (HIS) ─────────────────────────────────────── */
+  function parseLiquidacion(wb){
+    const ws=wb.Sheets[wb.SheetNames[0]]; const R=rows(ws);
+    let hi=-1, H=null;
+    for(let i=0;i<Math.min(R.length,20);i++){ const n=(R[i]||[]).map(norm); if(n.includes('NTURNO')&&n.some(x=>x.startsWith('PRESTACION'))){ hi=i; H=n; break; } }
+    if(hi<0) throw new Error('No encontré la fila de encabezado (N° Turno / Prestación). ¿Es la liquidación del HIS?');
+    const col=(...names)=>{ for(const nm of names){ const i=H.findIndex(x=>x===nm||x.startsWith(nm)); if(i>=0) return i; } return -1; };
+    const C={ turno:col('NTURNO'), orden:col('NORDEN'), fOrden:col('FECHAORDEN'), pac:col('PACIENTE'), doc:col('DOCUMENTO','DNI'), cod:col('CODIGO'),
+      pre:col('PRESTACION'), cant:col('CANTIDAD'), precio:col('PRECIO'), fTurno:col('FECHATURNO'), serv:col('SERVICIO'), aseg:col('ASEGURADORA'), equipo:col('MEDICOEQUIPO','MEDICO') };
+    for(const k of ['turno','fOrden','pac','doc','pre','cant','precio','fTurno']) if(C[k]<0) throw new Error('Falta la columna "'+k+'" en la liquidación.');
+    const out=[]; const seen={};
+    for(let i=hi+1;i<R.length;i++){
+      const r=R[i]; if(!r) continue; const t=r[C.turno]; if(t==null||t==='') continue;
+      const turno=String(t).trim(); if(!/^\d+$/.test(turno)) continue;
+      const cod=C.cod>=0?String(r[C.cod]==null?'':r[C.cod]).trim():'';
+      const k=turno+'|'+cod; seen[k]=(seen[k]||0)+1;
+      const ft=parseFecha(r[C.fTurno]), fo=parseFecha(r[C.fOrden]);
+      out.push({ id:k+'|'+seen[k], turno, orden:C.orden>=0?String(r[C.orden]==null?'':r[C.orden]).trim():'',
+        fOrden:fo?fo.getTime():null, fTurno:ft?ft.getTime():null,
+        pac:String(r[C.pac]==null?'':r[C.pac]).trim(), doc:cleanDNI(r[C.doc]), cod,
+        pre:String(r[C.pre]==null?'':r[C.pre]).trim(), cant:num(r[C.cant]), precio:num(r[C.precio]),
+        serv:C.serv>=0?String(r[C.serv]==null?'':r[C.serv]).trim():'', aseg:C.aseg>=0?String(r[C.aseg]==null?'':r[C.aseg]).trim():'',
+        equipo:C.equipo>=0?String(r[C.equipo]==null?'':r[C.equipo]).trim():'' });
+    }
+    if(!out.length) throw new Error('La liquidación no tiene renglones con N° de turno.');
+    // mes dominante por fecha de turno
+    const cnt={}; out.forEach(l=>{ if(l.fTurno){ const k=mesKey(new Date(l.fTurno)); cnt[k]=(cnt[k]||0)+1; } });
+    const mes=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a])[0]||null;
+    return { lineas:out, mes, meses:cnt };
+  }
+
+  /* ── CAMAS PRESTADAS (todas las hojas) ─────────────────────── */
+  function parseCamas(wb){
+    const out=[]; const hojas=[];
+    for(const name of wb.SheetNames){
+      const R=rows(wb.Sheets[name]); let hi=-1, idx=null;
+      for(let i=0;i<Math.min(R.length,25);i++){
+        const n=(R[i]||[]).map(norm);
+        if(n.includes('DNI')&&n.includes('INGRESO')){
+          hi=i; idx={ dni:n.indexOf('DNI'), ing:n.indexOf('INGRESO'), eg:n.indexOf('EGRESO'), sector:n.indexOf('SECTOR'), dias:n.indexOf('DIAS'),
+            nom:n.findIndex(x=>x.includes('APELLIDO')||x.includes('NOMBRE')), os:n.findIndex(x=>x.includes('SOCIAL')) };
+          idx.hi=n.indexOf('HORA',idx.ing+1); idx.he=idx.eg>=0?n.indexOf('HORA',idx.eg+1):-1; break;
+        }
+      }
+      if(hi<0){ hojas.push({hoja:name,n:0,skip:true}); continue; }
+      let n=0;
+      for(let i=hi+1;i<R.length;i++){
+        const r=R[i]; if(!r) continue; const raw=r[idx.dni]; if(raw==null||raw==='') continue;
+        const dni=cleanDNI(raw); if(!dni) continue;
+        const g=j=>j>=0?r[j]:null;
+        const ing=parseFecha(g(idx.ing)), eg=parseFecha(g(idx.eg)), hI=parseHora(g(idx.hi)), hE=parseHora(g(idx.he));
+        out.push({ hoja:name, fila:i+1, dni, nombre:String(g(idx.nom)==null?'':g(idx.nom)).trim(), sector:String(g(idx.sector)==null?'':g(idx.sector)).trim(),
+          os:String(g(idx.os)==null?'':g(idx.os)).trim(), dias:g(idx.dias),
+          ing:ing?ing.getTime():null, eg:eg?eg.getTime():null, hI, hE,
+          ingRaw:g(idx.ing), egRaw:g(idx.eg), hIRaw:g(idx.hi), hERaw:g(idx.he),
+          egVacio:(g(idx.eg)==null||g(idx.eg)==='') });
+        n++;
+      }
+      hojas.push({hoja:name,n});
+    }
+    if(!out.length) throw new Error('No encontré internaciones. Busco una fila con las columnas DNI e INGRESO en cada hoja.');
+    return { internaciones:out, hojas };
+  }
+
+  /* ── NOMENCLADOR ───────────────────────────────────────────── */
+  function parseNomenclador(wb){
+    const ws=wb.Sheets[wb.SheetNames[0]]; const R=rows(ws);
+    let hi=-1, H=null;
+    for(let i=0;i<Math.min(R.length,15);i++){ const n=(R[i]||[]).map(norm); if(n.includes('CODIGO')&&n.some(x=>x.startsWith('PRESTACION'))){ hi=i; H=n; break; } }
+    if(hi<0) throw new Error('No encontré el encabezado (CODIGO / PRESTACIONES) en la primera hoja del nomenclador.');
+    const cCod=H.indexOf('CODIGO'), cPre=H.findIndex(x=>x.startsWith('PRESTACION')), cServ=H.indexOf('SERVICIO');
+    const cPrecio=H.findIndex(x=>x.startsWith('PARTICULAR'));
+    if(cPrecio<0) throw new Error('El nomenclador no tiene una columna "PARTICULAR …" con el precio.');
+    const precioHead=(R[hi]||[])[cPrecio];
+    const map={}; let n=0, ambiguos=[];
+    for(let i=hi+1;i<R.length;i++){
+      const r=R[i]; if(!r) continue; const c=r[cCod]; if(c==null||c==='') continue;
+      const cod=String(c).trim().replace(/\.0$/,''); if(!/^\d+$/.test(cod)) continue;
+      const p=r[cPrecio]; const precio=(typeof p==='number')?p:null;
+      const e={cod, pre:String(r[cPre]==null?'':r[cPre]).trim(), serv:cServ>=0?String(r[cServ]==null?'':r[cServ]).trim():'', precio};
+      if(map[cod]){ if(precio!=null&&map[cod].precio!=null&&map[cod].precio!==precio){ map[cod].ambiguo=true; ambiguos.push(cod); } continue; }
+      map[cod]=e; n++;
+    }
+    if(!n) throw new Error('El nomenclador no tiene códigos numéricos.');
+    return { map, n, precioHead:String(precioHead||'PARTICULAR'), ambiguos };
+  }
+
+  /* ── VENTANAS DE INTERNACIÓN (con los defaults que decidió Santiago) ── */
+  function ventanas(internaciones, mes){
+    const fin=finDeMes(mes).getTime(), ini=iniDeMes(mes).getTime();
+    return internaciones.map(c=>{
+      const flags=[]; let start=null, end=null, valida=true;
+      if(c.dni.length<6||c.dni.length>8) flags.push('dni');
+      if(c.ing==null){ flags.push('ing_ilegible'); valida=false; }
+      else{ const d=new Date(c.ing); if(c.hI){ d.setHours(c.hI.h,c.hI.m,0,0); } else { d.setHours(0,0,0,0); flags.push('hora_ing'); } start=d.getTime(); }
+      // Sin egreso legible → ventana abierta hasta el fin del mes que se cierra (si ingresó después de ese mes, no lo toca)
+      if(c.egVacio){ end=Math.max(fin,start||fin); flags.push('sin_egreso'); }
+      else if(c.eg==null){ end=Math.max(fin,start||fin); flags.push('eg_ilegible'); }
+      else{ const d=new Date(c.eg); if(c.hE){ d.setHours(c.hE.h,c.hE.m,59,0); } else { d.setHours(23,59,59,0); flags.push('hora_eg'); } end=d.getTime(); }
+      let s2=start, e2=end;
+      if(start!=null&&end!=null&&end<start){ flags.push('invertida'); valida=false; s2=end; e2=start; }
+      if(valida&&c.dias!=null&&c.dias!==''&&typeof c.dias==='number'&&c.ing!=null&&c.eg!=null){
+        const dd=Math.round((new Date(c.eg).setHours(0,0,0,0)-new Date(c.ing).setHours(0,0,0,0))/86400000);
+        if(Math.abs(dd-c.dias)>1) flags.push('dias');
+      }
+      // ¿puede afectar al mes que se cierra?
+      const toca = (s2==null) || (s2<=fin&&e2>=ini);
+      return Object.assign({}, c, {start, end, flags, valida, toca});
+    });
+  }
+
+  /* ── CRUCE + REPARTO ───────────────────────────────────────── */
+  function esEco(serv){ return norm(serv).startsWith('ECOGRAF'); }
+  function reparto(total, serv){ if(esEco(serv)) return {fu:total*0.4, fa:total*0.4, pr:total*0.2}; return {fu:total*0.5, fa:total*0.5, pr:0}; }
+  const SERV_OK=/^(RAYOSX|TOMOGRAF|ECOGRAF|RESONANCIA|MAMOGRAF|DENSITOMETR|RADIOLOG)/;
+
+  function cruzar(liq, camas, nom, mes, overrides){
+    overrides=overrides||{};
+    const V=ventanas(camas||[], mes);
+    const enMes=[], fuera=[];
+    for(const l of liq){ if(l.fTurno!=null&&mesKey(new Date(l.fTurno))===mes) enMes.push(l); else fuera.push(l); }
+    const porTurno={};
+    for(const l of enMes){
+      if(!porTurno[l.turno]){
+        const hit=V.find(v=>v.valida&&v.dni===l.doc&&l.fTurno>=v.start&&l.fTurno<=v.end);
+        const auto=hit?'F':'H';
+        const ov=overrides[l.turno];
+        porTurno[l.turno]={auto, cama:hit||null, tab:(ov&&ov!==auto)?ov:auto, movido:!!(ov&&ov!==auto)};
+      }
+    }
+    const lineas=enMes.map(l=>{
+      const t=porTurno[l.turno]; const total=l.precio*l.cant; const rp=reparto(total,l.serv);
+      const nomE=nom&&nom.map?nom.map[l.cod]:null;
+      const precioNom=nomE&&nomE.precio!=null?nomE.precio:null;
+      const flags=[];
+      if(nom&&nom.map){ if(!nomE) flags.push('cod_no_nom'); else if(precioNom!=null&&precioNom!==l.precio) flags.push('precio_dif'); }
+      if(!SERV_OK.test(norm(l.serv))) flags.push('serv');
+      return Object.assign({}, l, {total, fu:rp.fu, fa:rp.fa, pr:rp.pr, tab:t.tab, auto:t.auto, movido:t.movido, cama:t.cama, precioNom, flags});
+    });
+    const ord=(a,b)=>a.pac.localeCompare(b.pac,'es')||(a.fTurno-b.fTurno)||a.turno.localeCompare(b.turno)||a.id.localeCompare(b.id);
+    lineas.sort(ord);
+    const tot=tab=>{ const s={n:0,turnos:new Set(),total:0,fu:0,fa:0,pr:0}; for(const l of lineas){ if(l.tab!==tab) continue; s.n++; s.turnos.add(l.turno); s.total+=l.total; s.fu+=l.fu; s.fa+=l.fa; s.pr+=l.pr; } s.turnos=s.turnos.size; return s; };
+    return { lineas, fuera, ventanas:V, H:tot('H'), F:tot('F'), porTurno };
+  }
+
+  return { MESES, norm, cleanDNI, num, parseFecha, parseHora, ymd, fmtF, fmtFH, mesKey, mesLabel, mesUpper, finDeMes, iniDeMes,
+    parseLiquidacion, parseCamas, parseNomenclador, ventanas, cruzar, esEco, reparto };
+})();
+if(typeof module!=='undefined'&&module.exports) module.exports=HFCore;
+</script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   HAREFIELD · UI, persistencia (IndexedDB) y export
+   ═══════════════════════════════════════════════════════════════ */
+const HF=(function(){
+  const C=HFCore;
+  const $=id=>document.getElementById(id);
+  const S={ mes:null, liq:null, liqName:'', camas:null, camName:'', camHojas:[], nom:null, nomName:'', overrides:{}, tab:'H', res:null, savedAt:null };
+
+  /* ── IndexedDB propia: lumen_harefield / kv ── */
+  const DB='lumen_harefield', ST='kv';
+  function idb(){ return new Promise((res,rej)=>{ const r=indexedDB.open(DB,1); r.onupgradeneeded=()=>r.result.createObjectStore(ST); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+  async function idbGet(k){ const d=await idb(); return new Promise((res,rej)=>{ const t=d.transaction(ST,'readonly').objectStore(ST).get(k); t.onsuccess=()=>res(t.result); t.onerror=()=>rej(t.error); }); }
+  async function idbSet(k,v){ const d=await idb(); return new Promise((res,rej)=>{ const t=d.transaction(ST,'readwrite'); t.objectStore(ST).put(v,k); t.oncomplete=()=>res(); t.onerror=()=>rej(t.error); }); }
+  async function idbDel(k){ const d=await idb(); return new Promise((res,rej)=>{ const t=d.transaction(ST,'readwrite'); t.objectStore(ST).delete(k); t.oncomplete=()=>res(); t.onerror=()=>rej(t.error); }); }
+  async function idbKeys(){ const d=await idb(); return new Promise((res,rej)=>{ const t=d.transaction(ST,'readonly').objectStore(ST).getAllKeys(); t.onsuccess=()=>res(t.result||[]); t.onerror=()=>rej(t.error); }); }
+
+  const money=n=>{ const r=Math.round(n*100)/100; return '$ '+r.toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:2}); };
+  const int=n=>Number(n||0).toLocaleString('es-AR');
+  const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const hh=t=>t?String(t.h).padStart(2,'0')+':'+String(t.m).padStart(2,'0'):'—';
+  let toastT=null; function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),3200); }
+  function readBuf(f){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsArrayBuffer(f); }); }
+
+  /* ── Sesión ── */
+  (function ses(){ try{ const u=window.__spcd_user; if(u){ $('ses').innerHTML='<b>'+esc(u.nombre||u.username||'sesión')+'</b>'; return; } }catch(e){} $('ses').textContent='sin sesión'; })();
+
+  /* ── Dropzones ── */
+  function wireDrop(zoneId, inputId, handler){
+    const z=$(zoneId), inp=$(inputId);
+    ['dragenter','dragover'].forEach(ev=>z.addEventListener(ev,e=>{ e.preventDefault(); z.classList.add('dragover'); }));
+    ['dragleave','drop'].forEach(ev=>z.addEventListener(ev,e=>{ e.preventDefault(); z.classList.remove('dragover'); }));
+    z.addEventListener('drop',e=>{ const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) handler(f); });
+    inp.addEventListener('change',()=>{ const f=inp.files&&inp.files[0]; if(f) handler(f); inp.value=''; });
+  }
+  function setStatus(zoneId, stId, cls, html){ const z=$(zoneId); z.classList.remove('loaded','err'); if(cls) z.classList.add(cls); $(stId).innerHTML=html; }
+
+  async function onLiq(file){
+    try{
+      const wb=XLSX.read(await readBuf(file),{type:'array',raw:true});
+      const p=C.parseLiquidacion(wb);
+      S.liq=p.lineas; S.liqName=file.name; S.overrides={}; S.savedAt=null;
+      const asegs=[...new Set(p.lineas.map(l=>C.norm(l.aseg)))].filter(Boolean);
+      if(p.mes) S.mes=p.mes;
+      const noHare=asegs.filter(a=>!a.includes('HAREFIELD'));
+      setStatus('drop-liq','st-liq','loaded','<span class="cnt">'+int(p.lineas.length)+'</span> líneas · '+int(new Set(p.lineas.map(l=>l.turno)).size)+' turnos · '+(p.mes?C.mesLabel(p.mes):'sin fecha')+(noHare.length?'<br><span style="color:var(--warn)">⚠ Hay aseguradoras que no son HAREFIELD: '+esc(noHare.join(', '))+'</span>':'')+'<span class="fn">'+esc(file.name)+'</span>');
+      await persistMes(); refreshMeses(); recalc(); toast('Liquidación cargada: '+p.lineas.length+' líneas');
+    }catch(e){ console.error(e); setStatus('drop-liq','st-liq','err','⚠ '+esc(e.message)); }
+  }
+  async function onCam(file){
+    try{
+      const wb=XLSX.read(await readBuf(file),{type:'array',raw:true});
+      const p=C.parseCamas(wb);
+      S.camas=p.internaciones; S.camName=file.name; S.camHojas=p.hojas;
+      setStatus('drop-cam','st-cam','loaded','<span class="cnt">'+int(p.internaciones.length)+'</span> internaciones · '+p.hojas.filter(h=>!h.skip).length+' hojas ('+esc(p.hojas.map(h=>h.hoja+(h.skip?' ✗':'')).join(', '))+')<span class="fn">'+esc(file.name)+'</span>');
+      await idbSet('camas',{fileName:file.name,rows:p.internaciones,hojas:p.hojas,savedAt:new Date().toISOString()});
+      recalc(); toast('Camas prestadas: '+p.internaciones.length+' internaciones en '+p.hojas.length+' hojas');
+    }catch(e){ console.error(e); setStatus('drop-cam','st-cam','err','⚠ '+esc(e.message)); }
+  }
+  async function onNom(file){
+    try{
+      const wb=XLSX.read(await readBuf(file),{type:'array',raw:true});
+      const p=C.parseNomenclador(wb);
+      S.nom={map:p.map,precioHead:p.precioHead,ambiguos:p.ambiguos}; S.nomName=file.name;
+      setStatus('drop-nom','st-nom','loaded','<span class="cnt">'+int(p.n)+'</span> códigos · precio: '+esc(p.precioHead)+'<span class="fn">'+esc(file.name)+'</span>');
+      await idbSet('nomenclador',{fileName:file.name,map:p.map,precioHead:p.precioHead,ambiguos:p.ambiguos,savedAt:new Date().toISOString()});
+      recalc(); toast('Nomenclador guardado: '+p.n+' códigos');
+    }catch(e){ console.error(e); setStatus('drop-nom','st-nom','err','⚠ '+esc(e.message)); }
+  }
+
+  /* ── Persistencia por mes ── */
+  const mesK=()=>'mes:'+S.mes;
+  async function persistMes(){ if(!S.mes||!S.liq) return; try{ await idbSet(mesK(),{liqName:S.liqName,rows:S.liq,overrides:S.overrides,savedAt:new Date().toISOString()}); await idbSet('ui',{mes:S.mes}); }catch(e){ console.warn('persist',e); } }
+  async function loadMes(k){
+    S.mes=k; S.liq=null; S.liqName=''; S.overrides={}; S.savedAt=null;
+    try{ const m=await idbGet('mes:'+k); if(m&&m.rows){ S.liq=m.rows; S.liqName=m.liqName||''; S.overrides=m.overrides||{}; S.savedAt=m.savedAt||null; } }catch(e){}
+    if(S.liq){ setStatus('drop-liq','st-liq','loaded','<span class="cnt">'+int(S.liq.length)+'</span> líneas · '+int(new Set(S.liq.map(l=>l.turno)).size)+' turnos · guardado<span class="fn">'+esc(S.liqName)+'</span>'); }
+    else setStatus('drop-liq','st-liq','','');
+    const rb=$('restored'); if(S.savedAt){ let w=''; try{ w=new Date(S.savedAt).toLocaleString('es-AR'); }catch(e){} $('restored-when').textContent=w; rb.classList.add('show'); } else rb.classList.remove('show');
+    try{ await idbSet('ui',{mes:k}); }catch(e){}
+    recalc();
+  }
+  async function refreshMeses(){
+    let keys=[]; try{ keys=(await idbKeys()).filter(k=>String(k).startsWith('mes:')).map(k=>String(k).slice(4)); }catch(e){}
+    const set=new Set(keys); if(S.mes) set.add(S.mes);
+    // siempre ofrecer también el mes anterior al actual (que es el que se cierra "a mes vencido")
+    const now=new Date(); const prev=new Date(now.getFullYear(),now.getMonth()-1,1); set.add(C.mesKey(prev)); set.add(C.mesKey(now));
+    const list=[...set].sort();
+    const sel=$('mes-sel'); sel.innerHTML=list.map(k=>'<option value="'+k+'"'+(k===S.mes?' selected':'')+'>'+C.mesLabel(k)+(keys.includes(k)?' ✓':'')+'</option>').join('');
+    if(S.mes) sel.value=S.mes;
+  }
+  async function selectMes(k){ if(!k||k===S.mes) return; await loadMes(k); await refreshMeses(); }
+  async function stepMes(dir){ const [y,m]=(S.mes||C.mesKey(new Date())).split('-').map(Number); const d=new Date(y,m-1+dir,1); await selectMes(C.mesKey(d)); }
+  async function limpiarMes(){ if(!S.mes) return; if(!confirm('¿Borrar la liquidación guardada de '+C.mesLabel(S.mes)+' y sus movimientos a mano?')) return; try{ await idbDel(mesK()); }catch(e){} await loadMes(S.mes); await refreshMeses(); toast('Mes borrado'); }
+
+  /* ── Cálculo + render ── */
+  function recalc(){
+    if(!S.mes||!S.liq){ S.res=null; render(); return; }
+    S.res=C.cruzar(S.liq, S.camas||[], S.nom, S.mes, S.overrides);
+    render();
+  }
+  function setTab(t){ S.tab=t; $('tab-H').classList.toggle('active',t==='H'); $('tab-F').classList.toggle('active',t==='F'); renderTable(); }
+  function toggleReview(){ const r=$('review'); r.classList.toggle('open'); $('review-tog').textContent=r.classList.contains('open')?'ocultar ▴':'mostrar ▾'; }
+
+  function render(){
+    const has=!!S.res;
+    $('empty').style.display=has?'none':'';
+    $('split').classList.toggle('show',has); $('tabs').classList.toggle('show',has); $('tbl-wrap').classList.toggle('show',has);
+    $('mes-hint').textContent=S.mes?('Se incluyen los turnos con fecha de turno en '+C.mesLabel(S.mes)+'.'):'El mes se toma de la fecha de turno de la liquidación que subas.';
+    if(!has){ $('review').classList.remove('show'); return; }
+    const R=S.res;
+    if(!S.camas){ $('empty').style.display=''; $('empty').innerHTML='Falta el archivo de <b>camas prestadas</b>. Sin él, todo queda en HAREFIELD y no hay cruce.'; }
+    // reparto
+    const tot=R.H.total+R.F.total; const pf=tot>0?R.F.total/tot*100:0;
+    $('split-mes').textContent=C.mesLabel(S.mes);
+    $('bar-h').style.width=(100-pf)+'%'; $('bar-f').style.width=pf+'%';
+    $('lh-sub').textContent=int(R.H.n)+' líneas · '+int(R.H.turnos)+' turnos'; $('lf-sub').textContent=int(R.F.n)+' líneas · '+int(R.F.turnos)+' turnos';
+    $('lh-total').textContent=money(R.H.total); $('lh-fu').textContent=money(R.H.fu); $('lh-fa').textContent=money(R.H.fa); $('lh-pr').textContent=R.H.pr?money(R.H.pr):'—';
+    $('lf-total').textContent=money(R.F.total); $('lf-fu').textContent=money(R.F.fu); $('lf-fa').textContent=money(R.F.fa); $('lf-pr').textContent=R.F.pr?money(R.F.pr):'—';
+    $('n-H').textContent=int(R.H.n); $('n-F').textContent=int(R.F.n);
+    renderReview(); renderTable();
+  }
+
+  const FLAG_TXT={
+    dni:'DNI de largo raro', ing_ilegible:'fecha de ingreso ilegible', eg_ilegible:'fecha de egreso ilegible', sin_egreso:'sin egreso',
+    hora_ing:'hora de ingreso ilegible', hora_eg:'hora de egreso ilegible', invertida:'egreso anterior al ingreso', dias:'DIAS no coincide con las fechas'
+  };
+  function renderReview(){
+    const R=S.res; const groups=[]; let n=0;
+    // A. camas
+    const cam=R.ventanas.filter(v=>v.toca&&v.flags.length);
+    if(cam.length){
+      groups.push({t:'Camas prestadas', s:cam.length+' internaciones que tocan '+C.mesLabel(S.mes)+' y tienen datos dudosos', items:cam.map(v=>{
+        const est=v.liqN=(S.liq.filter(l=>l.doc===v.dni).length);
+        const red=!v.valida||v.flags.includes('dni');
+        let how='';
+        if(v.flags.includes('invertida')) how='No se usa para el cruce (no se puede saber la ventana). ';
+        else if(v.flags.includes('ing_ilegible')) how='No se usa para el cruce. ';
+        if(v.flags.includes('sin_egreso')||v.flags.includes('eg_ilegible')) how+='Ventana abierta hasta el <em>'+C.fmtF(C.finDeMes(S.mes))+' 23:59</em> — si el egreso está en otra hoja, subí el archivo actualizado. ';
+        if(v.flags.includes('hora_ing')) how+='Ingreso tomado a las <em>00:00</em>. ';
+        if(v.flags.includes('hora_eg')) how+='Egreso tomado a las <em>23:59</em>. ';
+        if(v.flags.includes('dni')) how+='Con ese DNI no va a matchear nunca; corregilo en el Drive o movelo a mano abajo. ';
+        how+=est?('Este DNI tiene <em>'+est+' línea'+(est>1?'s':'')+'</em> en la liquidación.'):'Este DNI no aparece en la liquidación.';
+        return {red, html:'<b>'+esc(v.nombre||'(sin nombre)')+'</b> · DNI '+esc(v.dni)+' · hoja <code>'+esc(v.hoja)+'</code> fila '+v.fila+' — '+v.flags.map(f=>FLAG_TXT[f]||f).join(', ')+
+          '<span class="how">Ingreso '+esc(String(v.ingRaw==null?'':(v.ing?C.fmtF(new Date(v.ing)):v.ingRaw)))+' '+esc(v.hI?hh(v.hI):String(v.hIRaw==null?'—':v.hIRaw))+' → Egreso '+esc(String(v.egRaw==null?'(vacío)':(v.eg?C.fmtF(new Date(v.eg)):v.egRaw)))+' '+esc(v.hE?hh(v.hE):String(v.hERaw==null?'—':v.hERaw))+'. '+how+'</span>'};
+      })});
+    }
+    // B. precios
+    if(S.nom){
+      const dif=R.lineas.filter(l=>l.flags.includes('precio_dif')); const nocod=R.lineas.filter(l=>l.flags.includes('cod_no_nom'));
+      const items=[];
+      const seen={};
+      for(const l of dif){ const k=l.cod+'|'+l.precio; if(seen[k]) continue; seen[k]=1; const cnt=dif.filter(x=>x.cod===l.cod&&x.precio===l.precio).length;
+        items.push({html:'<b>'+esc(l.cod)+' '+esc(l.pre)+'</b> — liquidación '+money(l.precio)+' · nomenclador '+money(l.precioNom)+' ('+esc(S.nom.precioHead)+')<span class="how">'+cnt+' línea'+(cnt>1?'s':'')+'. Se usa el precio de la liquidación; si el correcto es el del nomenclador, corregilo en el HIS y volvé a bajar la liquidación.</span>'}); }
+      const seen2={};
+      for(const l of nocod){ if(seen2[l.cod]) continue; seen2[l.cod]=1; const cnt=nocod.filter(x=>x.cod===l.cod).length; items.push({html:'<b>'+esc(l.cod)+' '+esc(l.pre)+'</b> — no está en el nomenclador<span class="how">'+cnt+' línea'+(cnt>1?'s':'')+'. Sin control de precio.</span>'}); }
+      if(S.nom.ambiguos&&S.nom.ambiguos.length){ const usados=S.nom.ambiguos.filter(c=>R.lineas.some(l=>l.cod===c)); if(usados.length) items.push({html:'<b>Códigos con más de un precio en el nomenclador:</b> '+esc(usados.join(', '))+'<span class="how">Se toma el primero que aparece.</span>'}); }
+      if(items.length) groups.push({t:'Precios', s:'control contra el nomenclador', items});
+    } else {
+      groups.push({t:'Precios', s:'sin control', items:[{grey:true, html:'No hay nomenclador cargado: se toma el precio de la liquidación sin verificar.'}]});
+    }
+    // C. fuera del mes
+    if(R.fuera.length){
+      const byMes={}; R.fuera.forEach(l=>{ const k=l.fTurno?C.mesKey(new Date(l.fTurno)):'sin fecha'; byMes[k]=(byMes[k]||0)+1; });
+      groups.push({t:'Fuera del mes', s:R.fuera.length+' líneas de la liquidación quedaron afuera', items:Object.keys(byMes).sort().map(k=>({grey:true, html:'<b>'+int(byMes[k])+' líneas</b> con fecha de turno en '+esc(k==='sin fecha'?'(sin fecha)':C.mesLabel(k))+'<span class="how">Sólo se liquidan los turnos de '+C.mesLabel(S.mes)+'. Si estas van en otro mes, cargá esa liquidación bajo ese mes.</span>'}))});
+    }
+    // D. reparto
+    const sv=R.lineas.filter(l=>l.flags.includes('serv')); if(sv.length){ const servs=[...new Set(sv.map(l=>l.serv||'(vacío)'))]; groups.push({t:'Reparto', s:'servicios que no reconozco', items:servs.map(s=>({html:'<b>'+esc(s)+'</b> — '+sv.filter(l=>(l.serv||'(vacío)')===s).length+' líneas<span class="how">Se repartió 50 · 50. Si es ecografía, debería ser 40 · 40 · 20.</span>'}))}); }
+    // E. movidos a mano
+    const mv=Object.keys(S.overrides).filter(t=>R.porTurno[t]&&R.porTurno[t].movido);
+    if(mv.length) groups.push({t:'Movidos a mano', s:mv.length+' turnos', items:mv.map(t=>{ const l=R.lineas.find(x=>x.turno===t); const pt=R.porTurno[t]; return {blue:true, html:'<b>Turno '+esc(t)+'</b> · '+esc(l?l.pac:'')+' → '+(pt.tab==='F'?'FINAMED':'HAREFIELD')+' (el cruce decía '+(pt.auto==='F'?'FINAMED':'HAREFIELD')+')<span class="how">Se guarda con el mes. Deshacé desde la tabla.</span>'}; })});
+    n=groups.reduce((a,g)=>a+g.items.length,0);
+    const el=$('review'); el.classList.add('show'); el.classList.toggle('ok',n===0);
+    $('review-n').textContent=n; $('review-sub').textContent=n?'Nada se corrige solo. Mirá esto antes de exportar.':'Sin observaciones para este mes.';
+    $('review-body').innerHTML=groups.map(g=>'<div class="rv-grp"><h3>'+esc(g.t)+'<span>'+esc(g.s)+'</span></h3>'+g.items.map(i=>'<div class="rv-item"><span class="rv-dot'+(i.red?' red':i.blue?' blue':i.grey?' grey':'')+'"></span><div>'+i.html+'</div></div>').join('')+'</div>').join('')||'<div class="rv-grp" style="color:var(--muted);font-size:12.5px">Todo limpio.</div>';
+    if(n&&!el.dataset.auto){ el.classList.add('open'); $('review-tog').textContent='ocultar ▴'; el.dataset.auto='1'; }
+  }
+
+  function renderTable(){
+    const R=S.res; if(!R) return;
+    const q=C.norm($('q').value||'');
+    const rows=R.lineas.filter(l=>l.tab===S.tab&&(!q||C.norm(l.pac).includes(q)||l.doc.includes(q)||l.turno.includes(q)));
+    const isF=S.tab==='F';
+    const T={n:rows.length,total:0,fu:0,fa:0,pr:0,cant:0}; rows.forEach(l=>{ T.total+=l.total; T.fu+=l.fu; T.fa+=l.fa; T.pr+=l.pr; T.cant+=l.cant; });
+    let prev=null;
+    const body=rows.map(l=>{
+      const first=l.turno!==prev; prev=l.turno;
+      const pw=l.flags.includes('precio_dif')?' warn':'';
+      const ptitle=l.flags.includes('precio_dif')?' title="Nomenclador: '+money(l.precioNom)+'"':'';
+      const why=isF&&l.cama?'<span class="why"><b>'+esc(l.cama.nombre)+'</b> · '+C.fmtFH(new Date(l.cama.start))+' → '+C.fmtFH(new Date(l.cama.end))+' · '+esc(l.cama.sector||'')+'</span>':(l.movido?'<span class="why">movido a mano</span>':'');
+      const btn=first?(l.movido?'<button class="mv undo" onclick="HF.mover(\''+esc(l.turno)+'\',null)">↺ deshacer</button>':'<button class="mv" onclick="HF.mover(\''+esc(l.turno)+'\',\''+(l.tab==='H'?'F':'H')+'\')">→ '+(l.tab==='H'?'Finamed':'Harefield')+'</button>'):'';
+      return '<tr class="'+(first?'first':'')+(l.movido?' moved':'')+'">'+
+        '<td>'+esc(l.turno)+'</td><td>'+C.fmtF(l.fOrden?new Date(l.fOrden):null)+'</td><td class="pac" title="'+esc(l.pac)+'">'+esc(l.pac)+'</td><td>'+esc(l.doc)+'</td>'+
+        '<td class="pre" title="'+esc(l.cod+' · '+l.pre)+'">'+esc(l.pre)+'</td><td class="num">'+int(l.cant)+'</td>'+
+        '<td class="num'+pw+'"'+ptitle+'>'+(pw?'<abbr>'+money(l.precio)+'</abbr>':money(l.precio))+'</td><td class="num">'+money(l.total)+'</td>'+
+        '<td class="num">'+money(l.fu)+'</td><td class="num">'+money(l.fa)+'</td><td class="num">'+(l.pr?money(l.pr):'')+'</td>'+
+        '<td>'+C.fmtFH(l.fTurno?new Date(l.fTurno):null)+'</td><td class="int" title="'+esc(isF&&l.cama?(l.cama.nombre+' · '+C.fmtFH(new Date(l.cama.start))+' → '+C.fmtFH(new Date(l.cama.end))+' · '+(l.cama.sector||'')+' · hoja '+l.cama.hoja):'')+'">'+why+'</td><td>'+btn+'</td></tr>';
+    }).join('');
+    $('tbl-wrap').innerHTML=rows.length?'<table class="liq"><thead><tr><th>N° Turno</th><th>Fecha Orden</th><th>Paciente</th><th>DNI</th><th>Prestación</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Total</th><th class="num">FUESMEN</th><th class="num">FADESA</th><th class="num">Profesionales</th><th>Fecha turno</th><th>'+(isF?'Internación':'')+'</th><th></th></tr></thead><tbody>'+body+'</tbody>'+
+      '<tfoot><tr><td colspan="5">TOTALES · '+int(T.n)+' líneas</td><td class="num">'+int(T.cant)+'</td><td></td><td class="num">'+money(T.total)+'</td><td class="num">'+money(T.fu)+'</td><td class="num">'+money(T.fa)+'</td><td class="num">'+money(T.pr)+'</td><td colspan="3"></td></tr></tfoot></table>'
+      :'<div class="empty" style="border:0">'+(q?'Nada coincide con la búsqueda.':(isF?'Ningún turno cayó en una internación de cama prestada este mes.':'Sin líneas.'))+'</div>';
+  }
+
+  async function mover(turno, tab){
+    if(tab) S.overrides[turno]=tab; else delete S.overrides[turno];
+    await persistMes(); recalc(); toast(tab?('Turno '+turno+' → '+(tab==='F'?'FINAMED':'HAREFIELD')):'Turno '+turno+': vuelve al cruce automático');
+  }
+
+  /* ── Export ExcelJS (dos hojas) — misma paleta que los exports de admin.html ── */
+  function lumenLogoPNG(){
+    const W=210,H=48,dpr=2; const c=document.createElement('canvas'); c.width=W*dpr; c.height=H*dpr; const x=c.getContext('2d'); x.scale(dpr,dpr);
+    const rr=(X,Y,w,h,rad)=>{ x.beginPath(); x.moveTo(X+rad,Y); x.arcTo(X+w,Y,X+w,Y+h,rad); x.arcTo(X+w,Y+h,X,Y+h,rad); x.arcTo(X,Y+h,X,Y,rad); x.arcTo(X,Y,X+w,Y,rad); x.closePath(); };
+    const MX=4,MY=3,MS=42,sc=MS/54; const map=(px,py)=>[MX+((px-3)/54)*MS, MY+((py-3)/54)*MS];
+    rr(MX,MY,MS,MS,10); x.fillStyle='#0A0F14'; x.fill(); x.lineWidth=0.8; x.strokeStyle='#1F2937'; x.stroke();
+    let p; x.beginPath(); p=map(16,14); x.moveTo(p[0],p[1]); p=map(16,46); x.lineTo(p[0],p[1]); p=map(44,46); x.lineTo(p[0],p[1]);
+    x.strokeStyle='#F1F5F9'; x.lineWidth=3*sc; x.lineCap='round'; x.lineJoin='round'; x.stroke();
+    const fc=map(38,22); x.beginPath(); x.arc(fc[0],fc[1],9*sc,0,Math.PI*2); x.strokeStyle='rgba(245,158,11,.4)'; x.lineWidth=0.7; x.stroke();
+    x.beginPath(); x.arc(fc[0],fc[1],4*sc,0,Math.PI*2); x.fillStyle='#F59E0B'; x.fill(); x.beginPath(); x.arc(fc[0],fc[1],1.8*sc,0,Math.PI*2); x.fillStyle='#FEF3C7'; x.fill();
+    x.textBaseline='middle'; const wy=H/2-2; let wx=MX+MS+10; x.font='700 26px Inter, Calibri, Arial';
+    [['L','#F1F5F9'],['u','#F59E0B'],['men','#F1F5F9']].forEach(([t,col])=>{ x.fillStyle=col; x.fillText(t,wx,wy); wx+=x.measureText(t).width; });
+    x.font='600 8px Inter, Calibri, Arial'; x.fillStyle='#94A3B8'; x.fillText('by Pyralis', MX+MS+11, wy+15);
+    return c.toDataURL('image/png').split(',')[1];
+  }
+  const HEADS=['N° Turno','Fecha Orden','Paciente','Documento','Prestación / Fármaco','Cantidad','Precio','Total','FUESMEN','FADESA','Profesionales'];
+  const HEADS_F=HEADS.concat(['Fecha Turno','Ingreso','Egreso','Sector']);
+  const rowVals=(l,isF)=>{ const v=[+l.turno, l.fOrden?new Date(l.fOrden):null, l.pac, l.doc?+l.doc:l.doc, l.pre, l.cant, l.precio, l.total, l.fu, l.fa, l.pr||null];
+    if(isF) v.push(l.fTurno?new Date(l.fTurno):null, l.cama?new Date(l.cama.start):null, l.cama?new Date(l.cama.end):null, l.cama?l.cama.sector:''); return v; };
+
+  async function exportXLSX(){
+    const R=S.res; if(!R) return;
+    const fname='HAREFIELD_'+C.mesUpper(S.mes)+'.xlsx';
+    const sheets=[['HAREFIELD','H'],['FINAMED','F']];
+    if(typeof ExcelJS==='undefined'){
+      const wb=XLSX.utils.book_new();
+      for(const [nm,tab] of sheets){ const isF=tab==='F'; const rows=R.lineas.filter(l=>l.tab===tab); const aoa=[isF?HEADS_F:HEADS].concat(rows.map(l=>rowVals(l,isF)));
+        const T=R[tab]; aoa.push([null,null,null,null,'TOTALES',rows.reduce((a,l)=>a+l.cant,0),null,T.total,T.fu,T.fa,T.pr||null]);
+        const ws=XLSX.utils.aoa_to_sheet(aoa,{cellDates:true}); XLSX.utils.book_append_sheet(wb,ws,nm); }
+      XLSX.writeFile(wb,fname); toast('Excel plano descargado (sin ExcelJS)'); return;
+    }
+    const NAVY='FF0A0F14',BLUED='FF243049',GOLD='FFF59E0B',WHITE='FFF1F5F9',INK='FF0A0F14',SURF='FF0A0F14',ALT='FF0E1521',CYAN='FF22DBAE',ORANGE='FFFB923C',BLUE='FF60A5FA';
+    const wb=new ExcelJS.Workbook(); wb.creator='Lumen by Pyralis'; wb.created=new Date();
+    const logo=(()=>{ try{ return wb.addImage({base64:lumenLogoPNG(),extension:'png'}); }catch(e){ return null; } })();
+    const d=new Date(); const fecha=d.toLocaleDateString('es-AR');
+    for(const [nm,tab] of sheets){
+      const isF=tab==='F'; const heads=isF?HEADS_F:HEADS; const rows=R.lineas.filter(l=>l.tab===tab); const T=R[tab]; const nc=heads.length;
+      const ws=wb.addWorksheet(nm,{views:[{showGridLines:false}]});
+      const widths=[11,13,30,12,40,10,13,14,14,14,14,17,17,17,14]; heads.forEach((h,i)=>ws.getColumn(i+1).width=widths[i]||14);
+      for(let i=1;i<=nc;i++) ws.getCell(1,i).fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}};
+      ws.getRow(1).height=46; if(logo!=null) ws.addImage(logo,{tl:{col:0,row:0},ext:{width:210,height:44}});
+      ws.mergeCells(1,3,1,nc); const tt=ws.getCell(1,3); tt.value='LIQUIDACIÓN HAREFIELD · '+C.mesLabel(S.mes).toUpperCase()+' · '+nm;
+      tt.font={name:'Calibri',size:13,bold:true,color:{argb:WHITE}}; tt.alignment={horizontal:'right',vertical:'middle',indent:1};
+      ws.getRow(2).height=4; for(let i=1;i<=nc;i++){ const c=ws.getCell(2,i); c.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}}; c.border={bottom:{style:'medium',color:{argb:isF?BLUE:ORANGE}}}; }
+      ws.mergeCells(3,1,3,nc); const t2=ws.getCell(3,1);
+      t2.value='  Hospital Italiano   |   emitido '+fecha+'   |   '+int(T.turnos)+' turnos   |   '+int(T.n)+' líneas   |   '+(isF?'Estudios hechos durante una internación en cama prestada (CCV)':'Estudios fuera de internación en cama prestada');
+      t2.font={name:'Calibri',size:9,bold:true,color:{argb:GOLD}}; t2.fill={type:'pattern',pattern:'solid',fgColor:{argb:BLUED}}; t2.alignment={horizontal:'center',vertical:'middle'}; ws.getRow(3).height=20;
+      ws.getRow(4).height=4; for(let i=1;i<=nc;i++) ws.getCell(4,i).fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}};
+      let r=5; heads.forEach((h,i)=>{ const c=ws.getCell(r,i+1); c.value=h; c.font={name:'Calibri',size:8.5,bold:true,color:{argb:INK}}; c.fill={type:'pattern',pattern:'solid',fgColor:{argb:GOLD}};
+        c.alignment={horizontal:'center',vertical:'middle',wrapText:true}; c.border={bottom:{style:'thin',color:{argb:CYAN}},top:{style:'thin',color:{argb:GOLD}}}; });
+      ws.getRow(r).height=20; const headerRow=r; r++;
+      const dataBorder={bottom:{style:'hair',color:{argb:'FF334155'}},left:{style:'hair',color:{argb:'FF1E293B'}},right:{style:'hair',color:{argb:'FF1E293B'}}};
+      const NUMF='#,##0;-#,##0;"-"'; const NUMF2='#,##0.00';
+      const anyDec=rows.some(l=>[l.fu,l.fa,l.pr].some(v=>Math.abs(v-Math.round(v))>1e-9));
+      const numFmt=anyDec?NUMF2:NUMF;
+      rows.forEach((l,idx)=>{ const bg=idx%2===0?SURF:ALT; const vals=rowVals(l,isF);
+        vals.forEach((v,i)=>{ const c=ws.getCell(r,i+1); c.value=v; c.font={name:'Calibri',size:9,color:{argb:WHITE}}; c.fill={type:'pattern',pattern:'solid',fgColor:{argb:bg}}; c.border=dataBorder;
+          const h=heads[i]; c.alignment={vertical:'middle',horizontal:(i===0||i===3||i===5)?'center':(i>=6&&i<=10)?'right':'left',indent:1};
+          if(v instanceof Date) c.numFmt=(h==='Fecha Orden')?'dd/mm/yyyy':'dd/mm/yyyy hh:mm';
+          else if(i>=6&&i<=10) c.numFmt=numFmt; });
+        if(l.flags.includes('precio_dif')){ const c=ws.getCell(r,7); c.font={name:'Calibri',size:9,bold:true,color:{argb:'FFFBBF24'}}; c.note='Nomenclador: '+money(l.precioNom); }
+        if(l.movido){ ws.getCell(r,1).font={name:'Calibri',size:9,bold:true,color:{argb:'FFFBBF24'}}; ws.getCell(r,1).note='Movido a mano a '+nm; }
+        ws.getRow(r).height=15; r++; });
+      // TOTALES
+      const tv=[null,null,null,null,'TOTALES',rows.reduce((a,l)=>a+l.cant,0),null,T.total,T.fu,T.fa,T.pr||null];
+      for(let i=1;i<=nc;i++){ const c=ws.getCell(r,i); c.value=tv[i-1]==null?'':tv[i-1]; c.font={name:'Calibri',size:9.5,bold:true,color:{argb:GOLD}}; c.fill={type:'pattern',pattern:'solid',fgColor:{argb:BLUED}};
+        c.border={top:{style:'thin',color:{argb:GOLD}},bottom:{style:'thin',color:{argb:GOLD}}}; c.alignment={vertical:'middle',horizontal:(i>=6&&i<=11)?'right':'left',indent:1}; if(i>=6&&i<=11&&typeof c.value==='number') c.numFmt=numFmt; }
+      ws.getRow(r).height=18; r++;
+      ws.views=[{state:'frozen',ySplit:headerRow,showGridLines:false}];
+      for(let i=1;i<=nc;i++){ const fc=ws.getCell(r,i); fc.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}}; fc.border={top:{style:'thin',color:{argb:GOLD}}}; }
+      ws.mergeCells(r,1,r,nc); const f=ws.getCell(r,1); f.value='Lumen by Pyralis — '+d.toLocaleString('es-AR')+'  ·  reparto: ecografía 40/40/20, resto 50/50  ·  cruce por DNI y fecha/hora de turno contra camas prestadas'+(S.camName?' ('+S.camName+')':'');
+      f.font={name:'Calibri',size:8,italic:true,color:{argb:'FF94A3B8'}}; f.alignment={horizontal:'center',vertical:'middle'}; ws.getRow(r).height=16;
+    }
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fname; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1500);
+    toast('Descargado '+fname);
+  }
+
+  /* ── Arranque: restaurar nomenclador, camas y último mes ── */
+  async function init(){
+    wireDrop('drop-liq','in-liq',onLiq); wireDrop('drop-cam','in-cam',onCam); wireDrop('drop-nom','in-nom',onNom);
+    try{ const n=await idbGet('nomenclador'); if(n&&n.map){ S.nom={map:n.map,precioHead:n.precioHead,ambiguos:n.ambiguos||[]}; S.nomName=n.fileName||''; setStatus('drop-nom','st-nom','loaded','<span class="cnt">'+int(Object.keys(n.map).length)+'</span> códigos · guardado<span class="fn">'+esc(S.nomName)+'</span>'); } }catch(e){}
+    try{ const c=await idbGet('camas'); if(c&&c.rows){ S.camas=c.rows; S.camName=c.fileName||''; S.camHojas=c.hojas||[]; setStatus('drop-cam','st-cam','loaded','<span class="cnt">'+int(c.rows.length)+'</span> internaciones · guardado '+(c.savedAt?new Date(c.savedAt).toLocaleDateString('es-AR'):'')+'<span class="fn">'+esc(S.camName)+'</span>'); } }catch(e){}
+    let mes=null; try{ const u=await idbGet('ui'); if(u&&u.mes) mes=u.mes; }catch(e){}
+    if(!mes){ const now=new Date(); mes=C.mesKey(new Date(now.getFullYear(),now.getMonth()-1,1)); }
+    await loadMes(mes); await refreshMeses();
+  }
+  document.addEventListener('DOMContentLoaded',init);
+
+  return { S, selectMes, stepMes, limpiarMes, setTab, toggleReview, render:renderTable, mover, exportXLSX, recalc, _onLiq:onLiq, _onCam:onCam, _onNom:onNom };
+})();
+</script>
+</body>
+</html>

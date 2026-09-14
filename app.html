@@ -467,6 +467,19 @@
     }
     .mod-fila.validacion .mod-icono svg { filter: drop-shadow(0 0 7px rgba(34,211,238,.40)); }
 
+    .mod-fila.harefield { border-color: rgba(251,146,60,.24); }
+    .mod-fila.harefield::before { background: #FB923C; color: #FB923C; }
+    .mod-fila.harefield:hover {
+      border-color: #FB923C;
+      box-shadow: 0 -1px 0 rgba(148,197,255,.12) inset, 8px 10px 24px rgba(0,0,0,.55),
+                  0 0 38px rgba(251,146,60,.26);
+    }
+    .mod-fila.harefield .mod-icono {
+      background: linear-gradient(150deg, rgba(251,146,60,.14), rgba(10,15,20,.65));
+      border-color: rgba(251,146,60,.22);
+    }
+    .mod-fila.harefield .mod-icono svg { filter: drop-shadow(0 0 7px rgba(251,146,60,.40)); }
+
     @media (prefers-reduced-motion: reduce) {
       .mod-fila, .mod-fila::before, .mod-icono, .mod-flecha { transition: none; }
       .mod-grupo { animation: none; }
@@ -1046,6 +1059,11 @@ const MODULE_CARDS = {
     clase: 'validacion', nombre: 'Validación de órdenes PAMI', key: 'validacion',
     desc: 'Bandeja en verde &middot; Autocompletado en el portal &middot; Credencial',
     svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><image href="pami-iso.png" xlink:href="pami-iso.png" x="8" y="2" width="136" height="136" preserveAspectRatio="xMidYMid meet"/><circle cx="150" cy="134" r="42" fill="#0a1628" stroke="#22DBAE" stroke-width="5.5"/><path d="M131 135 l14 15 l28 -31" fill="none" stroke="#22DBAE" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+  },
+  harefield: {
+    clase: 'harefield', nombre: 'Harefield', key: 'harefield',
+    desc: 'Liquidaci&oacute;n mensual &middot; Cruce con camas prestadas &middot; Reparto FUESMEN / FADESA',
+    svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/><path d="M48 62 L48 130" stroke="#FB923C" stroke-width="4" stroke-linecap="round"/><path d="M48 96 L152 96 L152 130" fill="none" stroke="#FB923C" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><rect x="54" y="80" width="30" height="16" rx="5" fill="none" stroke="#FB923C" stroke-width="3.5"/><path d="M84 96 L84 88 Q84 82 90 82 L146 82 Q152 82 152 88 L152 96" fill="none" stroke="#FB923C" stroke-width="3.5" stroke-linejoin="round"/><path d="M48 118 L152 118" stroke="#FB923C" stroke-width="2" stroke-opacity="0.45"/><rect x="118" y="34" width="44" height="34" rx="6" fill="#0a1628" stroke="#22DBAE" stroke-width="3"/><path d="M127 46 L153 46 M127 55 L145 55" stroke="#22DBAE" stroke-width="2.5" stroke-linecap="round" stroke-opacity="0.7"/><path d="M62 44 L72 54 L90 34" fill="none" stroke="#22DBAE" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><text x="100" y="200" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">LIQUIDACI&#211;N</text><text x="100" y="222" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">HAREFIELD</text></svg>`
   }
 };
 
@@ -1476,15 +1494,19 @@ async function renderModules() {
   if (!modulos.validacion && modulos.conciliacion) {
     modulos.validacion = modulos.conciliacion;
   }
+  // Harefield (liquidación mensual): también derivado del permiso administrativo de ESCRITURA.
+  if (!modulos.harefield && (modulos.admin === 'edit' || modulos.admin === 'admin')) {
+    modulos.harefield = 'edit';
+  }
 
   // Atajo: si el usuario tiene acceso a UN SOLO m\u00f3dulo, lo mandamos directo ah\u00ed
   // (no tiene sentido mostrarle la pantalla de selecci\u00f3n con una sola card).
   // Si tiene 2 o m\u00e1s (ej: operativo + personal para solicitantes), mostramos la pantalla.
-  const modulosConPermiso = ['admin', 'tecnico', 'medico', 'operativo', 'personal', 'caja', 'conciliacion', 'validacion']
+  const modulosConPermiso = ['admin', 'tecnico', 'medico', 'operativo', 'personal', 'caja', 'conciliacion', 'validacion', 'harefield']
     .filter(key => modulos[key]);
   if (modulosConPermiso.length === 1) {
     const key = modulosConPermiso[0];
-    const destinos = { admin:'admin.html', tecnico:'tecnico.html', medico:'medico.html', operativo:'operativo.html?modo=pedidos', personal:'personal.html', caja:'caja.html', conciliacion:'conciliacion-pami.html', validacion:'validacion-pami.html' };
+    const destinos = { admin:'admin.html', tecnico:'tecnico.html', medico:'medico.html', operativo:'operativo.html?modo=pedidos', personal:'personal.html', caja:'caja.html', conciliacion:'conciliacion-pami.html', validacion:'validacion-pami.html', harefield:'harefield.html' };
     localStorage.setItem('spcd_rol', key);
     window.location.replace(destinos[key] || 'index.html');
     return;
@@ -1506,7 +1528,7 @@ async function renderModules() {
 
   // Estructura: módulos principales con sus submódulos
   const GRUPOS = [
-    { padre: 'admin',   hijos: ['caja', 'personal', 'operativo', 'conciliacion', 'validacion'] },
+    { padre: 'admin',   hijos: ['caja', 'personal', 'operativo', 'conciliacion', 'validacion', 'harefield'] },
     { padre: 'medico',  hijos: [] },
     { padre: 'tecnico', hijos: [] }
   ];
@@ -1564,7 +1586,7 @@ async function renderModules() {
 function selectRol(nombre, clase) {
   selectedRol = nombre;
   localStorage.setItem('spcd_rol', nombre);
-  const destinos = { admin:'admin.html', tecnico:'tecnico.html', medico:'medico.html', operativo:'operativo.html', personal:'personal.html', caja:'caja.html', conciliacion:'conciliacion-pami.html', validacion:'validacion-pami.html' };
+  const destinos = { admin:'admin.html', tecnico:'tecnico.html', medico:'medico.html', operativo:'operativo.html', personal:'personal.html', caja:'caja.html', conciliacion:'conciliacion-pami.html', validacion:'validacion-pami.html', harefield:'harefield.html' };
   window.location.href = destinos[clase] || 'index.html';
 }
 
