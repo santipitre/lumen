@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="lumen-ver" content="2026-09-10-a"/>
+<meta name="lumen-ver" content="2026-09-14-a"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Validación PAMI · LUMEN</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml"/>
@@ -361,7 +361,7 @@ const DATA_KEY = 'lumen.valpami.data.v1';
 const PAMI_ORIGINS = ['https://po.pami.org.ar','https://pe.pami.org.ar'];
 /* Version de userscript que espera esta pagina. Si el puente reporta otra, el cartel
    avisa: Tampermonkey NO se actualiza solo por visitar la URL del .user.js. */
-const US_ESPERADO = '4.0.0';
+const US_ESPERADO = '4.1.0';
 
 let ORDENES = [];      // [{orden, nombre, turno, turnoD, emision, emisionD, ben14, benBase, benDv, practicas:[], verde}]
 let FILTRO  = 'verdes';
@@ -372,6 +372,20 @@ let CFG     = load(CFG_KEY, {});
 let META    = null;    // {file, marcadas, ts}
 let pamiWin = null;
 let activa  = null;
+/* Trabajo en curso: cuál orden está dando vueltas por PAMI y el HIS ahora mismo.
+   Se limpia cuando llega su estado (validada/rechazada/pendiente) o un error. */
+let EN_CURSO = null;
+let INSISTE  = null;
+let WD_LUMEN = null;
+
+function pintarEnCurso(){ pintarVentanas(); }
+function cerrarEnCurso(orden){
+  if (EN_CURSO && (!orden || String(orden) === String(EN_CURSO.orden))){
+    EN_CURSO = null; INSISTE = null;
+    if (WD_LUMEN){ clearTimeout(WD_LUMEN); WD_LUMEN = null; }
+    pintarEnCurso();
+  }
+}
 let autoOK  = false;
 
 /* ── utils ─────────────────────────────────────────────── */
@@ -703,9 +717,14 @@ function pintarVentanas(){
   const faltan = [];
   if (!VENTANAS.pami) faltan.push('<a href="https://pe.pami.org.ar/controllers/transmision.php" target="_blank" rel="noopener">PAMI</a>');
   if (!VENTANAS.his)  faltan.push('<a href="http://his.fuesmen.edu.ar:8180/his/servlet/hturno?0" target="_blank" rel="noopener">el HIS</a>');
-  v('v-ayuda').innerHTML = faltan.length
-    ? 'Falta abrir ' + faltan.join(' y ') + '. Acomodá las ventanas y no las cierres.'
-    : 'Las tres trabajan a la vez y ninguna se cierra: mirá cada una mientras avanza.';
+  /* El trabajo en curso manda sobre el texto de ayuda: mientras haya una orden dando
+     vueltas, lo único que importa es cuál es. */
+  v('v-ayuda').innerHTML = EN_CURSO
+    ? 'En curso: <b>' + esc(EN_CURSO.orden) + '</b> · ' + esc(EN_CURSO.nombre || '') +
+      ' — mirá PAMI y el HIS. No largues otra hasta que ésta cierre.'
+    : (faltan.length
+        ? 'Falta abrir ' + faltan.join(' y ') + '. Acomodá las ventanas y no las cierres.'
+        : 'Las tres trabajan a la vez y ninguna se cierra: mirá cada una mientras avanza.');
 }
 
 /* ── disparar ───────────────────────────────────────
@@ -731,6 +750,20 @@ function irAPami(o){
 
   /* CAMINO NORMAL: el userscript esta instalado y las tres ventanas abiertas. */
   if (autoOK){
+    /* UN TRABAJO POR VEZ (2026-09-14). Pasó en el primer disparo real: se dispararon varias
+       órdenes seguidas, cada ventana quedó mostrando un job distinto (VAZQUEZ en PAMI,
+       VALERIANO en el HIS) y las dos pantallas se leían como si fueran el mismo paciente.
+       Así se valida la orden equivocada. No se bloquea con un diálogo: se avisa, y si
+       Santiago insiste con la MISMA orden dentro de los 8 s, se dispara igual. */
+    if (EN_CURSO && EN_CURSO.orden !== o.orden && (Date.now() - EN_CURSO.ts) < 5*60*1000){
+      if (!(INSISTE && INSISTE.orden === o.orden && (Date.now() - INSISTE.ts) < 8000)){
+        INSISTE = { orden: o.orden, ts: Date.now() };
+        toast('Hay una orden en curso: ' + EN_CURSO.orden + ' · ' + (EN_CURSO.nombre || '') +
+              '. Volvé a tocar para largar esta igual y dejar la otra por la mitad.', 'err');
+        return;
+      }
+    }
+    INSISTE = null;
     if (!VENTANAS.pami || !VENTANAS.his){
       const f = [];
       if (!VENTANAS.pami) f.push('PAMI');
@@ -744,6 +777,19 @@ function irAPami(o){
     window.postMessage({ src:'lumen-page', accion:'job', pay }, location.origin);
     /* Segundo camino, por si postMessage no cruza el sandbox de Tampermonkey. */
     try { localStorage.setItem('lumen_job_out', JSON.stringify(pay)); } catch(e){}
+    EN_CURSO = { orden: o.orden, nombre: o.nombre, ts: Date.now() };
+    pintarEnCurso();
+    /* Watchdog espejo del userscript: si en 2,5 minutos no volvió NADA (ni estado ni
+       error), el circuito se cortó antes de llegar a PAMI — por ejemplo si el job nunca
+       se publicó. Sin esto, Lumen se queda trabado creyendo que hay algo en curso. */
+    if (WD_LUMEN) clearTimeout(WD_LUMEN);
+    WD_LUMEN = setTimeout(() => {
+      if (EN_CURSO && EN_CURSO.orden === o.orden){
+        toast('La orden ' + o.orden + ' no devolvió nada en 2,5 min. Revisá las ventanas de ' +
+              'PAMI y del HIS, y marcala a mano si hace falta.', 'err');
+        cerrarEnCurso(o.orden);
+      }
+    }, 150000);
     activa = o.orden;
     guardarDatos();
     render();
@@ -812,12 +858,13 @@ window.addEventListener('message', ev => {
   }
   if (d.accion === 'puente'){ pintarVentanas(); return; }
   if (d.accion === 'estado' && d.orden){
+    cerrarEnCurso(d.orden);
     setEstado(d.orden, d.estado);
     toast(d.orden + ' → ' + d.estado + (d.motivo ? ' · ' + d.motivo : ''),
           d.estado === 'validada' ? 'ok' : (d.estado === 'rechazada' ? 'err' : ''));
     if (d.siguiente) setTimeout(siguientePendiente, 250);
   }
-  if (d.accion === 'error') toast('PAMI: ' + d.msg, 'err');
+  if (d.accion === 'error'){ cerrarEnCurso(null); toast('PAMI: ' + d.msg, 'err'); }
 });
 
 /* ── exportar Excel con estados ────────────────────────── */

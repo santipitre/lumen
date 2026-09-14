@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Lumen · Validación PAMI
 // @namespace    https://santipitre.github.io/lumen/
-// @version      4.0.0
-// @description  Tres ventanas abiertas al mismo tiempo (Lumen, PAMI, HIS): cada una se queda en su sitio y toma del bus el paso que le toca. Ninguna navega a otro dominio ni se cierra.
+// @version      4.1.0
+// @description  Tres ventanas abiertas al mismo tiempo (Lumen, PAMI, HIS): cada una se queda en su sitio y toma del bus el paso que le toca. Ninguna navega a otro dominio ni se cierra. v4.1: identidad del paciente en todos los carteles, watchdog cuando el circuito se corta, y cruce contra el HIS por region anatomica + hora del turno.
 // @author       Pyralis / Lumen
 // @match        https://pe.pami.org.ar/*
 // @match        http://pe.pami.org.ar/*
@@ -50,6 +50,10 @@
 
   /* v4.0.0 — EL BUS. Claves compartidas entre pestanas Y entre dominios (GM_setValue). */
   var JOB_KEY   = 'lumen_val_job';    /* el trabajo a hacer: {id, fase, dest, ...} */
+  /* v4.1.0 — "estoy esperando que decida una persona". Sin esto, el watchdog de la
+     ventana de PAMI daria por cortado un circuito que en realidad esta esperando que
+     Santiago elija un turno en el HIS. */
+  var ESPERA_KEY = 'lumen_val_espera';
   var HB_PAMI   = 'lumen_hb_pami';    /* latido de la ventana de PAMI */
   var HB_HIS    = 'lumen_hb_his';     /* latido de la ventana del HIS */
   var JOB_LOCAL = 'lumen_job_local';  /* sessionStorage: el job sobrevive al submit */
@@ -184,6 +188,41 @@
 
   function autoNext() { return localStorage.getItem('lumen_auto_next') !== '0'; }
 
+  /* ══════════ WATCHDOG (v4.1.0) ══════════
+     El 2026-09-14, en el primer disparo real, la ventana de PAMI quedo con el cartel verde
+     "TRABAJANDO" mientras el HIS esperaba una decision. Desde la pantalla, "esta trabajando"
+     y "se corto y nadie avisa" se veian IDENTICOS: no habia reloj en ningun punto de la
+     cadena. Ahora la ventana que le pasa el trabajo a otra arma un reloj; si el trabajo no
+     vuelve, el cartel pasa a error y Lumen se entera.
+     Tres cosas lo cancelan:
+       1. que el trabajo vuelva (fase 'validar'),
+       2. que la otra ventana avise "estoy esperando que decida una persona" (ESPERA_KEY),
+       3. que la orden se resuelva desde la otra ventana (BUS_KEY con un estado). */
+  var WD_SEG = 75;
+  var WD = null;
+
+  function wdCancelar() { if (WD) { clearTimeout(WD); WD = null; } }
+
+  function wdArmar(p, motivo, detalle) {
+    wdCancelar();
+    WD = setTimeout(function () {
+      WD = null;
+      panel(p, 'err', 'Pasaron ' + WD_SEG + ' s sin respuesta: ' + motivo,
+        '<div class="lp-tip">' + detalle + '</div>');
+      avisarLumen({ accion: 'error', msg: 'timeout (' + WD_SEG + 's): ' + motivo });
+    }, WD_SEG * 1000);
+  }
+
+  /* La otra ventana avisa que esta esperando a una persona: el reloj se apaga y el cartel
+     deja de mentir ("trabajando") y dice donde hay que ir. */
+  function wdEspera(p, v) {
+    if (!v || !p || v.id !== p.id) return;
+    wdCancelar();
+    panelProg(p, 'elegir', 'El <b>HIS</b> te está esperando',
+      (v.txt || 'Necesita que decidas vos.') +
+      ' Andá a la ventana del HIS: esta se queda acá, lista para validar.');
+  }
+
   /* ─── panel flotante (compartido por PAMI y HIS) ──────── */
 
   var COLORES = {
@@ -196,6 +235,18 @@
   /* Cartel de PROGRESO: sin botones. Es lo que pidio Santiago — mirar las tres
      ventanas al mismo tiempo y entender que esta haciendo cada una. */
   function cerrarProg() { var e = document.getElementById('lumen-prog'); if (e) e.remove(); }
+
+  /* v4.1.0 — IDENTIDAD EN TODOS LOS CARTELES.
+     El 2026-09-14 quedaron dos jobs distintos en pantalla al mismo tiempo (VAZQUEZ en la
+     ventana de PAMI, VALERIANO en la del HIS) y las dos ventanas se leian como si fueran
+     el mismo trabajo. Cada cartel dice de quien es: nombre, DNI y orden. */
+  function idHTML(p) {
+    var t = [];
+    if (p.dni)   t.push('DNI ' + esc(p.dni));
+    if (p.orden) t.push('Orden ' + esc(p.orden));
+    if (p.turno) t.push(esc(p.turno));
+    return t.join(' · ');
+  }
 
   function panelProg(p, tono, titulo, detalle) {
     if (!document.body) return null;
@@ -214,6 +265,7 @@
       '@keyframes lpg{0%{margin-left:0}50%{margin-left:64%}100%{margin-left:0}}' +
       '#lumen-prog .pg-b{padding:12px 13px}' +
       '#lumen-prog .pg-t{font-weight:700;font-size:13.5px;line-height:1.35;margin-bottom:4px}' +
+      '#lumen-prog .pg-nom{font-weight:800;font-size:13px;color:#E2E8F0;letter-spacing:.2px;margin-bottom:2px}' +
       '#lumen-prog .pg-n{color:#94A3B8;font-size:11.5px;font-family:ui-monospace,Menlo,monospace;margin-bottom:9px}' +
       '#lumen-prog .pg-d{font-size:11.5px;color:#8FA0B5;line-height:1.55}' +
       '</style>' +
@@ -221,7 +273,8 @@
       '<div class="pg-bar"><i></i></div>' +
       '<div class="pg-b">' +
         '<div class="pg-t">' + titulo + '</div>' +
-        '<div class="pg-n">' + esc(p.nombre || '') + (p.orden ? ' · ' + esc(p.orden) : '') + '</div>' +
+        '<div class="pg-nom">' + esc(p.nombre || '—') + '</div>' +
+        '<div class="pg-n">' + idHTML(p) + '</div>' +
         '<div class="pg-d">' + (detalle || '') + '</div>' +
       '</div>';
     document.body.appendChild(box);
@@ -276,7 +329,7 @@
       '<div class="lp-b">' +
         (aviso ? '<div class="lp-msg">' + aviso + '</div>' : '') +
         '<div class="lp-nom">' + esc(p.nombre || '') + '</div>' +
-        '<div class="lp-sub">Orden ' + esc(p.orden || '') + (p.turno ? ' · ' + esc(p.turno) : '') + '</div>' +
+        '<div class="lp-sub">' + idHTML(p) + '</div>' +
         cuerpoHTML +
         '<div class="lp-acts">' +
           '<button class="lp-ok" id="lp-ok">✓ Validada</button>' +
@@ -341,6 +394,42 @@
     if (t.indexOf('CGAM') === 0) return 'GAMMA';
     return null;
   }
+  /* ─── v4.1.0: dos criterios mas, porque la modalidad sola es DEMASIADO GRUESA ───
+     Caso real (2026-09-14, VALERIANO): la practica decia "RADIOGRAFIA DE TORAX" y el HIS
+     devolvio CUATRO turnos RX del Italiano — torax, en cama, abdomen y abdomen. La
+     modalidad no los separa; la region anatomica deja uno solo. Y la hora es todavia mas
+     fuerte: la orden decia 14:10 y el turno de torax 14:11. */
+  var REGIONES = [
+    ['TORAX',   /TORAX|TORACIC|PULMON|PLEURA|COSTILLA|PARRILLA COSTAL/],
+    ['MAMA',    /MAMOGRAF|\bMAMA/],
+    ['CEREBRO', /CEREBR|CRANEO|ENCEFAL|SILLA TURCA|HIPOFIS/],
+    ['COLUMNA', /COLUMNA|LUMBAR|CERVICAL|DORSAL|SACROCOCC|COCCIX|RAQUIS/],
+    ['CUELLO',  /VASOS DEL CUELLO|\bCUELLO|TIROIDE|CAROTID/],
+    ['ABDOMEN', /ABDOMEN|ABDOMINAL|HEPAT|HIGADO|VESICULA|PANCREA|BAZO|RENAL|RI[NÑ]ON/],
+    ['PELVIS',  /PELVI|CADERA|SACROILIAC|PROSTAT|VESICAL/],
+    ['MIEMBRO', /RODILLA|HOMBRO|TOBILLO|MU[NÑ]ECA|\bCODO|\bPIE\b|\bMANO\b|FEMUR|HUMERO|TIBIA|PERONE|ANTEBRAZO|\bBRAZO|PIERNA|CLAVICULA|ESCAPULA/]
+  ];
+  function regionDe(s) {
+    var t = String(s || '').toUpperCase();
+    for (var i = 0; i < REGIONES.length; i++) if (REGIONES[i][1].test(t)) return REGIONES[i][0];
+    return null;
+  }
+  /* Minutos desde medianoche. Sirve para PAMI ("01/09/2026 - 14:10 - P") y para el HIS
+     ("01/08/2026 14:11"): de las dos cadenas se saca el primer HH:MM. */
+  function minutosDe(s) {
+    var m = String(s || '').match(/(\d{1,2}):(\d{2})/);
+    if (!m) return null;
+    var h = +m[1], mi = +m[2];
+    if (h > 23 || mi > 59) return null;
+    return h * 60 + mi;
+  }
+  var TOLERANCIA_MIN = 10;
+  function horaCerca(a, b) {
+    var x = minutosDe(a), y = minutosDe(b);
+    if (x == null || y == null) return false;
+    return Math.abs(x - y) <= TOLERANCIA_MIN;
+  }
+
   function equipoHabilitado(nombre) {
     var n = String(nombre || '').trim();
     if (EQUIPOS_OK.indexOf(n) !== -1) return true;
@@ -442,10 +531,12 @@
       publicarJob(q);
     };
 
-    var evaluarFila = function (p, f) {
+    var evaluarFila = function (p, f, porQue) {
       if (equipoHabilitado(f.equipo)) {
         panel(p, 'validada', '',
           '<div class="lp-ok-big">✓ Equipo habilitado</div>' +
+          (porQue ? '<div class="lp-lbl">Por qué este turno</div><div class="lp-tip" style="margin-top:0">' +
+                    esc(porQue) + '</div>' : '') +
           '<div class="lp-lbl">Equipo</div><div class="lp-equipo">' + esc(f.equipo) + '</div>' +
           '<div class="lp-tip">' + esc(f.centro) + ' · ' + esc(f.estudio) + ' · ' + esc(f.fecha) +
           '<br>Le paso el trabajo a la ventana de <b>PAMI</b>. Esta ventana se queda acá.</div>');
@@ -462,7 +553,14 @@
       setTimeout(function () { api.marcar('rechazada', 'equipo: ' + f.equipo); }, 1600);
     };
 
+    /* v4.1.0 — le avisa a la ventana de PAMI que acá hay que decidir a mano, para que su
+       watchdog no cuente esto como un corte y su cartel diga dónde está la pelota. */
+    var avisarEspera = function (p, txt) {
+      gmSet(ESPERA_KEY, { id: p.id, ts: Date.now(), txt: txt });
+    };
+
     var elegirFila = function (p, filas, aviso) {
+      avisarEspera(p, 'Encontró ' + filas.length + ' turnos posibles y necesita que elijas vos.');
       var html = '<div class="lp-lbl">Turnos del Hospital Italiano — elegí cuál corresponde</div>' +
         filas.map(function (f, i) {
           return '<button class="lp-fila" data-i="' + i + '"><b>' + esc(f.equipo) + '</b><br>' +
@@ -470,7 +568,7 @@
         }).join('');
       panel(p, 'elegir', aviso, html, function (box) {
         [].slice.call(box.querySelectorAll('.lp-fila')).forEach(function (b) {
-          b.onclick = function () { box.remove(); evaluarFila(p, filas[+b.getAttribute('data-i')]); };
+          b.onclick = function () { box.remove(); evaluarFila(p, filas[+b.getAttribute('data-i')], 'lo elegiste vos'); };
         });
       });
     };
@@ -478,6 +576,7 @@
     var evaluarHis = function (p) {
       var filas = filasHis();
       if (!filas.length) {
+        avisarEspera(p, 'El HIS no devolvió ningún turno para ese DNI.');
         panel(p, 'err', 'El HIS no devolvió turnos para el DNI <b>' + esc(p.dni) + '</b>.',
           '<div class="lp-tip">Revisá a mano y marcá en Lumen.</div>');
         return;
@@ -502,17 +601,42 @@
         return;
       }
 
-      var mod  = modalidadDePractica((p.practicas || []).join(' | ') || p.practica || '');
+      var textoPract = (p.practicas || []).join(' | ') || p.practica || '';
+      var mod  = modalidadDePractica(textoPract);
       var cand = mod ? habil.filter(function (f) { return modalidadDeEquipo(f.equipo) === mod; }) : [];
 
-      if (cand.length === 1) { evaluarFila(p, cand[0]); return; }
-      if (habil.length === 1) { evaluarFila(p, habil[0]); return; }
+      if (cand.length === 1) { evaluarFila(p, cand[0], 'modalidad ' + mod); return; }
+      if (habil.length === 1) { evaluarFila(p, habil[0], 'único turno del Italiano'); return; }
 
-      /* Se ofrecen las de la modalidad si las hay; si no, todas las habilitadas. */
+      /* Se trabaja sobre las de la modalidad si las hay; si no, sobre todas las habilitadas. */
       var lista = cand.length ? cand : habil;
-      elegirFila(p, lista,
+
+      /* v4.1.0 — DESEMPATE. La hora pesa mas que la region: dos estudios distintos a la
+         misma hora exacta no pasan, pero el mismo estudio escrito distinto en los dos
+         sistemas es la norma. Se auto-elige SOLO si hay un unico maximo y ese maximo
+         tiene al menos un criterio a favor: si empatan, decide Santiago. */
+      var regP = regionDe(textoPract);
+      var puntos = lista.map(function (f) {
+        var pt = 0, por = [];
+        if (horaCerca(p.turno, f.fecha)) { pt += 3; por.push('hora ' + (String(f.fecha).match(/\d{1,2}:\d{2}/) || [''])[0]); }
+        var regF = regionDe(f.estudio + ' ' + f.equipo);
+        if (regP && regF && regP === regF) { pt += 2; por.push('región ' + regP); }
+        return { f: f, pt: pt, por: por };
+      });
+      var max = puntos.reduce(function (a, b) { return b.pt > a.pt ? b : a; }, puntos[0]);
+      var empatados = puntos.filter(function (x) { return x.pt === max.pt; });
+
+      if (max.pt > 0 && empatados.length === 1) {
+        evaluarFila(p, max.f, (mod ? 'modalidad ' + mod + ' + ' : '') + max.por.join(' + '));
+        return;
+      }
+
+      /* Sin ganador claro: se ofrecen ordenadas por puntaje, las mas probables arriba. */
+      puntos.sort(function (a, b) { return b.pt - a.pt; });
+      elegirFila(p, puntos.map(function (x) { return x.f; }),
         cand.length > 1
-          ? 'Hay <b>' + cand.length + '</b> turnos del Italiano de la misma modalidad (' + esc(mod) + '). Elegí vos.'
+          ? 'Hay <b>' + cand.length + '</b> turnos del Italiano de la misma modalidad (' + esc(mod) +
+            ') y no pude desempatarlos por hora ni por región. Elegí vos.'
           : 'No pude cruzar la práctica' + (mod ? ' (' + esc(mod) + ')' : '') + ' con ningún turno del Italiano. Elegí entre los <b>' + habil.length + '</b> habilitados.');
     };
 
@@ -605,7 +729,15 @@
         'Esta ventana se queda acá, esperando para validar.');
       var q = {}; for (var k in p) q[k] = p[k];
       q.dni = dni; q.fase = 'his'; q.dest = 'his';
-      setTimeout(function () { publicarJob(q); }, PAUSA);
+      setTimeout(function () {
+        publicarJob(q);
+        /* El id lo pone publicarJob: el reloj se arma DESPUES, con el id definitivo,
+           que es el mismo que va a traer el aviso de espera o el job de vuelta. */
+        wdArmar(q, 'la ventana del HIS no devolvió el trabajo.',
+          'Mirá la ventana del <b>HIS</b>: tiene que decir "Buscando el DNI…" o mostrar los ' +
+          'turnos para elegir. Si no dice nada, esa pestaña no tiene el userscript: cerrala ' +
+          'y abrí una nueva. Podés resolver esta orden a mano con los botones de acá abajo.');
+      }, PAUSA);
     })
     .catch(function () {
       panel(p, 'err', 'No pude consultar los datos del afiliado en PAMI (¿sesión caída o sin red?).', '');
@@ -762,7 +894,28 @@
 
   function arrancarPami() {
     latir(HB_PAMI, function () { return { panel: /transmision\.php/i.test(location.pathname), login: enLogin() }; });
-    escucharJobs('pami', function (j) { setTimeout(function () { correrPami(j); }, 400); });
+    escucharJobs('pami', function (j) {
+      wdCancelar();                       /* volvió el trabajo: el reloj ya no hace falta */
+      setTimeout(function () { correrPami(j); }, 400);
+    });
+
+    /* v4.1.0 — los otros dos apagadores del watchdog. */
+    try {
+      GM_addValueChangeListener(ESPERA_KEY, function (k, viejo, nuevo) {
+        wdEspera(jobLocal(), nuevo);
+      });
+    } catch (e) {}
+    try {
+      GM_addValueChangeListener(BUS_KEY, function (k, viejo, nuevo) {
+        /* La orden se resolvió desde la ventana del HIS (rechazo por equipo, por ejemplo):
+           acá no va a llegar nunca un job de vuelta, y el reloj daría un falso corte. */
+        var p = jobLocal();
+        if (p && nuevo && nuevo.orden && String(nuevo.orden) === String(p.orden)) {
+          wdCancelar();
+          cerrarProg();
+        }
+      });
+    } catch (e) {}
 
     var ph = adoptarHash('pami');
     if (ph) { correrPami(ph); return; }
