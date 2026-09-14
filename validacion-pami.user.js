@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lumen · Validación PAMI
 // @namespace    https://santipitre.github.io/lumen/
-// @version      4.2.0
+// @version      4.3.0
 // @description  Tres ventanas abiertas al mismo tiempo (Lumen, PAMI, HIS): cada una se queda en su sitio y toma del bus el paso que le toca. Ninguna navega a otro dominio ni se cierra. v4.1: identidad del paciente en todos los carteles, watchdog cuando el circuito se corta, y cruce contra el HIS por region anatomica + hora del turno.
 // @author       Pyralis / Lumen
 // @match        https://pe.pami.org.ar/*
@@ -576,8 +576,17 @@
         var suf = pad4(i);
         var eq = document.getElementById('span__NOMBRE1_' + suf);
         if (!eq) break;
+        /* v4.3.0 — la referencia que pinta lumen-his-refhi en la columna N° Afiliado.
+           En una fila PAMI ese número ES el nro. de orden de la OME (MEDIDO 2026-09-14:
+           orden 3326365458346 en PAMI = N° OME 3326365458346 en el HIS). Se lee del DOM y
+           no por unsafeWindow: refhi corre con @grant none (contexto de la página) y esto
+           con GM_* (sandbox), así que el DOM es el único terreno común garantizado. */
+        var tr  = eq.closest ? eq.closest('tr') : null;
+        var rEl = tr ? tr.querySelector('.lumen-ref') : null;
         out.push({
           suf:     suf,
+          tr:      tr,
+          ref:     rEl ? rEl.textContent.replace(/\D/g, '') : '',
           equipo:  eq.textContent.replace(/\s+/g, ' ').trim(),
           centro:  txtDe('span_CENTROID_' + suf),
           estudio: txtDe('span_ESTUDIONOMBRE_' + suf),
@@ -696,12 +705,60 @@
       });
     };
 
+    /* ══════════ v4.3.0 — ESPERAR LOS N° OME ══════════
+       lumen-his-refhi trae la referencia con un POST por turno (~250 ms entre uno y otro):
+       cuando esta ventana termina de cargar la grilla, la columna todavía dice "buscando…".
+       Sin esta espera la guarda del OME nunca vería un número y el desempate caería siempre
+       a modalidad+hora+región, que es el plan B, no el plan A.
+       Se espera SÓLO mientras haya celdas en "buscando…": "falta en HIS" y "falta aprender"
+       son estados finales, y si refhi no está instalado no hay ninguna y no se espera nada. */
+    var ESPERA_REFS_MS = 12000;
+
+    var buscandoRefs = function () {
+      var offs = document.querySelectorAll('.lumen-ref-off');
+      for (var i = 0; i < offs.length; i++) if (/buscando/i.test(offs[i].textContent || '')) return true;
+      return false;
+    };
+
     var evaluarHis = function (p) {
+      if (!buscandoRefs()) { evaluarHisYa(p); return; }
+      panelProg(p, 'elegir', 'Esperando los <b>N° OME</b> del HIS…',
+        'El otro script los está pidiendo, uno por turno. Con el N° OME el turno se ' +
+        'identifica <b>exacto</b> en vez de deducirse por modalidad y hora.');
+      var t0 = Date.now();
+      (function ver() {
+        if (!buscandoRefs() || Date.now() - t0 > ESPERA_REFS_MS) { evaluarHisYa(p); return; }
+        setTimeout(ver, 400);
+      })();
+    };
+
+    var evaluarHisYa = function (p) {
       var filas = filasHis();
       if (!filas.length) {
         avisarEspera(p, 'El HIS no devolvió ningún turno para ese DNI.');
         panel(p, 'err', 'El HIS no devolvió turnos para el DNI <b>' + esc(p.dni) + '</b>.',
           '<div class="lp-tip">Revisá a mano y marcá en Lumen.</div>');
+        return;
+      }
+
+      /* ── v4.3.0: LA GUARDA DURA. El N° OME identifica el turno, no lo deduce. ──
+         Va ANTES de la lista blanca a propósito: si la fila que corresponde a esta orden
+         tiene un equipo que NO está habilitado, lo correcto es rechazar ESA fila (con su
+         nombre a la vista), no ignorarla y elegir otra por parecido de modalidad y hora.
+         Sólo las filas PAMI traen un OME comparable: las H ITAL tienen su propia
+         numeración corta (70616, 70639…), que nunca va a coincidir con una orden. */
+      var ordenD = String(p.orden || '').replace(/\D/g, '');
+      var porOme = ordenD ? filas.filter(function (f) { return f.ref && f.ref === ordenD; }) : [];
+
+      if (porOme.length === 1) {
+        evaluarFila(p, porOme[0], 'N° OME del HIS = nro. de orden de PAMI (coincidencia exacta)');
+        return;
+      }
+      if (porOme.length > 1) {
+        /* Dos turnos con el MISMO N° OME: no se elige solo, esto hay que mirarlo. */
+        elegirFila(p, porOme,
+          'Hay <b>' + porOme.length + '</b> turnos con el mismo N° OME <b>' + esc(ordenD) +
+          '</b>. No decido solo: elegí vos y avisá si esto se repite.');
         return;
       }
 
@@ -756,11 +813,23 @@
 
       /* Sin ganador claro: se ofrecen ordenadas por puntaje, las mas probables arriba. */
       puntos.sort(function (a, b) { return b.pt - a.pt; });
+
+      /* v4.3.0 — si los OME YA estaban cargados y ninguno es el de esta orden, eso no es
+         ruido: es evidencia de que el turno de esta orden probablemente no está en la lista.
+         Se avisa, pero NO se decide: puede ser que al turno le falte la referencia en el HIS. */
+      var conOme = filas.filter(function (f) { return f.ref; }).length;
+      var avisoOme = conOme
+        ? '<br><b>Ojo:</b> ' + conOme + ' de estos turnos ya tienen N° OME y <b>ninguno</b> es ' +
+          esc(ordenD) + '. Puede que el turno de esta orden no esté acá, o que le falte la ' +
+          'referencia cargada en el HIS.'
+        : '';
+
       elegirFila(p, puntos.map(function (x) { return x.f; }),
-        cand.length > 1
+        (cand.length > 1
           ? 'Hay <b>' + cand.length + '</b> turnos del Italiano de la misma modalidad (' + esc(mod) +
             ') y no pude desempatarlos por hora ni por región. Elegí vos.'
-          : 'No pude cruzar la práctica' + (mod ? ' (' + esc(mod) + ')' : '') + ' con ningún turno del Italiano. Elegí entre los <b>' + habil.length + '</b> habilitados.');
+          : 'No pude cruzar la práctica' + (mod ? ' (' + esc(mod) + ')' : '') + ' con ningún turno del Italiano. Elegí entre los <b>' + habil.length + '</b> habilitados.') +
+        avisoOme);
     };
 
     var correrHis = function (p) {
