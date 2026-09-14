@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         HIS FUESMEN · limpiar encabezado + N° Referencia HI
 // @namespace    lumen.santipitre
-// @version      1.10.0
+// @version      1.10.1
 // @description  Oculta los cuadros negros del encabezado del HIS y muestra el N° Referencia en la columna N° Afiliado: en las filas PAMI el rótulo pasa a N° OME, en las H ITAL a N° Referencia HI. No modifica el asistente: lee lo que ese ya pinta.
 // @match        http://his.fuesmen.edu.ar:8180/*
 // @match        https://his.fuesmen.edu.ar:8180/*
@@ -17,7 +17,7 @@
 
   // Unica fuente de la version en runtime. Antes estaba clavada en '1.6.0' y no
   // servia para saber que version tenia instalada Tampermonkey.
-  var VER = '1.10.0';
+  var VER = '1.10.1';
 
   var LS = 'lumenHI.';
   // MEDIDO 2026-09-08: el header no matcheaba /^N°\s*Afiliado$/ (i:-1). Match laxo.
@@ -519,10 +519,19 @@
       var chip = rotulado ? '' : '<span class="lumen-chip">' + (pami ? 'N° OME' : 'REF HI') + '</span>';
       var nuevo = ref
         ? '<span class="lumen-ref">' + ref + '</span>' + chip
-        : (INTENTADOS[f.turno]
-            ? '<span class="lumen-ref-off" title="Se la pedí al HIS y no la devolvió: este turno NO tiene N° Referencia cargado. Es un dato que falta en el HIS, no un problema del script.">falta en HIS</span>' + chip
-            : '<span class="lumen-ref-off" title="Todavía no llegó la referencia de este turno — se pide sola, esperá unos segundos.">buscando…</span>' + chip);
-      var clave = (ref || '-') + '|' + (rotulado ? '1' : '0') + '|' + (pami ? 'P' : 'H');
+        /* v1.10.1 — CUATRO estados, y el orden importa: sin PROTO no se pidió NADA, así que
+           decir "buscando…" era mentira (pasó el 2026-09-14: Santiago esperó a que apareciera
+           un número que nunca se había pedido). El cartel tiene que mandar a la acción. */
+        : (!PROTO
+            ? '<span class="lumen-ref-off" style="color:#f0883e" title="No puedo pedirle la referencia al HIS todavía: falta enseñarle el POST. Panel de abajo a la izquierda → Aprender (1 click) → click en el ícono 📄 Recepción de Orden de cualquier fila → Atrás. Se hace UNA sola vez.">falta aprender</span>' + chip
+            : (INTENTADOS[f.turno]
+                ? '<span class="lumen-ref-off" title="Se la pedí al HIS y no la devolvió: este turno NO tiene N° Referencia cargado. Es un dato que falta en el HIS, no un problema del script.">falta en HIS</span>' + chip
+                : '<span class="lumen-ref-off" title="Todavía no llegó la referencia de este turno — se pide sola, esperá unos segundos.">buscando…</span>' + chip));
+      /* v1.10.1: el estado entra en la clave. Sin esto la celda se quedaba clavada en
+         "falta aprender" después de aprender el POST, porque `ref` seguía vacía y la clave
+         no cambiaba: no repintaba nunca. */
+      var edo = ref ? 'R' : (!PROTO ? 'A' : (INTENTADOS[f.turno] ? 'F' : 'B'));
+      var clave = (ref || '-') + '|' + (rotulado ? '1' : '0') + '|' + (pami ? 'P' : 'H') + '|' + edo;
       if (f.afi.getAttribute('data-lumen-ref') !== clave) {
         f.afi.innerHTML = nuevo;
         f.afi.setAttribute('data-lumen-ref', clave);
@@ -583,7 +592,12 @@
     if (!PROTO) {
       txt = aprendiendo
         ? '<b style="color:#f0883e">Modo aprender ACTIVO</b><br>Hacé click en el ícono 📄 <b>Recepción de Orden</b> de cualquier fila. Cuando vuelvas (Atrás), ya sé el POST.'
-        : '<b>' + falta + '</b> filas H ITAL sin referencia.<br>Todavía no sé cómo pedirla al HIS.';
+        /* v1.10.1: decía "filas H ITAL" desde antes de que existieran las filas PAMI, y
+           `falta` cuenta las DOS aseguradoras: el número no coincidía con el rótulo. */
+        : '<b>' + falta + '</b> filas sin N° de referencia (PAMI y H ITAL).<br>' +
+          '<span style="color:#f0883e">Todavía no sé cómo pedírsela al HIS.</span> ' +
+          'Apretá <b>Aprender</b>, después click en el ícono 📄 <b>Recepción de Orden</b> de ' +
+          'cualquier fila y volvé con Atrás. Se hace una sola vez.';
       btn = aprendiendo ? '' : '<button id="lumen-b1">Aprender (1 click)</button>';
     } else {
       txt = '<b>' + falta + '</b> sin referencia · ' + Object.keys(REFS).length + ' en caché.';
