@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lumen · Validación PAMI
 // @namespace    https://santipitre.github.io/lumen/
-// @version      4.3.0
+// @version      4.4.0
 // @description  Tres ventanas abiertas al mismo tiempo (Lumen, PAMI, HIS): cada una se queda en su sitio y toma del bus el paso que le toca. Ninguna navega a otro dominio ni se cierra. v4.1: identidad del paciente en todos los carteles, watchdog cuando el circuito se corta, y cruce contra el HIS por region anatomica + hora del turno.
 // @author       Pyralis / Lumen
 // @match        https://pe.pami.org.ar/*
@@ -960,10 +960,11 @@
   /* PAMI RECUERDA LOS FILTROS ENTRE BUSQUEDAS: si queda pegado un c_validada, un n_bate,
      una practica o el tilde "aceptadas por mi usuario", la busqueda vuelve VACIA y parece
      que la orden no existe. Se limpia TODO menos n_orden. */
-  function limpiarFiltros(inOrden) {
-    var form = inOrden.form || document;
+  function limpiarFiltros(ref, exceptos) {
+    var form = (ref && ref.form) || document;
+    var ex = exceptos || [];
     [].slice.call(form.querySelectorAll('input, select')).forEach(function (el) {
-      if (el === inOrden || el.name === 'registros_por_pagina') return;
+      if (ex.indexOf(el) !== -1 || el.name === 'registros_por_pagina') return;
       var t = (el.type || '').toLowerCase();
       if (t === 'submit' || t === 'button' || t === 'hidden') return;
       if (t === 'checkbox' || t === 'radio') {
@@ -980,25 +981,61 @@
     });
   }
 
+  /* ── v4.4.0: buscar por Nro. Documento ──
+     Campos MEDIDOS en transmision.php el 2026-09-14 (dump del formulario, no adivinados):
+       select[name="tipo_afiliado"]  ->  "1" = Nro. Afiliado/GP · "2" = Nro. Documento
+       input[name="n_afiliado"]      ->  el numero, segun lo que diga el select
+     Buscar por documento trae TODAS las prestaciones del paciente en una sola busqueda.
+     MEDIDO el 2026-09-14: menos de 2 s y 3 filas — NO cuelga el portal (la guarda vieja
+     "sin orden y sin fechas se cuelga" seguia siendo cierta sin NINGUN filtro, no con DNI). */
+  function campoTipoAfiliado() { return document.querySelector('select[name="tipo_afiliado"]'); }
+  function campoAfiliado()     { return document.querySelector('input[name="n_afiliado"]'); }
+
   function ejecutar(p) {
-    if (!p.orden) { panel(p, 'err', 'Lumen no mandó nro. de orden. No busco: sin orden y sin fechas, PAMI se cuelga.', ''); return; }
     var inOrden = campoOrden();
     if (!inOrden) {
       panel(p, 'err', 'No encontré el buscador. ¿Estás en el <b>Panel de prestaciones</b> y logueado?', '');
       avisarLumen({ accion: 'error', msg: 'no encontre input[name=n_orden]' });
       return;
     }
-    limpiarFiltros(inOrden);
-    setNativeValue(inOrden, p.orden);
+
+    var selTipo = campoTipoAfiliado(), inAfi = campoAfiliado();
+    /* Por documento sólo si tenemos DNI (lo trae la fase gate) Y los dos campos existen.
+       Si falta cualquiera de las tres cosas, se busca por orden como siempre: el camino
+       viejo sigue entero y esto no puede dejar a nadie sin poder validar. */
+    var porDoc = !!(p.dni && selTipo && inAfi);
+
+    if (!porDoc && !p.orden) {
+      panel(p, 'err', 'Lumen no mandó nro. de orden ni DNI. No busco: sin filtros, PAMI se cuelga.', '');
+      return;
+    }
+
+    if (porDoc) {
+      limpiarFiltros(inOrden, [selTipo, inAfi]);
+      setNativeValue(inOrden, '');
+      selTipo.value = '2';                                   /* 2 = Nro. Documento */
+      selTipo.dispatchEvent(new Event('change', { bubbles: true }));
+      setNativeValue(inAfi, String(p.dni).replace(/\D/g, ''));
+    } else {
+      limpiarFiltros(inOrden, [inOrden]);
+      setNativeValue(inOrden, p.orden);
+    }
+
     var f = camposFecha();
     if (f && p.fechas !== 'none') { setNativeValue(f.desde, ''); setNativeValue(f.hasta, ''); }
     ssSet('lumen_done_' + p.id, '1');
     ssSet(LAST_KEY, JSON.stringify(p));
     var btn = botonBuscar();
     if (!btn) { panel(p, 'err', 'Completé los campos pero no encontré el botón <b>Buscar</b>. Apretalo vos.', ''); return; }
-    panelProg(p, 'elegir', 'Buscando la orden en el Panel de prestaciones…',
-      'Limpié todos los filtros (PAMI los recuerda entre búsquedas), puse el nro. de orden ' +
-      'y vacié las fechas de turno. Apretando <b>Buscar</b>.');
+
+    panelProg(p, 'elegir',
+      porDoc ? 'Buscando <b>todas</b> las prestaciones del DNI ' + esc(p.dni) + '…'
+             : 'Buscando la orden en el Panel de prestaciones…',
+      'Limpié todos los filtros (PAMI los recuerda entre búsquedas) y vacié las fechas de turno. ' +
+      (porDoc
+        ? 'Busco por <b>Nro. Documento</b>: si el paciente tiene más de una prestación pendiente, ' +
+          'salen todas juntas y las hacés con <b>un solo QR</b>.'
+        : 'Busco por nro. de orden.'));
     setTimeout(function () { btn.click(); }, 250);
   }
 
@@ -1012,6 +1049,47 @@
     return null;
   }
   function titulo(el) { return (el.getAttribute('data-original-title') || el.getAttribute('title') || '').trim(); }
+
+  /* v4.4.0 — todas las filas del panel, con su estado. Columnas medidas en transmision.php:
+     0 NRO. ORDEN · 1 FECHA EMISION · 2 NRO. BENEFICIO/GP · 3 APELLIDO Y NOMBRE ·
+     4 PRACTICA · 5 TURNO · 6 TRASMITIDA · 7 ACCIONES.
+     El encabezado se cae solo: su celda 0 no tiene digitos. */
+  function filasPanel() {
+    var out = [];
+    [].slice.call(document.querySelectorAll('table tbody tr')).forEach(function (tr) {
+      if (!tr.cells || tr.cells.length < 6) return;
+      var orden = (tr.cells[0].textContent || '').replace(/\D/g, '');
+      if (!orden) return;
+      var txt = function (i) {
+        return tr.cells[i] ? tr.cells[i].textContent.replace(/\s+/g, ' ').trim() : '';
+      };
+      out.push({
+        tr: tr, orden: orden,
+        nombre: txt(3), practica: txt(4), turno: txt(5),
+        caso: analizarFila(tr).caso
+      });
+    });
+    return out;
+  }
+
+  /* Las OTRAS prestaciones del mismo paciente que siguen sin validar. Es el motivo de
+     buscar por documento: el QR de la Credencial Provisoria se genera POR AFILIADO, no por
+     prestación, así que con el QR abierto se validan todas de una.
+     NO se tocan ni se marcan en Lumen: no pasaron por el cruce contra el HIS. Decisión de
+     Santiago (2026-09-14): lo que no cruza, se lista aparte y lo mira él. */
+  function hermanasHTML(p) {
+    var otras = filasPanel().filter(function (f) {
+      return f.orden !== String(p.orden).replace(/\D/g, '') && f.caso === 'falta';
+    });
+    if (!otras.length) return '';
+    return '<div class="lp-lbl">Otras ' + otras.length + ' prestaciones de este paciente sin validar</div>' +
+      otras.map(function (f) {
+        return '<div class="lp-fila" style="cursor:default"><b>' + esc(f.orden) + '</b><br>' +
+               esc(f.practica) + (f.turno ? '<br>' + esc(f.turno) : '') + '</div>';
+      }).join('') +
+      '<div class="lp-tip">Con el QR abierto validalas también, están en esta misma pantalla. ' +
+      '<b>No las marco en Lumen</b>: no pasaron por el cruce contra el HIS.</div>';
+  }
 
   function analizarFila(tr) {
     if (!tr) return { caso: 'no-aparece' };
@@ -1034,7 +1112,8 @@
       var api = panel(p, 'validada', '',
         '<div class="lp-ok-big">✓ Prestación ya validada</div>' +
         (r.fecha ? '<div class="lp-sub">' + esc(r.fecha) + '</div>' : '') + eq +
-        '<div class="lp-tip">Se marca sola en Lumen con tilde verde.</div>');
+        '<div class="lp-tip">Se marca sola en Lumen con tilde verde.</div>' +
+        hermanasHTML(p));
       /* Solo automatico si la busqueda la disparo este job. Si la tabla es la que PAMI
          restauro de la busqueda anterior (recarga), decide Santiago. */
       if (auto) setTimeout(function () { api.marcar('validada'); }, 1400);
@@ -1048,7 +1127,8 @@
         '<button class="lp-b2" id="lp-cd">' + esc(p.benDv) + '</button></div>' + eq +
         '<div class="lp-tip">Falta validar. El número largo ya está en el portapapeles: abrí ' +
         '<b>PAMI: Credencial Provisoria</b>, pegalo (los 2 dígitos van en el cuadro chico) y dale ' +
-        '<b>GENERAR QR</b>. Escaneá el QR con el celular y volvé acá.</div>',
+        '<b>GENERAR QR</b>. Escaneá el QR con el celular y volvé acá.</div>' +
+        hermanasHTML(p),
         function (box) {
           var cb = box.querySelector('#lp-cb'), cd = box.querySelector('#lp-cd');
           if (cb) cb.onclick = function () { copiar(p.benBase); flash(this); };
