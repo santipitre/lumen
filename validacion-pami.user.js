@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lumen · Validación PAMI
 // @namespace    https://santipitre.github.io/lumen/
-// @version      4.1.1
+// @version      4.1.2
 // @description  Tres ventanas abiertas al mismo tiempo (Lumen, PAMI, HIS): cada una se queda en su sitio y toma del bus el paso que le toca. Ninguna navega a otro dominio ni se cierra. v4.1: identidad del paciente en todos los carteles, watchdog cuando el circuito se corta, y cruce contra el HIS por region anatomica + hora del turno.
 // @author       Pyralis / Lumen
 // @match        https://pe.pami.org.ar/*
@@ -283,47 +283,47 @@
 
   function panel(p, caso, aviso, cuerpoHTML, onMount) {
     cerrarProg();
-    var prev = document.getElementById('lumen-panel');
+    var prev = document.getElementById('lumen-val-panel');
     if (prev) prev.remove();
     var col = COLORES[caso] || COLORES.falta;
 
     var box = document.createElement('div');
-    box.id = 'lumen-panel';
+    box.id = 'lumen-val-panel';
     box.innerHTML =
       '<style>' +
-      '#lumen-panel{position:fixed;top:14px;right:14px;z-index:2147483000;width:330px;max-height:88vh;overflow:auto;' +
+      '#lumen-val-panel{position:fixed;top:14px;right:14px;z-index:2147483000;width:330px;max-height:88vh;overflow:auto;' +
       'font-family:Inter,system-ui,Segoe UI,sans-serif;background:#0E1521;color:#F1F5F9;' +
       'border:1px solid rgba(148,163,184,.35);border-radius:13px;box-shadow:0 14px 44px rgba(0,0,0,.6);font-size:13px}' +
-      '#lumen-panel .lp-h{display:flex;align-items:center;gap:8px;padding:9px 13px;position:sticky;top:0;' +
+      '#lumen-val-panel .lp-h{display:flex;align-items:center;gap:8px;padding:9px 13px;position:sticky;top:0;' +
       'background:linear-gradient(135deg,' + col[0] + ',' + col[1] + ');color:' + col[2] + ';font-weight:800;' +
       'letter-spacing:1.4px;font-size:11px;text-transform:uppercase}' +
-      '#lumen-panel .lp-x{margin-left:auto;cursor:pointer;font-size:15px;line-height:1;opacity:.75}' +
-      '#lumen-panel .lp-b{padding:13px}' +
-      '#lumen-panel .lp-nom{font-weight:700;font-size:14px;margin-bottom:2px;line-height:1.3}' +
-      '#lumen-panel .lp-sub{color:#94A3B8;font-size:11.5px;margin-bottom:11px;font-family:ui-monospace,Menlo,monospace}' +
-      '#lumen-panel .lp-ok-big{font-size:15px;font-weight:800;color:#6ee7b7;margin-bottom:3px}' +
-      '#lumen-panel .lp-bad-big{font-size:15px;font-weight:800;color:#fca5a5;margin-bottom:3px}' +
-      '#lumen-panel .lp-lbl{font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:#94A3B8;margin:9px 0 5px}' +
-      '#lumen-panel .lp-equipo{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#FCD34D;' +
+      '#lumen-val-panel .lp-x{margin-left:auto;cursor:pointer;font-size:15px;line-height:1;opacity:.75}' +
+      '#lumen-val-panel .lp-b{padding:13px}' +
+      '#lumen-val-panel .lp-nom{font-weight:700;font-size:14px;margin-bottom:2px;line-height:1.3}' +
+      '#lumen-val-panel .lp-sub{color:#94A3B8;font-size:11.5px;margin-bottom:11px;font-family:ui-monospace,Menlo,monospace}' +
+      '#lumen-val-panel .lp-ok-big{font-size:15px;font-weight:800;color:#6ee7b7;margin-bottom:3px}' +
+      '#lumen-val-panel .lp-bad-big{font-size:15px;font-weight:800;color:#fca5a5;margin-bottom:3px}' +
+      '#lumen-val-panel .lp-lbl{font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:#94A3B8;margin:9px 0 5px}' +
+      '#lumen-val-panel .lp-equipo{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#FCD34D;' +
       'background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:7px;padding:7px 9px;word-break:break-word}' +
-      '#lumen-panel .lp-ben{display:flex;gap:7px;margin-bottom:11px}' +
-      '#lumen-panel .lp-ben button{font-family:ui-monospace,Menlo,monospace;font-size:15px;font-weight:700;' +
+      '#lumen-val-panel .lp-ben{display:flex;gap:7px;margin-bottom:11px}' +
+      '#lumen-val-panel .lp-ben button{font-family:ui-monospace,Menlo,monospace;font-size:15px;font-weight:700;' +
       'background:#1A2332;border:1px solid rgba(148,163,184,.2);color:#67E8F9;border-radius:8px;padding:9px 6px;cursor:pointer}' +
-      '#lumen-panel .lp-ben .lp-b1{flex:1}#lumen-panel .lp-ben .lp-b2{width:56px;color:#FBBF24}' +
-      '#lumen-panel .lp-fila{width:100%;text-align:left;background:#131C2B;border:1px solid rgba(148,163,184,.22);' +
+      '#lumen-val-panel .lp-ben .lp-b1{flex:1}#lumen-val-panel .lp-ben .lp-b2{width:56px;color:#FBBF24}' +
+      '#lumen-val-panel .lp-fila{width:100%;text-align:left;background:#131C2B;border:1px solid rgba(148,163,184,.22);' +
       'color:#E2E8F0;border-radius:9px;padding:8px 10px;margin-bottom:6px;cursor:pointer;font-size:11.5px;line-height:1.45}' +
-      '#lumen-panel .lp-fila:hover{border-color:#3B82F6}' +
-      '#lumen-panel .lp-fila b{color:#93C5FD;font-family:ui-monospace,Menlo,monospace}' +
-      '#lumen-panel .lp-acts{display:flex;gap:7px;margin-top:10px}' +
-      '#lumen-panel .lp-acts button{flex:1;border-radius:8px;padding:9px 4px;cursor:pointer;font-size:11px;' +
+      '#lumen-val-panel .lp-fila:hover{border-color:#3B82F6}' +
+      '#lumen-val-panel .lp-fila b{color:#93C5FD;font-family:ui-monospace,Menlo,monospace}' +
+      '#lumen-val-panel .lp-acts{display:flex;gap:7px;margin-top:10px}' +
+      '#lumen-val-panel .lp-acts button{flex:1;border-radius:8px;padding:9px 4px;cursor:pointer;font-size:11px;' +
       'font-weight:700;letter-spacing:.8px;text-transform:uppercase;border:1px solid}' +
-      '#lumen-panel .lp-ok{background:rgba(16,185,129,.16);border-color:rgba(16,185,129,.5);color:#6ee7b7}' +
-      '#lumen-panel .lp-no{background:rgba(248,113,113,.14);border-color:rgba(248,113,113,.45);color:#fca5a5}' +
-      '#lumen-panel .lp-sk{background:rgba(148,163,184,.1);border-color:rgba(148,163,184,.25);color:#94A3B8}' +
-      '#lumen-panel .lp-nx{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:11px;color:#94A3B8}' +
-      '#lumen-panel .lp-msg{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.35);color:#FCD34D;' +
+      '#lumen-val-panel .lp-ok{background:rgba(16,185,129,.16);border-color:rgba(16,185,129,.5);color:#6ee7b7}' +
+      '#lumen-val-panel .lp-no{background:rgba(248,113,113,.14);border-color:rgba(248,113,113,.45);color:#fca5a5}' +
+      '#lumen-val-panel .lp-sk{background:rgba(148,163,184,.1);border-color:rgba(148,163,184,.25);color:#94A3B8}' +
+      '#lumen-val-panel .lp-nx{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:11px;color:#94A3B8}' +
+      '#lumen-val-panel .lp-msg{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.35);color:#FCD34D;' +
       'border-radius:8px;padding:8px 10px;font-size:11.5px;margin-bottom:11px;line-height:1.45}' +
-      '#lumen-panel .lp-tip{margin-top:8px;font-size:10.5px;color:#8FA0B5;line-height:1.5}' +
+      '#lumen-val-panel .lp-tip{margin-top:8px;font-size:10.5px;color:#8FA0B5;line-height:1.5}' +
       '</style>' +
       '<div class="lp-h">Lumen · Validación<span class="lp-x" id="lp-x">✕</span></div>' +
       '<div class="lp-b">' +

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         HIS FUESMEN · limpiar encabezado + N° Referencia HI
 // @namespace    lumen.santipitre
-// @version      1.9.1
+// @version      1.10.0
 // @description  Oculta los cuadros negros del encabezado del HIS y muestra el N° Referencia en la columna N° Afiliado: en las filas PAMI el rótulo pasa a N° OME, en las H ITAL a N° Referencia HI. No modifica el asistente: lee lo que ese ya pinta.
 // @match        http://his.fuesmen.edu.ar:8180/*
 // @match        https://his.fuesmen.edu.ar:8180/*
@@ -17,7 +17,7 @@
 
   // Unica fuente de la version en runtime. Antes estaba clavada en '1.6.0' y no
   // servia para saber que version tenia instalada Tampermonkey.
-  var VER = '1.9.1';
+  var VER = '1.10.0';
 
   var LS = 'lumenHI.';
   // MEDIDO 2026-09-08: el header no matcheaba /^N°\s*Afiliado$/ (i:-1). Match laxo.
@@ -275,6 +275,38 @@
 
   // Secuencial a propósito: GeneXus guarda estado de página por sesión;
   // 15 POST en paralelo se pisan entre sí.
+  /* ══════════ v1.10.0 — LAS REFERENCIAS SE PIDEN SOLAS ══════════
+     Hasta 1.9.1 habia que apretar "Traer referencias" en el panel de abajo a la izquierda.
+     Dos problemas: 1) Santiago nunca lo veia (y el 2026-09-14 se descubrio que
+     validacion-pami.user.js le BORRABA el panel: los dos usaban el id 'lumen-panel');
+     2) el N° de referencia no es opcional — en una fila PAMI ES el nro. de OME y en una
+     H ITAL es la referencia HI, asi que SIEMPRE hay que traerlo, segun la Aseguradora de
+     cada fila (eso ya lo decide aplica()/esPAMI()/esHI()).
+     Ahora pintar() dispara la busqueda solo. Guardas para no martillar el HIS:
+       - una corrida por vez (TRAYENDO),
+       - cada turno se intenta UNA sola vez por sesion (INTENTADOS): si el HIS no lo
+         devuelve, la celda pasa a "falta en HIS" y no se vuelve a pedir en loop,
+       - tope de TOPE_AUTO turnos por corrida. */
+  var INTENTADOS = {};   /* turno -> true: ya se le pidio al HIS en esta pestana */
+  var TRAYENDO   = false;
+  var TOPE_AUTO  = 60;
+
+  function autoTraer() {
+    if (TRAYENDO || !PROTO) return;
+    var pend = FILAS.filter(function (f) {
+      return aplica(f.alias) && f.turno && !REFS[f.turno] && !INTENTADOS[f.turno];
+    });
+    if (!pend.length) return;
+    if (pend.length > TOPE_AUTO) pend = pend.slice(0, TOPE_AUTO);
+    pend.forEach(function (f) { INTENTADOS[f.turno] = true; });
+    TRAYENDO = true;
+    traerReferencias(pend, function () {}, function () {
+      TRAYENDO = false;
+      pintar();
+      if (typeof panel === 'function') panel();
+    });
+  }
+
   function traerReferencias(filas, onPaso, onFin) {
     var pend = filas.filter(function (f) { return aplica(f.alias) && f.turno && !REFS[f.turno]; });
     if (!PROTO) { onFin('SIN_PROTO', 0); return; }
@@ -487,7 +519,9 @@
       var chip = rotulado ? '' : '<span class="lumen-chip">' + (pami ? 'N° OME' : 'REF HI') + '</span>';
       var nuevo = ref
         ? '<span class="lumen-ref">' + ref + '</span>' + chip
-        : '<span class="lumen-ref-off" title="Todavía no traje la referencia de este turno (panel → Traer referencias)">sin ref</span>' + chip;
+        : (INTENTADOS[f.turno]
+            ? '<span class="lumen-ref-off" title="Se la pedí al HIS y no la devolvió: este turno NO tiene N° Referencia cargado. Es un dato que falta en el HIS, no un problema del script.">falta en HIS</span>' + chip
+            : '<span class="lumen-ref-off" title="Todavía no llegó la referencia de este turno — se pide sola, esperá unos segundos.">buscando…</span>' + chip);
       var clave = (ref || '-') + '|' + (rotulado ? '1' : '0') + '|' + (pami ? 'P' : 'H');
       if (f.afi.getAttribute('data-lumen-ref') !== clave) {
         f.afi.innerHTML = nuevo;
@@ -519,9 +553,14 @@
   /* la grilla se repinta en cada postback de GeneXus y el badge del asistente
      llega asincrónico (Supabase), así que reintento */
   var t0;
-  new MutationObserver(function () { clearTimeout(t0); t0 = setTimeout(pintar, 200); })
-    .observe(document.documentElement, { childList: true, subtree: true });
-  [300, 900, 1800, 3200, 5000].forEach(function (ms) { setTimeout(function () { pintar(); panel(); }, ms); });
+  new MutationObserver(function () {
+    clearTimeout(t0);
+    /* Una búsqueda nueva trae turnos nuevos: se repinta Y se piden sus referencias. */
+    t0 = setTimeout(function () { pintar(); autoTraer(); }, 200);
+  }).observe(document.documentElement, { childList: true, subtree: true });
+  [300, 900, 1800, 3200, 5000].forEach(function (ms) {
+    setTimeout(function () { pintar(); panel(); autoTraer(); }, ms);
+  });
   pintar();
 
   /* ---------------- panel de referencias ---------------- */
