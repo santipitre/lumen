@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         HIS FUESMEN · limpiar encabezado + N° Referencia HI
 // @namespace    lumen.santipitre
-// @version      1.10.2
+// @version      1.11.0
 // @description  Oculta los cuadros negros del encabezado del HIS y muestra el N° Referencia en la columna N° Afiliado: en las filas PAMI el rótulo pasa a N° OME, en las H ITAL a N° Referencia HI. No modifica el asistente: lee lo que ese ya pinta.
 // @match        http://his.fuesmen.edu.ar:8180/*
 // @match        https://his.fuesmen.edu.ar:8180/*
@@ -17,7 +17,7 @@
 
   // Unica fuente de la version en runtime. Antes estaba clavada en '1.6.0' y no
   // servia para saber que version tenia instalada Tampermonkey.
-  var VER = '1.10.2';
+  var VER = '1.11.0';
 
   var LS = 'lumenHI.';
   // MEDIDO 2026-09-08: el header no matcheaba /^N°\s*Afiliado$/ (i:-1). Match laxo.
@@ -257,18 +257,58 @@
     }, true);
   })();
 
-  // Reemplaza el índice de fila por el pedido, solo donde viaja el evento.
+  /* ══════════ v1.11.0 — EL ESTADO SE TOMA VIVO, NO DEL APRENDIZAJE ══════════
+     BUG medido el 2026-09-14: las referencias andaban (9 en caché, grilla de 8 turnos) y a
+     la búsqueda siguiente el panel decía "Ninguna respuesta trajo el número. El POST
+     aprendido no sirve".
+
+     CAUSA: `guardarProto` guarda TODOS los campos del formulario en el momento de aprender,
+     y en GeneXus eso incluye el estado interno de la página (gxstate y compañía), que
+     describe LA GRILLA DE ESA BÚSQUEDA. Replicar ese POST sobre otra búsqueda le pide al
+     servidor una fila de una grilla que ya no existe: responde cualquier cosa y
+     `refDeHtml` no encuentra el span.
+     Es decir: **el POST aprendido sólo valía para la búsqueda en la que se aprendió.**
+     Re-aprender lo arreglaba hasta la próxima búsqueda — inservible.
+
+     ARREGLO: el cuerpo se arma con el formulario VIVO de la página (estado vigente para la
+     grilla que está en pantalla) y del aprendizaje se reusa SÓLO lo que describe el evento:
+     las claves cuyo valor lleva el sufijo de fila (E'PRESTACION'.0001), con el índice
+     cambiado. Lo aprendido pasa a ser "qué evento disparar", no "en qué página estoy". */
+  function formVivo() {
+    var ancla = document.getElementById('span__NOMBRE1_0001') ||
+                document.getElementById('_DOCUMENTOPERSONA');
+    var f = ancla && ancla.closest ? ancla.closest('form') : null;
+    return f || document.forms[0] || null;
+  }
+
   function cuerpoPara(idx) {
-    var b = new URLSearchParams(), c = PROTO.campos, base = PROTO.idxBase || '0001', k, v;
+    var b = new URLSearchParams(), c = PROTO.campos, base = PROTO.idxBase || '0001', k, v, i, e;
+
+    /* 1. Estado ACTUAL de la página. Esto es lo que antes venía congelado del aprendizaje. */
+    var f = formVivo();
+    if (f && f.elements) {
+      for (i = 0; i < f.elements.length; i++) {
+        e = f.elements[i];
+        if (!e.name) continue;
+        if ((e.type === 'checkbox' || e.type === 'radio') && !e.checked) continue;
+        b.set(e.name, e.value);
+      }
+    }
+
+    /* 2. Encima, SOLO las claves del evento aprendido, con el índice de la fila pedida.
+       Si el formulario vivo no tenía esa clave, igual se agrega: es la que dispara la
+       acción "abrir la orden de la fila N". */
     for (k in c) {
       if (!Object.prototype.hasOwnProperty.call(c, k)) continue;
       v = c[k];
       if (typeof v === 'string' && v.indexOf("'." + base) >= 0) {
-        v = v.split("'." + base).join("'." + idx);
+        b.set(k, v.split("'." + base).join("'." + idx));
       } else if (v === base && /row|linea|line|index|fila/i.test(k)) {
-        v = idx;
+        b.set(k, idx);
+      } else if (!f) {
+        /* Sin formulario vivo, se cae al comportamiento viejo: mejor eso que nada. */
+        b.set(k, v);
       }
-      b.set(k, v);
     }
     return b;
   }
@@ -297,6 +337,7 @@
   var INTENTADOS = {};   /* turno -> true: ya se le pidio al HIS en esta pestana */
   var TRAYENDO   = false;
   var TOPE_AUTO  = 60;
+  var FALLOS     = 0;    /* corridas seguidas en las que NINGUNA respuesta trajo el número */
 
   function autoTraer() {
     if (TRAYENDO || !PROTO) return;
@@ -307,8 +348,18 @@
     if (pend.length > TOPE_AUTO) pend = pend.slice(0, TOPE_AUTO);
     pend.forEach(function (f) { INTENTADOS[f.turno] = true; });
     TRAYENDO = true;
-    traerReferencias(pend, function () {}, function () {
+    traerReferencias(pend, function () {}, function (estado, ok) {
       TRAYENDO = false;
+      /* v1.11.0 — si NINGUNA respuesta trajo número, esto no es "el HIS no tiene la
+         referencia": es que el POST no sirvió. Marcar esos turnos como "falta en HIS"
+         sería mentir. Se desmarcan para poder reintentar... pero sólo dos veces, si no
+         el ciclo pintar → autoTraer → fallar → desmarcar se vuelve un loop de POSTs. */
+      if (estado === 'OK' && !ok && pend.length) {
+        FALLOS++;
+        if (FALLOS < 2) pend.forEach(function (f) { delete INTENTADOS[f.turno]; });
+        else hud('Pedí ' + pend.length + ' referencias y el HIS no devolvió ninguna. ' +
+                 'Probá <b>Alt+O</b> (olvidar POST) y volvé a aprender.', 9000);
+      } else if (ok) { FALLOS = 0; }
       pintar();
       if (typeof panel === 'function') panel();
     });
@@ -323,7 +374,11 @@
       if (i >= pend.length) { lsSet('refs', REFS); onFin('OK', ok); return; }
       var f = pend[i++];
       onPaso(i, pend.length, f.turno);
-      fetch(PROTO.action, {
+      /* v1.11.0 — el action del formulario VIVO, no el que quedó del aprendizaje: en
+         GeneXus la URL lleva parámetros de la página. PROTO.action sólo como respaldo. */
+      var fv = formVivo();
+      var accion = (fv && fv.getAttribute('action')) || PROTO.action;
+      fetch(accion, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: cuerpoPara(f.idx)
