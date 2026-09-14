@@ -17,7 +17,7 @@
 </script>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<meta name="lumen-ver" content="harefield-1.0.0"/>
+<meta name="lumen-ver" content="harefield-1.1.0"/>
 <title>Harefield · Lumen by Pyralis</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml"/>
 <link rel="stylesheet" href="spcd-theme.css"/>
@@ -688,21 +688,7 @@ const HF=(function(){
     await persistMes(); recalc(); toast(tab?('Turno '+turno+' → '+(tab==='F'?'FINAMED':'HAREFIELD')):'Turno '+turno+': vuelve al cruce automático');
   }
 
-  /* ── Export ExcelJS (dos hojas) — misma paleta que los exports de admin.html ── */
-  function lumenLogoPNG(){
-    const W=210,H=48,dpr=2; const c=document.createElement('canvas'); c.width=W*dpr; c.height=H*dpr; const x=c.getContext('2d'); x.scale(dpr,dpr);
-    const rr=(X,Y,w,h,rad)=>{ x.beginPath(); x.moveTo(X+rad,Y); x.arcTo(X+w,Y,X+w,Y+h,rad); x.arcTo(X+w,Y+h,X,Y+h,rad); x.arcTo(X,Y+h,X,Y,rad); x.arcTo(X,Y,X+w,Y,rad); x.closePath(); };
-    const MX=4,MY=3,MS=42,sc=MS/54; const map=(px,py)=>[MX+((px-3)/54)*MS, MY+((py-3)/54)*MS];
-    rr(MX,MY,MS,MS,10); x.fillStyle='#0A0F14'; x.fill(); x.lineWidth=0.8; x.strokeStyle='#1F2937'; x.stroke();
-    let p; x.beginPath(); p=map(16,14); x.moveTo(p[0],p[1]); p=map(16,46); x.lineTo(p[0],p[1]); p=map(44,46); x.lineTo(p[0],p[1]);
-    x.strokeStyle='#F1F5F9'; x.lineWidth=3*sc; x.lineCap='round'; x.lineJoin='round'; x.stroke();
-    const fc=map(38,22); x.beginPath(); x.arc(fc[0],fc[1],9*sc,0,Math.PI*2); x.strokeStyle='rgba(245,158,11,.4)'; x.lineWidth=0.7; x.stroke();
-    x.beginPath(); x.arc(fc[0],fc[1],4*sc,0,Math.PI*2); x.fillStyle='#F59E0B'; x.fill(); x.beginPath(); x.arc(fc[0],fc[1],1.8*sc,0,Math.PI*2); x.fillStyle='#FEF3C7'; x.fill();
-    x.textBaseline='middle'; const wy=H/2-2; let wx=MX+MS+10; x.font='700 26px Inter, Calibri, Arial';
-    [['L','#F1F5F9'],['u','#F59E0B'],['men','#F1F5F9']].forEach(([t,col])=>{ x.fillStyle=col; x.fillText(t,wx,wy); wx+=x.measureText(t).width; });
-    x.font='600 8px Inter, Calibri, Arial'; x.fillStyle='#94A3B8'; x.fillText('by Pyralis', MX+MS+11, wy+15);
-    return c.toDataURL('image/png').split(',')[1];
-  }
+  /* ── Export ExcelJS (dos hojas, fondo claro) ── */
   const HEADS=['N° Turno','Fecha Orden','Paciente','Documento','Prestación / Fármaco','Cantidad','Precio','Total','FUESMEN','FADESA','Profesionales'];
   const HEADS_F=HEADS.concat(['Fecha Turno','Ingreso','Egreso','Sector']);
   const rowVals=(l,isF)=>{ const v=[+l.turno, l.fOrden?new Date(l.fOrden):null, l.pac, l.doc?+l.doc:l.doc, l.pre, l.cant, l.precio, l.total, l.fu, l.fa, l.pr||null];
@@ -712,54 +698,49 @@ const HF=(function(){
     const R=S.res; if(!R) return;
     const fname='HAREFIELD_'+C.mesUpper(S.mes)+'.xlsx';
     const sheets=[['HAREFIELD','H'],['FINAMED','F']];
+    const titulo=nm=>'LIQUIDACIÓN '+nm+' · '+C.mesLabel(S.mes).toUpperCase();
     if(typeof ExcelJS==='undefined'){
       const wb=XLSX.utils.book_new();
-      for(const [nm,tab] of sheets){ const isF=tab==='F'; const rows=R.lineas.filter(l=>l.tab===tab); const aoa=[isF?HEADS_F:HEADS].concat(rows.map(l=>rowVals(l,isF)));
-        const T=R[tab]; aoa.push([null,null,null,null,'TOTALES',rows.reduce((a,l)=>a+l.cant,0),null,T.total,T.fu,T.fa,T.pr||null]);
+      for(const [nm,tab] of sheets){ const isF=tab==='F'; const rows=R.lineas.filter(l=>l.tab===tab); const aoa=[[titulo(nm)],isF?HEADS_F:HEADS].concat(rows.map(l=>rowVals(l,isF)));
+        const T=R[tab]; aoa.push([null,null,null,null,'TOTALES',rows.reduce((a,l)=>a+l.cant,0),null,T.total,T.fu,T.fa,T.pr]);
         const ws=XLSX.utils.aoa_to_sheet(aoa,{cellDates:true}); XLSX.utils.book_append_sheet(wb,ws,nm); }
       XLSX.writeFile(wb,fname); toast('Excel plano descargado (sin ExcelJS)'); return;
     }
-    const NAVY='FF0A0F14',BLUED='FF243049',GOLD='FFF59E0B',WHITE='FFF1F5F9',INK='FF0A0F14',SURF='FF0A0F14',ALT='FF0E1521',CYAN='FF22DBAE',ORANGE='FFFB923C',BLUE='FF60A5FA';
+    // Fondo claro, tipografía Arial, una sola fila de título. Sin logo ni pie.
+    const INK='FF111827', GREY='FF6B7280', HEAD='FFE5E9F0', ZEBRA='FFF6F8FB', LINE='FFD1D5DB', TOTAL='FFEEF2F7', WARN='FFB45309';
     const wb=new ExcelJS.Workbook(); wb.creator='Lumen by Pyralis'; wb.created=new Date();
-    const logo=(()=>{ try{ return wb.addImage({base64:lumenLogoPNG(),extension:'png'}); }catch(e){ return null; } })();
-    const d=new Date(); const fecha=d.toLocaleDateString('es-AR');
     for(const [nm,tab] of sheets){
       const isF=tab==='F'; const heads=isF?HEADS_F:HEADS; const rows=R.lineas.filter(l=>l.tab===tab); const T=R[tab]; const nc=heads.length;
-      const ws=wb.addWorksheet(nm,{views:[{showGridLines:false}]});
-      const widths=[11,13,30,12,40,10,13,14,14,14,14,17,17,17,14]; heads.forEach((h,i)=>ws.getColumn(i+1).width=widths[i]||14);
-      for(let i=1;i<=nc;i++) ws.getCell(1,i).fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}};
-      ws.getRow(1).height=46; if(logo!=null) ws.addImage(logo,{tl:{col:0,row:0},ext:{width:210,height:44}});
-      ws.mergeCells(1,3,1,nc); const tt=ws.getCell(1,3); tt.value='LIQUIDACIÓN HAREFIELD · '+C.mesLabel(S.mes).toUpperCase()+' · '+nm;
-      tt.font={name:'Calibri',size:13,bold:true,color:{argb:WHITE}}; tt.alignment={horizontal:'right',vertical:'middle',indent:1};
-      ws.getRow(2).height=4; for(let i=1;i<=nc;i++){ const c=ws.getCell(2,i); c.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}}; c.border={bottom:{style:'medium',color:{argb:isF?BLUE:ORANGE}}}; }
-      ws.mergeCells(3,1,3,nc); const t2=ws.getCell(3,1);
-      t2.value='  Hospital Italiano   |   emitido '+fecha+'   |   '+int(T.turnos)+' turnos   |   '+int(T.n)+' líneas   |   '+(isF?'Estudios hechos durante una internación en cama prestada (CCV)':'Estudios fuera de internación en cama prestada');
-      t2.font={name:'Calibri',size:9,bold:true,color:{argb:GOLD}}; t2.fill={type:'pattern',pattern:'solid',fgColor:{argb:BLUED}}; t2.alignment={horizontal:'center',vertical:'middle'}; ws.getRow(3).height=20;
-      ws.getRow(4).height=4; for(let i=1;i<=nc;i++) ws.getCell(4,i).fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}};
-      let r=5; heads.forEach((h,i)=>{ const c=ws.getCell(r,i+1); c.value=h; c.font={name:'Calibri',size:8.5,bold:true,color:{argb:INK}}; c.fill={type:'pattern',pattern:'solid',fgColor:{argb:GOLD}};
-        c.alignment={horizontal:'center',vertical:'middle',wrapText:true}; c.border={bottom:{style:'thin',color:{argb:CYAN}},top:{style:'thin',color:{argb:GOLD}}}; });
-      ws.getRow(r).height=20; const headerRow=r; r++;
-      const dataBorder={bottom:{style:'hair',color:{argb:'FF334155'}},left:{style:'hair',color:{argb:'FF1E293B'}},right:{style:'hair',color:{argb:'FF1E293B'}}};
-      const NUMF='#,##0;-#,##0;"-"'; const NUMF2='#,##0.00';
+      const ws=wb.addWorksheet(nm,{views:[{showGridLines:false}], pageSetup:{orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0}});
+      const widths=[11,13,32,12,42,10,14,15,15,15,15,17,17,17,14]; heads.forEach((h,i)=>ws.getColumn(i+1).width=widths[i]||14);
       const anyDec=rows.some(l=>[l.fu,l.fa,l.pr].some(v=>Math.abs(v-Math.round(v))>1e-9));
-      const numFmt=anyDec?NUMF2:NUMF;
-      rows.forEach((l,idx)=>{ const bg=idx%2===0?SURF:ALT; const vals=rowVals(l,isF);
-        vals.forEach((v,i)=>{ const c=ws.getCell(r,i+1); c.value=v; c.font={name:'Calibri',size:9,color:{argb:WHITE}}; c.fill={type:'pattern',pattern:'solid',fgColor:{argb:bg}}; c.border=dataBorder;
-          const h=heads[i]; c.alignment={vertical:'middle',horizontal:(i===0||i===3||i===5)?'center':(i>=6&&i<=10)?'right':'left',indent:1};
-          if(v instanceof Date) c.numFmt=(h==='Fecha Orden')?'dd/mm/yyyy':'dd/mm/yyyy hh:mm';
-          else if(i>=6&&i<=10) c.numFmt=numFmt; });
-        if(l.flags.includes('precio_dif')){ const c=ws.getCell(r,7); c.font={name:'Calibri',size:9,bold:true,color:{argb:'FFFBBF24'}}; c.note='Nomenclador: '+money(l.precioNom); }
-        if(l.movido){ ws.getCell(r,1).font={name:'Calibri',size:9,bold:true,color:{argb:'FFFBBF24'}}; ws.getCell(r,1).note='Movido a mano a '+nm; }
-        ws.getRow(r).height=15; r++; });
+      const PESOS=anyDec?'"$ "#,##0.00;-"$ "#,##0.00':'"$ "#,##0;-"$ "#,##0';
+      const isPeso=i=>i>=6&&i<=10;
+      // Fila 1: título
+      ws.mergeCells(1,1,1,nc); const tt=ws.getCell(1,1); tt.value=titulo(nm);
+      tt.font={name:'Arial',size:14,bold:true,color:{argb:INK}}; tt.alignment={horizontal:'left',vertical:'middle'}; ws.getRow(1).height=30;
+      // Fila 2: encabezados
+      let r=2; heads.forEach((h,i)=>{ const c=ws.getCell(r,i+1); c.value=h; c.font={name:'Arial',size:9,bold:true,color:{argb:INK}};
+        c.fill={type:'pattern',pattern:'solid',fgColor:{argb:HEAD}}; c.alignment={horizontal:isPeso(i)||i===5?'right':(i===0||i===3)?'center':'left',vertical:'middle',wrapText:true};
+        c.border={top:{style:'thin',color:{argb:LINE}},bottom:{style:'medium',color:{argb:INK}},left:{style:'thin',color:{argb:LINE}},right:{style:'thin',color:{argb:LINE}}}; });
+      ws.getRow(r).height=22; const headerRow=r; r++;
+      const bd={top:{style:'thin',color:{argb:LINE}},bottom:{style:'thin',color:{argb:LINE}},left:{style:'thin',color:{argb:LINE}},right:{style:'thin',color:{argb:LINE}}};
+      rows.forEach((l,idx)=>{ const vals=rowVals(l,isF);
+        vals.forEach((v,i)=>{ const c=ws.getCell(r,i+1); c.value=v; c.font={name:'Arial',size:9,color:{argb:INK}}; c.border=bd;
+          if(idx%2===1) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:ZEBRA}};
+          c.alignment={vertical:'middle',horizontal:(i===0||i===3)?'center':(isPeso(i)||i===5)?'right':'left'};
+          if(v instanceof Date) c.numFmt=(i===1)?'dd/mm/yyyy':'dd/mm/yyyy hh:mm'; else if(isPeso(i)) c.numFmt=PESOS; });
+        if(l.flags.includes('precio_dif')){ const c=ws.getCell(r,7); c.font={name:'Arial',size:9,bold:true,color:{argb:WARN}}; c.note='Nomenclador: '+money(l.precioNom); }
+        if(l.movido){ const c=ws.getCell(r,1); c.font={name:'Arial',size:9,bold:true,color:{argb:WARN}}; c.note='Movido a mano a '+nm; }
+        ws.getRow(r).height=16; r++; });
       // TOTALES
-      const tv=[null,null,null,null,'TOTALES',rows.reduce((a,l)=>a+l.cant,0),null,T.total,T.fu,T.fa,T.pr||null];
-      for(let i=1;i<=nc;i++){ const c=ws.getCell(r,i); c.value=tv[i-1]==null?'':tv[i-1]; c.font={name:'Calibri',size:9.5,bold:true,color:{argb:GOLD}}; c.fill={type:'pattern',pattern:'solid',fgColor:{argb:BLUED}};
-        c.border={top:{style:'thin',color:{argb:GOLD}},bottom:{style:'thin',color:{argb:GOLD}}}; c.alignment={vertical:'middle',horizontal:(i>=6&&i<=11)?'right':'left',indent:1}; if(i>=6&&i<=11&&typeof c.value==='number') c.numFmt=numFmt; }
-      ws.getRow(r).height=18; r++;
+      const tv=[null,null,null,null,'TOTALES',rows.reduce((a,l)=>a+l.cant,0),null,T.total,T.fu,T.fa,T.pr];
+      for(let i=1;i<=nc;i++){ const c=ws.getCell(r,i); c.value=tv[i-1]==null?'':tv[i-1]; c.font={name:'Arial',size:9.5,bold:true,color:{argb:INK}};
+        c.fill={type:'pattern',pattern:'solid',fgColor:{argb:TOTAL}}; c.border={top:{style:'double',color:{argb:INK}},bottom:{style:'thin',color:{argb:LINE}},left:{style:'thin',color:{argb:LINE}},right:{style:'thin',color:{argb:LINE}}};
+        c.alignment={vertical:'middle',horizontal:(i>=6&&i<=11)?'right':'left'}; if(isPeso(i-1)&&typeof c.value==='number') c.numFmt=PESOS; }
+      ws.getRow(r).height=20;
       ws.views=[{state:'frozen',ySplit:headerRow,showGridLines:false}];
-      for(let i=1;i<=nc;i++){ const fc=ws.getCell(r,i); fc.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}}; fc.border={top:{style:'thin',color:{argb:GOLD}}}; }
-      ws.mergeCells(r,1,r,nc); const f=ws.getCell(r,1); f.value='Lumen by Pyralis — '+d.toLocaleString('es-AR')+'  ·  reparto: ecografía 40/40/20, resto 50/50  ·  cruce por DNI y fecha/hora de turno contra camas prestadas'+(S.camName?' ('+S.camName+')':'');
-      f.font={name:'Calibri',size:8,italic:true,color:{argb:'FF94A3B8'}}; f.alignment={horizontal:'center',vertical:'middle'}; ws.getRow(r).height=16;
+      ws.autoFilter={from:{row:headerRow,column:1},to:{row:headerRow,column:nc}};
     }
     const buf=await wb.xlsx.writeBuffer();
     const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
