@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="lumen-ver" content="2026-09-14-f"/>
+<meta name="lumen-ver" content="2026-09-17-b"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Validación PAMI · LUMEN</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml"/>
@@ -107,6 +107,12 @@
   tbody tr:hover{background:rgba(245,158,11,.04)}
   tbody tr.act{background:rgba(245,158,11,.10);box-shadow:inset 3px 0 0 var(--pyralis-firefly)}
   tbody tr.e-validada{opacity:.62}
+  /* Turno de hoy o futuro: todavía no se puede validar (regla: día posterior al estudio). */
+  tbody tr.bloq{opacity:.45}
+  tbody tr.bloq .ib.go{pointer-events:none;filter:grayscale(1)}
+  .hab{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;
+    border-radius:20px;padding:3px 9px;border:1px solid rgba(96,165,250,.45);color:#93c5fd;
+    background:rgba(96,165,250,.10);white-space:nowrap;margin-top:4px}
   tbody tr.e-validada td.c-est{opacity:1}
   .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;font-weight:500;letter-spacing:.4px}
   .ord{color:var(--pyralis-firefly-soft);font-weight:700}
@@ -260,7 +266,9 @@
 
 <div class="main">
   <h1 class="page">Validación de órdenes en PAMI</h1>
-  <p class="page-sub">Subí la bandeja de transmisión. Las filas con <b>TURNO marcado en verde</b> se detectan solas.
+  <p class="page-sub">Subí la bandeja de transmisión del mes <b>tal como sale de PAMI</b>. Antes de leerla se filtra sola:
+    <b>U. ACEPTO = SU41752974</b> y <b>VALIDADA vacía</b>. De lo que queda, cada orden
+    <b>se habilita el día posterior a su turno</b>: un estudio de hoy se valida mañana.
     Cada orden se dispara al portal de PAMI con el número, el rango de fechas y el beneficio ya partido.
     Los números de <b>orden</b> y de <b>beneficio</b> se copian con un clic.</p>
 
@@ -280,7 +288,7 @@
   <label class="drop" id="drop">
     <input type="file" id="file" accept=".xlsx,.xlsm,.xls"/>
     <h3 id="drop-t">Soltá acá el Excel de la bandeja</h3>
-    <p id="drop-p">ORDENES SIN VALIDAR H ITALIANO.xlsx &middot; o hacé click para elegirlo</p>
+    <p id="drop-p">bandeja_transmision.xls del mes completo &middot; o hacé click para elegirlo</p>
   </label>
 
   <div id="sesion-datos" class="sesdat hidden">
@@ -316,11 +324,12 @@
     <div class="stats" id="stats"></div>
 
     <div class="filters">
-      <span class="chip on" data-f="verdes">Solo verdes</span>
+      <span class="chip on" data-f="habilitadas">Habilitadas hoy</span>
       <span class="chip" data-f="todas">Todas</span>
       <span class="chip" data-f="pendientes">Pendientes</span>
       <span class="chip" data-f="validadas">Validadas</span>
       <span class="chip" data-f="rechazadas">Rechazadas</span>
+      <span class="chip" data-f="bloqueadas">Todavía no</span>
       <button class="btn btn-primary" id="btn-next" style="margin-left:14px">▶ Siguiente pendiente</button>
       <div class="search"><input type="text" id="q" placeholder="Buscar orden o apellido…"/></div>
     </div>
@@ -364,7 +373,7 @@ const PAMI_ORIGINS = ['https://po.pami.org.ar','https://pe.pami.org.ar'];
 const US_ESPERADO = '4.4.0';
 
 let ORDENES = [];      // [{orden, nombre, turno, turnoD, emision, emisionD, ben14, benBase, benDv, practicas:[], verde}]
-let FILTRO  = 'verdes';
+let FILTRO  = 'habilitadas';
 let ORDEN   = { col: 'turno', dir: 'desc' };  // turno, del mas reciente al mas viejo
 let QUERY   = '';
 let ESTADOS = load(EST_KEY, {});
@@ -416,6 +425,14 @@ function fmtFecha(d){
   return String(d.getDate()).padStart(2,'0') + '/' +
          String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
 }
+/* ── REGLA: se valida el día POSTERIOR al estudio (dictada por Santiago 2026-09-17) ──
+   Habilitada = fecha del turno < hoy (a medianoche). Un turno de hoy o futuro queda
+   bloqueado hasta el día siguiente al turno. Sin fecha de turno legible: bloqueada
+   (mejor no disparar que validar algo que quizás no se hizo). "hoy" se recalcula en
+   cada llamada: la página puede quedar abierta de un día para otro. */
+function hoy0(){ const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+function habilitaDesde(o){ return o.turnoD ? addDias(o.turnoD, 1) : null; }
+function habilitada(o){ return !!o.turnoD && o.turnoD.getTime() < hoy0().getTime(); }
 function addDias(d, n){ const x = new Date(d.getTime()); x.setDate(x.getDate()+n); return x; }
 function addMeses(d, n){ const x = new Date(d.getTime()); const dia = x.getDate();
   x.setMonth(x.getMonth()+n);
@@ -431,7 +448,7 @@ function guardarDatos(){
   if (!META || !ORDENES.length) return;
   try {
     localStorage.setItem(DATA_KEY, JSON.stringify({
-      v: 1, ts: META.ts, file: META.file, marcadas: META.marcadas, activa: activa,
+      v: 1, ts: META.ts, file: META.file, marcadas: META.marcadas, filt: META.filt || null, activa: activa,
       ordenes: ORDENES.map(o => ({
         o: o.orden, n: o.nombre, t: o.turno, e: o.emision,
         b: o.ben14, p: o.practicas, g: o.verde ? 1 : 0, f: o.fila
@@ -457,13 +474,9 @@ function hidratar(r){
 function restaurarDatos(){
   const p = load(DATA_KEY, null);
   if (!p || !Array.isArray(p.ordenes) || !p.ordenes.length) return false;
-  META    = { file: p.file || '', marcadas: p.marcadas || 0, ts: p.ts || Date.now() };
+  META    = { file: p.file || '', marcadas: p.marcadas || 0, ts: p.ts || Date.now(), filt: p.filt || null };
   ORDENES = p.ordenes.map(hidratar);
   activa  = p.activa || null;
-  if (FILTRO === 'verdes' && !ORDENES.some(o => o.verde)){
-    FILTRO = 'todas';
-    document.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.f === 'todas'));
-  }
   pintarCabecera();
   $('zona').classList.remove('hidden');
   render();
@@ -477,7 +490,7 @@ function descartarDatos(){
   $('sesion-datos').classList.add('hidden');
   $('drop').classList.remove('loaded');
   $('drop-t').textContent = 'Soltá acá el Excel de la bandeja';
-  $('drop-p').innerHTML   = 'ORDENES SIN VALIDAR H ITALIANO.xlsx &middot; o hacé click para elegirlo';
+  $('drop-p').innerHTML   = 'bandeja_transmision.xls del mes completo &middot; o hacé click para elegirlo';
   $('file').value = '';
   toast('Bandeja descartada. Los estados ✓/✗ por número de orden se conservan.', 'ok');
 }
@@ -486,7 +499,10 @@ function pintarCabecera(){
   if (!META) return;
   $('drop').classList.add('loaded');
   $('drop-t').textContent = META.file || 'Bandeja cargada';
-  $('drop-p').textContent = ORDENES.length + ' órdenes únicas · ' + META.marcadas + ' filas marcadas en verde';
+  const fl = META.filt;
+  $('drop-p').textContent = (fl ? fl.quedan + ' de ' + fl.total + ' filas pasan el filtro (U. ACEPTO ' + FILTRO_ACEPTO +
+      ', VALIDADA vacía) · ' : '') +
+    ORDENES.length + ' órdenes únicas · ' + ORDENES.filter(habilitada).length + ' habilitadas hoy';
   $('sd-txt').innerHTML = 'Trabajando sobre <b>' + esc(META.file || 'la bandeja cargada') + '</b> · cargada el ' +
     fmtFechaHora(META.ts) + ' · queda guardada en esta PC hasta que subas otro Excel.';
   $('sesion-datos').classList.remove('hidden');
@@ -499,7 +515,17 @@ function pintarCabecera(){
 function modoFechas(){ return $('modo-fecha').value === 'none' ? 'none' : 'vaciar'; }
 
 /* ── parseo del Excel ──────────────────────────────────── */
+/* ── FILTRO PREVIO (dictado por Santiago 2026-09-17) ──
+   La bandeja llega con el mes completo y de todos los usuarios. Antes de leer se deja
+   SÓLO lo que aceptó este usuario y todavía no está validado en PAMI. Es el mismo filtro
+   que antes se hacía a mano en Excel. Si falta alguna de las dos columnas NO se lee:
+   sin filtro se trabajarían órdenes de otros usuarios o ya validadas. */
+const FILTRO_ACEPTO = 'SU41752974';
+function vacia(v){ return String(v == null ? '' : v).replace(/\s/g, '') === ''; }
+
 const CAMPOS = {
+  acepto:    ['U. ACEPTO','U ACEPTO','USUARIO ACEPTO'],
+  validada:  ['VALIDADA'],
   orden:     ['NRO. ORDEN','NRO ORDEN','N ORDEN','ORDEN'],
   emision:   ['FECHA EMISION','F EMISION','FECHA DE EMISION'],
   beneficio: ['NRO. BENEFICIO/GP','NRO BENEFICIO/GP','BENEFICIO/GP','NRO. BENEFICIO','BENEFICIO'],
@@ -538,16 +564,21 @@ async function procesar(file){
   if (!aoa.length) throw new Error('La hoja está vacía');
 
   const idx = mapearColumnas(aoa[0]);
-  const faltan = ['orden','beneficio','nombre','turno'].filter(k => idx[k] == null);
+  const faltan = ['orden','beneficio','nombre','turno','acepto','validada'].filter(k => idx[k] == null);
   if (faltan.length) throw new Error('No encontré la columna: ' + faltan.join(', '));
 
   const mapa = new Map();
   let marcadas = 0;
+  const filt = { total: 0, otroUsuario: 0, yaValidada: 0, quedan: 0 };
 
   for (let r = 1; r < aoa.length; r++){
     const row = aoa[r];
-    const orden = String(row[idx.orden] || '').trim();
+    const orden = String(row[idx.orden] || '').replace(/\D/g, '');
     if (!orden) continue;
+    filt.total++;
+    if (norm(row[idx.acepto]) !== FILTRO_ACEPTO){ filt.otroUsuario++; continue; }
+    if (!vacia(row[idx.validada])){ filt.yaValidada++; continue; }
+    filt.quedan++;
 
     const verde = celdaMarcada(ws, r, idx.turno);
     if (verde) marcadas++;
@@ -578,15 +609,15 @@ async function procesar(file){
   }
 
   ORDENES = [...mapa.values()];
+  if (!ORDENES.length) throw new Error('Después del filtro (U. ACEPTO = ' + FILTRO_ACEPTO +
+    ', VALIDADA vacía) no quedó ninguna fila de ' + filt.total + '.');
 
-  if (!marcadas){
-    FILTRO = 'todas';
-    CFG.filtro = 'todas'; save(CFG_KEY, CFG);
-    document.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.f === 'todas'));
-    toast('No detecté filas marcadas en TURNO — muestro todas', 'err');
-  }
+  const sinFecha = ORDENES.filter(o => !o.turnoD).length;
+  if (sinFecha) toast(sinFecha + ' órdenes sin fecha de turno legible: quedan bloqueadas', 'err');
 
-  META   = { file: file.name, marcadas: marcadas, ts: Date.now() };
+  META   = { file: file.name, marcadas: marcadas, ts: Date.now(), filt: filt };
+  toast('Filtro aplicado: ' + filt.quedan + ' filas de ' + filt.total + ' (' + filt.otroUsuario +
+        ' de otro usuario, ' + filt.yaValidada + ' ya validadas)', 'ok');
   activa = null;
   pintarCabecera();
   $('zona').classList.remove('hidden');
@@ -630,7 +661,10 @@ function pintarCarets(){
 function visibles(){
   return ORDENES.filter(o => {
     const est = estadoDe(o.orden);
-    if (FILTRO === 'verdes'     && !o.verde) return false;
+    const hab = habilitada(o);
+    if (FILTRO === 'habilitadas' && !hab) return false;
+    if (FILTRO === 'bloqueadas'  && hab)  return false;
+    if (FILTRO === 'pendientes'  && !hab) return false;
     if (FILTRO === 'pendientes' && est !== 'pendiente') return false;
     if (FILTRO === 'validadas'  && est !== 'validada') return false;
     if (FILTRO === 'rechazadas' && est !== 'rechazada') return false;
@@ -643,18 +677,19 @@ function visibles(){
 }
 
 function render(){
-  const verdes = ORDENES.filter(o => o.verde);
-  const base   = verdes.length ? verdes : ORDENES;
-  const cnt = { val:0, rec:0, pen:0 };
-  base.forEach(o => {
+  const cnt = { val:0, rec:0, pen:0, blq:0, hab:0 };
+  ORDENES.forEach(o => {
     const e = estadoDe(o.orden);
-    if (e === 'validada') cnt.val++; else if (e === 'rechazada') cnt.rec++; else cnt.pen++;
+    if (e === 'validada') cnt.val++; else if (e === 'rechazada') cnt.rec++;
+    else if (habilitada(o)) cnt.pen++;
+    if (habilitada(o)) cnt.hab++; else if (e === 'pendiente') cnt.blq++;
   });
 
   $('stats').innerHTML =
     stat('info', ORDENES.length, 'Órdenes') +
-    stat('info', verdes.length,  'En verde') +
-    stat('warn', cnt.pen,        'Pendientes') +
+    stat('info', cnt.hab,        'Habilitadas hoy') +
+    stat('warn', cnt.pen,        'Pendientes hoy') +
+    stat('',     cnt.blq,        'Todavía no') +
     stat('ok',   cnt.val,        'Validadas') +
     stat('dang', cnt.rec,        'Rechazadas');
 
@@ -675,17 +710,20 @@ function render(){
 
   tb.innerHTML = rows.map(o => {
     const est = estadoDe(o.orden);
-    return `<tr data-o="${o.orden}" class="e-${est}${activa===o.orden?' act':''}">
-      <td>${o.verde ? '<span class="verde-dot" title="Marcada en verde"></span>' : ''}</td>
+    const hab = habilitada(o);
+    const desde = habilitaDesde(o);
+    const badge = hab ? '' : `<br><span class="hab">${desde ? 'desde ' + fmtFecha(desde) : 'sin fecha'}</span>`;
+    return `<tr data-o="${o.orden}" class="e-${est}${hab?'':' bloq'}${activa===o.orden?' act':''}">
+      <td>${hab && est === 'pendiente' ? '<span class="verde-dot" title="Habilitada: se puede validar hoy"></span>' : ''}</td>
       <td class="mono ord"><span class="cp" data-cp="${o.orden}" data-lbl="Orden" title="Clic para copiar el nro. de orden">${o.orden}</span></td>
       <td class="nom">${esc(o.nombre)}<span class="sub-l zoomable" data-z="pract" title="Clic para ver la práctica completa">${esc(o.practicas[0]||'')}${o.practicas.length>1?' +'+(o.practicas.length-1):''}</span></td>
       <td class="mono zoomable" data-z="turno" title="Clic para agrandar el turno">${esc(o.turno)}<span class="sub-l">${esc(o.emision||'')}</span></td>
       <td class="mono"><span class="ben-b cp" data-cp="${o.benBase}" data-lbl="Beneficio" title="Clic para copiar el beneficio sin los 2 últimos dígitos">${o.benBase}</span> / <span class="ben-d cp" data-cp="${o.benDv}" data-lbl="Verificador" title="Clic para copiar los 2 últimos dígitos">${o.benDv}</span></td>
       <td class="rng c-emi">${esc(o.emision || '—')}</td>
       <td class="pract c-pract" title="${esc(o.practicas.join(' | '))}">${esc(o.practicas[0]||'')}${o.practicas.length>1?' +'+(o.practicas.length-1):''}</td>
-      <td class="c-est"><span class="est ${est}">${est}</span></td>
+      <td class="c-est"><span class="est ${est}">${est}</span>${badge}</td>
       <td><div class="acts">
-        <button class="ib go"  data-a="go" title="Abrir esta orden en el portal de PAMI"><img src="pami-iso.png" alt="" width="16" height="16"/>PAMI</button>
+        <button class="ib go"  data-a="go" ${hab ? '' : 'disabled'} title="${hab ? 'Abrir esta orden en el portal de PAMI' : 'Se habilita el día posterior al turno'}"><img src="pami-iso.png" alt="" width="16" height="16"/>PAMI</button>
         <button class="ib ok"  data-a="ok"   title="Marcar validada">✓</button>
         <button class="ib no"  data-a="no"   title="Marcar rechazada">✗</button>
         <button class="ib"     data-a="rst"  title="Volver a pendiente">↺</button>
@@ -731,6 +769,12 @@ function pintarVentanas(){
    El trabajo va al BUS, no a una ventana. Antes Lumen renavegaba UNA ventana que
    despues saltaba sola PAMI -> HIS -> PAMI y por eso no se veia nada. */
 function irAPami(o){
+  if (!habilitada(o)){
+    const d = habilitaDesde(o);
+    toast('Orden ' + o.orden + ': se valida el día posterior al estudio' +
+          (d ? ' — habilitada desde el ' + fmtFecha(d) : ' (no tiene fecha de turno legible)'), 'err');
+    return;
+  }
   const pay = {
     v: 1, t: Date.now(),
     orden:   o.orden,
@@ -820,7 +864,7 @@ function irAPami(o){
 }
 
 function siguientePendiente(){
-  const lista = visibles().filter(o => estadoDe(o.orden) === 'pendiente');
+  const lista = visibles().filter(o => estadoDe(o.orden) === 'pendiente' && habilitada(o));
   const i = lista.findIndex(o => o.orden === activa);
   const o = lista[i + 1] || lista[0];
   if (!o){ toast('No quedan pendientes con este filtro', 'ok'); return; }
@@ -872,12 +916,12 @@ function exportar(){
   if (!ORDENES.length) return;
   const hoy = fmtFecha(new Date());
   const aoa = [['NRO. ORDEN','APELLIDO Y NOMBRE','TURNO','FECHA EMISIÓN','NRO. BENEFICIO/GP',
-                'MARCADA','ESTADO LUMEN','FECHA ESTADO','PRÁCTICAS']];
+                'HABILITADA DESDE','ESTADO LUMEN','FECHA ESTADO','PRÁCTICAS']];
   ORDENES.forEach(o => {
     const e = estadoDe(o.orden);
     const ts = ESTADOS[o.orden] ? fmtFecha(new Date(ESTADOS[o.orden].ts)) : '';
     aoa.push([o.orden, o.nombre, o.turno, o.emision, o.ben14,
-              o.verde ? 'VERDE' : '', e.toUpperCase(), ts, o.practicas.join(' | ')]);
+              fmtFecha(habilitaDesde(o)), e.toUpperCase(), ts, o.practicas.join(' | ')]);
   });
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws['!cols'] = [{wch:16},{wch:34},{wch:24},{wch:20},{wch:17},{wch:9},{wch:13},{wch:13},{wch:60}];
@@ -1052,6 +1096,8 @@ if (CFG.url && /efector\.php/i.test(CFG.url)){
 if (CFG.url)       $('pami-url').value   = CFG.url;
 if (CFG.orden && CFG.orden.col) ORDEN = CFG.orden;
 pintarCarets();
+/* v4 (2026-09-17): el criterio deja de ser la celda verde y pasa a ser la fecha de turno. */
+if (CFG.filtro === 'verdes' || !CFG.filtro){ CFG.filtro = 'habilitadas'; save(CFG_KEY, CFG); }
 if (CFG.filtro){
   FILTRO = CFG.filtro;
   document.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.f === FILTRO));
@@ -1083,6 +1129,14 @@ if (CFG.filtro){
 /* bandeja de la sesión anterior */
 restaurarDatos();
 pintarVentanas();
+/* Si la página queda abierta al pasar la medianoche, las órdenes de ayer se habilitan solas. */
+(function(){
+  let dia = hoy0().getTime();
+  setInterval(() => {
+    const d = hoy0().getTime();
+    if (d !== dia){ dia = d; if (ORDENES.length){ pintarCabecera(); render(); } }
+  }, 60000);
+})();
 </script>
 </body>
 </html>
