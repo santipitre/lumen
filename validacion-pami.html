@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="lumen-ver" content="2026-09-17-b"/>
+<meta name="lumen-ver" content="2026-09-17-c"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Validación PAMI · LUMEN</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml"/>
@@ -317,6 +317,7 @@
       <div class="fld">
         <label>&nbsp;</label>
         <button class="btn btn-excel" id="btn-export">Exportar Excel con estados</button>
+        <button class="btn btn-ghost" id="btn-export-rech" title="Baja un Excel con las órdenes marcadas RECHAZADA, listo para volver a subir acá">Exportar rechazadas</button>
       </div>
       <div class="hint" id="hint-fecha"></div>
     </div>
@@ -930,6 +931,31 @@ function exportar(){
   XLSX.writeFile(wb, 'VALIDACION_PAMI_' + hoy.replace(/\//g,'-') + '.xlsx');
 }
 
+/* ── exportar SOLO las rechazadas ──────────────────────────────────────
+   Sale con la forma de la bandeja de PAMI (U. ACEPTO y VALIDADA vacía incluidas)
+   para que este mismo Excel se pueda volver a subir acá y quede una lista de trabajo
+   con lo que rebotó, sin tener que recortar nada a mano. Una fila por práctica. */
+function exportarRechazadas(){
+  const rech = ORDENES.filter(o => estadoDe(o.orden) === 'rechazada');
+  if (!rech.length){ toast('No hay órdenes marcadas como rechazadas', 'err'); return; }
+  const aoa = [['NRO. ORDEN','FECHA EMISIÓN','NRO. BENEFICIO/GP','APELLIDO Y NOMBRE','PRÁCTICA','TURNO',
+                'U. ACEPTO','VALIDADA','ESTADO LUMEN','FECHA ESTADO','HABILITADA DESDE']];
+  rech.sort((a,b) => (a.turnoD?a.turnoD.getTime():0) - (b.turnoD?b.turnoD.getTime():0) ||
+                     a.nombre.localeCompare(b.nombre,'es'));
+  rech.forEach(o => {
+    const ts = ESTADOS[o.orden] ? fmtFechaHora(ESTADOS[o.orden].ts) : '';
+    const ps = o.practicas.length ? o.practicas : [''];
+    ps.forEach(p => aoa.push([o.orden, o.emision, o.ben14, o.nombre, p, o.turno,
+                              FILTRO_ACEPTO, '', 'RECHAZADA', ts, fmtFecha(habilitaDesde(o))]));
+  });
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:16},{wch:20},{wch:19},{wch:32},{wch:58},{wch:24},{wch:13},{wch:11},{wch:14},{wch:17},{wch:17}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'rechazadas');
+  XLSX.writeFile(wb, 'RECHAZADAS_PAMI_' + fmtFecha(new Date()).replace(/\//g,'-') + '.xlsx');
+  toast(rech.length + ' órdenes rechazadas exportadas', 'ok');
+}
+
 /* ── eventos ───────────────────────────────────────────── */
 const drop = $('drop');
 ['dragenter','dragover'].forEach(e => drop.addEventListener(e, ev => {
@@ -1039,6 +1065,7 @@ document.querySelectorAll('thead th.ord-col').forEach(th => th.addEventListener(
 $('q').addEventListener('input', e => { QUERY = e.target.value; render(); });
 $('btn-next').addEventListener('click', siguientePendiente);
 $('btn-export').addEventListener('click', exportar);
+$('btn-export-rech').addEventListener('click', exportarRechazadas);
 
 (function(){
   const b = $('btn-descartar'); let armado = false, t = null;
