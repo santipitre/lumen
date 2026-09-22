@@ -17,7 +17,7 @@
 </script>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<meta name="lumen-ver" content="harefield-1.1.1"/>
+<meta name="lumen-ver" content="harefield-1.2.0"/>
 <title>Harefield · Lumen by Pyralis</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml"/>
 <link rel="stylesheet" href="spcd-theme.css"/>
@@ -191,7 +191,7 @@
 <div class="main">
   <h1 class="page">Liquidación Harefield</h1>
   <p class="page-sub">Cruza la liquidación mensual de HAREFIELD con las internaciones en <b>cama prestada</b> (CCV → Hospital Italiano).
-    Un estudio cuya <b>fecha y hora de turno</b> cae dentro de una internación pasa a la pestaña FINAMED; el resto queda en HAREFIELD.
+    Todo paciente cuyo <b>DNI</b> figure en el archivo de camas prestadas (en cualquier hoja) pasa a la pestaña FINAMED, sin mirar fechas de ingreso ni egreso: son los que hay que sacar de la liquidación en el HIS. El resto queda en HAREFIELD.
     Todo se procesa en tu navegador. Nada sale de esta máquina.</p>
 
   <div class="restored-bar" id="restored">
@@ -453,7 +453,8 @@ const HFCore = (function(){
     const porTurno={};
     for(const l of enMes){
       if(!porTurno[l.turno]){
-        const hit=V.find(v=>v.valida&&v.dni===l.doc&&l.fTurno>=v.start&&l.fTurno<=v.end);
+        // Regla de Santiago (22/09/2026): si el DNI está en camas prestadas, sale de HAREFIELD. No se miran ingreso ni egreso.
+        const hit=V.find(v=>v.dni===l.doc);
         const auto=hit?'F':'H';
         const ov=overrides[l.turno];
         porTurno[l.turno]={auto, cama:hit||null, tab:(ov&&ov!==auto)?ov:auto, movido:!!(ov&&ov!==auto)};
@@ -610,20 +611,15 @@ const HF=(function(){
   function renderReview(){
     const R=S.res; const groups=[]; let n=0;
     // A. camas
-    const cam=R.ventanas.filter(v=>v.toca&&v.flags.length);
+    const cam=R.ventanas.filter(v=>v.flags.includes('dni'));
     if(cam.length){
-      groups.push({t:'Camas prestadas', s:cam.length+' internaciones que tocan '+C.mesLabel(S.mes)+' y tienen datos dudosos', items:cam.map(v=>{
+      groups.push({t:'Camas prestadas', s:cam.length+' DNI que no van a matchear nunca', items:cam.map(v=>{
         const est=v.liqN=(S.liq.filter(l=>l.doc===v.dni).length);
         const red=!v.valida||v.flags.includes('dni');
         let how='';
-        if(v.flags.includes('invertida')) how='No se usa para el cruce (no se puede saber la ventana). ';
-        else if(v.flags.includes('ing_ilegible')) how='No se usa para el cruce. ';
-        if(v.flags.includes('sin_egreso')||v.flags.includes('eg_ilegible')) how+='Ventana abierta hasta el <em>'+C.fmtF(C.finDeMes(S.mes))+' 23:59</em> — si el egreso está en otra hoja, subí el archivo actualizado. ';
-        if(v.flags.includes('hora_ing')) how+='Ingreso tomado a las <em>00:00</em>. ';
-        if(v.flags.includes('hora_eg')) how+='Egreso tomado a las <em>23:59</em>. ';
         if(v.flags.includes('dni')) how+='Con ese DNI no va a matchear nunca; corregilo en el Drive o movelo a mano abajo. ';
         how+=est?('Este DNI tiene <em>'+est+' línea'+(est>1?'s':'')+'</em> en la liquidación.'):'Este DNI no aparece en la liquidación.';
-        return {red, html:'<b>'+esc(v.nombre||'(sin nombre)')+'</b> · DNI '+esc(v.dni)+' · hoja <code>'+esc(v.hoja)+'</code> fila '+v.fila+' — '+v.flags.map(f=>FLAG_TXT[f]||f).join(', ')+
+        return {red, html:'<b>'+esc(v.nombre||'(sin nombre)')+'</b> · DNI '+esc(v.dni)+' · hoja <code>'+esc(v.hoja)+'</code> fila '+v.fila+' — '+FLAG_TXT.dni+
           '<span class="how">Ingreso '+esc(String(v.ingRaw==null?'':(v.ing?C.fmtF(new Date(v.ing)):v.ingRaw)))+' '+esc(v.hI?hh(v.hI):String(v.hIRaw==null?'—':v.hIRaw))+' → Egreso '+esc(String(v.egRaw==null?'(vacío)':(v.eg?C.fmtF(new Date(v.eg)):v.egRaw)))+' '+esc(v.hE?hh(v.hE):String(v.hERaw==null?'—':v.hERaw))+'. '+how+'</span>'};
       })});
     }
@@ -669,18 +665,18 @@ const HF=(function(){
       const first=l.turno!==prev; prev=l.turno;
       const pw=l.flags.includes('precio_dif')?' warn':'';
       const ptitle=l.flags.includes('precio_dif')?' title="Nomenclador: '+money(l.precioNom)+'"':'';
-      const why=isF&&l.cama?'<span class="why"><b>'+esc(l.cama.nombre)+'</b> · '+C.fmtFH(new Date(l.cama.start))+' → '+C.fmtFH(new Date(l.cama.end))+' · '+esc(l.cama.sector||'')+'</span>':(l.movido?'<span class="why">movido a mano</span>':'');
+      const why=isF&&l.cama?'<span class="why"><b>'+esc(l.cama.nombre)+'</b> · hoja '+esc(l.cama.hoja)+' · '+esc(l.cama.sector||'')+'</span>':(l.movido?'<span class="why">movido a mano</span>':'');
       const btn=first?(l.movido?'<button class="mv undo" onclick="HF.mover(\''+esc(l.turno)+'\',null)">↺ deshacer</button>':'<button class="mv" onclick="HF.mover(\''+esc(l.turno)+'\',\''+(l.tab==='H'?'F':'H')+'\')">→ '+(l.tab==='H'?'Finamed':'Harefield')+'</button>'):'';
       return '<tr class="'+(first?'first':'')+(l.movido?' moved':'')+'">'+
         '<td>'+esc(l.turno)+'</td><td>'+C.fmtF(l.fOrden?new Date(l.fOrden):null)+'</td><td class="pac" title="'+esc(l.pac)+'">'+esc(l.pac)+'</td><td>'+esc(l.doc)+'</td>'+
         '<td class="pre" title="'+esc(l.cod+' · '+l.pre)+'">'+esc(l.pre)+'</td><td class="num">'+int(l.cant)+'</td>'+
         '<td class="num'+pw+'"'+ptitle+'>'+(pw?'<abbr>'+money(l.precio)+'</abbr>':money(l.precio))+'</td><td class="num">'+money(l.total)+'</td>'+
         '<td class="num">'+money(l.fu)+'</td><td class="num">'+money(l.fa)+'</td><td class="num">'+(l.pr?money(l.pr):'')+'</td>'+
-        '<td>'+C.fmtFH(l.fTurno?new Date(l.fTurno):null)+'</td><td class="int" title="'+esc(isF&&l.cama?(l.cama.nombre+' · '+C.fmtFH(new Date(l.cama.start))+' → '+C.fmtFH(new Date(l.cama.end))+' · '+(l.cama.sector||'')+' · hoja '+l.cama.hoja):'')+'">'+why+'</td><td>'+btn+'</td></tr>';
+        '<td>'+C.fmtFH(l.fTurno?new Date(l.fTurno):null)+'</td><td class="int" title="'+esc(isF&&l.cama?(l.cama.nombre+' · DNI '+l.cama.dni+' · hoja '+l.cama.hoja+' fila '+l.cama.fila):'')+'">'+why+'</td><td>'+btn+'</td></tr>';
     }).join('');
-    $('tbl-wrap').innerHTML=rows.length?'<table class="liq"><thead><tr><th>N° Turno</th><th>Fecha Orden</th><th>Paciente</th><th>DNI</th><th>Prestación</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Total</th><th class="num">FUESMEN</th><th class="num">FADESA</th><th class="num">Profesionales</th><th>Fecha turno</th><th>'+(isF?'Internación':'')+'</th><th></th></tr></thead><tbody>'+body+'</tbody>'+
+    $('tbl-wrap').innerHTML=rows.length?'<table class="liq"><thead><tr><th>N° Turno</th><th>Fecha Orden</th><th>Paciente</th><th>DNI</th><th>Prestación</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Total</th><th class="num">FUESMEN</th><th class="num">FADESA</th><th class="num">Profesionales</th><th>Fecha turno</th><th>'+(isF?'En camas prestadas':'')+'</th><th></th></tr></thead><tbody>'+body+'</tbody>'+
       '<tfoot><tr><td colspan="5">TOTALES · '+int(T.n)+' líneas</td><td class="num">'+int(T.cant)+'</td><td></td><td class="num">'+money(T.total)+'</td><td class="num">'+money(T.fu)+'</td><td class="num">'+money(T.fa)+'</td><td class="num">'+money(T.pr)+'</td><td colspan="3"></td></tr></tfoot></table>'
-      :'<div class="empty" style="border:0">'+(q?'Nada coincide con la búsqueda.':(isF?'Ningún turno cayó en una internación de cama prestada este mes.':'Sin líneas.'))+'</div>';
+      :'<div class="empty" style="border:0">'+(q?'Nada coincide con la búsqueda.':(isF?'Ningún DNI de la liquidación figura en camas prestadas.':'Sin líneas.'))+'</div>';
   }
 
   async function mover(turno, tab){
@@ -690,9 +686,9 @@ const HF=(function(){
 
   /* ── Export ExcelJS (dos hojas, fondo claro) ── */
   const HEADS=['N° Turno','Fecha Orden','Paciente','Documento','Prestación / Fármaco','Cantidad','Precio','Total','FUESMEN','FADESA','Profesionales'];
-  const HEADS_F=HEADS.concat(['Fecha Turno','Ingreso','Egreso','Sector']);
+  const HEADS_F=HEADS.concat(['Fecha Turno','Hoja camas prestadas','Sector']);
   const rowVals=(l,isF)=>{ const v=[+l.turno, l.fOrden?new Date(l.fOrden):null, l.pac, l.doc?+l.doc:l.doc, l.pre, l.cant, l.precio, l.total, l.fu, l.fa, l.pr||null];
-    if(isF) v.push(l.fTurno?new Date(l.fTurno):null, l.cama?new Date(l.cama.start):null, l.cama?new Date(l.cama.end):null, l.cama?l.cama.sector:''); return v; };
+    if(isF) v.push(l.fTurno?new Date(l.fTurno):null, l.cama?l.cama.hoja:'', l.cama?l.cama.sector:''); return v; };
 
   async function exportXLSX(){
     const R=S.res; if(!R) return;
