@@ -31,7 +31,56 @@
 let rawData  = [];
 let filtered = [];
 let realizados = [];
+let fechaCorteActual = null;
 let chartDias, chartDonut;
+
+/* ═══════════════════════════════════
+   UNIDAD DE CONTEO: ESTUDIO (D4/FR1.2/FR1.3)
+   estudio = Turno N° con al menos un renglón no accesorio. PREST_EXCLUIDAS
+   vivía sólo dentro de populateFilters y sólo filtraba el <select> de
+   prestaciones; ahora a nivel de módulo también filtra los conteos/KPI.
+═══════════════════════════════════ */
+const PREST_EXCLUIDAS = ['PERFUSION Y DIF. RM DINAMICA','MATERIAL','SET DE BOMBA','COSEGURO','RADIOFARMACO','TC DESARROLLO 3D','NC/ND','AGUJAS','NOTA','REGION','ADICIONAL'];
+function esAccesoria(prest) {
+  return PREST_EXCLUIDAS.some(ex => (prest||'').toUpperCase().startsWith(ex));
+}
+function esEstudio(r) {
+  return r['Estado'] === 'REA' && !esAccesoria(r['Prestación']);
+}
+
+/* esc() de spcd-utils.js serializa un nodo de texto y no escapa comillas:
+   sirve para contenido, no para atributos. Para title="..." va escAttr(). */
+function escAttr(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/* ═══════════════════════════════════
+   STORAGE PROPIO (D6/FR1.1)
+   medico.js se hace su propia copia de spcd_data_full en spcd_data_medico,
+   con timestamp ISO propio (nunca spcd_upload_date: es texto localizado y
+   admin.html lo pisa). Si spcd_data_full no trae las 12 columnas médicas,
+   se usa la última copia buena y se avisa; si tampoco hay copia, se avisa
+   sin mostrar ningún número (D1 de CONTEXT-2.md, SC4).
+═══════════════════════════════════ */
+const COLUMNAS_MEDICAS_REQUERIDAS = ['Estado','Turno Fecha','Turno N°','Paciente','Documento',
+  'Prestación','Médico','Médico Informante','Informante Sugerido','Informe','Fecha Informe','Equipo'];
+
+function columnasFaltantes(data) {
+  const presentes = new Set();
+  data.forEach(r => Object.keys(r).forEach(k => presentes.add(k)));
+  return COLUMNAS_MEDICAS_REQUERIDAS.filter(c => !presentes.has(c));
+}
+
+function mostrarAvisoColumnas(faltantes, copiadoEn) {
+  const copiaMsg = copiadoEn
+    ? `Mostrando la última copia guardada (${fmtDateTime(copiadoEn)}).`
+    : 'No hay ninguna copia previa guardada.';
+  document.getElementById('upload-sub-text').textContent =
+    `⚠️ Los datos cargados no traen: ${faltantes.join(', ')}. ${copiaMsg}`;
+  document.getElementById('data-status').textContent = '';
+}
 
 /* ═══════════════════════════════════
    INIT
@@ -42,26 +91,55 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('top-sede').textContent = sede || '—';
 
   const uploadDate = localStorage.getItem('spcd_upload_date') || '';
+  function mostrarErrorCarga(msg) {
+    document.getElementById('upload-sub-text').textContent = msg;
+    if (uploadDate) document.getElementById('data-status').textContent = `Última actualización: ${uploadDate}`;
+  }
   function tryLoad(retries) {
     dbLoad('spcd_data_full').then(data => {
       if (data && data.length > 0) {
-        rawData = data;
-        try {
-          onDataLoaded(rawData);
-        } catch(err) {
-          console.error('Error en onDataLoaded:', err);
-          document.getElementById('upload-sub-text').textContent = '⚠️ Error al procesar datos: ' + err.message;
-          if (uploadDate) document.getElementById('data-status').textContent = `Última actualización: ${uploadDate}`;
+        if (columnasFaltantes(data).length === 0) {
+          rawData = data;
+          dbSave('spcd_data_medico', { meta: { copiadoEn: new Date().toISOString() }, rows: data })
+            .catch(err => console.error('Error guardando spcd_data_medico:', err));
+          try {
+            onDataLoaded(rawData);
+          } catch(err) {
+            console.error('Error en onDataLoaded:', err);
+            mostrarErrorCarga('⚠️ Error al procesar datos: ' + err.message);
+          }
+        } else {
+          // D6/FR1.1: spcd_data_full no trae las columnas médicas requeridas
+          // (posible pisada de admin.html con datos de la nube) -- cae a la
+          // última copia buena propia, si existe, y avisa (D1 de CONTEXT-2.md).
+          const faltantes = columnasFaltantes(data);
+          dbLoad('spcd_data_medico').catch(e2 => {
+            console.error('Error leyendo spcd_data_medico:', e2);
+            return null;
+          }).then(datosViejos => {
+            if (datosViejos && datosViejos.rows) {
+              rawData = datosViejos.rows;
+              try {
+                onDataLoaded(rawData);
+              } catch(err) {
+                console.error('Error en onDataLoaded:', err);
+              }
+              mostrarAvisoColumnas(faltantes, datosViejos.meta && datosViejos.meta.copiadoEn);
+            } else {
+              // Sin copia previa: sin datos falsos (SC4) -- rawData/realizados
+              // quedan vacíos y el aviso explícito reemplaza al mensaje genérico.
+              rawData = [];
+              mostrarAvisoColumnas(faltantes, null);
+            }
+          }).catch(err => console.error('Error procesando spcd_data_medico:', err));
         }
       } else {
-        document.getElementById('upload-sub-text').textContent = '⚠️ No hay datos cargados. Volvé a Inicio y cargá el archivo Excel.';
-        if (uploadDate) document.getElementById('data-status').textContent = `Última actualización: ${uploadDate}`;
+        mostrarErrorCarga('⚠️ No hay datos cargados. Volvé a Inicio y cargá el archivo Excel.');
       }
     }).catch(e => {
       console.error('IndexedDB error (intento '+(3-retries+1)+'):', e);
       if (retries > 0) { setTimeout(() => tryLoad(retries - 1), 500); return; }
-      document.getElementById('upload-sub-text').textContent = '⚠️ Error al leer datos. Volvé a cargar el Excel desde Inicio.';
-      if (uploadDate) document.getElementById('data-status').textContent = `Última actualización: ${uploadDate}`;
+      mostrarErrorCarga('⚠️ Error al leer datos. Volvé a cargar el Excel desde Inicio.');
     });
   }
   tryLoad(2);
@@ -78,8 +156,8 @@ function onDataLoaded(data) {
     `✅  ${data.length.toLocaleString()} registros cargados`;
   document.getElementById('data-status').textContent = uploadDate ? `Última actualización: ${uploadDate}` : '';
 
-  // Solo estudios realizados
-  realizados = data.filter(r => r['Estado'] === 'REA');
+  // Solo estudios realizados (D4: unidad = estudio, no renglón)
+  realizados = deduplicarPorTurno(data.filter(esEstudio));
 
   populateFilters(data);
   document.getElementById('filters-bar').style.display = 'flex';
@@ -92,10 +170,10 @@ function onDataLoaded(data) {
    POBLAR FILTROS
 ═══════════════════════════════════ */
 function populateFilters(data) {
-  const rea = data.filter(r => r['Estado'] === 'REA');
+  const rea = data.filter(esEstudio);
 
   const fechas = rea.map(r => parseDate(r['Turno Fecha'])).filter(Boolean)
-    .map(d => d.toISOString().slice(0,10)).sort();
+    .map(toDateStr).sort();
   if (fechas.length) {
     document.getElementById('f-desde').value = fechas[0];
     document.getElementById('f-hasta').value = fechas[fechas.length-1];
@@ -106,9 +184,9 @@ function populateFilters(data) {
   selM.innerHTML = '<option value="">Todos</option>';
   medicos.forEach(m => { const o=document.createElement('option'); o.value=m; o.textContent=m; selM.appendChild(o); });
 
-  const PREST_EXCLUIDAS = ['PERFUSION Y DIF. RM DINAMICA','MATERIAL','SET DE BOMBA','COSEGURO','RADIOFARMACO','TC DESARROLLO 3D','NC/ND','AGUJAS','NOTA','REGION','ADICIONAL'];
-  const prests = [...new Set(rea.map(r => r['Prestación']).filter(Boolean))].sort()
-    .filter(p => !PREST_EXCLUIDAS.some(ex => p.toUpperCase().startsWith(ex)));
+  // rea ya excluye accesorias (esEstudio): no hace falta filtrar PREST_EXCLUIDAS
+  // de nuevo acá, ninguna prestación accesoria puede aparecer en este universo.
+  const prests = [...new Set(rea.map(r => r['Prestación']).filter(Boolean))].sort();
   const selP = document.getElementById('f-prest');
   selP.innerHTML = '<option value="">Todas</option>';
   prests.forEach(p => { const o=document.createElement('option'); o.value=p; o.textContent=p.slice(0,50); selP.appendChild(o); });
@@ -127,7 +205,7 @@ function applyFilters() {
   filtered = realizados.filter(r => {
     const fd = parseDate(r['Turno Fecha']);
     if (!fd) return false;
-    const ds = fd.toISOString().slice(0,10);
+    const ds = toDateStr(fd);
     if (desde && ds < desde) return false;
     if (hasta && ds > hasta) return false;
     if (medico && r['Médico Informante'] !== medico) return false;
@@ -149,9 +227,38 @@ function resetFilters() {
 }
 
 /* ═══════════════════════════════════
+   FECHA DE CORTE (D5/FR1.4)
+   Máxima entre Turno Fecha (siempre) y Fecha Informe (sólo si no es el
+   centinela -1, año >= 1900) del dataset. Reemplaza a new Date() como
+   referencia de edad de los pendientes: determinista, no depende de cuándo
+   se mira la pantalla.
+═══════════════════════════════════ */
+/* ═══════════════════════════════════
+   CENTINELA -1 DE Fecha Informe (D10, FR1.7)
+   El serial -1 de Excel llega a JS como Date(1899-12-29) (año < 1900): pasa
+   el chequeo !fInforme de tieneInformeIF (D3: "con informe" = Informe no
+   vacío) y sólo lo frenaba, en silencio, el guard dias>=0 de calcKPIs.
+═══════════════════════════════════ */
+function esCentinela(d) {
+  return !!(d && d.getFullYear() < 1900);
+}
+
+function calcFechaCorte(data) {
+  let max = null;
+  data.forEach(r => {
+    const fe = parseDate(r['Turno Fecha']);
+    if (fe && (!max || fe > max)) max = fe;
+    const fi = parseDate(r['Fecha Informe']);
+    if (fi && fi.getFullYear() >= 1900 && (!max || fi > max)) max = fi;
+  });
+  return max;
+}
+
+/* ═══════════════════════════════════
    RENDER
 ═══════════════════════════════════ */
 function render(data) {
+  fechaCorteActual = calcFechaCorte(data);
   calcKPIs(data);
   renderAlertPendientes(data);
   renderChartDias(data);
@@ -190,8 +297,21 @@ function calcKPIs(data) {
     ? (tiempos.reduce((a,b)=>a+b,0)/tiempos.length).toFixed(1)
     : '—';
   document.getElementById('kpi-tiempo').textContent = avgDias;
+
+  // D10/FR1.7: el centinela -1 (Fecha Informe -> Date año<1900) cuenta en
+  // "con informe" pero queda afuera del cálculo de demora. Antes se perdía
+  // en silencio dentro del guard dias>=0; ahora se cuenta aparte y se
+  // muestra explícito junto al KPI de demora (D3 de CONTEXT-2.md).
+  const informadosSinFecha = conInforme.filter(r => esCentinela(parseDate(r['Fecha Informe']))).length;
   document.getElementById('kpi-tiempo-sub').textContent =
-    `sobre ${tiempos.length.toLocaleString()} informes con fecha registrada`;
+    `sobre ${tiempos.length.toLocaleString()} informes con fecha registrada` +
+    (informadosSinFecha > 0 ? ` · ${informadosSinFecha.toLocaleString()} informados sin fecha` : '');
+
+  const linkInconsistentes = document.getElementById('kpi-inconsistentes-link');
+  if (linkInconsistentes) {
+    const totalInconsistentes = getInconsistentes(data).length;
+    linkInconsistentes.style.display = totalInconsistentes > 0 ? 'block' : 'none';
+  }
 
   const medActivos = new Set(conInforme.map(r => r['Médico Informante']).filter(m => medicoValido(m)));
   document.getElementById('kpi-medicos').textContent = medActivos.size;
@@ -286,7 +406,7 @@ function renderRankMedicos(data) {
   container.innerHTML = sorted.map(([med, rows], i) => `
     <div class="rank-item">
       <div class="rank-num">${i+1}</div>
-      <div class="rank-label"><span title="${med}">${med}</span></div>
+      <div class="rank-label"><span title="${escAttr(med)}">${esc(med)}</span></div>
       <div class="rank-bar-wrap"><div class="rank-bar" style="width:${(rows.length/maxVal*100).toFixed(0)}%;background:rgba(85,231,139,.5)"></div></div>
       <div class="rank-val" style="color:var(--green)">${rows.length}</div>
     </div>`).join('');
@@ -315,7 +435,7 @@ function renderRankTiempos(data) {
     const color = avg < 1 ? 'var(--green)' : avg < 3 ? 'var(--amber)' : 'var(--red)';
     return `<div class="rank-item">
       <div class="rank-num">${i+1}</div>
-      <div class="rank-label"><span title="${med}">${med}</span></div>
+      <div class="rank-label"><span title="${escAttr(med)}">${esc(med)}</span></div>
       <div class="rank-bar-wrap"><div class="rank-bar" style="width:${(avg/maxVal*100).toFixed(0)}%;background:${color}60"></div></div>
       <div class="rank-val" style="color:${color}">${avg.toFixed(1)}d</div>
     </div>`;
@@ -337,7 +457,7 @@ function renderTabPendientes(data) {
   document.getElementById('count-pend').textContent =
     `${sinInforme.length.toLocaleString()} registros`;
 
-  const hoy = new Date();
+  const hoy = fechaCorteActual;
   const tbody = document.getElementById('tbody-pendientes');
   if (!sinInforme.length) {
     tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="e-icon">✅</div><div class="e-text">¡Sin informes pendientes!</div></div></td></tr>`;
@@ -356,11 +476,11 @@ function renderTabPendientes(data) {
     }
     return `<tr>
       <td>${fEstudio ? fEstudio.toLocaleDateString('es-AR') : '—'}</td>
-      <td style="color:var(--muted)">${r['Turno N°']||'—'}</td>
-      <td>${(r['Paciente']||'').slice(0,24)}</td>
-      <td title="${r['Prestación']}">${(r['Prestación']||'').slice(0,32)}…</td>
-      <td>${r['Médico']||'—'}</td>
-      <td>${r['Informante Sugerido']||'<span style="color:var(--muted)">No asignado</span>'}</td>
+      <td style="color:var(--muted)">${esc(r['Turno N°']||'—')}</td>
+      <td>${esc((r['Paciente']||'').slice(0,24))}</td>
+      <td title="${escAttr(r['Prestación']||'')}">${esc((r['Prestación']||'').slice(0,32))}…</td>
+      <td>${esc(r['Médico']||'—')}</td>
+      <td>${r['Informante Sugerido'] ? esc(r['Informante Sugerido']) : '<span style="color:var(--muted)">No asignado</span>'}</td>
       <td style="text-align:center;font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700">${diasStr}</td>
       <td class="${urgCls}">${urgLabel}</td>
     </tr>`;
@@ -395,7 +515,7 @@ function renderTabMedicos(data) {
 
     return `<div class="medico-card">
       <div class="medico-avatar">👨‍⚕️</div>
-      <div class="medico-nombre" title="${med}">${med}</div>
+      <div class="medico-nombre" title="${escAttr(med)}">${esc(med)}</div>
       <div class="medico-stats">
         <div class="medico-stat">
           <span>Informes realizados</span>
@@ -436,7 +556,7 @@ function parseDate(val) {
   const d = new Date(val);
   return isNaN(d) ? null : d;
 }
-function toDateStr(d) { return d ? d.toISOString().slice(0,10) : null; }
+function toDateStr(d) { return d ? (d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0')) : null; }
 function groupBy(arr, keyFn) {
   return arr.reduce((acc, item) => {
     const k = keyFn(item) || 'Sin datos';
@@ -476,6 +596,41 @@ const EQUIPO_GROUPS = [
 const EQUIPO_SET = new Set();
 EQUIPO_GROUPS.forEach(g => g.equipos.forEach(e => EQUIPO_SET.add(e.toUpperCase())));
 
+/* FR1.5: función pura -- reemplaza el matcheo por Equipo/EQUIPO_GROUPS que
+   antes estaba duplicado dentro de handleExportClick y getExportRows. */
+function modalidad(r) {
+  const eq = (r['Equipo']||'').trim().toUpperCase();
+  const grupo = EQUIPO_GROUPS.find(g => g.equipos.some(e => e.toUpperCase() === eq));
+  return grupo ? grupo.label : 'OTROS';
+}
+
+/* ═══════════════════════════════════
+   INCONSISTENTES (FR1.7, D10)
+   Une, sin descartar nada, las tres categorías de estudio inconsistente:
+   centinela (informe cargado con Fecha Informe = centinela), informe
+   cargado con fecha anterior al estudio (dias<0, sin ser el centinela) y
+   fecha ilegible (Turno Fecha no parseable, o Informe cargado con Fecha
+   Informe no parseable). Cada estudio cuenta en a lo sumo una categoría,
+   con esa misma prioridad -- port textual de categorizar_inconsistencia()
+   de _test/medico/baseline.py.
+═══════════════════════════════════ */
+function categorizarInconsistencia(r) {
+  const informe = String(r['Informe']||'').trim();
+  const fi = parseDate(r['Fecha Informe']);
+  if (informe && esCentinela(fi)) return 'centinela';
+  const fe = parseDate(r['Turno Fecha']);
+  if (!fe) return 'fecha_ilegible';
+  if (informe) {
+    if (!fi) return 'fecha_ilegible';
+    const dias = (fi - fe) / 86400000;
+    if (dias < 0) return 'informe_antes_del_estudio';
+  }
+  return null;
+}
+function getInconsistentes(data) {
+  return data.filter(r => categorizarInconsistencia(r) !== null);
+}
+
 /* ═══════════════════════════════════
    MODAL
 ═══════════════════════════════════ */
@@ -485,17 +640,18 @@ function openModal(tipo) {
   if (!filtered.length) return;
   modalTipo = tipo;
   switch(tipo) {
-    case 'pendientes':  modalRows = filtered.filter(r => !tieneInformeIF(r)); break;
-    case 'realizados':  modalRows = filtered.filter(r => tieneInformeIF(r)); break;
-    case 'tiempo':      modalRows = filtered.filter(r => tieneInformeIF(r)); break;
-    case 'medicos':     modalRows = filtered.filter(r => tieneInformeIF(r)); break;
-    case 'cobertura':   modalRows = [...filtered]; break;
-    default:            modalRows = [...filtered];
+    case 'pendientes':     modalRows = filtered.filter(r => !tieneInformeIF(r)); break;
+    case 'realizados':
+    case 'tiempo':
+    case 'medicos':        modalRows = filtered.filter(r => tieneInformeIF(r)); break;
+    case 'cobertura':      modalRows = [...filtered]; break;
+    // lo dispara #kpi-inconsistentes-link desde la tarjeta ámbar (FR1.7)
+    case 'inconsistentes': modalRows = getInconsistentes(filtered); break;
+    default:               modalRows = [...filtered];
   }
-  // Solo Estado = REA
-  modalRows = modalRows.filter(r => r['Estado'] === 'REA');
-  const labels = {pendientes:'Informes Pendientes',realizados:'Informes Realizados',tiempo:'Estudios con Informe',medicos:'Estudios por Médico',cobertura:'Todos los Estudios'};
-  const colors = {pendientes:'var(--red)',realizados:'var(--cyan)',tiempo:'var(--blue)',medicos:'var(--green)',cobertura:'var(--amber)'};
+  // filtered sale de realizados, que ya pasó por esEstudio (Estado = REA)
+  const labels = {pendientes:'Informes Pendientes',realizados:'Informes Realizados',tiempo:'Estudios con Informe',medicos:'Estudios por Médico',cobertura:'Todos los Estudios',inconsistentes:'Estudios Inconsistentes'};
+  const colors = {pendientes:'var(--red)',realizados:'var(--cyan)',tiempo:'var(--blue)',medicos:'var(--green)',cobertura:'var(--amber)',inconsistentes:'var(--red)'};
   modalTitle = labels[tipo] || 'Detalle';
   document.getElementById('modal-title').textContent = modalTitle;
   document.getElementById('modal-bar').style.background = colors[tipo] || 'var(--green)';
@@ -541,17 +697,23 @@ function renderModalTable(rows) {
   document.getElementById('modal-footer-count').textContent = rows.length.toLocaleString() + ' registros' + (rows.length !== modalRows.length ? ' filtrados de '+modalRows.length.toLocaleString() : '');
   document.getElementById('modal-tbody').innerHTML = display.map(r => {
     const fecha = parseDate(r['Turno Fecha']);
-    const fechaStr = fecha ? fecha.toLocaleDateString('es-AR') : '—';
+    let fechaStr = fecha ? fecha.toLocaleDateString('es-AR') : '—';
+    // FR1.6: a medianoche exacta la hora no se guardó (o se perdió en el
+    // camino) -- sin esta marca, una fecha así se ve igual que una con hora
+    // real, aunque su precisión es sólo de día, no de minuto.
+    if (fecha && fecha.getHours() === 0 && fecha.getMinutes() === 0) {
+      fechaStr += ' <span class="fecha-sin-hora" title="Precisión: día">(día)</span>';
+    }
     const tieneInf = tieneInformeIF(r);
     const infVal = (r['Informe']||'').trim();
-    const dias = !tieneInf && fecha ? Math.floor((new Date() - fecha)/(1000*60*60*24)) : '—';
+    const dias = !tieneInf && fecha ? Math.floor((fechaCorteActual - fecha)/(1000*60*60*24)) : '—';
     return '<tr>' +
       '<td>'+fechaStr+'</td>' +
-      '<td style="color:var(--muted)">'+(r['Turno N°']||'—')+'</td>' +
-      '<td style="font-weight:600">'+(r['Paciente']||'—')+'</td>' +
-      '<td style="color:var(--muted)">'+(r['Documento']||'—')+'</td>' +
-      '<td>'+(r['Prestación']||'—')+'</td>' +
-      '<td style="color:'+(tieneInf?'var(--green)':'var(--red)')+'">'+(tieneInf?'I/F':(infVal||'Sin I/F'))+'</td>' +
+      '<td style="color:var(--muted)">'+esc(r['Turno N°']||'—')+'</td>' +
+      '<td style="font-weight:600">'+esc(r['Paciente']||'—')+'</td>' +
+      '<td style="color:var(--muted)">'+esc(r['Documento']||'—')+'</td>' +
+      '<td>'+esc(r['Prestación']||'—')+'</td>' +
+      '<td style="color:'+(tieneInf?'var(--green)':'var(--red)')+'">'+(tieneInf?'I/F':esc(infVal||'Sin I/F'))+'</td>' +
       '<td style="color:'+(typeof dias==='number'&&dias>7?'var(--red)':typeof dias==='number'&&dias>3?'var(--amber)':'var(--muted)')+'">'+dias+'</td>' +
     '</tr>';
   }).join('');
@@ -625,7 +787,7 @@ function openRealizadosPage() {
 
     return `<tr>
       <td class="rank-col">${i + 1}</td>
-      <td class="name-col">${m.medico}</td>
+      <td class="name-col">${esc(m.medico)}</td>
       <td class="num-col">${m.count}</td>
       <td class="bar-col">
         <div class="real-bar-wrap">
@@ -792,7 +954,7 @@ function openTiempoPage() {
 
     return `<tr>
       <td class="rank-col">${i + 1}</td>
-      <td class="name-col">${m.medico}</td>
+      <td class="name-col">${esc(m.medico)}</td>
       <td class="time-col" style="color:${tiempoColor}">${tiempoStr}d</td>
       <td class="num-col">${m.count}</td>
       <td class="bar-col">
@@ -917,10 +1079,7 @@ function handleExportClick() {
   '</div>';
 
   EQUIPO_GROUPS.forEach((g, idx) => {
-    const cnt = dataRows.filter(r => {
-      const eq = (r['Equipo']||'').trim().toUpperCase();
-      return g.equipos.some(e => e.toUpperCase() === eq);
-    }).length;
+    const cnt = dataRows.filter(r => modalidad(r) === g.label).length;
     if (cnt > 0) {
       html += '<div class="em-row">' +
         '<button class="em-part em-dl" onclick="exportExcel('+idx+', false);closeExportMenu()">' +
@@ -932,10 +1091,7 @@ function handleExportClick() {
   });
 
   // Otros
-  const otherCnt = dataRows.filter(r => {
-    const eq = (r['Equipo']||'').trim().toUpperCase();
-    return !EQUIPO_SET.has(eq);
-  }).length;
+  const otherCnt = dataRows.filter(r => modalidad(r) === 'OTROS').length;
   if (otherCnt > 0) {
     html += '<div class="em-row">' +
       '<button class="em-part em-dl" onclick="exportExcel(\'otros\', false);closeExportMenu()">' +
@@ -962,19 +1118,11 @@ document.addEventListener('click', e => {
 function getExportRows(groupFilter) {
   const dataRows = deduplicarPorTurno(modalFiltered);
   if (groupFilter === 'all') return dataRows;
-  if (groupFilter === 'otros') {
-    return dataRows.filter(r => {
-      const eq = (r['Equipo']||'').trim().toUpperCase();
-      return !EQUIPO_SET.has(eq);
-    });
-  }
+  if (groupFilter === 'otros') return dataRows.filter(r => modalidad(r) === 'OTROS');
   // groupFilter es un índice numérico
   const group = EQUIPO_GROUPS[groupFilter];
   if (!group) return dataRows;
-  return dataRows.filter(r => {
-    const eq = (r['Equipo']||'').trim().toUpperCase();
-    return group.equipos.some(e => e.toUpperCase() === eq);
-  });
+  return dataRows.filter(r => modalidad(r) === group.label);
 }
 
 function getExportLabel(groupFilter) {
@@ -1014,7 +1162,7 @@ async function exportExcel(groupFilter, share) {
     if (!dataRows.length) { spcdAlert('No hay datos en este grupo', { type:'alert', title:'Sin datos' }); return; }
 
     /* KPIs */
-    const hoy = new Date();
+    const hoy = fechaCorteActual;
     const conI = dataRows.filter(r => tieneInformeIF(r)).length;
     const sinI = dataRows.length - conI;
     const pendientes = isPend ? dataRows : dataRows.filter(r => !tieneInformeIF(r));
