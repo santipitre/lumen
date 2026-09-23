@@ -922,7 +922,7 @@
         <div class="num" id="kpi-coseguros">—</div>
         <div class="ec-body">
           <div class="ec-top"><span class="ec-label">Coseguros</span><span class="ec-man-badge">⚠ Manual</span></div>
-          <div class="ec-sub"><span class="kpi-sub" id="kpi-coseg-sub">errores de coseguro</span></div>
+          <div class="ec-sub"><span class="kpi-sub" id="kpi-coseg-sub">ID 1665: coseguro en $0</span></div>
         </div>
       </div>
       <div class="kpi-card ecard manual" onclick="openModal('sinreferencia')">
@@ -2510,15 +2510,24 @@ function esErrorInstDerivante(r) {
 }
 
 /* ══════════════════════════════════
-   ERROR COSEGURO  (2026-07-15)
-   Coseguro cargado en $0 sobre cuenta OSEP → error de carga.
+   ERROR COSEGURO  (2026-07-15 · alcance acotado 2026-09-14)
+   Línea de COSEGURO cargada en $0 → error de carga.
    Se evalúa a NIVEL LÍNEA: el coseguro es una línea aparte dentro del turno,
-   así que NO debe pasar por dedupByTurno (si no, se pierde). Antes exigía
-   ID Aseguradora = 1665 (FINAMED) — bug: OSEP es ID 745/869, nunca matcheaba.
+   así que NO debe pasar por dedupByTurno (si no, se pierde).
+
+   Historia del alcance, para no volver a girar en círculo:
+     · 2026-07-15 nace exigiendo ID Aseguradora = 1665 + cuenta OSEP. No matcheaba
+       nada, porque OSEP es ID 745/869 y nunca convive con 1665.
+     · 2026-07-17 se saca TODA condición de aseguradora → cualquier línea COSEGURO
+       con neto 0, de cualquier obra social.
+     · 2026-09-14 (Santiago): se vuelve a acotar a ID Aseguradora = 1665, SIN la
+       condición de OSEP que era la que rompía. Alcance = FINAMED solamente.
 ══════════════════════════════════ */
 function esErrorCoseguro(r) {
-  // 2026-07-17: se quita la condición de cuenta (antes exigía OSEP). Ahora:
-  // cualquier línea con Prestación = COSEGURO y Neto Unitario = 0 → error de carga.
+  // Solo ID Aseguradora 1665 (FINAMED). Mismo criterio de alcance que
+  // esErrorReferencia(); la condición de cuenta OSEP NO vuelve.
+  const idAseg = String(r['ID Aseguradora']||'').trim();
+  if (idAseg !== '1665') return false;
   const prest  = (r['Prestación']||r['Prestacion']||'').trim().toUpperCase();
   const neto   = parseFloat(r['Neto Unitario']||0);
   return prest === 'COSEGURO' && neto === 0;
@@ -2743,12 +2752,15 @@ function calcKPIs(data) {
   document.getElementById('kpi-derivantes').textContent = derivErr.length.toLocaleString();
   document.getElementById('kpi-deriv-sub').textContent  = `${rea.length ? ((derivErr.length/rea.length)*100).toFixed(1) : 0}% de REA`;
 
-  // Error coseguro: cuenta OSEP + Prestación COSEGURO + Neto $0. A NIVEL LÍNEA
-  // (no dedup): el coseguro es una línea aparte y el dedup por turno lo borraba.
+  // Error coseguro: ID Aseguradora 1665 + Prestación COSEGURO + Neto $0. A NIVEL
+  // LÍNEA (no dedup): el coseguro es una línea aparte y el dedup por turno lo borraba.
   const reaLineas = data.filter(r => r['Estado'] === 'REA');
   const cosegErr = reaLineas.filter(esErrorCoseguro);
   document.getElementById('kpi-coseguros').textContent = cosegErr.length.toLocaleString();
-  document.getElementById('kpi-coseg-sub').textContent = `${reaLineas.length ? ((cosegErr.length/reaLineas.length)*100).toFixed(1) : 0}% de líneas REA`;
+  // 2026-09-14: el % se mide sobre las líneas REA de ID 1665, no sobre todas las
+  // líneas REA — si no, el denominador incluye aseguradoras que la regla ni mira.
+  const lineas1665 = reaLineas.filter(r => String(r['ID Aseguradora']||'').trim() === '1665').length;
+  document.getElementById('kpi-coseg-sub').textContent = `${lineas1665 ? ((cosegErr.length/lineas1665)*100).toFixed(1) : 0}% de líneas ID 1665`;
 
   const sinRef = rea.filter(r => esErrorReferencia(r)).length;
   document.getElementById('kpi-referencia').textContent = sinRef.toLocaleString();
@@ -4112,7 +4124,7 @@ const MODAL_COLORS = {
 const MODAL_LABELS = {
   instderiv:     'Institución Derivante — FUESMEN cargado por operador de H.ITALIANO',
   derivantes:    'Sin Derivantes — Vacío o "A CONFIRMAR"',
-  coseguros:     'Coseguros — Error de Carga (Prestación COSEGURO · Neto $0 · por línea)',
+  coseguros:     'Coseguros — Error de Carga (ID 1665 · Prestación COSEGURO · Neto $0 · por línea)',
   cuentaint:     'Cuenta sin INTERNADOS — Turno INT en FINAMED (1665) con Cuenta OSEP/PAMI (debe ser OSEP/PAMI INTERNADOS)',
   aseguradoras:  'Turnos por Aseguradora',
   sinreferencia: 'Nº Referencia — Error (ID 1665: vacío o dígitos inválidos)',
