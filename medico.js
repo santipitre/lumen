@@ -159,6 +159,14 @@ function onDataLoaded(data) {
   // Solo estudios realizados (D4: unidad = estudio, no renglón)
   realizados = deduplicarPorTurno(data.filter(esEstudio));
 
+  // A12(a): Servicio no vacío y desconocido -- se cuenta y se avisa (un solo
+  // console.warn, no console.error, para no disparar el filtro de errores
+  // del test). modalidad() sigue siendo pura y no loguea por fila.
+  const desconocidos = serviciosDesconocidos(data);
+  if (Object.keys(desconocidos).length > 0) {
+    console.warn('Servicio desconocido → OTROS (sin fallback): ' + JSON.stringify(desconocidos));
+  }
+
   populateFilters(data);
   document.getElementById('filters-bar').style.display = 'flex';
 
@@ -577,31 +585,85 @@ function medicoValido(med) {
 }
 
 /* ═══════════════════════════════════
-   GRUPOS DE EQUIPOS
+   GRUPOS DE EQUIPOS (A10)
+   RAYOS X queda solo (ya no comparte grupo con Eco residente); ECOG-DOPP
+   H.ITALIANO RESIDENTE pasa al final de ECOGRAFÍA / DOPPLER. Por decisión
+   A12(b) del usuario se suman los equipos que hoy caían en OTROS: 4
+   ECOG-DOPP a ECOGRAFÍA / DOPPLER y CGAMMA - H.ITALIANO a CÁMARA GAMMA.
+   Ninguno de esos 5 es residente. Esta lista sirve de FALLBACK cuando
+   Servicio falta o viene vacío (A6/A11) -- ver modalidad() más abajo.
 ═══════════════════════════════════ */
 const EQUIPO_GROUPS = [
-  { label: 'RAYOS X / ECOGRAFÍA RESIDENTE',
-    equipos: ['RX-H.ITALIANO-GBA','RX-H.ITALIANO-MERATE','ECOG-DOPP H.ITALIANO RESIDENTE'] },
+  { label: 'RAYOS X',
+    equipos: ['RX-H.ITALIANO-GBA','RX-H.ITALIANO-MERATE'] },
   { label: 'ECOGRAFÍA / DOPPLER',
     equipos: ['ECOG-DOPP H.ITALIANO SHERRERA','ECOG-DOPP H.ITALIAN CHAVEZ MA','ECOG-DOPP H.ITALIANO CCUESTA',
               'ECOG-DOPP H.ITALIANO AAGUADO','ECOG-DOPP H.ITALIAN CHAVEZ ME','ECOG-DOPP H.ITALIANO MSZWALBER',
-              'ECOG-H.ITALIANO DIMARCO'] },
+              'ECOG-H.ITALIANO DIMARCO','ECOG-DOPP H.ITALIANO RESIDENTE',
+              'ECOG-DOPP H.ITALIANO RFARAH','ECOG-DOPP H.ITALIAN GUAJARDO','ECOG-DOPP H.ITALIANO KSITA',
+              'ECOG-DOPP H.ITALIANO LBASTIAS'] },
   { label: 'TOMOGRAFÍA',
     equipos: ['TCMC PHIL.-BRILLANCE 64 HITALI'] },
   { label: 'RESONANCIA MAGNÉTICA',
     equipos: ['RMN -H ITALIA-GE SIGNA HORIZON','RMN-H ITALIA-SIEMENS FLOW'] },
   { label: 'CÁMARA GAMMA',
-    equipos: ['CGAM- H.ITALIANO GENERALES','CGAM- H.ITALIANO CARDIOLOGICOS'] }
+    equipos: ['CGAM- H.ITALIANO GENERALES','CGAM- H.ITALIANO CARDIOLOGICOS','CGAMMA - H.ITALIANO'] }
 ];
 const EQUIPO_SET = new Set();
 EQUIPO_GROUPS.forEach(g => g.equipos.forEach(e => EQUIPO_SET.add(e.toUpperCase())));
 
-/* FR1.5: función pura -- reemplaza el matcheo por Equipo/EQUIPO_GROUPS que
-   antes estaba duplicado dentro de handleExportClick y getExportRows. */
+/* A10: equipos de eco de residentes. Se basa en el Equipo, no en Servicio,
+   para que la fase 4 pueda filtrar o subagrupar "Eco residentes". */
+const EQUIPOS_RESIDENTE = ['ECOG-DOPP H.ITALIANO RESIDENTE'];
+function esResidente(r) {
+  return EQUIPOS_RESIDENTE.includes(String((r && r['Equipo']) || '').trim().toUpperCase());
+}
+
+/* A6: gemela de normalizar() de baseline.py. NFD, quita marcas diacríticas,
+   trim(), colapsa espacios internos a uno, upper(). */
+function normalizarClave(s) {
+  return String(s == null ? '' : s)
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .trim().replace(/\s+/g, ' ').toUpperCase();
+}
+
+/* A6/A10: Servicio normalizado (sin tildes) -> label de A10. Cada valor
+   tiene que ser exactamente un g.label de EQUIPO_GROUPS. */
+const SERVICIO_A_MODALIDAD = {
+  'RAYOS X': 'RAYOS X',
+  'ECOGRAFIA': 'ECOGRAFÍA / DOPPLER',
+  'ECOGRAFIA DOPPLER': 'ECOGRAFÍA / DOPPLER',
+  'TOMOGRAFIA': 'TOMOGRAFÍA',
+  'RESONANCIA MAGNETICA': 'RESONANCIA MAGNÉTICA',
+  'CAMARA GAMMA': 'CÁMARA GAMMA'
+};
+
+/* FR1.5/A6/A10/A11: función pura -- reemplaza el matcheo por Equipo/
+   EQUIPO_GROUPS que antes estaba duplicado dentro de handleExportClick y
+   getExportRows. Lee Servicio primero (A6); si falta o viene vacío, cae al
+   fallback por Equipo/EQUIPO_GROUPS (A11), que devuelve los mismos 5 labels.
+   Un Servicio no vacío pero desconocido da OTROS y NO cae al fallback (A12a). */
 function modalidad(r) {
+  const serv = normalizarClave(r['Servicio']);
+  if (serv) return SERVICIO_A_MODALIDAD[serv] || 'OTROS';
+  // fallback A6/A11: sólo si Servicio falta o viene vacío
   const eq = (r['Equipo']||'').trim().toUpperCase();
   const grupo = EQUIPO_GROUPS.find(g => g.equipos.some(e => e.toUpperCase() === eq));
   return grupo ? grupo.label : 'OTROS';
+}
+
+/* A12(a): Servicio no vacío y fuera de los 6 conocidos -- se cuenta y se
+   muestra qué valor fue (sin fallback, ver modalidad() arriba). Pura y
+   global: no toca el DOM ni loguea por fila. */
+function serviciosDesconocidos(rows) {
+  const out = {};
+  (rows || []).forEach(r => {
+    const original = String((r && r['Servicio']) || '').trim();
+    if (!original) return;
+    if (SERVICIO_A_MODALIDAD[normalizarClave(original)]) return;
+    out[original] = (out[original] || 0) + 1;
+  });
+  return out;
 }
 
 /* ═══════════════════════════════════
