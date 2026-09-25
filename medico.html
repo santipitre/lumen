@@ -27,7 +27,7 @@
   <link rel="stylesheet" href="spcd-theme.css?v=d6e58273"/>
   <link rel="stylesheet" href="spcd-components.css?v=f7b2f276"/>
   <link rel="stylesheet" href="spcd-dialog.css?v=f6620a87"/>
-  <link rel="stylesheet" href="medico.css?v=55ba0ee8"/>
+  <link rel="stylesheet" href="medico.css?v=3a861b03"/>
 </head>
 <body>
 
@@ -123,9 +123,10 @@
     </div>
     <div class="kpi-card amber" onclick="openTiempoPage()">
       <div class="kpi-icon">⏱</div>
-      <div class="kpi-label">Tiempo Prom. Informe</div>
+      <div class="kpi-label">Demora mediana (días)</div>
       <div class="kpi-val" id="kpi-tiempo">—</div>
       <div class="kpi-sub" id="kpi-tiempo-sub">días desde realización</div>
+      <div class="nota-demora" id="kpi-tiempo-nota"></div>
       <div class="kpi-hint" id="kpi-inconsistentes-link" style="display:none"
            onclick="event.stopPropagation();openModal('inconsistentes')">⚠ ver inconsistentes →</div>
       <div class="kpi-hint">ver detalle →</div>
@@ -141,9 +142,19 @@
 
   <!-- TABS -->
   <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('tab-resumen',this)">Resumen</button>
+    <button class="tab-btn" id="tab-btn-semaforo" onclick="switchTab('tab-semaforo',this)">Semáforo</button>
+    <button class="tab-btn active" id="tab-btn-resumen" onclick="switchTab('tab-resumen',this)">Resumen</button>
     <button class="tab-btn"        onclick="switchTab('tab-pendientes',this)">Pendientes</button>
     <button class="tab-btn"        onclick="switchTab('tab-medicos',this)">Por Médico</button>
+  </div>
+
+  <!-- TAB: SEMÁFORO (FR5.1, fase 4) -->
+  <div class="tab-pane" id="tab-semaforo">
+    <div class="sla-aviso" id="sla-aviso" style="display:none"></div>
+    <div class="sem-grid fade-in" id="semaforo-grid">
+      <div class="empty-state"><div class="e-icon">🚦</div><div class="e-text">Cargá un Excel para ver</div></div>
+    </div>
+    <div class="nota-demora" id="semaforo-nota"></div>
   </div>
 
   <!-- TAB: RESUMEN -->
@@ -166,19 +177,44 @@
         </div>
       </div>
       <div class="chart-card">
-        <div class="chart-title">Tiempo Promedio por Médico (días)</div>
+        <div class="chart-title">Demora mediana por Médico (días)</div>
         <div class="rank-list" id="rank-tiempos">
           <div class="empty-state"><div class="e-icon">⏱</div><div class="e-text">Sin datos</div></div>
         </div>
+        <div class="nota-demora" id="rank-tiempos-nota"></div>
       </div>
     </div>
   </div>
 
   <!-- TAB: PENDIENTES -->
   <div class="tab-pane" id="tab-pendientes">
+    <div class="sla-aviso" id="sla-aviso-pend" style="display:none"></div>
     <div class="table-card fade-in">
       <div class="table-header">
         <div class="table-header-title">Estudios Sin Informe</div>
+        <div class="filter-group">
+          <span class="filter-label">Modalidad</span>
+          <select id="f-pend-modalidad" class="filter-select" onchange="renderTabPendientes(filtered)">
+            <option value="">Todas</option>
+            <option value="RAYOS X">RAYOS X</option>
+            <option value="ECOGRAFÍA / DOPPLER">ECOGRAFÍA / DOPPLER</option>
+            <option value="TOMOGRAFÍA">TOMOGRAFÍA</option>
+            <option value="RESONANCIA MAGNÉTICA">RESONANCIA MAGNÉTICA</option>
+            <option value="CÁMARA GAMMA">CÁMARA GAMMA</option>
+            <option value="OTROS">OTROS</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">Semáforo</span>
+          <select id="f-pend-semaforo" class="filter-select" onchange="renderTabPendientes(filtered)">
+            <option value="">Todos</option>
+            <option value="rojo">Rojo</option>
+            <option value="amarillo">Amarillo</option>
+            <option value="verde">Verde</option>
+            <option value="sin umbral">Sin umbral</option>
+            <option value="sin SLA">Sin SLA</option>
+          </select>
+        </div>
         <div class="table-count" id="count-pend">— registros</div>
       </div>
       <div class="table-wrap">
@@ -191,7 +227,7 @@
             <th>Médico Derivante</th>
             <th>Informante Sugerido</th>
             <th>Días Transcurridos</th>
-            <th>Urgencia</th>
+            <th>Semáforo</th>
           </tr></thead>
           <tbody id="tbody-pendientes">
             <tr><td colspan="8"><div class="empty-state"><div class="e-icon">✅</div><div class="e-text">Sin pendientes</div></div></td></tr>
@@ -203,6 +239,7 @@
 
   <!-- TAB: POR MÉDICO -->
   <div class="tab-pane" id="tab-medicos">
+    <div class="nota-demora" id="medicos-nota"></div>
     <div class="medicos-grid" id="medicos-grid">
       <div class="empty-state"><div class="e-icon">👨‍⚕️</div><div class="e-text">Cargá un Excel para ver</div></div>
     </div>
@@ -218,6 +255,7 @@
       <div>
         <div class="real-title">INFORMES REALIZADOS</div>
         <div class="real-subtitle" id="real-subtitle">Estudios con informe (I/F) por Médico Informante</div>
+        <div class="nota-demora" id="real-nota"></div>
       </div>
       <button class="btn-back-real" onclick="closeRealizadosPage()">← Volver</button>
     </div>
@@ -232,8 +270,12 @@
         <div class="real-sum-val" id="real-medicos">—</div>
       </div>
       <div class="real-sum-card">
-        <div class="real-sum-label">Tiempo Prom. General</div>
+        <div class="real-sum-label">Demora mediana general</div>
         <div class="real-sum-val amber" id="real-tiempo">—</div>
+      </div>
+      <div class="real-sum-card">
+        <div class="real-sum-label">P90 general</div>
+        <div class="real-sum-val" id="real-p90">—</div>
       </div>
     </div>
 
@@ -263,16 +305,21 @@
   <div class="real-page-inner">
     <div class="real-header">
       <div>
-        <div class="real-title" style="color:var(--amber)">TIEMPO PROM. INFORME</div>
-        <div class="real-subtitle" id="tiempo-subtitle">Tiempo promedio de informe por Médico Informante</div>
+        <div class="real-title" style="color:var(--amber)">DEMORA MEDIANA DE INFORME</div>
+        <div class="real-subtitle" id="tiempo-subtitle">Demora mediana de informe por Médico Informante</div>
+        <div class="nota-demora" id="tiempo-nota"></div>
       </div>
       <button class="btn-back-real" onclick="closeTiempoPage()">← Volver</button>
     </div>
 
     <div class="real-summary">
       <div class="real-sum-card">
-        <div class="real-sum-label">Tiempo Prom. General</div>
+        <div class="real-sum-label">Demora mediana general</div>
         <div class="real-sum-val amber" id="tiempo-avg">—</div>
+      </div>
+      <div class="real-sum-card">
+        <div class="real-sum-label">P90 general</div>
+        <div class="real-sum-val" id="tiempo-p90">—</div>
       </div>
       <div class="real-sum-card">
         <div class="real-sum-label">Médicos Activos</div>
@@ -295,7 +342,8 @@
           <thead><tr>
             <th>#</th>
             <th>Médico Informante</th>
-            <th style="text-align:center">Tiempo Prom. (días)</th>
+            <th style="text-align:center">Demora mediana (días)</th>
+            <th style="text-align:center">P90 (días)</th>
             <th style="text-align:center">Informes</th>
             <th>Proporción</th>
           </tr></thead>
@@ -346,8 +394,8 @@
 <script src="spcd-utils.js?v=7273575b"></script>
 <script src="spcd-dialog.js?v=ee2826f0"></script>
 
-<script src="medico.js?v=80ca2f20"></script>
-<script src="medico-metricas.js?v=8ef37110"></script>
+<script src="medico.js?v=ac830767"></script>
+<script src="medico-metricas.js?v=ad1bae0e"></script>
 <!-- Toast de notificaciones (para showToast de spcd-utils.js) -->
 <div class="toast" id="toast"></div>
 

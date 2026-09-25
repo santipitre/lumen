@@ -235,6 +235,43 @@
     .urgencia-media  { color: var(--amber); font-weight: 600; }
     .urgencia-normal { color: var(--green); }
     .urgencia-na     { color: var(--muted); }
+    .urgencia-sinsla { color: var(--muted); font-style: italic; }
+
+    /* ── SEMÁFORO (FR5.1, fase 4) ── */
+    .sla-aviso {
+      background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.35);
+      border-left: 4px solid var(--amber); border-radius: 6px;
+      padding: 10px 14px; margin-bottom: 14px; font-size: 12px; color: var(--muted);
+    }
+    .sla-aviso-titulo {
+      font-family: 'Rajdhani', sans-serif; font-size: 14px; letter-spacing: 1px;
+      color: var(--amber); margin-bottom: 4px;
+    }
+    .sem-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+    .sem-card {
+      background: var(--glass); border: 1px solid var(--border); border-radius: 8px; padding: 14px;
+    }
+    .sem-card-titulo {
+      font-family: 'Rajdhani', sans-serif; font-size: 15px; letter-spacing: 1px; margin-bottom: 10px;
+    }
+    .sem-backlog { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+    .sem-bk { font-size: 20px; font-weight: 700; }
+    .sem-bk-verde    { color: var(--green); }
+    .sem-bk-amarillo { color: var(--amber); }
+    .sem-bk-rojo     { color: var(--red); }
+    .sem-bk-leyenda  { font-size: 11px; color: var(--muted); }
+    .sem-ventanas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .sem-ventana-titulo { font-size: 10px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
+    .sem-pct  { font-size: 18px; font-weight: 700; }
+    .sem-meta { font-size: 11px; color: var(--muted); }
+    .nota-demora { font-size: 11px; color: var(--muted); margin-top: 8px; font-style: italic; }
+    /* B9 (fase 4): aviso en lugar de rankings por médico sin permiso 'edit' */
+    .aviso-ranking {
+      padding: 14px; font-size: 12px; color: var(--muted); text-align: center;
+      border: 1px dashed var(--border); border-radius: 6px;
+    }
+    /* B6 (fase 4): barras sin color por médico hasta la fase 5 */
+    .bar-neutra { background: rgba(148,163,184,.45) !important; }
 
     .badge {
       display: inline-block; padding: 2px 8px; border-radius: 3px;

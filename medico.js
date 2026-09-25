@@ -20,6 +20,28 @@
   }
 })();
 
+/* FR4.5/B9 (fase 4): rankings y agregados por médico sólo para admin/jefatura,
+   o sea quien tiene el módulo médico en 'edit' o 'admin' (el mismo criterio que
+   puedeEditar() de caja-datos.js y los guards de app.html). Cualquier otro valor
+   ('view', vacío o desconocido) no ve. Guard client-side: disuasivo, no una
+   garantía (la garantía real llega con RLS en la fase 6). */
+const AVISO_RANKING = 'Ranking de médicos visible sólo para admin/jefatura';
+function puedeVerRankingMedicos() {
+  return window.__spcd_perm === 'edit' || window.__spcd_perm === 'admin';
+}
+const avisoRankingHTML = () => `<div class="aviso-ranking">${esc(AVISO_RANKING)}</div>`;
+const filaAvisoRanking = columnas => `<tr><td colspan="${columnas}">${avisoRankingHTML()}</td></tr>`;
+
+/* Sin permiso: el filtro global Médico no aparece y los exports por médico
+   quedan deshabilitados. */
+function aplicarPermisosRanking() {
+  if (puedeVerRankingMedicos()) return;
+  const fm = document.getElementById('f-medico');
+  if (fm) fm.closest('.filter-group').style.display = 'none';
+  document.querySelectorAll('button[onclick^="exportRealizadosExcel"], button[onclick^="exportTiempoExcel"]')
+    .forEach(b => { b.disabled = true; b.title = AVISO_RANKING; });
+}
+
 /* ═══════════════════════════════════
    STORAGE (IndexedDB)
 ═══════════════════════════════════ */
@@ -86,6 +108,8 @@ function mostrarAvisoColumnas(faltantes, copiadoEn) {
    INIT
 ═══════════════════════════════════ */
 window.addEventListener('DOMContentLoaded', () => {
+  aplicarPortada();
+  aplicarPermisosRanking();
   const sede = localStorage.getItem('spcd_sede') || '';
   document.getElementById('bc-sede').textContent  = sede || 'Sede';
   document.getElementById('top-sede').textContent = sede || '—';
@@ -149,6 +173,8 @@ window.addEventListener('DOMContentLoaded', () => {
    ON DATA LOADED
 ═══════════════════════════════════ */
 function onDataLoaded(data) {
+  // B3a: las fechas del Excel real del HIS (.xls) llegan exactas; la página no
+  // las corrige (medido en Estadistica497.xls: 0 ms de sesgo en 49.336 fechas).
   const zone = document.getElementById('upload-zone');
   zone.classList.add('has-data');
   const uploadDate = localStorage.getItem('spcd_upload_date') || '';
@@ -187,7 +213,9 @@ function populateFilters(data) {
     document.getElementById('f-hasta').value = fechas[fechas.length-1];
   }
 
-  const medicos = [...new Set(rea.map(r => r['Médico Informante']).filter(m => medicoValido(m)))].sort();
+  // B9: sin permiso, el filtro Médico no lista nombres (y está oculto).
+  const medicos = puedeVerRankingMedicos()
+    ? [...new Set(rea.map(r => r['Médico Informante']).filter(m => medicoValido(m)))].sort() : [];
   const selM = document.getElementById('f-medico');
   selM.innerHTML = '<option value="">Todos</option>';
   medicos.forEach(m => { const o=document.createElement('option'); o.value=m; o.textContent=m; selM.appendChild(o); });
@@ -275,6 +303,7 @@ function render(data) {
   renderRankTiempos(data);
   renderTabPendientes(data);
   renderTabMedicos(data);
+  renderTabSemaforo(data);
 }
 
 /* ═══════════════════════════════════
@@ -292,19 +321,9 @@ function calcKPIs(data) {
   document.getElementById('kpi-real-sub').textContent =
     `${data.length ? ((conInforme.length/data.length)*100).toFixed(1) : 0}% del total`;
 
-  // Tiempo promedio: Fecha Informe - Turno Fecha (en días)
-  const tiempos = conInforme.map(r => {
-    const fEstudio = parseDate(r['Turno Fecha']);
-    const fInforme = parseDate(r['Fecha Informe']);
-    if (!fEstudio || !fInforme) return null;
-    const dias = (fInforme - fEstudio) / 86400000;
-    return (dias >= 0 && dias < 60) ? dias : null;
-  }).filter(t => t !== null);
-
-  const avgDias = tiempos.length
-    ? (tiempos.reduce((a,b)=>a+b,0)/tiempos.length).toFixed(1)
-    : '—';
-  document.getElementById('kpi-tiempo').textContent = avgDias;
+  // B5 (fase 4): demora MEDIANA en días, sin tope, desde agregados() del motor.
+  const demora = resumenDemora(conInforme);
+  document.getElementById('kpi-tiempo').textContent = demora.mediana;
 
   // D10/FR1.7: el centinela -1 (Fecha Informe -> Date año<1900) cuenta en
   // "con informe" pero queda afuera del cálculo de demora. Antes se perdía
@@ -312,7 +331,7 @@ function calcKPIs(data) {
   // muestra explícito junto al KPI de demora (D3 de CONTEXT-2.md).
   const informadosSinFecha = conInforme.filter(r => esCentinela(parseDate(r['Fecha Informe']))).length;
   document.getElementById('kpi-tiempo-sub').textContent =
-    `sobre ${tiempos.length.toLocaleString()} informes con fecha registrada` +
+    `sobre ${demora.n.toLocaleString()} informes con fecha registrada` +
     (informadosSinFecha > 0 ? ` · ${informadosSinFecha.toLocaleString()} informados sin fecha` : '');
 
   const linkInconsistentes = document.getElementById('kpi-inconsistentes-link');
@@ -323,8 +342,9 @@ function calcKPIs(data) {
 
   const medActivos = new Set(conInforme.map(r => r['Médico Informante']).filter(m => medicoValido(m)));
   document.getElementById('kpi-medicos').textContent = medActivos.size;
-  document.getElementById('kpi-med-sub').textContent =
-    `${[...medActivos].slice(0,2).join(', ') || 'en el período'}`;
+  // B9: sin permiso, sólo la cantidad (sin nombres).
+  document.getElementById('kpi-med-sub').textContent = puedeVerRankingMedicos()
+    ? `${[...medActivos].slice(0,2).join(', ') || 'en el período'}` : 'en el período';
 }
 
 /* ═══════════════════════════════════
@@ -337,7 +357,7 @@ function renderAlertPendientes(data) {
     alert.style.display = 'flex';
     document.getElementById('alert-val').textContent = sinInforme.length;
     document.getElementById('alert-sub').textContent =
-      `${sinInforme.length} estudio${sinInforme.length>1?'s':''} realizado${sinInforme.length>1?'s':''} sin informe registrado en el sistema`;
+      `${sinInforme.length} estudio${sinInforme.length === 1 ? '' : 's'} realizado${sinInforme.length === 1 ? '' : 's'} sin informe registrado en el sistema`;
   } else {
     alert.style.display = 'none';
   }
@@ -405,6 +425,7 @@ function renderChartDonut(data) {
    RANK MÉDICOS
 ═══════════════════════════════════ */
 function renderRankMedicos(data) {
+  if (!puedeVerRankingMedicos()) { document.getElementById('rank-medicos').innerHTML = avisoRankingHTML(); return; }
   const conInforme = data.filter(r => tieneInformeIF(r) && medicoValido(r['Médico Informante']));
   const byMed = groupBy(conInforme, r => r['Médico Informante']);
   const sorted = Object.entries(byMed).sort((a,b)=>b[1].length-a[1].length).slice(0,8);
@@ -420,68 +441,116 @@ function renderRankMedicos(data) {
     </div>`).join('');
 }
 
-function renderRankTiempos(data) {
-  const conInforme = data.filter(r => tieneInformeIF(r) && medicoValido(r['Médico Informante']));
-  const byMed = groupBy(conInforme, r => r['Médico Informante']);
-  const tiemposMap = {};
-  Object.entries(byMed).forEach(([med, rows]) => {
-    const ts = rows.map(r => {
-      const fe = parseDate(r['Turno Fecha']);
-      const fi = parseDate(r['Fecha Informe']);
-      if (!fe || !fi) return null;
-      const d = (fi - fe) / 86400000;
-      return (d >= 0 && d < 60) ? d : null;
-    }).filter(t => t !== null);
-    if (ts.length) tiemposMap[med] = ts.reduce((a,b)=>a+b,0)/ts.length;
-  });
+/* ═══════════════════════════════════
+   DEMORA (B3/B5, fase 4): mediana sin tope desde el motor
+═══════════════════════════════════ */
+const fmtDias = horas => horas === null ? '—' : (horas / HORAS_POR_DIA).toFixed(1);
 
-  const sorted = Object.entries(tiemposMap).sort((a,b)=>a[1]-b[1]).slice(0,8);
-  const maxVal = sorted[sorted.length-1]?.[1] || 1;
+function resumenDemora(filas) {
+  const a = agregados(filas);
+  return { n: a.n, mediana: fmtDias(a.medianaHoras), p90: fmtDias(a.p90Horas), bandas: a.bandas };
+}
+
+/* agregados() por Médico Informante válido (sin ADMINVM/DALONSO ni vacío). */
+function demoraPorMedico(filas) {
+  const g = agrupar(filas.filter(r => medicoValido(r['Médico Informante'])), 'medicoInformante');
+  delete g['(vacío)'];
+  return g;
+}
+
+const cmpTexto = (x, y) => (x < y ? -1 : x > y ? 1 : 0);
+// B8 con umbrales provisorios: como hoy, los más rápidos primero (mediana ascendente).
+const ordenPorMediana = ([ma, a], [mb, b]) => (a.medianaHoras - b.medianaHoras) || cmpTexto(ma, mb);
+// B8/FR4.3 con umbrales aprobados: % en SLA ascendente (sin % al final), los peores primero.
+const ordenPorSla = ([ma, a], [mb, b]) => {
+  if ((a.pctEnSla === null) !== (b.pctEnSla === null)) return a.pctEnSla === null ? 1 : -1;
+  return ((a.pctEnSla || 0) - (b.pctEnSla || 0)) || (b.medianaHoras - a.medianaHoras) || cmpTexto(ma, mb);
+};
+
+function renderRankTiempos(data) {
+  if (!puedeVerRankingMedicos()) { document.getElementById('rank-tiempos').innerHTML = avisoRankingHTML(); return; }
+  const porMed = demoraPorMedico(data.filter(r => tieneInformeIF(r)));
+  const ordenRank = SLA_APROBADO ? ordenPorSla : ordenPorMediana;
+  const sorted = Object.entries(porMed).filter(([, a]) => a.n).sort(ordenRank).slice(0, 8);
+  const maxVal = sorted.reduce((m, [, a]) => Math.max(m, a.medianaHoras), 0) || 1;
   const container = document.getElementById('rank-tiempos');
   if (!sorted.length) { container.innerHTML = emptyState('⏱','Sin datos'); return; }
-  container.innerHTML = sorted.map(([med, avg], i) => {
-    const color = avg < 1 ? 'var(--green)' : avg < 3 ? 'var(--amber)' : 'var(--red)';
-    return `<div class="rank-item">
+  // B6: sin color por médico hasta la fase 5 (barra y texto neutros).
+  container.innerHTML = sorted.map(([med, a], i) => `<div class="rank-item">
       <div class="rank-num">${i+1}</div>
       <div class="rank-label"><span title="${escAttr(med)}">${esc(med)}</span></div>
-      <div class="rank-bar-wrap"><div class="rank-bar" style="width:${(avg/maxVal*100).toFixed(0)}%;background:${color}60"></div></div>
-      <div class="rank-val" style="color:${color}">${avg.toFixed(1)}d</div>
-    </div>`;
-  }).join('');
+      <div class="rank-bar-wrap"><div class="rank-bar bar-neutra" style="width:${(a.medianaHoras/maxVal*100).toFixed(0)}%"></div></div>
+      <div class="rank-val" style="color:var(--text)">${fmtDias(a.medianaHoras)}d</div>
+    </div>`).join('');
 }
 
 /* ═══════════════════════════════════
    TAB PENDIENTES
 ═══════════════════════════════════ */
+/* ═══════════════════════════════════
+   PENDIENTES (FR5.2, fase 4): bandas de semaforo(), orden por días de demora
+═══════════════════════════════════ */
+const RANGO_BANDA = { rojo: 0, amarillo: 1, verde: 2, 'sin umbral': 3, 'sin SLA': 4, 'sin fecha': 5 };
+const CLASE_BANDA = { rojo: 'urgencia-alta', amarillo: 'urgencia-media', verde: 'urgencia-normal', 'sin umbral': 'urgencia-na', 'sin SLA': 'urgencia-sinsla', 'sin fecha': 'urgencia-na' };
+const ETIQUETA_BANDA = { rojo: '● Rojo', amarillo: '● Amarillo', verde: '● Verde', 'sin umbral': 'Sin umbral', 'sin SLA': 'Sin SLA', 'sin fecha': '—' };
+
+/* Banda de un pendiente por su edad contra fechaCorte (sólo el motor decide). */
+function bandaPendiente(r, fechaCorte) {
+  const edad = edadHoras(r, fechaCorte);
+  if (edad === null || edad < 0) return 'sin fecha';
+  const b = semaforo(modalidad(r), r['Tipo Turno'], edad, { inicio: parseDate(r['Turno Fecha']), fin: fechaCorte });
+  return b === null ? 'sin SLA' : b;
+}
+
+/* Más demorados primero: edad descendente sin importar la banda (un 'sin umbral'
+   de 140 días va antes que un rojo de 10), sin edad al final, y turno. */
+function ordenarPendientes(filas, fechaCorte) {
+  const conBanda = filas.map(r => ({ r, banda: bandaPendiente(r, fechaCorte), edad: edadHoras(r, fechaCorte) }));
+  conBanda.sort((a, b) => {
+    if ((a.edad === null) !== (b.edad === null)) return a.edad === null ? 1 : -1;
+    if (a.edad !== b.edad) return b.edad - a.edad;
+    return cmpTexto(String(a.r['Turno N°']), String(b.r['Turno N°']));
+  });
+  return conBanda;
+}
+
+/* Peor banda de un conjunto (tono del KPI del Excel de pendientes). */
+function peorBanda(filas, fechaCorte) {
+  return filas.map(r => bandaPendiente(r, fechaCorte))
+    .reduce((peor, b) => (peor === null || RANGO_BANDA[b] < RANGO_BANDA[peor]) ? b : peor, null);
+}
+
+const edadEnDias = (r, fechaCorte) => {
+  const edad = edadHoras(r, fechaCorte);
+  return edad === null ? null : edad / HORAS_POR_DIA;
+};
+
 function renderTabPendientes(data) {
-  const sinInforme = data
-    .filter(r => !tieneInformeIF(r))
-    .sort((a,b) => {
-      const da = parseDate(a['Turno Fecha']);
-      const db = parseDate(b['Turno Fecha']);
-      return (da||0) - (db||0);
-    });
-
-  document.getElementById('count-pend').textContent =
-    `${sinInforme.length.toLocaleString()} registros`;
-
+  const todos = data.filter(r => !tieneInformeIF(r));
+  const fMod = document.getElementById('f-pend-modalidad').value;
+  const fSem = document.getElementById('f-pend-semaforo').value;
   const hoy = fechaCorteActual;
+  const ordenados = hoy ? ordenarPendientes(todos, hoy) : todos.map(r => ({ r, banda: 'sin fecha', edad: null }));
+  const visibles = ordenados.filter(({ r, banda }) => {
+    if (fMod && modalidad(r) !== fMod) return false;
+    if (fSem && banda !== fSem) return false;
+    return true;
+  });
+
+  document.getElementById('count-pend').textContent = (fMod || fSem)
+    ? `${visibles.length.toLocaleString()} de ${todos.length.toLocaleString()} registros`
+    : `${todos.length.toLocaleString()} registros`;
+
   const tbody = document.getElementById('tbody-pendientes');
-  if (!sinInforme.length) {
-    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="e-icon">✅</div><div class="e-text">¡Sin informes pendientes!</div></div></td></tr>`;
+  if (!visibles.length) {
+    const msg = todos.length ? 'Ningún pendiente con estos filtros' : '¡Sin informes pendientes!';
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="e-icon">✅</div><div class="e-text">${msg}</div></div></td></tr>`;
     return;
   }
 
-  tbody.innerHTML = sinInforme.slice(0,300).map(r => {
+  tbody.innerHTML = visibles.slice(0,300).map(({ r, banda, edad }) => {
     const fEstudio = parseDate(r['Turno Fecha']);
-    const diasStr  = fEstudio ? ((hoy - fEstudio)/86400000).toFixed(0) : '—';
-    const dias     = fEstudio ? Math.floor((hoy - fEstudio)/86400000)  : null;
-    let urgCls = 'urgencia-na', urgLabel = '—';
-    if (dias !== null) {
-      if (dias > 7)      { urgCls = 'urgencia-alta';   urgLabel = '⚠ Crítico';  }
-      else if (dias > 3) { urgCls = 'urgencia-media';  urgLabel = '● Medio';    }
-      else               { urgCls = 'urgencia-normal'; urgLabel = '● Normal';   }
-    }
+    const diasStr  = edad === null ? '—' : (edad / HORAS_POR_DIA).toFixed(0);
     return `<tr>
       <td>${fEstudio ? fEstudio.toLocaleDateString('es-AR') : '—'}</td>
       <td style="color:var(--muted)">${esc(r['Turno N°']||'—')}</td>
@@ -490,7 +559,7 @@ function renderTabPendientes(data) {
       <td>${esc(r['Médico']||'—')}</td>
       <td>${r['Informante Sugerido'] ? esc(r['Informante Sugerido']) : '<span style="color:var(--muted)">No asignado</span>'}</td>
       <td style="text-align:center;font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700">${diasStr}</td>
-      <td class="${urgCls}">${urgLabel}</td>
+      <td class="${CLASE_BANDA[banda]}">${ETIQUETA_BANDA[banda]}</td>
     </tr>`;
   }).join('');
 }
@@ -499,6 +568,7 @@ function renderTabPendientes(data) {
    TAB MÉDICOS
 ═══════════════════════════════════ */
 function renderTabMedicos(data) {
+  if (!puedeVerRankingMedicos()) { document.getElementById('medicos-grid').innerHTML = avisoRankingHTML(); return; }
   const conInforme = data.filter(r => tieneInformeIF(r) && medicoValido(r['Médico Informante']));
   const byMed = groupBy(conInforme, r => r['Médico Informante']);
   const sorted = Object.entries(byMed).sort((a,b)=>b[1].length-a[1].length);
@@ -510,15 +580,14 @@ function renderTabMedicos(data) {
     return;
   }
 
+  const porMed = demoraPorMedico(conInforme);
   grid.innerHTML = sorted.map(([med, rows]) => {
-    const ts = rows.map(r => {
-      const fe = parseDate(r['Turno Fecha']);
-      const fi = parseDate(r['Fecha Informe']);
-      if (!fe || !fi) return null;
-      const d = (fi-fe)/86400000;
-      return (d>=0 && d<60) ? d : null;
-    }).filter(t=>t!==null);
-    const avgTiempo = ts.length ? (ts.reduce((a,b)=>a+b,0)/ts.length).toFixed(1) : '—';
+    // B5: demora mediana sin tope del médico (agregados del motor).
+    // Contrato: agrupar(..., 'medicoInformante') usa como clave
+    // String(valor).trim() (textoOVacio en medico-metricas.js); si esa
+    // normalización cambia, este lookup tiene que cambiar igual.
+    const a = porMed[String(med).trim()];
+    const mediana = a ? fmtDias(a.medianaHoras) : '—';
     const pct = ((rows.length/maxInf)*100).toFixed(0);
 
     return `<div class="medico-card">
@@ -530,8 +599,8 @@ function renderTabMedicos(data) {
           <span class="medico-stat-val">${rows.length}</span>
         </div>
         <div class="medico-stat">
-          <span>Tiempo promedio</span>
-          <span class="medico-stat-val">${avgTiempo} días</span>
+          <span>Demora mediana</span>
+          <span class="medico-stat-val">${mediana === '—' ? '—' : mediana + ' días'}</span>
         </div>
         <div class="medico-stat">
           <span>Participación</span>
@@ -553,6 +622,78 @@ function switchTab(id, btn) {
   document.querySelectorAll('.tab-btn').forEach(b  => b.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   btn.classList.add('active');
+}
+
+/* ═══════════════════════════════════
+   VISTA SEMÁFORO (FR5.1, fase 4)
+═══════════════════════════════════ */
+// Ventanas de FR5.1 (% en SLA de los últimos N días), no umbrales de semáforo.
+const VENTANAS_SLA_DIAS = [7, 30];
+// B3c: fecha desde la que la demora se muestra sin tope de días.
+const FECHA_DEMORA_SIN_TOPE = '25/09/2026';
+const AVISO_UMBRALES = 'Umbrales provisorios — en revisión';
+
+function pintarNotasDemora() {
+  document.querySelectorAll('.nota-demora').forEach(el => {
+    el.textContent = 'Desde ' + FECHA_DEMORA_SIN_TOPE + ': demora sin tope de días';
+  });
+}
+
+/* Líneas del aviso B1, generadas desde SLA_DEFAULT: la vista no tiene números propios. */
+function textoUmbrales() {
+  const lineas = Object.keys(SLA_DEFAULT).map(mod => {
+    const u = SLA_DEFAULT[mod].AMB;
+    const verde = u.verde === 'mismoDia' ? 'verde mismo día' : `verde ≤ ${u.verde} h`;
+    return `${mod}: ${verde} · amarillo ≤ ${u.amarillo} h · rojo > ${u.amarillo} h`;
+  });
+  return lineas.concat('INT/URG: sin umbral');
+}
+
+/* B1: SLA_APROBADO (medico-metricas.js) es la única marca. Provisorio: abre en
+   Resumen y muestra el aviso con los valores; aprobado: abre en Semáforo, sin aviso. */
+function aplicarPortada() {
+  // El aviso se muestra en Semáforo y en Pendientes (pedido del usuario, fase 4).
+  const avisos = ['sla-aviso', 'sla-aviso-pend'].map(id => document.getElementById(id)).filter(Boolean);
+  if (SLA_APROBADO) {
+    switchTab('tab-semaforo', document.getElementById('tab-btn-semaforo'));
+    avisos.forEach(a => { a.style.display = 'none'; });
+  } else {
+    const html = `<div class="sla-aviso-titulo">${esc(AVISO_UMBRALES)}</div>`
+      + textoUmbrales().map(l => `<div>${esc(l)}</div>`).join('');
+    avisos.forEach(a => { a.innerHTML = html; a.style.display = ''; });
+  }
+  pintarNotasDemora();
+}
+
+const fmtPct = v => v === null ? '—' : v.toFixed(1) + '%';
+
+function renderTabSemaforo(data) {
+  const grid = document.getElementById('semaforo-grid');
+  if (!fechaCorteActual) { grid.innerHTML = emptyState('🚦', 'Sin datos'); return; }
+  const bk = backlog(data, fechaCorteActual);
+  const ventanas = VENTANAS_SLA_DIAS.map(v => ({ v, r: pctEnSlaVentana(data, fechaCorteActual, v) }));
+  grid.innerHTML = Object.keys(bk.porModalidad).map(label => {
+    const b = bk.porModalidad[label];
+    const bloques = ventanas.map(({ v, r }) => {
+      const m = r.porModalidad[label];
+      return `<div class="sem-ventana">
+        <div class="sem-ventana-titulo">Últimos ${v} días</div>
+        <div class="sem-pct sem-pct-${v}">${fmtPct(m.pctEnSla)}</div>
+        <div class="sem-meta sem-sinsla-${v}">${m.nSinSla} sin SLA</div>
+        <div class="sem-meta sem-enplazo-${v}">${m.nPendientesEnPlazo} pendientes en plazo</div>
+      </div>`;
+    }).join('');
+    return `<div class="sem-card" data-modalidad="${escAttr(label)}">
+      <div class="sem-card-titulo">${esc(label)}</div>
+      <div class="sem-backlog">
+        <span class="sem-bk sem-bk-verde">${b.verde}</span>
+        <span class="sem-bk sem-bk-amarillo">${b.amarillo}</span>
+        <span class="sem-bk sem-bk-rojo">${b.rojo}</span>
+        <span class="sem-bk-leyenda">pendientes · <span class="sem-bk-sinsla">${b.nSinSla}</span> sin SLA</span>
+      </div>
+      <div class="sem-ventanas">${bloques}</div>
+    </div>`;
+  }).join('');
 }
 
 /* ═══════════════════════════════════
@@ -702,7 +843,12 @@ function openModal(tipo) {
   if (!filtered.length) return;
   modalTipo = tipo;
   switch(tipo) {
-    case 'pendientes':     modalRows = filtered.filter(r => !tieneInformeIF(r)); break;
+    case 'pendientes': {
+      // Mismo orden que la pestaña Pendientes: días de demora descendente.
+      const sinInf = filtered.filter(r => !tieneInformeIF(r));
+      modalRows = fechaCorteActual ? ordenarPendientes(sinInf, fechaCorteActual).map(x => x.r) : sinInf;
+      break;
+    }
     case 'realizados':
     case 'tiempo':
     case 'medicos':        modalRows = filtered.filter(r => tieneInformeIF(r)); break;
@@ -746,7 +892,8 @@ function filterModal(query) {
       (r['Paciente']||'').toLowerCase().includes(q) ||
       String(r['Documento']||'').toLowerCase().includes(q) ||
       (r['Prestación']||'').toLowerCase().includes(q) ||
-      (r['Médico Informante']||'').toLowerCase().includes(q)
+      // B9: sin permiso no se busca por médico (el conteo sería un agregado por médico).
+      (puedeVerRankingMedicos() && (r['Médico Informante']||'').toLowerCase().includes(q))
     );
   }
   renderModalTable(modalFiltered);
@@ -768,7 +915,9 @@ function renderModalTable(rows) {
     }
     const tieneInf = tieneInformeIF(r);
     const infVal = (r['Informe']||'').trim();
-    const dias = !tieneInf && fecha ? Math.floor((fechaCorteActual - fecha)/(1000*60*60*24)) : '—';
+    const edadD = !tieneInf ? edadEnDias(r, fechaCorteActual) : null;
+    const dias = edadD === null ? '—' : Math.floor(edadD);
+    const claseDias = edadD === null ? '' : CLASE_BANDA[bandaPendiente(r, fechaCorteActual)];
     return '<tr>' +
       '<td>'+fechaStr+'</td>' +
       '<td style="color:var(--muted)">'+esc(r['Turno N°']||'—')+'</td>' +
@@ -776,7 +925,7 @@ function renderModalTable(rows) {
       '<td style="color:var(--muted)">'+esc(r['Documento']||'—')+'</td>' +
       '<td>'+esc(r['Prestación']||'—')+'</td>' +
       '<td style="color:'+(tieneInf?'var(--green)':'var(--red)')+'">'+(tieneInf?'I/F':esc(infVal||'Sin I/F'))+'</td>' +
-      '<td style="color:'+(typeof dias==='number'&&dias>7?'var(--red)':typeof dias==='number'&&dias>3?'var(--amber)':'var(--muted)')+'">'+dias+'</td>' +
+      '<td'+(claseDias ? ' class="'+claseDias+'"' : ' style="color:var(--muted)"')+'>'+dias+'</td>' +
     '</tr>';
   }).join('');
 }
@@ -802,7 +951,7 @@ function openRealizadosPage() {
   const conInforme = filtered.filter(r => tieneInformeIF(r));
   realizadosData = conInforme;
 
-  // Agrupar por médico informante
+  // Agrupar por médico informante (conteo de informes)
   const byMed = {};
   conInforme.forEach(r => {
     const med = (r['Médico Informante']||'').trim();
@@ -810,41 +959,24 @@ function openRealizadosPage() {
     if (!byMed[med]) byMed[med] = [];
     byMed[med].push(r);
   });
-
-  // Calcular tiempos promedio por médico
-  const medData = Object.entries(byMed).map(([med, rows]) => {
-    const tiempos = rows.map(r => {
-      const fe = parseDate(r['Turno Fecha']);
-      const fi = parseDate(r['Fecha Informe']);
-      if (!fe || !fi) return null;
-      const d = (fi - fe) / 86400000;
-      return (d >= 0 && d < 120) ? d : null;
-    }).filter(t => t !== null);
-
-    const avgDias = tiempos.length ? tiempos.reduce((a,b) => a+b, 0) / tiempos.length : null;
-    return { medico: med, count: rows.length, avgDias, tiemposCount: tiempos.length };
-  }).sort((a,b) => b.count - a.count);
+  const medData = Object.entries(byMed).map(([med, rows]) => ({ medico: med, count: rows.length }))
+    .sort((a,b) => b.count - a.count);
 
   const maxCount = medData[0]?.count || 1;
 
-  // Tiempo promedio general
-  const allTiempos = conInforme.map(r => {
-    const fe = parseDate(r['Turno Fecha']);
-    const fi = parseDate(r['Fecha Informe']);
-    if (!fe || !fi) return null;
-    const d = (fi - fe) / 86400000;
-    return (d >= 0 && d < 120) ? d : null;
-  }).filter(t => t !== null);
-  const avgGeneral = allTiempos.length ? (allTiempos.reduce((a,b) => a+b, 0) / allTiempos.length).toFixed(1) : '—';
+  // B5: demora mediana y P90 generales, sin tope (agregados del motor)
+  const demora = resumenDemora(conInforme);
+  const conDias = v => v === '—' ? '—' : v + ' días';
 
   // Summary cards
   document.getElementById('real-total').textContent = conInforme.length.toLocaleString();
   document.getElementById('real-medicos').textContent = medData.length;
-  document.getElementById('real-tiempo').textContent = avgGeneral !== '—' ? avgGeneral + ' días' : '—';
+  document.getElementById('real-tiempo').textContent = conDias(demora.mediana);
+  document.getElementById('real-p90').textContent = conDias(demora.p90);
 
-  // Tabla
+  // Tabla (B9: sin permiso, el aviso en lugar del detalle por médico)
   const tbody = document.getElementById('real-tbody');
-  tbody.innerHTML = medData.map((m, i) => {
+  tbody.innerHTML = !puedeVerRankingMedicos() ? filaAvisoRanking(4) : medData.map((m, i) => {
     const pct = ((m.count / maxCount) * 100).toFixed(0);
 
     return `<tr>
@@ -870,6 +1002,7 @@ function closeRealizadosPage() {
 }
 
 async function exportRealizadosExcel(share) {
+  if (!puedeVerRankingMedicos()) { showToast(AVISO_RANKING); return; }   // B9
   if (!realizadosData.length) return;
   try {
     await SpcdExcel.ready();
@@ -883,17 +1016,8 @@ async function exportRealizadosExcel(share) {
       byMed[med].push(r);
     });
 
-    const medData = Object.entries(byMed).map(([med, rows]) => {
-      const tiempos = rows.map(r => {
-        const fe = parseDate(r['Turno Fecha']);
-        const fi = parseDate(r['Fecha Informe']);
-        if (!fe || !fi) return null;
-        const d = (fi - fe) / 86400000;
-        return (d >= 0 && d < 120) ? d : null;
-      }).filter(t => t !== null);
-      const avgDias = tiempos.length ? (tiempos.reduce((a,b) => a+b, 0) / tiempos.length).toFixed(1) : '—';
-      return { medico: med, count: rows.length, avgDias };
-    }).sort((a,b) => b.count - a.count);
+    const medData = Object.entries(byMed).map(([med, rows]) => ({ medico: med, count: rows.length }))
+      .sort((a,b) => b.count - a.count);
 
     const totInfs = medData.reduce((s,m) => s + m.count, 0);
     const top    = medData[0] ? medData[0].count : 0;
@@ -952,76 +1076,57 @@ async function exportRealizadosExcel(share) {
    TIEMPO PAGE
 ═══════════════════════════════════ */
 let tiempoData = [];
+let tiempoFilas = [];
 
 function openTiempoPage() {
   if (!filtered.length) return;
 
   const conInforme = filtered.filter(r => tieneInformeIF(r));
+  tiempoFilas = conInforme;
 
-  // Agrupar por médico informante y calcular tiempos
+  // Conteo de informes por médico informante
   const byMed = {};
   conInforme.forEach(r => {
     const med = (r['Médico Informante']||'').trim();
     if (!medicoValido(med)) return;
-    if (!byMed[med]) byMed[med] = [];
-    byMed[med].push(r);
+    byMed[med] = (byMed[med] || 0) + 1;
   });
 
-  const medData = Object.entries(byMed).map(([med, rows]) => {
-    const tiempos = rows.map(r => {
-      const fe = parseDate(r['Turno Fecha']);
-      const fi = parseDate(r['Fecha Informe']);
-      if (!fe || !fi) return null;
-      const d = (fi - fe) / 86400000;
-      return (d >= 0 && d < 120) ? d : null;
-    }).filter(t => t !== null);
-
-    const avgDias = tiempos.length ? tiempos.reduce((a,b) => a+b, 0) / tiempos.length : null;
-    return { medico: med, count: rows.length, avgDias, tiemposCount: tiempos.length };
-  }).filter(m => m.avgDias !== null).sort((a,b) => b.avgDias - a.avgDias);
+  // B5: demora mediana y P90 por médico (agregados del motor, sin tope),
+  // los más demorados primero.
+  const porMed = demoraPorMedico(conInforme);
+  const medData = Object.entries(porMed).filter(([, a]) => a.n)
+    .map(([med, a]) => ({ medico: med, count: byMed[med] || 0, medianaHoras: a.medianaHoras,
+                          mediana: fmtDias(a.medianaHoras), p90: fmtDias(a.p90Horas) }))
+    .sort((a, b) => (b.medianaHoras - a.medianaHoras) || cmpTexto(a.medico, b.medico));
 
   tiempoData = medData;
 
-  // Tiempo promedio general
-  const allTiempos = conInforme.map(r => {
-    const fe = parseDate(r['Turno Fecha']);
-    const fi = parseDate(r['Fecha Informe']);
-    if (!fe || !fi) return null;
-    const d = (fi - fe) / 86400000;
-    return (d >= 0 && d < 120) ? d : null;
-  }).filter(t => t !== null);
-  const avgGeneral = allTiempos.length ? (allTiempos.reduce((a,b) => a+b, 0) / allTiempos.length).toFixed(1) : '—';
+  // Demora mediana y P90 generales
+  const demora = resumenDemora(conInforme);
+  const conDias = v => v === '—' ? '—' : v + ' días';
 
   // Summary cards
-  document.getElementById('tiempo-avg').textContent = avgGeneral !== '—' ? avgGeneral + ' días' : '—';
+  document.getElementById('tiempo-avg').textContent = conDias(demora.mediana);
+  document.getElementById('tiempo-p90').textContent = conDias(demora.p90);
   document.getElementById('tiempo-medicos').textContent = medData.length;
-  document.getElementById('tiempo-total').textContent = allTiempos.length.toLocaleString();
+  document.getElementById('tiempo-total').textContent = demora.n.toLocaleString();
 
-  // Max avgDias for bar proportion
-  const maxAvg = medData.length ? Math.max(...medData.map(m => m.avgDias)) : 1;
+  const maxMed = medData.reduce((m, x) => Math.max(m, x.medianaHoras), 0) || 1;
 
-  // Tabla
+  // Tabla (B6: sin color por médico hasta la fase 5)
   const tbody = document.getElementById('tiempo-tbody');
-  tbody.innerHTML = medData.map((m, i) => {
-    const tiempoStr = m.avgDias.toFixed(1);
-    const tiempoColor = m.avgDias < 1 ? 'var(--green)'
-      : m.avgDias < 3 ? 'var(--cyan)'
-      : m.avgDias < 7 ? 'var(--amber)'
-      : 'var(--red)';
-    const pct = ((m.avgDias / maxAvg) * 100).toFixed(0);
-    const barColor = m.avgDias < 1 ? 'var(--green)'
-      : m.avgDias < 3 ? 'var(--cyan)'
-      : m.avgDias < 7 ? 'var(--amber)'
-      : 'var(--red)';
-
+  tbody.innerHTML = !puedeVerRankingMedicos() ? filaAvisoRanking(6) : medData.map((m, i) => {
+    const pct = ((m.medianaHoras / maxMed) * 100).toFixed(0);
     return `<tr>
       <td class="rank-col">${i + 1}</td>
       <td class="name-col">${esc(m.medico)}</td>
-      <td class="time-col" style="color:${tiempoColor}">${tiempoStr}d</td>
+      <td class="time-col">${m.mediana}d</td>
+      <td class="time-col">${m.p90}d</td>
       <td class="num-col">${m.count}</td>
       <td class="bar-col">
         <div class="real-bar-wrap">
-          <div class="real-bar" style="width:${pct}%;background:${barColor}"></div>
+          <div class="real-bar bar-neutra" style="width:${pct}%"></div>
         </div>
       </td>
     </tr>`;
@@ -1038,46 +1143,44 @@ function closeTiempoPage() {
 }
 
 async function exportTiempoExcel(share) {
+  if (!puedeVerRankingMedicos()) { showToast(AVISO_RANKING); return; }   // B9
   if (!tiempoData.length) return;
   try {
     await SpcdExcel.ready();
 
-    const cols   = ['#','Médico Informante','Tiempo Prom. (días)','Informes'];
-    const widths = [6, 32, 22, 14];
+    const cols   = ['#','Médico Informante','Demora mediana (días)','P90 (días)','Informes'];
+    const widths = [6, 32, 22, 14, 14];
     const avgGen = document.getElementById('tiempo-avg').textContent;
 
     /* KPIs */
     const totMeds = tiempoData.length;
     const totInfs = tiempoData.reduce((s,m) => s + m.count, 0);
-    const fueraSLA = tiempoData.filter(m => m.avgDias >= 7).length;
-    const enRiesgo = tiempoData.filter(m => m.avgDias >= 3 && m.avgDias < 7).length;
+    // B7: fuera de SLA = estudios en banda amarillo o rojo de semaforo() (SLA provisorio).
+    const demora = resumenDemora(tiempoFilas);
+    const fueraSLA = demora.bandas.amarillo + demora.bandas.rojo;
 
-    const subtitle = 'TIEMPO PROMEDIO DE INFORME';
-    const { wb, ws } = SpcdExcel.createBook({ subtitle, sheetName:'Tiempo' });
+    const subtitle = 'DEMORA MEDIANA DE INFORME';
+    const { wb, ws } = SpcdExcel.createBook({ subtitle, sheetName:'Demora' });
 
     const h = SpcdExcel.buildHeader(ws, {
       subtitle, totalCols: cols.length,
-      meta:{ modulo:'MEDICO', sede:SpcdExcel.getCurrentSede(), usuario:SpcdExcel.getCurrentUser(), registros: totMeds, extra:`PROM. GLOBAL: ${avgGen}` }
+      meta:{ modulo:'MEDICO', sede:SpcdExcel.getCurrentSede(), usuario:SpcdExcel.getCurrentUser(), registros: totMeds, extra:`MEDIANA GLOBAL: ${avgGen}` }
     });
     const k = SpcdExcel.buildKPIs(ws, [
-      { label:'Médicos',     value: totMeds,                       tone:'cyan' },
-      { label:'Informes',    value: totInfs.toLocaleString('es-AR'), tone:'silver' },
-      { label:'Promedio',    value: avgGen,                        tone:'emerald' },
-      { label:'Fuera de SLA',value: fueraSLA, tone: fueraSLA>0 ? 'rose' : 'cyan', hint:'≥ 7 días' }
+      { label:'Médicos',        value: totMeds,                         tone:'cyan' },
+      { label:'Informes',       value: totInfs.toLocaleString('es-AR'), tone:'silver' },
+      { label:'Demora mediana', value: avgGen,                          tone:'emerald' },
+      { label:'Fuera de SLA',   value: fueraSLA, tone: fueraSLA ? 'rose' : 'cyan', hint:'amarillo + rojo (SLA provisorio)' }
     ], { startRow:h.nextRow, totalCols:cols.length });
-    const s = SpcdExcel.buildSection(ws, { startRow:k.nextRow, totalCols:cols.length, title:'PERFORMANCE INDIVIDUAL · DÍAS PROMEDIO' });
+    const s = SpcdExcel.buildSection(ws, { startRow:k.nextRow, totalCols:cols.length, title:'DEMORA MEDIANA POR MÉDICO · DÍAS' });
     const t = SpcdExcel.buildTable(ws, {
       columns: cols, widths,
-      rows: tiempoData.map((m,i) => [i+1, m.medico, parseFloat(m.avgDias.toFixed(1)), m.count]),
+      rows: tiempoData.map((m,i) => [i+1, m.medico, Number(m.mediana), Number(m.p90), m.count]),
       startRow: s.nextRow, totalCols: cols.length,
       formatter: (cell, v, rd, idx, ci, cName) => {
-        if (cName==='#' || cName==='Tiempo Prom. (días)' || cName==='Informes') SpcdExcel.Fmt.center(cell);
-        if (cName==='Tiempo Prom. (días)' && typeof v === 'number') {
-          cell.numFmt = '0.0 "días"';
-          if (v >= 7)      SpcdExcel.Fmt.error(cell);
-          else if (v >= 3) SpcdExcel.Fmt.warn(cell);
-          else             SpcdExcel.Fmt.success(cell);
-        }
+        if (cName !== 'Médico Informante') SpcdExcel.Fmt.center(cell);
+        // B6: sin color por médico hasta la fase 5.
+        if ((cName==='Demora mediana (días)' || cName==='P90 (días)') && typeof v === 'number') cell.numFmt = '0.0 "días"';
         if (cName==='Informes') SpcdExcel.Fmt.accent(cell);
       }
     });
@@ -1086,15 +1189,15 @@ async function exportTiempoExcel(share) {
       items:[
         { label:'Médicos', value: totMeds },
         { label:'Informes', value: totInfs },
-        { label:'Promedio global', value: avgGen },
-        fueraSLA>0 ? { label:'Fuera SLA', value: fueraSLA } : null
+        { label:'Mediana global', value: avgGen },
+        fueraSLA ? { label:'Fuera SLA', value: fueraSLA } : null
       ].filter(Boolean)
     });
     SpcdExcel.buildFooter(ws, { startRow:tot.nextRow, totalCols:cols.length, hash:h.hash });
 
-    const fileName = `SPCD_Medico_Tiempo_Promedio_${SpcdExcel.nowIsoDate()}.xlsx`;
+    const fileName = `SPCD_Medico_Demora_Mediana_${SpcdExcel.nowIsoDate()}.xlsx`;
     await SpcdExcel.exportAndShare(wb, fileName, share ? {
-      titulo:'Tiempo Promedio de Informe',
+      titulo:'Demora mediana de informe',
       periodo: SpcdExcel.dateAr(),
       cantidad: tiempoData.length,
       modulo:'medico', tipoExport:'tiempo'
@@ -1229,18 +1332,21 @@ async function exportExcel(groupFilter, share) {
     const sinI = dataRows.length - conI;
     const pendientes = isPend ? dataRows : dataRows.filter(r => !tieneInformeIF(r));
     const dias = pendientes.map(r => {
-      const f = parseDate(r['Turno Fecha']);
-      return f ? Math.floor((hoy - f)/(86400000)) : 0;
+      const d = edadEnDias(r, hoy);
+      return d === null ? 0 : Math.floor(d);
     });
-    const maxDias = dias.length ? Math.max(...dias) : 0;
+    const maxDias = dias.reduce((a, b) => (a > b ? a : b), 0);
     const equipos = new Set(dataRows.map(r => r['Equipo']||'—'));
+    // Tono del KPI según la peor banda de semaforo() entre los pendientes (FR5.2).
+    const TONO_BANDA = { rojo: 'rose', amarillo: 'amber' };
+    const tonoMax = TONO_BANDA[peorBanda(pendientes, hoy)] || 'emerald';
 
     const kpis = [
       { label:'Registros',        value: dataRows.length.toLocaleString('es-AR'), tone:'cyan' },
       { label:'Con informe',      value: conI,                                    tone:'emerald' },
       { label:'Sin informe',      value: sinI, tone: sinI>0 ? 'rose' : 'cyan' },
       isPend
-        ? { label:'Máx. días pend.', value: maxDias, tone: maxDias>=7 ? 'rose' : maxDias>=4 ? 'amber' : 'emerald' }
+        ? { label:'Máx. días pend.', value: maxDias, tone: tonoMax }
         : { label:'Equipos',         value: equipos.size, tone:'silver' }
     ];
 
@@ -1263,9 +1369,9 @@ async function exportExcel(groupFilter, share) {
     const t = SpcdExcel.buildTable(ws, {
       columns: shortH, widths: colW,
       rows: dataRows.map(r => {
-        const f = parseDate(r['Turno Fecha']);
         const tieneInf = tieneInformeIF(r);
-        const d = !tieneInf && f ? Math.floor((hoy - f)/86400000) : null;
+        const edadD = !tieneInf ? edadEnDias(r, hoy) : null;
+        const d = edadD === null ? null : Math.floor(edadD);
         const valMap = {
           'Turno Fecha': r['Turno Fecha']||'',
           'Turno N°':    r['Turno N°']||'',
@@ -1286,9 +1392,11 @@ async function exportExcel(groupFilter, share) {
         if (c === 'Informe' && !tieneInf) SpcdExcel.Fmt.error(cell);
         if (c === 'Días Pendiente' && isPend && typeof v === 'number') {
           SpcdExcel.Fmt.center(cell);
-          if (v >= 7)      SpcdExcel.Fmt.error(cell);
-          else if (v >= 4) SpcdExcel.Fmt.warn(cell);
-          else             SpcdExcel.Fmt.success(cell);
+          // Color por la banda de semaforo() (FR5.2), no por días fijos.
+          const banda = bandaPendiente(r, hoy);
+          if (banda === 'rojo')          SpcdExcel.Fmt.error(cell);
+          else if (banda === 'amarillo') SpcdExcel.Fmt.warn(cell);
+          else if (banda === 'verde')    SpcdExcel.Fmt.success(cell);
         }
         if (c === 'Turno N°' || c === 'Documento') SpcdExcel.Fmt.center(cell);
       }

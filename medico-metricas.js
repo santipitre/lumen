@@ -12,13 +12,13 @@
    eso el orden de carga es OBLIGATORIO: medico.html carga este archivo
    DESPUÉS de medico.js:
      parseDate, toDateStr, tieneInformeIF, esCentinela,
-     categorizarInconsistencia, modalidad, normalizarClave.
+     categorizarInconsistencia, modalidad, normalizarClave, EQUIPO_GROUPS.
 
-   A1: este motor no se cablea a las vistas. Los 8 call-sites de
-   truncamiento `< 60`/`< 120` y los 5 semáforos viejos de medico.html no se
-   tocan acá; SC2 completo (reemplazo de esos semáforos) pasa a la fase 4.
-   Acá sólo se exige SC2 DENTRO del motor: semaforo() no tiene números
-   propios, todos salen de SLA_DEFAULT.
+   Fase 3 (A1): el motor se construyó sin cablear a las vistas. Desde la
+   fase 4 las vistas de medico.js lo consumen (Semáforo, Pendientes, demora
+   mediana) y SC2 se exige también fuera del motor. Acá sigue valiendo SC2
+   DENTRO del motor: semaforo() no tiene números propios, todos salen de
+   SLA_DEFAULT.
 
    Prohibido el identificador "dias" (en minúsculas, tal cual) en este
    archivo: evita coincidir con las comparaciones de días de los mutantes
@@ -43,7 +43,11 @@ const SLA_DEFAULT = deepFreeze({
   'CÁMARA GAMMA': { AMB: { verde: 72, amarillo: 120 } },
 });
 
+// B1: única marca. false = umbrales PROVISORIOS (abre Resumen + aviso); true = aprobados (OQ1): abre Semáforo, sin aviso.
+let SLA_APROBADO = false;
+
 const MS_POR_HORA = 3600000;
+const HORAS_POR_DIA = 24;
 
 /* Granularidad de minuto, igual que la marca FR1.6 de medico.js: SheetJS con
    cellDates le suma ~48 s a las fechas leídas (00:00:00 llega como
@@ -269,6 +273,55 @@ function backlog(filas, fechaCorte) {
     nSinSla += m.nSinSla;
   });
   return { porModalidad, total, sinFecha, posteriorAlCorte, nSinSla };
+}
+
+/* FR5.1/B2: % en SLA de los estudios realizados en la ventana
+   (fechaCorte − ventanaDias·24 h, fechaCorte], por Turno Fecha y por modalidad.
+   Inconsistente → excluidos. Informado → banda de su TAT: verde en SLA,
+   amarillo/rojo fuera, null/'sin umbral' en nSinSla. Pendiente → banda de su
+   edad contra fechaCorte: verde = en plazo (fuera del denominador),
+   amarillo/rojo fuera de SLA (vencido), null/'sin umbral' en nSinSla.
+   pctEnSla = 100 · enSla / (enSla + fueraSla), o null. */
+function pctEnSlaVentana(filas, fechaCorte, ventanaDias) {
+  exigirFecha(fechaCorte, 'pctEnSlaVentana');
+  if (!Number.isFinite(ventanaDias) || ventanaDias <= ZERO) {
+    throw new RangeError("pctEnSlaVentana(): ventanaDias debe ser un numero finito y positivo");
+  }
+  const desde = new Date(fechaCorte.getTime() - ventanaDias * HORAS_POR_DIA * MS_POR_HORA);
+  const vacio = () => ({ enSla: 0, fueraSla: 0, nSinSla: 0, nPendientesEnPlazo: 0, excluidos: 0 });
+  const porModalidad = Object.create(null);
+  EQUIPO_GROUPS.map(g => g.label).concat('OTROS').forEach(lbl => { porModalidad[lbl] = vacio(); });
+
+  filas.forEach(r => {
+    const fe = parseDate(r['Turno Fecha']);
+    if (!fe) return;
+    if (!(fe > desde && fe <= fechaCorte)) return;
+    const mod = modalidad(r);
+    const m = porModalidad[mod];
+    if (categorizarInconsistencia(r) !== null) { m.excluidos += 1; return; }
+    let banda;
+    if (tieneInformeIF(r)) {
+      banda = semaforo(mod, r['Tipo Turno'], tatHoras(r), { inicio: fe, fin: parseDate(r['Fecha Informe']) });
+    } else {
+      banda = semaforo(mod, r['Tipo Turno'], edadHoras(r, fechaCorte), { inicio: fe, fin: fechaCorte });
+      if (banda === 'verde') { m.nPendientesEnPlazo += 1; return; }
+    }
+    if (banda === null || banda === 'sin umbral') m.nSinSla += 1;
+    else if (banda === 'verde') m.enSla += 1;
+    else m.fueraSla += 1;
+  });
+
+  const conPct = m => {
+    const den = m.enSla + m.fueraSla;
+    m.pctEnSla = den ? 100 * m.enSla / den : null;
+    return m;
+  };
+  const total = vacio();
+  Object.keys(porModalidad).forEach(k => {
+    const m = conPct(porModalidad[k]);
+    Object.keys(total).forEach(c => { total[c] += m[c]; });
+  });
+  return { porModalidad, total: conPct(total) };
 }
 
 const textoOVacio = v => String(v || '').trim() || '(vacío)';
