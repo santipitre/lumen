@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="lumen-ver" content="2026-09-17-c"/>
+<meta name="lumen-ver" content="2026-10-01-a"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Validación PAMI · LUMEN</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml"/>
@@ -87,6 +87,10 @@
     border-radius:20px;padding:7px 15px;background:var(--glass);color:var(--muted);cursor:pointer;transition:all .15s}
   .chip:hover{border-color:var(--border-a);color:var(--pyralis-text)}
   .chip.on{background:var(--pyralis-firefly-dim);border-color:var(--pyralis-firefly);color:var(--pyralis-firefly-soft)}
+.sel-f{padding:8px 10px;border-radius:6px;background:var(--pyralis-bg-input);border:1px solid var(--border);color:var(--pyralis-text);font-size:13px;font-family:'Inter',sans-serif}
+  .sel-f:focus{outline:none;border-color:var(--pyralis-firefly)}
+  .sel-f.on{border-color:var(--pyralis-firefly);color:var(--pyralis-firefly-soft)}
+  .sel-f:disabled{opacity:.4}
   .search{margin-left:auto}
   .search input{padding:8px 12px;border-radius:6px;background:var(--pyralis-bg-input);
     border:1px solid var(--border);color:var(--pyralis-text);font-size:14px;width:250px}
@@ -331,6 +335,8 @@
       <span class="chip" data-f="validadas">Validadas</span>
       <span class="chip" data-f="rechazadas">Rechazadas</span>
       <span class="chip" data-f="bloqueadas">Todavía no</span>
+      <select id="f-mes" class="sel-f"><option value="">Todos los meses</option></select>
+      <select id="f-dia" class="sel-f" disabled><option value="">Todos los días</option></select>
       <button class="btn btn-primary" id="btn-next" style="margin-left:14px">▶ Siguiente pendiente</button>
       <div class="search"><input type="text" id="q" placeholder="Buscar orden o apellido…"/></div>
     </div>
@@ -377,6 +383,27 @@ let ORDENES = [];      // [{orden, nombre, turno, turnoD, emision, emisionD, ben
 let FILTRO  = 'habilitadas';
 let ORDEN   = { col: 'turno', dir: 'desc' };  // turno, del mas reciente al mas viejo
 let QUERY   = '';
+let MES = '', DIA = '';
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function claveMes(o){ return o.turnoD ? o.turnoD.getFullYear() + '-' + String(o.turnoD.getMonth()+1).padStart(2,'0') : 'sin'; }
+function claveDia(o){ return o.turnoD ? claveMes(o) + '-' + String(o.turnoD.getDate()).padStart(2,'0') : 'sin'; }
+function pasaFecha(o){ return (!MES || claveMes(o) === MES) && (!DIA || claveDia(o) === DIA); }
+function pintarSelFecha(){
+  const meses = new Map(), dias = new Map();
+  ORDENES.forEach(o => { const m = claveMes(o); meses.set(m, (meses.get(m)||0) + 1); });
+  if (MES && !meses.has(MES)){ MES = ''; DIA = ''; }
+  if (MES && MES !== 'sin') ORDENES.forEach(o => { if (claveMes(o) === MES){ const d = claveDia(o); dias.set(d, (dias.get(d)||0) + 1); } });
+  if (DIA && !dias.has(DIA)) DIA = '';
+  $('f-mes').innerHTML = '<option value="">Todos los meses</option>' +
+    [...meses.keys()].sort().map(k => k === 'sin'
+      ? `<option value="sin">Sin fecha legible (${meses.get(k)})</option>`
+      : `<option value="${k}">${MESES[+k.slice(5)-1]} ${k.slice(0,4)} (${meses.get(k)})</option>`).join('');
+  $('f-dia').innerHTML = '<option value="">Todos los días</option>' +
+    [...dias.keys()].sort().map(k => `<option value="${k}">${k.slice(8)}/${k.slice(5,7)} (${dias.get(k)})</option>`).join('');
+  $('f-mes').value = MES; $('f-dia').value = DIA;
+  $('f-dia').disabled = !MES || MES === 'sin';
+  $('f-mes').classList.toggle('on', !!MES); $('f-dia').classList.toggle('on', !!DIA);
+}
 let ESTADOS = load(EST_KEY, {});
 let CFG     = load(CFG_KEY, {});
 let META    = null;    // {file, marcadas, ts}
@@ -669,6 +696,7 @@ function visibles(){
     if (FILTRO === 'pendientes' && est !== 'pendiente') return false;
     if (FILTRO === 'validadas'  && est !== 'validada') return false;
     if (FILTRO === 'rechazadas' && est !== 'rechazada') return false;
+    if (!pasaFecha(o)) return false;
     if (QUERY){
       const q = norm(QUERY);
       if (!norm(o.nombre).includes(q) && !o.orden.includes(QUERY.replace(/\D/g,''))) return false;
@@ -678,8 +706,9 @@ function visibles(){
 }
 
 function render(){
+  const base = ORDENES.filter(pasaFecha); pintarSelFecha();
   const cnt = { val:0, rec:0, pen:0, blq:0, hab:0 };
-  ORDENES.forEach(o => {
+  base.forEach(o => {
     const e = estadoDe(o.orden);
     if (e === 'validada') cnt.val++; else if (e === 'rechazada') cnt.rec++;
     else if (habilitada(o)) cnt.pen++;
@@ -687,7 +716,7 @@ function render(){
   });
 
   $('stats').innerHTML =
-    stat('info', ORDENES.length, 'Órdenes') +
+    stat('info', base.length, 'Órdenes') +
     stat('info', cnt.hab,        'Habilitadas hoy') +
     stat('warn', cnt.pen,        'Pendientes hoy') +
     stat('',     cnt.blq,        'Todavía no') +
@@ -1064,6 +1093,8 @@ document.querySelectorAll('thead th.ord-col').forEach(th => th.addEventListener(
 }));
 $('q').addEventListener('input', e => { QUERY = e.target.value; render(); });
 $('btn-next').addEventListener('click', siguientePendiente);
+$('f-mes').addEventListener('change', e => { MES = e.target.value; DIA = ''; render(); });
+$('f-dia').addEventListener('change', e => { DIA = e.target.value; render(); });
 $('btn-export').addEventListener('click', exportar);
 $('btn-export-rech').addEventListener('click', exportarRechazadas);
 
