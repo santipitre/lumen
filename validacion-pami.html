@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="lumen-ver" content="2026-10-01-a"/>
+<meta name="lumen-ver" content="2026-10-01-b"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Validación PAMI · LUMEN</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml"/>
@@ -272,7 +272,7 @@
   <h1 class="page">Validación de órdenes en PAMI</h1>
   <p class="page-sub">Subí la bandeja de transmisión del mes <b>tal como sale de PAMI</b>. Antes de leerla se filtra sola:
     <b>U. ACEPTO = SU41752974</b> y <b>VALIDADA vacía</b>. De lo que queda, cada orden
-    <b>se habilita el día posterior a su turno</b>: un estudio de hoy se valida mañana.
+    <b>se habilita el mismo día de su turno</b>: un estudio de hoy se puede validar hoy.
     Cada orden se dispara al portal de PAMI con el número, el rango de fechas y el beneficio ya partido.
     Los números de <b>orden</b> y de <b>beneficio</b> se copian con un clic.</p>
 
@@ -453,14 +453,15 @@ function fmtFecha(d){
   return String(d.getDate()).padStart(2,'0') + '/' +
          String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
 }
-/* ── REGLA: se valida el día POSTERIOR al estudio (dictada por Santiago 2026-09-17) ──
+/* ── REGLA 2026-10-01 (Santiago): habilitada = fecha del turno <= hoy. Antes (2026-09-17) era < hoy: día POSTERIOR. ──
+   Lo que sigue describe la regla ANTERIOR y queda como historia:
    Habilitada = fecha del turno < hoy (a medianoche). Un turno de hoy o futuro queda
    bloqueado hasta el día siguiente al turno. Sin fecha de turno legible: bloqueada
    (mejor no disparar que validar algo que quizás no se hizo). "hoy" se recalcula en
    cada llamada: la página puede quedar abierta de un día para otro. */
 function hoy0(){ const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
-function habilitaDesde(o){ return o.turnoD ? addDias(o.turnoD, 1) : null; }
-function habilitada(o){ return !!o.turnoD && o.turnoD.getTime() < hoy0().getTime(); }
+function habilitaDesde(o){ return o.turnoD ? o.turnoD : null; }
+function habilitada(o){ return !!o.turnoD && o.turnoD.getTime() <= hoy0().getTime(); }
 function addDias(d, n){ const x = new Date(d.getTime()); x.setDate(x.getDate()+n); return x; }
 function addMeses(d, n){ const x = new Date(d.getTime()); const dia = x.getDate();
   x.setMonth(x.getMonth()+n);
@@ -753,7 +754,7 @@ function render(){
       <td class="pract c-pract" title="${esc(o.practicas.join(' | '))}">${esc(o.practicas[0]||'')}${o.practicas.length>1?' +'+(o.practicas.length-1):''}</td>
       <td class="c-est"><span class="est ${est}">${est}</span>${badge}</td>
       <td><div class="acts">
-        <button class="ib go"  data-a="go" ${hab ? '' : 'disabled'} title="${hab ? 'Abrir esta orden en el portal de PAMI' : 'Se habilita el día posterior al turno'}"><img src="pami-iso.png" alt="" width="16" height="16"/>PAMI</button>
+        <button class="ib go"  data-a="go" ${hab ? '' : 'disabled'} title="${hab ? 'Abrir esta orden en el portal de PAMI' : 'Se habilita el día del turno'}"><img src="pami-iso.png" alt="" width="16" height="16"/>PAMI</button>
         <button class="ib ok"  data-a="ok"   title="Marcar validada">✓</button>
         <button class="ib no"  data-a="no"   title="Marcar rechazada">✗</button>
         <button class="ib"     data-a="rst"  title="Volver a pendiente">↺</button>
@@ -801,7 +802,7 @@ function pintarVentanas(){
 function irAPami(o){
   if (!habilitada(o)){
     const d = habilitaDesde(o);
-    toast('Orden ' + o.orden + ': se valida el día posterior al estudio' +
+    toast('Orden ' + o.orden + ': se valida desde el día del estudio' +
           (d ? ' — habilitada desde el ' + fmtFecha(d) : ' (no tiene fecha de turno legible)'), 'err');
     return;
   }
