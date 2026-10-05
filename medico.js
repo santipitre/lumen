@@ -36,9 +36,15 @@ const filaAvisoRanking = columnas => `<tr><td colspan="${columnas}">${avisoRanki
    quedan deshabilitados. */
 function aplicarPermisosRanking() {
   if (puedeVerRankingMedicos()) return;
+  // C10/N-A1: sin permiso no hay pestaña Médicos: ni botón, ni panel, ni aviso.
+  const bm = document.getElementById('tab-btn-medicos'); if (bm) bm.style.display = 'none';
+  const pm = document.getElementById('tab-medicos'); if (pm) pm.style.display = 'none';
   const fm = document.getElementById('f-medico');
   if (fm) fm.closest('.filter-group').style.display = 'none';
-  document.querySelectorAll('button[onclick^="exportRealizadosExcel"], button[onclick^="exportTiempoExcel"]')
+  // M4 (REVIEW-3.1): sin permiso la tarjeta "Demora por médico" no tiene contenido; se oculta entera.
+  const rt = document.getElementById('rank-tiempos'); if (rt) rt.closest('.chart-card').style.display = 'none';
+  // C5 (fase 5): el export de Tiempo ya no tiene nombres; sólo el de Realizados queda bajo permiso.
+  document.querySelectorAll('button[onclick^="exportRealizadosExcel"]')
     .forEach(b => { b.disabled = true; b.title = AVISO_RANKING; });
 }
 
@@ -53,7 +59,11 @@ function aplicarPermisosRanking() {
 let rawData  = [];
 let filtered = [];
 let realizados = [];
+// C15 (fase 5): universo de Semáforo y Pendientes (sólo modalidad, tipo de turno y prestación; ver filtrarBacklog).
+let filtradoBacklog = [];
 let fechaCorteActual = null;
+// C15: el rango que pone populateFilters; las fechas cuentan como filtro activo sólo si difieren de él.
+let rangoFechasCompleto = { desde: '', hasta: '' };
 let chartDias, chartDonut;
 
 /* ═══════════════════════════════════
@@ -194,6 +204,8 @@ function onDataLoaded(data) {
   }
 
   populateFilters(data);
+  aplicarColumnaTipoTurno(data);
+  limpiarFiltrosDeCarga();
   document.getElementById('filters-bar').style.display = 'flex';
 
   filtered = [...realizados];
@@ -212,6 +224,10 @@ function populateFilters(data) {
     document.getElementById('f-desde').value = fechas[0];
     document.getElementById('f-hasta').value = fechas[fechas.length-1];
   }
+  rangoFechasCompleto = { desde: document.getElementById('f-desde').value, hasta: document.getElementById('f-hasta').value };
+
+  // C15 (FR5.6): modalidad global, con los mismos labels que modalidad().
+  document.getElementById('f-modalidad').innerHTML = opcionesModalidadHTML(LABELS_MODALIDAD(), true);
 
   // B9: sin permiso, el filtro Médico no lista nombres (y está oculto).
   const medicos = puedeVerRankingMedicos()
@@ -231,12 +247,20 @@ function populateFilters(data) {
 /* ═══════════════════════════════════
    FILTROS
 ═══════════════════════════════════ */
+/* REVIEW-4.1 (Important): los filtros cuentan recién al aplicarlos. applyFilters, resetFilters y la carga guardan
+   esta foto; la línea "Filtros: …" y el backlog leen de acá, no de los selects (que pueden tener cambios sin aplicar). */
+let filtrosAplicados = { desde: '', hasta: '', medico: '', mod: '', tipo: '', informe: '', informeTexto: '', prest: '' };
+function leerFiltrosDelDOM() {
+  const v = id => document.getElementById(id).value;
+  const inf = document.getElementById('f-informe');
+  return { desde: v('f-desde'), hasta: v('f-hasta'), medico: v('f-medico'), mod: v('f-modalidad'),
+           tipo: v('f-tipo-turno'), informe: inf.value,
+           informeTexto: inf.value ? inf.options[inf.selectedIndex].textContent : '', prest: v('f-prest') };
+}
+
 function applyFilters() {
-  const desde   = document.getElementById('f-desde').value;
-  const hasta   = document.getElementById('f-hasta').value;
-  const medico  = document.getElementById('f-medico').value;
-  const informe = document.getElementById('f-informe').value;
-  const prest   = document.getElementById('f-prest').value;
+  filtrosAplicados = leerFiltrosDelDOM();
+  const { desde, hasta, medico, mod, tipo, informe, prest } = filtrosAplicados;
 
   filtered = realizados.filter(r => {
     const fd = parseDate(r['Turno Fecha']);
@@ -245,6 +269,8 @@ function applyFilters() {
     if (desde && ds < desde) return false;
     if (hasta && ds > hasta) return false;
     if (medico && r['Médico Informante'] !== medico) return false;
+    if (mod    && modalidad(r) !== mod) return false;
+    if (tipo   && tipoTurno(r) !== tipo) return false;
     if (prest  && r['Prestación'] !== prest) return false;
     if (informe === 'CON' && !tieneInformeIF(r)) return false;
     if (informe === 'SIN' && tieneInformeIF(r))  return false;
@@ -253,13 +279,110 @@ function applyFilters() {
   render(filtered);
 }
 
+/* C15/C25 (fase 5): Semáforo y Pendientes miden el backlog de hoy contra fechaCorte. Sólo los filtran modalidad,
+   tipo de turno y prestación (los mismos filtros aplicados que applyFilters); fechas, médico y estado de informe no. */
+function filtrarBacklog(data) {
+  const { mod, tipo, prest } = filtrosAplicados;
+  return data.filter(r => {
+    if (mod && modalidad(r) !== mod) return false;
+    if (tipo && tipoTurno(r) !== tipo) return false;
+    if (prest && r['Prestación'] !== prest) return false;
+    return true;
+  });
+}
+
+/* REVIEW-4.1: la carga arranca sin filtros aunque el navegador haya restaurado algún select al recargar
+   (tipo de turno, estado de informe, modalidad y el de Pendientes, que queda desbloqueado), y guarda la foto. */
+function limpiarFiltrosDeCarga() {
+  ['f-tipo-turno', 'f-informe', 'f-modalidad'].forEach(id => { document.getElementById(id).value = ''; });
+  const pm = document.getElementById('f-pend-modalidad');
+  pm.innerHTML = opcionesModalidadHTML(LABELS_MODALIDAD(), true);
+  pm.value = '';
+  pm.disabled = false;
+  filtrosAplicados = leerFiltrosDelDOM();
+}
+
 function resetFilters() {
   populateFilters(rawData);
   document.getElementById('f-medico').value  = '';
+  document.getElementById('f-tipo-turno').value = '';
   document.getElementById('f-informe').value = '';
   document.getElementById('f-prest').value   = '';
+  filtrosAplicados = leerFiltrosDelDOM();
   filtered = [...realizados];
   render(filtered);
+}
+
+/* C15: modalidades de A10 más OTROS, en el orden de EQUIPO_GROUPS (lo mismo que puede devolver modalidad()). */
+const LABELS_MODALIDAD = () => EQUIPO_GROUPS.map(g => g.label).concat('OTROS');
+function opcionesModalidadHTML(labels, conTodas) {
+  return (conTodas ? '<option value="">Todas</option>' : '')
+    + labels.map(l => `<option value="${escAttr(l)}">${esc(l)}</option>`).join('');
+}
+
+/* C25: con una modalidad global, el filtro de Pendientes ofrece sólo esa y queda bloqueado; sin global, vuelve a
+   ofrecer todas, arranca en Todas y funciona como siempre (conserva la elección mientras no haya global). */
+function sincronizarPendModalidad() {
+  const global = document.getElementById('f-modalidad').value;
+  const sel = document.getElementById('f-pend-modalidad');
+  if (global) {
+    sel.innerHTML = opcionesModalidadHTML([global], false);
+    sel.value = global;
+    sel.disabled = true;
+  } else if (sel.disabled) {
+    sel.innerHTML = opcionesModalidadHTML(LABELS_MODALIDAD(), true);
+    sel.value = '';
+    sel.disabled = false;
+  }
+}
+
+/* C15: dataset sin la columna Tipo Turno (p. ej. datos de la nube): sin select y con una nota. No es una columna
+   médica requerida (no dispara el aviso D6). */
+const NOTA_SIN_TIPO_TURNO = 'Filtro por tipo de turno no disponible con estos datos';
+function tieneColumnaTipoTurno(data) {
+  return data.some(r => Object.prototype.hasOwnProperty.call(r, 'Tipo Turno'));
+}
+function aplicarColumnaTipoTurno(data) {
+  const hay = tieneColumnaTipoTurno(data);
+  const sel = document.getElementById('f-tipo-turno');
+  if (!hay) sel.value = '';
+  sel.closest('.filter-group').style.display = hay ? '' : 'none';
+  const nota = document.getElementById('f-tipo-turno-nota');
+  nota.textContent = hay ? '' : NOTA_SIN_TIPO_TURNO;
+  nota.style.display = hay ? 'none' : '';
+}
+
+/* C15/C25: la línea "Filtros: …" (una sola función; las waves 5 y 6 la usan como primera fila de los exports).
+   En Semáforo y Pendientes aclara los filtros activos que esa vista no aplica. */
+const ACLARACION_BACKLOG = { uno: 'no aplica en esta vista', varios: 'no aplican en esta vista' };
+const VISTAS_BACKLOG = ['tab-semaforo', 'tab-pendientes'];
+function textoFiltros(vista) {
+  const f = filtrosAplicados;
+  const ddmm = iso => iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : '…';
+  const partes = [], ignorados = [];
+  const fechasActivas = f.desde !== rangoFechasCompleto.desde || f.hasta !== rangoFechasCompleto.hasta;
+  if (fechasActivas) { partes.push(ddmm(f.desde) + '–' + ddmm(f.hasta)); ignorados.push('fechas'); }
+  const mod = f.mod;
+  if (mod) partes.push(mod);
+  // Sin la columna Tipo Turno el select queda en Todos y oculto (aplicarColumnaTipoTurno): f.tipo es ''.
+  if (f.tipo) partes.push(f.tipo);
+  if (f.informe) { partes.push(f.informeTexto); ignorados.push('estado de informe'); }
+  if (f.prest) partes.push(f.prest);
+  if (f.medico) { partes.push(f.medico); ignorados.push('médico'); }
+  let texto = 'Filtros: ' + (partes.length ? partes.join(' · ') : 'sin filtros');
+  if (VISTAS_BACKLOG.includes(vista) && ignorados.length) {
+    // Orden fijo (fechas, médico, estado de informe); "fechas" es plural aunque sea el único.
+    const [primero, ...resto] = ['fechas', 'médico', 'estado de informe'].filter(x => ignorados.includes(x));
+    const lista = resto.length ? [primero, ...resto.slice(0, -1)].join(', ') + ' y ' + resto[resto.length - 1] : primero;
+    const plural = resto.length || primero === 'fechas';
+    texto += ' · ' + lista.charAt(0).toUpperCase() + lista.slice(1) + ' '
+      + (plural ? ACLARACION_BACKLOG.varios : ACLARACION_BACKLOG.uno);
+  }
+  return texto;
+}
+function pintarResumenFiltros() {
+  const activa = document.querySelector('.tab-pane.active');
+  document.getElementById('filtros-resumen').textContent = textoFiltros(activa ? activa.id : '');
 }
 
 /* ═══════════════════════════════════
@@ -293,17 +416,36 @@ function calcFechaCorte(data) {
 /* ═══════════════════════════════════
    RENDER
 ═══════════════════════════════════ */
-function render(data) {
-  fechaCorteActual = calcFechaCorte(data);
+/* C15 (fase 5): dos universos. `data` (todos los filtros) alimenta KPIs, gráficos, rankings, Médicos y modales;
+   Semáforo y Pendientes usan el backlog (sólo modalidad, tipo de turno y prestación). Sin segundo argumento, el
+   backlog sale de `realizados`. fechaCorte se toma de todo el dataset: ni fechas ni médico mueven la edad. */
+function render(data, backlogData) {
+  filtradoBacklog = backlogData || filtrarBacklog(realizados);
+  fechaCorteActual = calcFechaCorte(realizados);
   calcKPIs(data);
   renderAlertPendientes(data);
   renderChartDias(data);
   renderChartDonut(data);
   renderRankMedicos(data);
-  renderRankTiempos(data);
-  renderTabPendientes(data);
-  renderTabMedicos(data);
-  renderTabSemaforo(data);
+  renderRankTiempos();
+  sincronizarPendModalidad();
+  renderTabPendientes(filtradoBacklog);
+  renderProtegido('medicos-vista', () => renderTabMedicos(data));
+  renderProtegido('prestaciones-vista', () => renderTabPrestaciones(data));
+  renderTabSemaforo(filtradoBacklog);
+  pintarResumenFiltros();
+}
+
+/* C21: una vista que falla no corta el resto de la página. La reusan Prestaciones, el mapa de calor y la tendencia. */
+const AVISO_VISTA_FALLO = 'No se pudo mostrar esta vista con estos datos. El resto de la página sigue disponible.';
+function renderProtegido(panelId, fn) {
+  try { fn(); }
+  catch (e) {
+    // Mensaje y stack como texto: quedan legibles en la consola y en la red (no sólo "Error").
+    console.error('Vista ' + panelId + ' no se pudo renderizar: ' + (e && e.message), '\n' + ((e && e.stack) || ''));
+    const p = document.getElementById(panelId);
+    if (p) p.innerHTML = `<div class="aviso-vista">${esc(AVISO_VISTA_FALLO)}</div>`;
+  }
 }
 
 /* ═══════════════════════════════════
@@ -314,8 +456,9 @@ function calcKPIs(data) {
   const sinInforme = data.filter(r => !tieneInformeIF(r));
 
   document.getElementById('kpi-pendientes').textContent = sinInforme.length.toLocaleString();
+  // C18c: "del período" (sigue los filtros globales), para no confundirlo con la tarjeta "Informes Realizados".
   document.getElementById('kpi-pend-sub').textContent =
-    `de ${data.length.toLocaleString()} estudios realizados`;
+    `de ${data.length.toLocaleString()} estudios del período`;
 
   document.getElementById('kpi-realizados').textContent = conInforme.length.toLocaleString();
   document.getElementById('kpi-real-sub').textContent =
@@ -342,9 +485,8 @@ function calcKPIs(data) {
 
   const medActivos = new Set(conInforme.map(r => r['Médico Informante']).filter(m => medicoValido(m)));
   document.getElementById('kpi-medicos').textContent = medActivos.size;
-  // B9: sin permiso, sólo la cantidad (sin nombres).
-  document.getElementById('kpi-med-sub').textContent = puedeVerRankingMedicos()
-    ? `${[...medActivos].slice(0,2).join(', ') || 'en el período'}` : 'en el período';
+  // B9/C18e: el subtítulo no nombra médicos, con y sin permiso.
+  document.getElementById('kpi-med-sub').textContent = 'con al menos un informe en el período';
 }
 
 /* ═══════════════════════════════════
@@ -445,10 +587,13 @@ function renderRankMedicos(data) {
    DEMORA (B3/B5, fase 4): mediana sin tope desde el motor
 ═══════════════════════════════════ */
 const fmtDias = horas => horas === null ? '—' : (horas / HORAS_POR_DIA).toFixed(1);
+// C19: el único "X días" de las páginas Realizados y Tiempo (antes un helper duplicado en cada una).
+const fmtDiasTexto = horas => horas === null ? '—' : fmtDias(horas) + ' días';
 
 function resumenDemora(filas) {
   const a = agregados(filas);
-  return { n: a.n, mediana: fmtDias(a.medianaHoras), p90: fmtDias(a.p90Horas), bandas: a.bandas };
+  return { n: a.n, mediana: fmtDias(a.medianaHoras), p90: fmtDias(a.p90Horas), bandas: a.bandas,
+           medianaHoras: a.medianaHoras, p90Horas: a.p90Horas };
 }
 
 /* agregados() por Médico Informante válido (sin ADMINVM/DALONSO ni vacío). */
@@ -459,34 +604,16 @@ function demoraPorMedico(filas) {
 }
 
 const cmpTexto = (x, y) => (x < y ? -1 : x > y ? 1 : 0);
-// B8 con umbrales provisorios: como hoy, los más rápidos primero (mediana ascendente).
-const ordenPorMediana = ([ma, a], [mb, b]) => (a.medianaHoras - b.medianaHoras) || cmpTexto(ma, mb);
-// B8/FR4.3 con umbrales aprobados: % en SLA ascendente (sin % al final), los peores primero.
-const ordenPorSla = ([ma, a], [mb, b]) => {
-  if ((a.pctEnSla === null) !== (b.pctEnSla === null)) return a.pctEnSla === null ? 1 : -1;
-  return ((a.pctEnSla || 0) - (b.pctEnSla || 0)) || (b.medianaHoras - a.medianaHoras) || cmpTexto(ma, mb);
-};
 
-function renderRankTiempos(data) {
-  if (!puedeVerRankingMedicos()) { document.getElementById('rank-tiempos').innerHTML = avisoRankingHTML(); return; }
-  const porMed = demoraPorMedico(data.filter(r => tieneInformeIF(r)));
-  const ordenRank = SLA_APROBADO ? ordenPorSla : ordenPorMediana;
-  const sorted = Object.entries(porMed).filter(([, a]) => a.n).sort(ordenRank).slice(0, 8);
-  const maxVal = sorted.reduce((m, [, a]) => Math.max(m, a.medianaHoras), 0) || 1;
+/* C5 (fase 5): el top 8 de demora de Resumen se retira; el único ranking de demora por médico es la vista
+   Médicos (P90 desc, C3). Con permiso queda un acceso; sin permiso, el contenedor vacío (ni acceso ni aviso). */
+function renderRankTiempos() {
   const container = document.getElementById('rank-tiempos');
-  if (!sorted.length) { container.innerHTML = emptyState('⏱','Sin datos'); return; }
-  // B6: sin color por médico hasta la fase 5 (barra y texto neutros).
-  container.innerHTML = sorted.map(([med, a], i) => `<div class="rank-item">
-      <div class="rank-num">${i+1}</div>
-      <div class="rank-label"><span title="${escAttr(med)}">${esc(med)}</span></div>
-      <div class="rank-bar-wrap"><div class="rank-bar bar-neutra" style="width:${(a.medianaHoras/maxVal*100).toFixed(0)}%"></div></div>
-      <div class="rank-val" style="color:var(--text)">${fmtDias(a.medianaHoras)}d</div>
-    </div>`).join('');
+  container.innerHTML = !puedeVerRankingMedicos() ? ''
+    : `<button class="rank-acceso" onclick="switchTab('tab-medicos', document.getElementById('tab-btn-medicos'))">`
+      + `Ver demora por médico, por modalidad →</button>`;
 }
 
-/* ═══════════════════════════════════
-   TAB PENDIENTES
-═══════════════════════════════════ */
 /* ═══════════════════════════════════
    PENDIENTES (FR5.2, fase 4): bandas de semaforo(), orden por días de demora
 ═══════════════════════════════════ */
@@ -567,50 +694,224 @@ function renderTabPendientes(data) {
 /* ═══════════════════════════════════
    TAB MÉDICOS
 ═══════════════════════════════════ */
+/* ═══════════════════════════════════
+   MÉDICOS POR MODALIDAD (C3/C4/C6, fase 5)
+   N_MIN_INFORMES y RESIDENTES viven en medico-metricas.js (junto a SLA_DEFAULT).
+═══════════════════════════════════ */
+const NOTA_VOLUMEN = 'Volumen (sin ponderar): cuenta informes y no compara complejidad entre modalidades.';
+// C13: una sola constante; se pinta en #medicos-aviso-pend y en #modal-nota del drill-down.
+const NOTA_PENDIENTES_NO_ATRIBUIDOS = 'La demora se calcula sobre estudios ya informados. Los pendientes no se pueden atribuir a un médico porque el HIS no carga el informante asignado; un médico con muchos pendientes puede verse más rápido de lo que es.';
+const NOTA_SLA_PROVISORIO ='* % en SLA calculado con umbrales provisorios: ver el aviso «Umbrales provisorios — en revisión».';
+const AVISO_POCOS_DATOS = () => `Menos de ${N_MIN_INFORMES} informes con demora en el período filtrado`;
+// Estado para el drill-down (wave 3): sólo se llena con permiso (C10, N-A1). M1 (REVIEW-3.1): { ranking, filas },
+// con filas = el mismo data con que se armó el ranking, así el drill cuenta sobre los datos de la fila.
+let medicosVista = null;
+
+// C6: compara el nombre normalizado (trim + mayúsculas) contra RESIDENTES normalizada igual. No usa esResidente() (por equipo).
+function esResidenteMedico(nombre) {
+  return RESIDENTES.map(x => String(x).trim().toUpperCase()).includes(String(nombre).trim().toUpperCase());
+}
+
+// C3: P90 desc (provisorio) o % en SLA asc (aprobado); desempate P90 desc → n desc → nombre.
+const cmpPorP90C3 = (x, y) => (y.p90Horas - x.p90Horas) || (y.n - x.n) || cmpTexto(x.medico, y.medico);
+const cmpPorSlaC3 = (x, y) => {
+  if ((x.pctEnSla === null) !== (y.pctEnSla === null)) return x.pctEnSla === null ? 1 : -1;
+  return ((x.pctEnSla || 0) - (y.pctEnSla || 0)) || cmpPorP90C3(x, y);
+};
+const cmpPocosC4 = (x, y) => (y.n - x.n) || cmpTexto(x.medico, y.medico);
+
+/* → { [modalidad]: { staff, staffPocos, residentes, residentesPocos } } con entradas
+   { medico, n, p90Horas, medianaHoras, pctEnSla, volumen }. Sólo recibe el `filtered` vigente:
+   así el n es el del período filtrado (C4). */
+function rankingPorModalidad(filas) {
+  const cmpRankingMedicos = SLA_APROBADO ? cmpPorSlaC3 : cmpPorP90C3;
+  const informados = filas.filter(r => tieneInformeIF(r));
+  const porMod = {};
+  informados.forEach(r => { const m = modalidad(r); (porMod[m] = porMod[m] || []).push(r); });
+  const salida = {};
+  EQUIPO_GROUPS.map(g => g.label).concat('OTROS').forEach(mod => {
+    const rows = porMod[mod];
+    if (!rows || !rows.length) return;
+    const volumen = new Map();
+    rows.forEach(r => { const k = String(r['Médico Informante'] || '').trim(); volumen.set(k, (volumen.get(k) || 0) + 1); });
+    const bloques = { staff: [], staffPocos: [], residentes: [], residentesPocos: [] };
+    Object.entries(demoraPorMedico(rows)).forEach(([medico, a]) => {
+      if (!a.n) return;
+      const e = { medico, n: a.n, p90Horas: a.p90Horas, medianaHoras: a.medianaHoras, pctEnSla: a.pctEnSla,
+                  volumen: volumen.get(medico) || 0 };
+      const esRes = esResidenteMedico(medico);
+      if (a.n >= N_MIN_INFORMES) (esRes ? bloques.residentes : bloques.staff).push(e);
+      else (esRes ? bloques.residentesPocos : bloques.staffPocos).push(e);
+    });
+    bloques.staff.sort(cmpRankingMedicos);
+    bloques.residentes.sort(cmpRankingMedicos);
+    bloques.staffPocos.sort(cmpPocosC4);
+    bloques.residentesPocos.sort(cmpPocosC4);
+    if (Object.values(bloques).some(l => l.length)) salida[mod] = bloques;
+  });
+  return salida;
+}
+
+const COLUMNAS_MEDICOS = [
+  ['medico', 'Médico', ''], ['n', 'n', 'num'], ['p90', 'P90 (días)', 'num'], ['mediana', 'Mediana (días)', 'num'],
+  ['pct', '% en SLA', 'num'], ['volumen', 'Volumen (sin ponderar)', 'num'],
+];
+
+// C13: el nombre es un botón que abre el drill-down; médico y modalidad viajan en data-* (nunca en un onclick).
+function tablaMedicosHTML(lista, bloque, mod) {
+  const marca = SLA_APROBADO ? '' : '*';
+  const ths = COLUMNAS_MEDICOS.map(([k, t, c]) =>
+    `<th class="${c}" data-sort="${k}">${esc(t + (k === 'pct' ? marca : ''))}</th>`).join('');
+  const filas = lista.map((e, i) => `<tr>
+      <td class="num med-pos">${i + 1}</td>
+      <td class="med-nombre" data-v="${escAttr(e.medico)}" title="${escAttr(e.medico)}"><button type="button" class="med-drill" data-medico="${escAttr(e.medico)}" data-modalidad="${escAttr(mod)}">${esc(e.medico)}</button></td>
+      <td class="num" data-v="${e.n}">${e.n}</td>
+      <td class="num" data-v="${e.p90Horas}">${fmtDias(e.p90Horas)}</td>
+      <td class="num" data-v="${e.medianaHoras}">${fmtDias(e.medianaHoras)}</td>
+      <td class="num med-pct" data-v="${e.pctEnSla === null ? '' : e.pctEnSla}">${fmtPct(e.pctEnSla)}</td>
+      <td class="num" data-v="${e.volumen}">${e.volumen}</td>
+    </tr>`).join('');
+  return `<table class="med-tabla"${bloque ? ` data-bloque="${bloque}"` : ''}><thead><tr><th class="num">#</th>${ths}</tr></thead><tbody>${filas}</tbody></table>`;
+}
+
+function pocosHTML(lista, bloque, titulo) {
+  if (!lista.length) return '';
+  return `<div class="med-pocos" data-bloque="${bloque}"><div class="med-sub-titulo">${esc(titulo)}</div>
+    <div>${esc(AVISO_POCOS_DATOS())}</div><ul>${lista.map(e =>
+      `<li><span title="${escAttr(e.medico)}">${esc(e.medico)}</span> — ${e.n}</li>`).join('')}</ul></div>`;
+}
+
+const avisoSinRankingHTML = (bloque) =>
+  `<div class="med-sin-ranking"${bloque ? ` data-bloque="${bloque}"` : ''}>${esc(AVISO_POCOS_DATOS())}</div>`;
+
 function renderTabMedicos(data) {
-  if (!puedeVerRankingMedicos()) { document.getElementById('medicos-grid').innerHTML = avisoRankingHTML(); return; }
-  const conInforme = data.filter(r => tieneInformeIF(r) && medicoValido(r['Médico Informante']));
-  const byMed = groupBy(conInforme, r => r['Médico Informante']);
-  const sorted = Object.entries(byMed).sort((a,b)=>b[1].length-a[1].length);
-  const maxInf = sorted[0]?.[1].length || 1;
-  const grid = document.getElementById('medicos-grid');
+  const cont = document.getElementById('medicos-vista');
+  const avisoPend = document.getElementById('medicos-aviso-pend');
+  // M4 (REVIEW-2.1): si el cálculo falla, el drill-down no puede quedar leyendo el ranking anterior.
+  medicosVista = null;
+  // C10/N-A1: sin permiso ni se calcula ni se pinta nada.
+  if (!puedeVerRankingMedicos()) { cont.innerHTML = ''; if (avisoPend) avisoPend.textContent = ''; return; }
+  if (avisoPend) avisoPend.textContent = NOTA_PENDIENTES_NO_ATRIBUIDOS;   // C13
+  const ranking = rankingPorModalidad(data);
+  medicosVista = { ranking, filas: data };
+  const mods = Object.keys(ranking);
+  if (!mods.length) { cont.innerHTML = emptyState('👨‍⚕️', 'Sin médicos informantes registrados'); return; }
+  const notas = `<div class="med-nota" id="medicos-nota-volumen">${esc(NOTA_VOLUMEN)}</div>`
+    + (SLA_APROBADO ? '' : `<div class="med-nota" id="medicos-nota-sla">${esc(NOTA_SLA_PROVISORIO)}</div>`);
+  cont.innerHTML = notas + mods.map(mod => {
+    const b = ranking[mod];
+    const staff = b.staff.length ? tablaMedicosHTML(b.staff, 'staff', mod) : avisoSinRankingHTML('staff');
+    const hayRes = b.residentes.length || b.residentesPocos.length;
+    const res = hayRes
+      ? `<div data-bloque="residentes"><div class="med-sub-titulo">Residentes</div>`
+        + (b.residentes.length ? tablaMedicosHTML(b.residentes, '', mod) : avisoSinRankingHTML(''))
+        + `</div>` + pocosHTML(b.residentesPocos, 'residentes-pocos', 'Residentes · pocos datos')
+      : '';
+    return `<section class="med-mod" data-modalidad="${escAttr(mod)}"><div class="med-mod-titulo">${esc(mod)}</div>`
+      + staff + res + pocosHTML(b.staffPocos, 'pocos', 'Pocos datos') + `</section>`;
+  }).join('');
+}
 
-  if (!sorted.length) {
-    grid.innerHTML = emptyState('👨‍⚕️','Sin médicos informantes registrados');
-    return;
-  }
+// FR4.3: reordena una tabla desde su encabezado, sin recalcular (sólo mueve filas).
+function ordenarTablaMedicos(th) {
+  const tabla = th.closest('table');
+  const idx = th.cellIndex;
+  const asc = th.dataset.dir !== 'asc';
+  tabla.querySelectorAll('th').forEach(t => { delete t.dataset.dir; });
+  th.dataset.dir = asc ? 'asc' : 'desc';
+  const esTexto = th.dataset.sort === 'medico';
+  const val = tr => { const v = tr.cells[idx].dataset.v; return v === '' ? null : esTexto ? v : Number(v); };
+  const filas = [...tabla.tBodies[0].rows];
+  filas.sort((a, b) => {
+    const x = val(a), y = val(b);
+    if ((x === null) !== (y === null)) return x === null ? 1 : -1;
+    const c = esTexto ? cmpTexto(x, y) : (x - y);
+    return asc ? c : -c;
+  });
+  filas.forEach((tr, i) => { tr.cells[0].textContent = i + 1; tabla.tBodies[0].appendChild(tr); });
+}
+document.addEventListener('click', ev => {
+  const th = ev.target.closest && ev.target.closest('#medicos-vista th[data-sort]');
+  if (th) ordenarTablaMedicos(th);
+  const b = ev.target.closest && ev.target.closest('#medicos-vista button.med-drill');
+  if (b) openModal('medico-modalidad', { medico: b.dataset.medico, modalidad: b.dataset.modalidad });   // C13
+});
 
-  const porMed = demoraPorMedico(conInforme);
-  grid.innerHTML = sorted.map(([med, rows]) => {
-    // B5: demora mediana sin tope del médico (agregados del motor).
-    // Contrato: agrupar(..., 'medicoInformante') usa como clave
-    // String(valor).trim() (textoOVacio en medico-metricas.js); si esa
-    // normalización cambia, este lookup tiene que cambiar igual.
-    const a = porMed[String(med).trim()];
-    const mediana = a ? fmtDias(a.medianaHoras) : '—';
-    const pct = ((rows.length/maxInf)*100).toFixed(0);
+/* ═══════════════════════════════════
+   PRESTACIONES (C9, fase 5)
+   Por modalidad, dos tops agrupados por el texto de Prestación (el Código va como columna informativa, sin
+   agrupar). Sobre el `filtered` vigente; unidad = estudio. Sin export en la fase 5 (C16).
+   N_MIN_INFORMES (C4) y TOP_PRESTACIONES viven en medico-metricas.js.
+═══════════════════════════════════ */
+const NOTA_PRIMERA_PRESTACION = 'Si un turno tiene dos o más prestaciones no accesorias, sólo cuenta la primera.';
+// C1: el volumen de Prestaciones cuenta estudios (informados o no), no informes como NOTA_VOLUMEN de Médicos.
+const NOTA_VOLUMEN_PRESTACIONES = 'Volumen (sin ponderar): cuenta estudios del período, informados o no, y no compara complejidad entre modalidades.';
 
-    return `<div class="medico-card">
-      <div class="medico-avatar">👨‍⚕️</div>
-      <div class="medico-nombre" title="${escAttr(med)}">${esc(med)}</div>
-      <div class="medico-stats">
-        <div class="medico-stat">
-          <span>Informes realizados</span>
-          <span class="medico-stat-val">${rows.length}</span>
-        </div>
-        <div class="medico-stat">
-          <span>Demora mediana</span>
-          <span class="medico-stat-val">${mediana === '—' ? '—' : mediana + ' días'}</span>
-        </div>
-        <div class="medico-stat">
-          <span>Participación</span>
-          <span class="medico-stat-val">${pct}%</span>
-        </div>
-      </div>
-      <div class="medico-bar">
-        <div class="medico-bar-fill" style="width:${pct}%"></div>
-      </div>
-    </div>`;
+// El valor más frecuente de la columna Código dentro del grupo; si empatan, el menor por texto. '' si no hay.
+function codigoMasFrecuente(rows) {
+  const cuenta = new Map();
+  rows.forEach(r => { const c = String(r['Código'] == null ? '' : r['Código']).trim(); cuenta.set(c, (cuenta.get(c) || 0) + 1); });
+  let mejor = '', n = 0;
+  cuenta.forEach((v, c) => { if (v > n || (v === n && cmpTexto(c, mejor) < 0)) { mejor = c; n = v; } });
+  return mejor;
+}
+
+/* → { [modalidad]: { porP90, porVolumen } }. porP90: { prestacion, codigo, n, p90Horas, medianaHoras, volumen } con
+   n >= N_MIN_INFORMES, P90 desc → n desc → nombre. porVolumen: { prestacion, codigo, volumen }, volumen desc →
+   nombre, sin mínimo. Nunca mezcla modalidades. */
+function prestacionesPorModalidad(filas) {
+  const porMod = new Map();
+  filas.forEach(r => { const m = modalidad(r); if (!porMod.has(m)) porMod.set(m, []); porMod.get(m).push(r); });
+  const salida = Object.create(null);
+  EQUIPO_GROUPS.map(g => g.label).concat('OTROS').forEach(mod => {
+    const rows = porMod.get(mod);
+    if (!rows || !rows.length) return;
+    const agr = agrupar(rows.filter(r => tieneInformeIF(r)), 'prestacion');
+    const grupos = new Map();   // Map: el texto del Excel no puede chocar con Object.prototype
+    rows.forEach(r => { const k = textoOVacio(r['Prestación']); if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(r); });
+    const todas = [...grupos].map(([prestacion, g]) => ({ prestacion, codigo: codigoMasFrecuente(g), volumen: g.length }));
+    const porP90 = todas.filter(e => agr[e.prestacion] && agr[e.prestacion].n >= N_MIN_INFORMES)
+      .map(e => ({ ...e, n: agr[e.prestacion].n, p90Horas: agr[e.prestacion].p90Horas,
+                   medianaHoras: agr[e.prestacion].medianaHoras }))
+      .sort((x, y) => (y.p90Horas - x.p90Horas) || (y.n - x.n) || cmpTexto(x.prestacion, y.prestacion))
+      .slice(0, TOP_PRESTACIONES);
+    const porVolumen = todas.map(e => ({ prestacion: e.prestacion, codigo: e.codigo, volumen: e.volumen }))
+      .sort((x, y) => (y.volumen - x.volumen) || cmpTexto(x.prestacion, y.prestacion))
+      .slice(0, TOP_PRESTACIONES);
+    salida[mod] = { porP90, porVolumen };
+  });
+  return salida;
+}
+
+const celdaPrestacion = e =>
+  `<td title="${escAttr(e.prestacion)}">${esc(e.prestacion)}</td><td title="${escAttr(e.codigo)}">${esc(e.codigo)}</td>`;
+
+function tablaPrestacionesP90HTML(lista) {
+  if (!lista.length) return `<div class="med-sin-ranking" data-tabla="p90">${esc(AVISO_POCOS_DATOS())}</div>`;
+  const filas = lista.map(e => `<tr>${celdaPrestacion(e)}
+      <td class="num">${e.n}</td><td class="num">${fmtDias(e.p90Horas)}</td><td class="num">${fmtDias(e.medianaHoras)}</td></tr>`).join('');
+  return `<table class="med-tabla" data-tabla="p90"><thead><tr><th>Prestación</th><th>Código</th><th class="num">n</th>`
+    + `<th class="num">P90 (días)</th><th class="num">Mediana (días)</th></tr></thead><tbody>${filas}</tbody></table>`;
+}
+
+function tablaPrestacionesVolumenHTML(lista) {
+  const filas = lista.map(e => `<tr>${celdaPrestacion(e)}<td class="num">${e.volumen}</td></tr>`).join('');
+  return `<table class="med-tabla" data-tabla="volumen"><thead><tr><th>Prestación</th><th>Código</th>`
+    + `<th class="num">Volumen (sin ponderar)</th></tr></thead><tbody>${filas}</tbody></table>`;
+}
+
+function renderTabPrestaciones(data) {
+  const cont = document.getElementById('prestaciones-vista');
+  const res = prestacionesPorModalidad(data);
+  const mods = Object.keys(res);
+  if (!mods.length) { cont.innerHTML = emptyState('🩻', 'Sin estudios en el período'); return; }
+  const notas = `<div class="med-nota" id="prestaciones-nota-volumen">${esc(NOTA_VOLUMEN_PRESTACIONES)}</div>`
+    + `<div class="med-nota" id="prestaciones-nota-primera">${esc(NOTA_PRIMERA_PRESTACION)}</div>`;
+  cont.innerHTML = notas + mods.map(mod => {
+    const b = res[mod];
+    return `<section class="prest-mod med-mod" data-modalidad="${escAttr(mod)}"><div class="med-mod-titulo">${esc(mod)}</div>`
+      + `<div class="med-sub-titulo">Top por P90</div>` + tablaPrestacionesP90HTML(b.porP90)
+      + `<div class="med-sub-titulo">Top por volumen</div>` + tablaPrestacionesVolumenHTML(b.porVolumen) + `</section>`;
   }).join('');
 }
 
@@ -622,6 +923,7 @@ function switchTab(id, btn) {
   document.querySelectorAll('.tab-btn').forEach(b  => b.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   btn.classList.add('active');
+  if (rawData.length) pintarResumenFiltros();   // C15: la aclaración depende de la pestaña
 }
 
 /* ═══════════════════════════════════
@@ -637,6 +939,8 @@ function pintarNotasDemora() {
   document.querySelectorAll('.nota-demora').forEach(el => {
     el.textContent = 'Desde ' + FECHA_DEMORA_SIN_TOPE + ': demora sin tope de días';
   });
+  const nv = document.getElementById('rank-medicos-nota');
+  if (nv) nv.textContent = NOTA_VOLUMEN;
 }
 
 /* Líneas del aviso B1, generadas desde SLA_DEFAULT: la vista no tiene números propios. */
@@ -710,7 +1014,7 @@ function groupBy(arr, keyFn) {
   return arr.reduce((acc, item) => {
     const k = keyFn(item) || 'Sin datos';
     (acc[k] = acc[k]||[]).push(item); return acc;
-  }, {});
+  }, Object.create(null));   // sin prototipo: un Médico Informante '__proto__' es una clave más (N-A2)
 }
 function emptyState(icon, text) {
   return `<div class="empty-state"><div class="e-icon">${icon}</div><div class="e-text">${text}</div></div>`;
@@ -797,7 +1101,7 @@ function modalidad(r) {
    muestra qué valor fue (sin fallback, ver modalidad() arriba). Pura y
    global: no toca el DOM ni loguea por fila. */
 function serviciosDesconocidos(rows) {
-  const out = {};
+  const out = Object.create(null);   // C19/N-A2: las claves son texto libre del Excel
   (rows || []).forEach(r => {
     const original = String((r && r['Servicio']) || '').trim();
     if (!original) return;
@@ -838,13 +1142,46 @@ function getInconsistentes(data) {
    MODAL
 ═══════════════════════════════════ */
 let modalRows = [], modalFiltered = [], modalTitle = '', modalTipo = '';
+let modalDrill = null;   // { medico, modalidad } del drill-down abierto (C13); lo usa exportDrillMedico
 
-function openModal(tipo) {
+const COLUMNAS_MODAL = ['Fecha', 'Turno N°', 'Paciente', 'Documento', 'Prestación', 'Informe', 'Días Pendiente'];
+// C13: el drill-down no muestra Paciente ni Documento.
+const COLUMNAS_DRILL = ['Fecha', 'Turno N°', 'Prestación', 'Demora (días)', 'Semáforo'];
+
+// Misma clave que agrupar()/rankingPorModalidad: el Médico Informante sin espacios alrededor.
+const claveMedico = r => String(r['Médico Informante'] || '').trim();
+
+/* Banda de un estudio informado (C13; la wave 5 la reusa en el export): la de semaforo(), con null → 'sin SLA'
+   y 'sin fecha' si el estudio no tiene demora válida (inconsistente). */
+function bandaEstudio(r) {
+  const h = tatHoras(r);
+  if (h === null) return 'sin fecha';
+  const b = semaforo(modalidad(r), r['Tipo Turno'], h,
+    { inicio: parseDate(r['Turno Fecha']), fin: parseDate(r['Fecha Informe']) });
+  return b === null ? 'sin SLA' : b;
+}
+
+function openModal(tipo, extra) {
+  // Minor 4 (REVIEW-5.1): el menú genérico (exportExcel, con Paciente y Documento) no sigue abierto en el modal
+  // nuevo; en el drill-down no tiene que quedar a mano (C13).
+  closeExportMenu();
   if (!filtered.length) return;
+  // C13/C10: sin permiso, el drill-down no abre ni pinta nada (antes de tocar ningún estado del modal).
+  // M3 (REVIEW-3.1): tampoco sin médico o modalidad. El permiso no depende de medicosVista.
+  if (tipo === 'medico-modalidad' && (!puedeVerRankingMedicos() || !extra || !extra.medico || !extra.modalidad)) return;
   modalTipo = tipo;
   switch(tipo) {
+    case 'medico-modalidad': {
+      // Informados del médico en esa modalidad, sobre las filas del ranking (M1). Fecha asc; si empatan, turno.
+      modalRows = (medicosVista ? medicosVista.filas : []).filter(r => tieneInformeIF(r) && modalidad(r) === extra.modalidad && claveMedico(r) === extra.medico)
+        .map(r => ({ r, t: (parseDate(r['Turno Fecha']) || { getTime: () => Infinity }).getTime() }))
+        .sort((a, b) => (a.t - b.t) || cmpTexto(String(a.r['Turno N°']), String(b.r['Turno N°'])))
+        .map(x => x.r);
+      break;
+    }
     case 'pendientes': {
-      // Mismo orden que la pestaña Pendientes: días de demora descendente.
+      // C25 (opción b): lo abre la tarjeta KPI, así que usa su universo (filtered, con fechas y médico), no el
+      // backlog de la pestaña Pendientes. Mismo orden que la pestaña: días de demora descendente.
       const sinInf = filtered.filter(r => !tieneInformeIF(r));
       modalRows = fechaCorteActual ? ordenarPendientes(sinInf, fechaCorteActual).map(x => x.r) : sinInf;
       break;
@@ -860,9 +1197,20 @@ function openModal(tipo) {
   // filtered sale de realizados, que ya pasó por esEstudio (Estado = REA)
   const labels = {pendientes:'Informes Pendientes',realizados:'Informes Realizados',tiempo:'Estudios con Informe',medicos:'Estudios por Médico',cobertura:'Todos los Estudios',inconsistentes:'Estudios Inconsistentes'};
   const colors = {pendientes:'var(--red)',realizados:'var(--cyan)',tiempo:'var(--blue)',medicos:'var(--green)',cobertura:'var(--amber)',inconsistentes:'var(--red)'};
-  modalTitle = labels[tipo] || 'Detalle';
-  document.getElementById('modal-title').textContent = modalTitle;
+  const esDrill = tipo === 'medico-modalidad';
+  modalDrill = esDrill ? { medico: extra.medico, modalidad: extra.modalidad } : null;
+  modalTitle = esDrill ? `${extra.medico} · ${extra.modalidad}` : (labels[tipo] || 'Detalle');
+  document.getElementById('modal-title').textContent = modalTitle;   // textContent: el nombre viene del Excel
   document.getElementById('modal-bar').style.background = colors[tipo] || 'var(--green)';
+  document.getElementById('modal-thead').innerHTML =
+    `<tr>${(esDrill ? COLUMNAS_DRILL : COLUMNAS_MODAL).map(c => `<th>${esc(c)}</th>`).join('')}</tr>`;
+  const nota = document.getElementById('modal-nota');
+  nota.textContent = esDrill ? NOTA_PENDIENTES_NO_ATRIBUIDOS : '';
+  nota.style.display = esDrill ? '' : 'none';
+  // C13/C16 (wave 5): el drill-down exporta con exportDrillMedico (columnas de pantalla, sin Paciente ni Documento).
+  document.getElementById('modal-export').style.display = '';
+  document.getElementById('modal-search').placeholder = esDrill
+    ? '🔍  Buscar por turno o prestación…' : '🔍  Buscar por paciente, médico, prestación…';
   document.getElementById('modal-search').value = '';
   modalFiltered = [...modalRows];
   renderModalTable(modalFiltered);
@@ -887,6 +1235,11 @@ document.addEventListener('keydown', e => {
 function filterModal(query) {
   const q = query.toLowerCase().trim();
   if(!q) { modalFiltered = [...modalRows]; }
+  else if (modalTipo === 'medico-modalidad') {
+    // C13: el drill-down busca sólo por Turno N° y Prestación (sin Paciente, Documento ni médico).
+    modalFiltered = modalRows.filter(r =>
+      String(r['Turno N°']||'').toLowerCase().includes(q) || (r['Prestación']||'').toLowerCase().includes(q));
+  }
   else {
     modalFiltered = modalRows.filter(r =>
       (r['Paciente']||'').toLowerCase().includes(q) ||
@@ -904,6 +1257,7 @@ function renderModalTable(rows) {
   const display = rows.slice(0, MAX);
   document.getElementById('modal-count').textContent = rows.length.toLocaleString() + ' registros' + (rows.length > MAX ? ' (mostrando '+MAX+')' : '');
   document.getElementById('modal-footer-count').textContent = rows.length.toLocaleString() + ' registros' + (rows.length !== modalRows.length ? ' filtrados de '+modalRows.length.toLocaleString() : '');
+  if (modalTipo === 'medico-modalidad') { renderModalMedico(rows, display); return; }
   document.getElementById('modal-tbody').innerHTML = display.map(r => {
     const fecha = parseDate(r['Turno Fecha']);
     let fechaStr = fecha ? fecha.toLocaleDateString('es-AR') : '—';
@@ -930,6 +1284,25 @@ function renderModalTable(rows) {
   }).join('');
 }
 
+/* C13: filas del drill-down (Fecha · Turno N° · Prestación · Demora (días) · Semáforo). El conteo del modal es el
+   Volumen de la fila (todos los informados); "n con demora" es el n del ranking (los que tienen demora válida).
+   M2 (REVIEW-3.1): "n con demora" se cuenta sobre todas las filas del drill, no sobre lo que filtra el buscador. */
+function renderModalMedico(rows, display) {
+  const conDemora = modalRows.filter(r => tatHoras(r) !== null).length;
+  document.getElementById('modal-footer-count').textContent += ' · n con demora: ' + conDemora.toLocaleString();
+  document.getElementById('modal-tbody').innerHTML = display.map(r => {
+    const fecha = parseDate(r['Turno Fecha']);
+    const banda = bandaEstudio(r);
+    return '<tr>' +
+      '<td>' + (fecha ? fecha.toLocaleDateString('es-AR') : '—') + '</td>' +
+      '<td style="color:var(--muted)">' + esc(r['Turno N°'] || '—') + '</td>' +
+      '<td>' + esc(r['Prestación'] || '—') + '</td>' +
+      '<td>' + fmtDias(tatHoras(r)) + '</td>' +
+      '<td class="' + CLASE_BANDA[banda] + '">' + ETIQUETA_BANDA[banda] + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
 function deduplicarPorTurno(rows) {
   const seen = new Set();
   return rows.filter(r => {
@@ -951,8 +1324,8 @@ function openRealizadosPage() {
   const conInforme = filtered.filter(r => tieneInformeIF(r));
   realizadosData = conInforme;
 
-  // Agrupar por médico informante (conteo de informes)
-  const byMed = {};
+  // Agrupar por médico informante (conteo de informes); sin prototipo, como groupBy (N-A2)
+  const byMed = Object.create(null);
   conInforme.forEach(r => {
     const med = (r['Médico Informante']||'').trim();
     if (!medicoValido(med)) return;
@@ -966,13 +1339,12 @@ function openRealizadosPage() {
 
   // B5: demora mediana y P90 generales, sin tope (agregados del motor)
   const demora = resumenDemora(conInforme);
-  const conDias = v => v === '—' ? '—' : v + ' días';
 
   // Summary cards
   document.getElementById('real-total').textContent = conInforme.length.toLocaleString();
   document.getElementById('real-medicos').textContent = medData.length;
-  document.getElementById('real-tiempo').textContent = conDias(demora.mediana);
-  document.getElementById('real-p90').textContent = conDias(demora.p90);
+  document.getElementById('real-tiempo').textContent = fmtDiasTexto(demora.medianaHoras);
+  document.getElementById('real-p90').textContent = fmtDiasTexto(demora.p90Horas);
 
   // Tabla (B9: sin permiso, el aviso en lugar del detalle por médico)
   const tbody = document.getElementById('real-tbody');
@@ -1001,6 +1373,27 @@ function closeRealizadosPage() {
   document.body.style.overflow = '';
 }
 
+/* ═══════════════════════════════════
+   EXPORTS: SANEO (C17)
+   Formula injection: un string que empieza con = + - @ tab o CR se escribe con ' adelante, así Excel lo trata
+   como texto. Sólo strings: números y fechas pasan intactos y siguen siendo numéricos. Todas las filas que este
+   módulo le pasa a SpcdExcel.buildTable pasan por sanearFilaExport (spcd-excel-template.js no sanea).
+═══════════════════════════════════ */
+const PREFIJOS_FORMULA = ['=', '+', '-', '@', '\t', '\r'];
+const sanearCelda = v => (typeof v === 'string' && PREFIJOS_FORMULA.some(p => v.startsWith(p))) ? "'" + v : v;
+const sanearFilaExport = fila => fila.map(sanearCelda);
+
+// C15/C16 (C26): la línea "Filtros: …" de la pantalla, en la primera fila debajo del encabezado de la plantilla.
+// `vista` (opcional, C27): la vista para la que se arma el texto; sin ella se usa la pestaña activa (el drill-down).
+function escribirLineaFiltros(ws, fila, totalCols, vista) {
+  const activa = document.querySelector('.tab-pane.active');
+  const cell = ws.getCell(fila, 1);
+  cell.value = sanearCelda(textoFiltros(vista !== undefined ? vista : (activa ? activa.id : '')));
+  cell.font = { name:'Calibri', size:10, italic:true };
+  ws.mergeCells(fila, 1, fila, totalCols);
+  return { nextRow: fila + 1 };
+}
+
 async function exportRealizadosExcel(share) {
   if (!puedeVerRankingMedicos()) { showToast(AVISO_RANKING); return; }   // B9
   if (!realizadosData.length) return;
@@ -1008,7 +1401,7 @@ async function exportRealizadosExcel(share) {
     await SpcdExcel.ready();
 
     const conInforme = realizadosData;
-    const byMed = {};
+    const byMed = Object.create(null);   // N-A2
     conInforme.forEach(r => {
       const med = (r['Médico Informante']||'').trim();
       if (!medicoValido(med)) return;
@@ -1034,12 +1427,12 @@ async function exportRealizadosExcel(share) {
     const k = SpcdExcel.buildKPIs(ws, [
       { label:'Médicos',         value: medData.length,                   tone:'cyan' },
       { label:'Estudios totales',value: conInforme.length.toLocaleString('es-AR'), tone:'silver' },
-      { label:'Top informante',  value: top,                              tone:'emerald', hint: medData[0]?medData[0].medico.split(' ')[0]:'' }
+      { label:'Top informante',  value: top,                              tone:'emerald', hint: medData[0]?sanearCelda(medData[0].medico.split(' ')[0]):'' }
     ], { startRow:h.nextRow, totalCols:cols.length });
     const s = SpcdExcel.buildSection(ws, { startRow:k.nextRow, totalCols:cols.length, title:'RANKING POR MÉDICO INFORMANTE' });
     const t = SpcdExcel.buildTable(ws, {
       columns: cols, widths,
-      rows: medData.map((m, i) => [i+1, m.medico, m.count]),
+      rows: medData.map((m, i) => [i+1, m.medico, m.count]).map(sanearFilaExport),
       startRow: s.nextRow, totalCols: cols.length,
       formatter: (cell, v, rd, idx, ci, cName) => {
         if (cName==='#' || cName==='Informes') SpcdExcel.Fmt.center(cell);
@@ -1075,62 +1468,37 @@ async function exportRealizadosExcel(share) {
 /* ═══════════════════════════════════
    TIEMPO PAGE
 ═══════════════════════════════════ */
-let tiempoData = [];
-let tiempoFilas = [];
+/* C5 (fase 5): la página Tiempo ya no nombra médicos (el único ranking de demora es la vista Médicos).
+   Totales generales y una fila por modalidad; sin nombres, así que tampoco lleva guard de permiso. */
+let tiempoPorModalidad = [];
+let tiempoResumen = null;
 
 function openTiempoPage() {
   if (!filtered.length) return;
 
   const conInforme = filtered.filter(r => tieneInformeIF(r));
-  tiempoFilas = conInforme;
+  const porMod = Object.create(null);
+  conInforme.forEach(r => { const mod = modalidad(r); (porMod[mod] = porMod[mod] || []).push(r); });
+  // Las 5 modalidades siempre (vacías con '—'); OTROS sólo si tiene informes. Mismo orden que la vista Médicos.
+  tiempoPorModalidad = EQUIPO_GROUPS.map(g => g.label).concat(porMod.OTROS ? ['OTROS'] : [])
+    .map(mod => ({ modalidad: mod, ...resumenDemora(porMod[mod] || []) }));
 
-  // Conteo de informes por médico informante
-  const byMed = {};
-  conInforme.forEach(r => {
-    const med = (r['Médico Informante']||'').trim();
-    if (!medicoValido(med)) return;
-    byMed[med] = (byMed[med] || 0) + 1;
-  });
-
-  // B5: demora mediana y P90 por médico (agregados del motor, sin tope),
-  // los más demorados primero.
-  const porMed = demoraPorMedico(conInforme);
-  const medData = Object.entries(porMed).filter(([, a]) => a.n)
-    .map(([med, a]) => ({ medico: med, count: byMed[med] || 0, medianaHoras: a.medianaHoras,
-                          mediana: fmtDias(a.medianaHoras), p90: fmtDias(a.p90Horas) }))
-    .sort((a, b) => (b.medianaHoras - a.medianaHoras) || cmpTexto(a.medico, b.medico));
-
-  tiempoData = medData;
-
-  // Demora mediana y P90 generales
   const demora = resumenDemora(conInforme);
-  const conDias = v => v === '—' ? '—' : v + ' días';
+  tiempoResumen = demora;
 
   // Summary cards
-  document.getElementById('tiempo-avg').textContent = conDias(demora.mediana);
-  document.getElementById('tiempo-p90').textContent = conDias(demora.p90);
-  document.getElementById('tiempo-medicos').textContent = medData.length;
+  document.getElementById('tiempo-avg').textContent = fmtDiasTexto(demora.medianaHoras);
+  document.getElementById('tiempo-p90').textContent = fmtDiasTexto(demora.p90Horas);
+  document.getElementById('tiempo-modalidades').textContent = tiempoPorModalidad.filter(m => m.n).length;
   document.getElementById('tiempo-total').textContent = demora.n.toLocaleString();
 
-  const maxMed = medData.reduce((m, x) => Math.max(m, x.medianaHoras), 0) || 1;
-
-  // Tabla (B6: sin color por médico hasta la fase 5)
-  const tbody = document.getElementById('tiempo-tbody');
-  tbody.innerHTML = !puedeVerRankingMedicos() ? filaAvisoRanking(6) : medData.map((m, i) => {
-    const pct = ((m.medianaHoras / maxMed) * 100).toFixed(0);
-    return `<tr>
-      <td class="rank-col">${i + 1}</td>
-      <td class="name-col">${esc(m.medico)}</td>
-      <td class="time-col">${m.mediana}d</td>
-      <td class="time-col">${m.p90}d</td>
-      <td class="num-col">${m.count}</td>
-      <td class="bar-col">
-        <div class="real-bar-wrap">
-          <div class="real-bar bar-neutra" style="width:${pct}%"></div>
-        </div>
-      </td>
-    </tr>`;
-  }).join('');
+  // Tabla (B6: sin colores de umbral)
+  document.getElementById('tiempo-tbody').innerHTML = tiempoPorModalidad.map(m => `<tr>
+      <td class="name-col">${esc(m.modalidad)}</td>
+      <td class="time-col">${m.mediana}</td>
+      <td class="time-col">${m.p90}</td>
+      <td class="num-col">${m.n.toLocaleString()}</td>
+    </tr>`).join('');
 
   // Mostrar página
   document.getElementById('tiempo-page').classList.add('open');
@@ -1142,64 +1510,57 @@ function closeTiempoPage() {
   document.body.style.overflow = '';
 }
 
+// C5/C16: totales y desglose por modalidad, sin nombres ni banda; sin guard de permiso (no hay datos por médico).
 async function exportTiempoExcel(share) {
-  if (!puedeVerRankingMedicos()) { showToast(AVISO_RANKING); return; }   // B9
-  if (!tiempoData.length) return;
+  if (!tiempoPorModalidad.length || !tiempoResumen) return;
   try {
     await SpcdExcel.ready();
 
-    const cols   = ['#','Médico Informante','Demora mediana (días)','P90 (días)','Informes'];
-    const widths = [6, 32, 22, 14, 14];
-    const avgGen = document.getElementById('tiempo-avg').textContent;
+    const cols   = ['Modalidad','Demora mediana (días)','P90 (días)','Informes analizados'];
+    const widths = [30, 22, 14, 20];
+    const numero = v => v === '—' ? '—' : Number(v);
+    const avgGen = fmtDiasTexto(tiempoResumen.medianaHoras);
 
-    /* KPIs */
-    const totMeds = tiempoData.length;
-    const totInfs = tiempoData.reduce((s,m) => s + m.count, 0);
-    // B7: fuera de SLA = estudios en banda amarillo o rojo de semaforo() (SLA provisorio).
-    const demora = resumenDemora(tiempoFilas);
-    const fueraSLA = demora.bandas.amarillo + demora.bandas.rojo;
-
-    const subtitle = 'DEMORA MEDIANA DE INFORME';
+    const subtitle = 'DEMORA MEDIANA DE INFORME POR MODALIDAD';
     const { wb, ws } = SpcdExcel.createBook({ subtitle, sheetName:'Demora' });
 
     const h = SpcdExcel.buildHeader(ws, {
       subtitle, totalCols: cols.length,
-      meta:{ modulo:'MEDICO', sede:SpcdExcel.getCurrentSede(), usuario:SpcdExcel.getCurrentUser(), registros: totMeds, extra:`MEDIANA GLOBAL: ${avgGen}` }
+      meta:{ modulo:'MEDICO', sede:SpcdExcel.getCurrentSede(), usuario:SpcdExcel.getCurrentUser(), registros: tiempoPorModalidad.length, extra:`MEDIANA GLOBAL: ${avgGen}` }
     });
+    // C16/C27: la línea de filtros va en la fila 5 con textoFiltros(''): esta página usa `filtered`, así que aplica todos
+    // los filtros, sin la aclaración de "no aplica" de Semáforo y Pendientes. Los KPIs bajan a lf.nextRow.
+    const lf = escribirLineaFiltros(ws, h.nextRow, cols.length, '');
     const k = SpcdExcel.buildKPIs(ws, [
-      { label:'Médicos',        value: totMeds,                         tone:'cyan' },
-      { label:'Informes',       value: totInfs.toLocaleString('es-AR'), tone:'silver' },
-      { label:'Demora mediana', value: avgGen,                          tone:'emerald' },
-      { label:'Fuera de SLA',   value: fueraSLA, tone: fueraSLA ? 'rose' : 'cyan', hint:'amarillo + rojo (SLA provisorio)' }
-    ], { startRow:h.nextRow, totalCols:cols.length });
-    const s = SpcdExcel.buildSection(ws, { startRow:k.nextRow, totalCols:cols.length, title:'DEMORA MEDIANA POR MÉDICO · DÍAS' });
+      { label:'Informes analizados', value: tiempoResumen.n.toLocaleString('es-AR'), tone:'silver' },
+      { label:'Demora mediana',      value: avgGen,                                   tone:'emerald' },
+      { label:'P90',                 value: fmtDiasTexto(tiempoResumen.p90Horas),     tone:'cyan' }
+    ], { startRow:lf.nextRow, totalCols:cols.length });
+    const s = SpcdExcel.buildSection(ws, { startRow:k.nextRow, totalCols:cols.length, title:'DEMORA MEDIANA POR MODALIDAD · DÍAS' });
     const t = SpcdExcel.buildTable(ws, {
       columns: cols, widths,
-      rows: tiempoData.map((m,i) => [i+1, m.medico, Number(m.mediana), Number(m.p90), m.count]),
+      rows: tiempoPorModalidad.map(m => [m.modalidad, numero(m.mediana), numero(m.p90), m.n]).map(sanearFilaExport),
       startRow: s.nextRow, totalCols: cols.length,
       formatter: (cell, v, rd, idx, ci, cName) => {
-        if (cName !== 'Médico Informante') SpcdExcel.Fmt.center(cell);
-        // B6: sin color por médico hasta la fase 5.
+        if (cName !== 'Modalidad') SpcdExcel.Fmt.center(cell);
         if ((cName==='Demora mediana (días)' || cName==='P90 (días)') && typeof v === 'number') cell.numFmt = '0.0 "días"';
-        if (cName==='Informes') SpcdExcel.Fmt.accent(cell);
+        if (cName==='Informes analizados') SpcdExcel.Fmt.accent(cell);
       }
     });
     const tot = SpcdExcel.buildTotals(ws, {
       startRow:t.nextRow, totalCols:cols.length,
       items:[
-        { label:'Médicos', value: totMeds },
-        { label:'Informes', value: totInfs },
-        { label:'Mediana global', value: avgGen },
-        fueraSLA ? { label:'Fuera SLA', value: fueraSLA } : null
-      ].filter(Boolean)
+        { label:'Informes analizados', value: tiempoResumen.n },
+        { label:'Mediana global', value: avgGen }
+      ]
     });
     SpcdExcel.buildFooter(ws, { startRow:tot.nextRow, totalCols:cols.length, hash:h.hash });
 
     const fileName = `SPCD_Medico_Demora_Mediana_${SpcdExcel.nowIsoDate()}.xlsx`;
     await SpcdExcel.exportAndShare(wb, fileName, share ? {
-      titulo:'Demora mediana de informe',
+      titulo:'Demora mediana de informe por modalidad',
       periodo: SpcdExcel.dateAr(),
-      cantidad: tiempoData.length,
+      cantidad: tiempoResumen.n,
       modulo:'medico', tipoExport:'tiempo'
     } : null);
   } catch(err) {
@@ -1215,6 +1576,8 @@ async function exportTiempoExcel(share) {
 /* ── Menú de exportación ── */
 function handleExportClick() {
   if (!modalFiltered.length) { spcdAlert('No hay datos para exportar', { type:'alert', title:'Sin datos' }); return; }
+  // C13/C16: el drill-down tiene su propio export (columnas de pantalla, sin Paciente ni Documento).
+  if (modalTipo === 'medico-modalidad') { exportDrillMedico(false); return; }
   const menu = document.getElementById('export-menu');
 
   // Si NO es pendientes → menú simple con 2 opciones (descargar / compartir)
@@ -1383,7 +1746,7 @@ async function exportExcel(groupFilter, share) {
           'Días Pendiente': d !== null ? d : ''
         };
         return cols.map(c => valMap[c]);
-      }),
+      }).map(sanearFilaExport),
       startRow: s.nextRow, totalCols: cols.length,
       formatter: (cell, v, rd, idx, ci) => {
         const c = cols[ci];
@@ -1419,6 +1782,181 @@ async function exportExcel(groupFilter, share) {
       periodo: SpcdExcel.dateAr(),
       cantidad: dataRows.length,
       modulo:'medico', tipoExport: modalTipo
+    } : null);
+  } catch(err) {
+    console.error('Export error:', err);
+    if (typeof spcdAlert === 'function') {
+      spcdAlert('Error al exportar: ' + err.message, { type:'error', title:'Error al exportar' });
+    } else {
+      alert('Error al exportar: ' + err.message);
+    }
+  }
+}
+
+/* ── Export de Médicos por modalidad (C16, C27, C28) ──
+   Filas 1-4: encabezado de la plantilla. Fila 5: la línea de filtros (textoFiltros('tab-medicos')). Con
+   SLA_APROBADO=false, una fila con AVISO_UMBRALES y una por cada línea de textoUmbrales() (7 filas, igual que
+   #sla-aviso); después, la nota de pendientes. Por modalidad, una sección y los bloques en el orden de la pantalla
+   (C10): staff, Residentes, Residentes · pocos datos y pocos datos del staff. Los datos salen de
+   rankingPorModalidad(filtered), la misma estructura que la pantalla. Sin Fmt de banda (C12). Todas las buildTable
+   llevan freezeHeader:false y una sola asignación de ws.views congela hasta la fila 5 (C28). */
+const WIDTHS_MEDICOS = [26, 30, 10, 14, 16, 14, 22];
+const COLUMNAS_POCOS_EXPORT = ['Médico', 'n'];
+
+async function exportMedicosExcel(share) {
+  if (!puedeVerRankingMedicos()) return;   // C10: sin permiso no hay pestaña y, por lo tanto, no hay export
+  try {
+    await SpcdExcel.ready();
+    const ranking = rankingPorModalidad(filtered);
+    const mods = Object.keys(ranking);
+    if (!mods.length) {
+      if (typeof spcdAlert === 'function') spcdAlert('No hay datos para exportar', { type:'alert', title:'Sin datos' });
+      return;
+    }
+    const marca = SLA_APROBADO ? '' : '*';
+    const cols = ['#'].concat(COLUMNAS_MEDICOS.map(([k, t]) => t + (k === 'pct' ? marca : '')));
+    const totalCols = cols.length;
+    const dias = h => h === null ? null : Number(fmtDias(h));
+    const filasRank = lista => lista.map((e, i) => [i + 1, e.medico, e.n, dias(e.p90Horas), dias(e.medianaHoras),
+      e.pctEnSla === null ? null : Number(e.pctEnSla.toFixed(1)), e.volumen]).map(sanearFilaExport);
+    const filasPocos = lista => lista.map(e => [e.medico, e.n]).map(sanearFilaExport);
+    const nRegistros = mods.reduce((a, m) => a + ranking[m].staff.length + ranking[m].staffPocos.length
+      + ranking[m].residentes.length + ranking[m].residentesPocos.length, 0);
+
+    const subtitle = 'DEMORA POR MÉDICO Y MODALIDAD';
+    const { wb, ws } = SpcdExcel.createBook({ subtitle, sheetName:'Médicos' });
+    const h = SpcdExcel.buildHeader(ws, {
+      subtitle, totalCols,
+      meta:{ modulo:'MEDICO', sede:SpcdExcel.getCurrentSede(), usuario:SpcdExcel.getCurrentUser(), registros: nRegistros }
+    });
+
+    let fila = escribirLineaFiltros(ws, h.nextRow, totalCols, 'tab-medicos').nextRow;
+    const texto = (valor, alto) => {
+      const c = ws.getCell(fila, 1);
+      c.value = sanearCelda(valor);
+      c.alignment = { wrapText:true, vertical:'top' };
+      ws.mergeCells(fila, 1, fila, totalCols);
+      if (alto) ws.getRow(fila).height = alto;
+      fila++;
+    };
+    if (!SLA_APROBADO) {                                  // C27: una fila por línea, igual que #sla-aviso
+      texto(AVISO_UMBRALES);
+      textoUmbrales().forEach(l => texto(l));
+    }
+    texto(NOTA_PENDIENTES_NO_ATRIBUIDOS, 30);             // C13: la misma constante que en pantalla
+    const seccion = titulo => {
+      fila = SpcdExcel.buildSection(ws, { startRow:fila, totalCols, title: sanearCelda(titulo) }).nextRow;
+    };
+    const tabla = (columns, rows, formatter) => {
+      fila = SpcdExcel.buildTable(ws, { columns, widths: WIDTHS_MEDICOS, rows, startRow:fila, totalCols,
+                                        freezeHeader:false, formatter }).nextRow;
+    };
+    const fmtRank = (cell, v, rd, idx, ci, cName) => {
+      if (cName !== 'Médico') SpcdExcel.Fmt.center(cell);
+      if (typeof v === 'number' && (cName === 'P90 (días)' || cName === 'Mediana (días)' || cName.startsWith('% en SLA'))) {
+        cell.numFmt = '0.0';
+      }
+    };
+
+    mods.forEach(mod => {
+      const b = ranking[mod];
+      seccion(mod);
+      if (b.staff.length) tabla(cols, filasRank(b.staff), fmtRank); else texto(AVISO_POCOS_DATOS());
+      if (b.residentes.length || b.residentesPocos.length) {
+        seccion('Residentes');
+        if (b.residentes.length) tabla(cols, filasRank(b.residentes), fmtRank); else texto(AVISO_POCOS_DATOS());
+      }
+      if (b.residentesPocos.length) { seccion('Residentes · pocos datos'); tabla(COLUMNAS_POCOS_EXPORT, filasPocos(b.residentesPocos)); }
+      if (b.staffPocos.length)      { seccion('Pocos datos');              tabla(COLUMNAS_POCOS_EXPORT, filasPocos(b.staffPocos)); }
+    });
+
+    if (!SLA_APROBADO) texto(NOTA_SLA_PROVISORIO);
+    texto(NOTA_VOLUMEN);
+    SpcdExcel.buildFooter(ws, { startRow:fila, totalCols, hash:h.hash });
+    // C28: cada buildTable pisaría ws.views; con freezeHeader:false esta es la única asignación (encabezado y filtros).
+    ws.views = [{ state:'frozen', xSplit:0, ySplit:5, showGridLines:false, zoomScale:100 }];
+
+    const fileName = `SPCD_Medico_Medicos_por_Modalidad_${SpcdExcel.nowIsoDate()}.xlsx`;
+    await SpcdExcel.exportAndShare(wb, fileName, share ? {
+      titulo:'Demora por médico y modalidad',
+      periodo: SpcdExcel.dateAr(),
+      cantidad: nRegistros,
+      modulo:'medico', tipoExport:'medicos'
+    } : null);
+  } catch(err) {
+    console.error('Export error:', err);
+    if (typeof spcdAlert === 'function') {
+      spcdAlert('Error al exportar: ' + err.message, { type:'error', title:'Error al exportar' });
+    } else {
+      alert('Error al exportar: ' + err.message);
+    }
+  }
+}
+
+/* ── Export del drill-down (C13/C16): las columnas de la pantalla (sin Paciente ni Documento), la banda por estudio
+   de bandaEstudio (la misma función que pinta el modal), la línea de filtros y la nota de pendientes. ── */
+const FMT_BANDA = { rojo: 'error', amarillo: 'warn', verde: 'success' };
+
+async function exportDrillMedico(share) {
+  if (!puedeVerRankingMedicos()) return;   // C13: sin permiso no hay drill-down
+  if (!modalDrill || !modalFiltered.length) return;
+  try {
+    await SpcdExcel.ready();
+    const dataRows = modalFiltered;
+    const cols   = COLUMNAS_DRILL;
+    const widths = [12, 12, 36, 14, 14];
+    const conDemora = dataRows.filter(r => tatHoras(r) !== null).length;
+    const subtitle = sanearCelda(`DEMORA POR ESTUDIO · ${modalDrill.medico} · ${modalDrill.modalidad}`.toUpperCase());
+    const { wb, ws } = SpcdExcel.createBook({ subtitle, sheetName:'Drill-down' });
+
+    const h = SpcdExcel.buildHeader(ws, {
+      subtitle, totalCols: cols.length,
+      meta:{ modulo:'MEDICO', sede:SpcdExcel.getCurrentSede(), usuario:SpcdExcel.getCurrentUser(),
+             registros: dataRows.length, extra: sanearCelda(`MODALIDAD: ${modalDrill.modalidad}`) }
+    });
+    const lf = escribirLineaFiltros(ws, h.nextRow, cols.length);
+    const nota = ws.getCell(lf.nextRow, 1);
+    nota.value = NOTA_PENDIENTES_NO_ATRIBUIDOS;
+    nota.alignment = { wrapText:true, vertical:'top' };
+    ws.mergeCells(lf.nextRow, 1, lf.nextRow, cols.length);
+    ws.getRow(lf.nextRow).height = 30;
+    const k = SpcdExcel.buildKPIs(ws, [
+      { label:'Estudios informados', value: dataRows.length, tone:'cyan' },
+      { label:'Con demora',          value: conDemora,       tone:'silver' }
+    ], { startRow: lf.nextRow + 1, totalCols: cols.length });
+    const s = SpcdExcel.buildSection(ws, { startRow:k.nextRow, totalCols:cols.length,
+                                           title: sanearCelda(`ESTUDIOS · ${modalDrill.modalidad}`) });
+    const t = SpcdExcel.buildTable(ws, {
+      columns: cols, widths,
+      rows: dataRows.map(r => {
+        const fecha = parseDate(r['Turno Fecha']);
+        const hs = tatHoras(r);
+        return [fecha || '', r['Turno N°'] || '', r['Prestación'] || '',
+                hs === null ? null : Number(fmtDias(hs)), ETIQUETA_BANDA[bandaEstudio(r)]];
+      }).map(sanearFilaExport),
+      startRow: s.nextRow, totalCols: cols.length,
+      formatter: (cell, v, rd, idx, ci, cName) => {
+        if (cName === 'Fecha' && v instanceof Date) cell.numFmt = 'dd/mm/yyyy';
+        if (cName === 'Turno N°') SpcdExcel.Fmt.center(cell);
+        if (cName === 'Demora (días)' && typeof v === 'number') { SpcdExcel.Fmt.center(cell); cell.numFmt = '0.0'; }
+        if (cName === 'Semáforo') {
+          const fmt = FMT_BANDA[bandaEstudio(dataRows[idx])];
+          if (fmt) SpcdExcel.Fmt[fmt](cell);
+        }
+      }
+    });
+    const tot = SpcdExcel.buildTotals(ws, {
+      startRow:t.nextRow, totalCols:cols.length,
+      items:[ { label:'Estudios', value: dataRows.length }, { label:'Con demora', value: conDemora } ]
+    });
+    SpcdExcel.buildFooter(ws, { startRow:tot.nextRow, totalCols:cols.length, hash:h.hash });
+
+    const fileName = `SPCD_Medico_Drill_${String(modalDrill.modalidad).replace(/[\s\/]+/g,'_')}_${SpcdExcel.nowIsoDate()}.xlsx`;
+    await SpcdExcel.exportAndShare(wb, fileName, share ? {
+      titulo: 'Demora por estudio · ' + modalDrill.modalidad,
+      periodo: SpcdExcel.dateAr(),
+      cantidad: dataRows.length,
+      modulo:'medico', tipoExport:'medico-modalidad'
     } : null);
   } catch(err) {
     console.error('Export error:', err);

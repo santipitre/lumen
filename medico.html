@@ -27,7 +27,7 @@
   <link rel="stylesheet" href="spcd-theme.css?v=d6e58273"/>
   <link rel="stylesheet" href="spcd-components.css?v=f7b2f276"/>
   <link rel="stylesheet" href="spcd-dialog.css?v=f6620a87"/>
-  <link rel="stylesheet" href="medico.css?v=3a861b03"/>
+  <link rel="stylesheet" href="medico.css?v=f8fa919c"/>
 </head>
 <body>
 
@@ -90,6 +90,20 @@
       <select id="f-medico" class="filter-select"><option value="">Todos</option></select>
     </div>
     <div class="filter-group">
+      <span class="filter-label">Modalidad</span>
+      <select id="f-modalidad" class="filter-select"><option value="">Todas</option></select>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Tipo de turno</span>
+      <select id="f-tipo-turno" class="filter-select">
+        <option value="">Todos</option>
+        <option value="AMB">Ambulatorio</option>
+        <option value="INT">Internado</option>
+        <option value="URG">Guardia</option>
+      </select>
+    </div>
+    <div class="filter-nota" id="f-tipo-turno-nota" style="display:none"></div>
+    <div class="filter-group">
       <span class="filter-label">Estado Informe</span>
       <select id="f-informe" class="filter-select">
         <option value="">Todos</option>
@@ -140,12 +154,16 @@
     </div>
   </div>
 
+  <!-- C15: línea de resumen de filtros (textoFiltros) -->
+  <div class="filtros-resumen" id="filtros-resumen"></div>
+
   <!-- TABS -->
   <div class="tabs">
     <button class="tab-btn" id="tab-btn-semaforo" onclick="switchTab('tab-semaforo',this)">Semáforo</button>
     <button class="tab-btn active" id="tab-btn-resumen" onclick="switchTab('tab-resumen',this)">Resumen</button>
     <button class="tab-btn"        onclick="switchTab('tab-pendientes',this)">Pendientes</button>
-    <button class="tab-btn"        onclick="switchTab('tab-medicos',this)">Por Médico</button>
+    <button class="tab-btn" id="tab-btn-medicos" onclick="switchTab('tab-medicos',this)">Médicos</button>
+    <button class="tab-btn" id="tab-btn-prestaciones" onclick="switchTab('tab-prestaciones',this)">Prestaciones</button>
   </div>
 
   <!-- TAB: SEMÁFORO (FR5.1, fase 4) -->
@@ -171,16 +189,15 @@
     </div>
     <div class="charts-row-2 fade-in">
       <div class="chart-card">
-        <div class="chart-title">Top Médicos Informantes</div>
+        <div class="chart-title">Top Médicos Informantes · Volumen (sin ponderar)</div>
         <div class="rank-list" id="rank-medicos">
           <div class="empty-state"><div class="e-icon">👨‍⚕️</div><div class="e-text">Sin datos</div></div>
         </div>
+        <div class="med-nota" id="rank-medicos-nota"></div>
       </div>
       <div class="chart-card">
-        <div class="chart-title">Demora mediana por Médico (días)</div>
-        <div class="rank-list" id="rank-tiempos">
-          <div class="empty-state"><div class="e-icon">⏱</div><div class="e-text">Sin datos</div></div>
-        </div>
+        <div class="chart-title">Demora por médico</div>
+        <div class="rank-list" id="rank-tiempos"></div>
         <div class="nota-demora" id="rank-tiempos-nota"></div>
       </div>
     </div>
@@ -194,7 +211,7 @@
         <div class="table-header-title">Estudios Sin Informe</div>
         <div class="filter-group">
           <span class="filter-label">Modalidad</span>
-          <select id="f-pend-modalidad" class="filter-select" onchange="renderTabPendientes(filtered)">
+          <select id="f-pend-modalidad" class="filter-select" onchange="renderTabPendientes(filtradoBacklog)">
             <option value="">Todas</option>
             <option value="RAYOS X">RAYOS X</option>
             <option value="ECOGRAFÍA / DOPPLER">ECOGRAFÍA / DOPPLER</option>
@@ -206,7 +223,7 @@
         </div>
         <div class="filter-group">
           <span class="filter-label">Semáforo</span>
-          <select id="f-pend-semaforo" class="filter-select" onchange="renderTabPendientes(filtered)">
+          <select id="f-pend-semaforo" class="filter-select" onchange="renderTabPendientes(filtradoBacklog)">
             <option value="">Todos</option>
             <option value="rojo">Rojo</option>
             <option value="amarillo">Amarillo</option>
@@ -237,14 +254,24 @@
     </div>
   </div>
 
-  <!-- TAB: POR MÉDICO -->
+  <!-- TAB: MÉDICOS -->
   <div class="tab-pane" id="tab-medicos">
+    <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+      <button class="btn-export" onclick="exportMedicosExcel(false)">⬇ Exportar Excel</button>
+    </div>
+    <div id="medicos-aviso-pend"></div>
     <div class="nota-demora" id="medicos-nota"></div>
-    <div class="medicos-grid" id="medicos-grid">
+    <div id="medicos-vista">
       <div class="empty-state"><div class="e-icon">👨‍⚕️</div><div class="e-text">Cargá un Excel para ver</div></div>
     </div>
   </div>
 
+  <!-- TAB: PRESTACIONES (C9, fase 5; sin export, C16) -->
+  <div class="tab-pane" id="tab-prestaciones">
+    <div id="prestaciones-vista">
+      <div class="empty-state"><div class="e-icon">🩻</div><div class="e-text">Cargá un Excel para ver</div></div>
+    </div>
+  </div>
 
 </div><!-- /main -->
 
@@ -306,7 +333,7 @@
     <div class="real-header">
       <div>
         <div class="real-title" style="color:var(--amber)">DEMORA MEDIANA DE INFORME</div>
-        <div class="real-subtitle" id="tiempo-subtitle">Demora mediana de informe por Médico Informante</div>
+        <div class="real-subtitle" id="tiempo-subtitle">Demora mediana de informe por modalidad</div>
         <div class="nota-demora" id="tiempo-nota"></div>
       </div>
       <button class="btn-back-real" onclick="closeTiempoPage()">← Volver</button>
@@ -322,8 +349,8 @@
         <div class="real-sum-val" id="tiempo-p90">—</div>
       </div>
       <div class="real-sum-card">
-        <div class="real-sum-label">Médicos Activos</div>
-        <div class="real-sum-val" id="tiempo-medicos">—</div>
+        <div class="real-sum-label">Modalidades con informes</div>
+        <div class="real-sum-val" id="tiempo-modalidades">—</div>
       </div>
       <div class="real-sum-card">
         <div class="real-sum-label">Total Informes Analizados</div>
@@ -333,19 +360,17 @@
 
     <div class="real-table-wrap">
       <div class="real-table-header">
-        <div class="real-table-title">Detalle por Médico Informante</div>
+        <div class="real-table-title">Detalle por modalidad</div>
         <button class="btn-export" onclick="exportTiempoExcel(false)">⬇ Exportar Excel</button>
         <button class="btn-export" style="margin-left:6px;" onclick="exportTiempoExcel(true)" title="Descargar y compartir por email/WhatsApp">📤 Compartir</button>
       </div>
       <div style="overflow-x:auto; max-height:65vh; overflow-y:auto;">
         <table class="real-table">
           <thead><tr>
-            <th>#</th>
-            <th>Médico Informante</th>
+            <th>Modalidad</th>
             <th style="text-align:center">Demora mediana (días)</th>
             <th style="text-align:center">P90 (días)</th>
-            <th style="text-align:center">Informes</th>
-            <th>Proporción</th>
+            <th style="text-align:center">Informes analizados</th>
           </tr></thead>
           <tbody id="tiempo-tbody"></tbody>
         </table>
@@ -367,17 +392,15 @@
     </div>
     <div class="modal-toolbar">
       <input class="modal-search" id="modal-search" type="text" placeholder="🔍  Buscar por paciente, médico, prestación…" oninput="filterModal(this.value)"/>
-      <div class="export-wrap">
+      <div class="export-wrap" id="modal-export">
         <button class="btn-export" onclick="handleExportClick()">⬇ Exportar Excel</button>
         <div class="export-menu" id="export-menu"></div>
       </div>
     </div>
+    <div class="modal-nota" id="modal-nota" style="display:none"></div>
     <div class="modal-body">
       <table class="modal-table">
-        <thead><tr>
-          <th>Fecha</th><th>Turno N°</th><th>Paciente</th><th>Documento</th><th>Prestación</th>
-          <th>Informe</th><th>Días Pendiente</th>
-        </tr></thead>
+        <thead id="modal-thead"></thead>
         <tbody id="modal-tbody"></tbody>
       </table>
     </div>
@@ -394,8 +417,8 @@
 <script src="spcd-utils.js?v=7273575b"></script>
 <script src="spcd-dialog.js?v=ee2826f0"></script>
 
-<script src="medico.js?v=ac830767"></script>
-<script src="medico-metricas.js?v=ad1bae0e"></script>
+<script src="medico.js?v=019d8b87"></script>
+<script src="medico-metricas.js?v=381075ba"></script>
 <!-- Toast de notificaciones (para showToast de spcd-utils.js) -->
 <div class="toast" id="toast"></div>
 

@@ -46,6 +46,12 @@ const SLA_DEFAULT = deepFreeze({
 // B1: única marca. false = umbrales PROVISORIOS (abre Resumen + aviso); true = aprobados (OQ1): abre Semáforo, sin aviso.
 let SLA_APROBADO = false;
 
+// C4: n mínimo de informes con demora por médico y modalidad (período filtrado). También lo usan C7, C9 y C14.
+const N_MIN_INFORMES = 20;
+const TOP_PRESTACIONES = 10;   // C9: largo de cada top por modalidad
+// C6: Médico Informante de residentes. Se actualiza con cada cambio de camada. Vacía = sin bloque Residentes.
+const RESIDENTES = [];
+
 const MS_POR_HORA = 3600000;
 const HORAS_POR_DIA = 24;
 

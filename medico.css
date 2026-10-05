@@ -85,6 +85,10 @@
       margin-bottom: 24px; align-items: flex-end;
     }
     .filter-group { display: flex; flex-direction: column; gap: 4px; }
+    /* C15 (fase 5): nota del dataset sin Tipo Turno y línea de resumen de filtros. */
+    .filter-nota { font-size: 11px; color: var(--muted); font-style: italic; align-self: center; max-width: 220px; }
+    .filtros-resumen { font-size: 12px; color: var(--muted); margin: -12px 0 12px; }
+    .filtros-resumen:empty { display: none; }
     .filter-label { font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
     .filter-input, .filter-select {
       padding: 8px 12px; border-radius: 6px;
@@ -265,6 +269,31 @@
     .sem-pct  { font-size: 18px; font-weight: 700; }
     .sem-meta { font-size: 11px; color: var(--muted); }
     .nota-demora { font-size: 11px; color: var(--muted); margin-top: 8px; font-style: italic; }
+    /* Fase 5 (C3/C4/C6/C12/C21): vista Médicos. Sin colores de banda por médico. */
+    .med-nota { font-size: 11px; color: var(--muted); margin: 6px 0 10px; font-style: italic; }
+    .med-mod { background: var(--glass); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 16px; }
+    .med-mod-titulo { font-size: 13px; font-weight: 700; letter-spacing: 1px; color: var(--text); margin-bottom: 8px; }
+    .med-sub-titulo { font-size: 11px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; margin: 12px 0 6px; }
+    .med-tabla { width: 100%; border-collapse: collapse; }
+    .med-tabla th[data-sort] { cursor: pointer; user-select: none; }
+    .med-tabla th[data-dir="asc"]::after { content: ' ▲'; }
+    .med-tabla th[data-dir="desc"]::after { content: ' ▼'; }
+    .med-tabla td.num, .med-tabla th.num { text-align: right; }
+    .med-sin-ranking { padding: 10px 12px; font-size: 12px; color: var(--muted); }
+    .med-pocos { font-size: 12px; color: var(--muted); margin-top: 10px; }
+    .med-pocos ul { margin: 4px 0 0 18px; padding: 0; }
+    /* C9 (fase 5): vista Prestaciones. Reusa .med-mod/.med-tabla; sin color de banda. */
+    .prest-mod td:first-child { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .prest-mod .med-tabla + .med-sub-titulo { margin-top: 16px; }
+    .aviso-vista { padding: 14px; font-size: 12px; color: var(--muted); text-align: center; border: 1px dashed var(--border); border-radius: 8px; }
+    /* C13 (fase 5): nombre como botón del drill-down y nota de pendientes no atribuidos */
+    .med-drill { background: none; border: 0; padding: 0; color: var(--text); font: inherit; cursor: pointer; text-align: left; text-decoration: underline dotted; }
+    .med-drill:hover, .med-drill:focus-visible { color: var(--blue); }
+    #medicos-aviso-pend:not(:empty), .modal-nota { font-size: 11px; color: var(--muted); font-style: italic; padding: 8px 12px; border-left: 2px solid var(--border); margin-bottom: 10px; }
+    .modal-nota { margin: 0 24px; }
+    /* C5 (fase 5): acceso de Resumen a la vista Médicos */
+    .rank-acceso { background: var(--glass); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 10px 14px; font-size: 12px; cursor: pointer; font-family: inherit; }
+    .rank-acceso:hover { border-color: var(--blue); }
     /* B9 (fase 4): aviso en lugar de rankings por médico sin permiso 'edit' */
     .aviso-ranking {
       padding: 14px; font-size: 12px; color: var(--muted); text-align: center;
