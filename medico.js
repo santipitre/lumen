@@ -432,6 +432,7 @@ function render(data, backlogData) {
   renderTabPendientes(filtradoBacklog);
   renderProtegido('medicos-vista', () => renderTabMedicos(data));
   renderProtegido('prestaciones-vista', () => renderTabPrestaciones(data));
+  renderProtegido('mapa-calor-vista', () => renderMapaCalor(data));
   renderTabSemaforo(filtradoBacklog);
   pintarResumenFiltros();
 }
@@ -913,6 +914,75 @@ function renderTabPrestaciones(data) {
       + `<div class="med-sub-titulo">Top por P90</div>` + tablaPrestacionesP90HTML(b.porP90)
       + `<div class="med-sub-titulo">Top por volumen</div>` + tablaPrestacionesVolumenHTML(b.porVolumen) + `</section>`;
   }).join('');
+}
+
+/* ═══════════════════════════════════
+   DEMORA: MAPA DE CALOR (C7, fase 5)
+   P90 por día de semana (de Turno Fecha, hora local) × modalidad, sobre los informados con demora válida del
+   `filtered` vigente (C4). La escala de color es relativa dentro de cada modalidad. Sin Chart.js: grilla HTML/CSS.
+═══════════════════════════════════ */
+// Paleta del mapa (no es un umbral de semáforo): una clase por nivel, de menor a mayor P90 dentro de la modalidad.
+const NIVELES_CALOR = ['calor-0', 'calor-1', 'calor-2', 'calor-3', 'calor-4'];
+// Función, como AVISO_POCOS_DATOS: medico-metricas.js carga después de medico.js y N_MIN_INFORMES no existe todavía.
+const LEYENDA_CALOR = () => `El color compara días dentro de la misma modalidad, no entre modalidades. En gris: menos de ${N_MIN_INFORMES} estudios con demora en el período filtrado.`;
+const DIAS_CALOR = [['1', 'Lun'], ['2', 'Mar'], ['3', 'Mié'], ['4', 'Jue'], ['5', 'Vie'], ['6', 'Sáb'], ['7', 'Dom']];
+
+// Máximo de P90 (horas) entre las celdas dadas; null si no hay ninguna.
+const maxP90Fila = celdas => celdas.length ? Math.max(...celdas.map(a => a.p90Horas)) : null;
+
+/* → { [modalidad]: { dias: { '1'..'7': agregados }, maxP90 } }. Las 5 modalidades de EQUIPO_GROUPS siempre (con
+   n = 0 si no tienen estudios) y OTROS sólo si hay. maxP90 sale sólo de las celdas con escala (n >= N_MIN_INFORMES). */
+function mapaCalor(filas) {
+  const porMod = new Map();
+  filas.filter(r => tieneInformeIF(r) && parseDate(r['Turno Fecha'])).forEach(r => {
+    const m = modalidad(r);
+    if (!porMod.has(m)) porMod.set(m, []);
+    porMod.get(m).push(r);
+  });
+  const salida = Object.create(null);
+  EQUIPO_GROUPS.map(g => g.label).concat('OTROS').forEach(mod => {
+    const rows = porMod.get(mod) || [];
+    if (mod === 'OTROS' && !rows.length) return;
+    const agr = agrupar(rows, 'diaSemana');
+    const dias = {};
+    const celdasConEscala = [];
+    DIAS_CALOR.forEach(([dia]) => {
+      const a = agr[dia] || agregados([]);
+      dias[dia] = a;
+      if (a.n >= N_MIN_INFORMES) celdasConEscala.push(a);
+    });
+    const maxP90 = maxP90Fila(celdasConEscala);
+    salida[mod] = { dias, maxP90 };
+  });
+  return salida;
+}
+
+function celdaCalorHTML(dia, a, maxP90) {
+  let clase = 'calor-gris', texto = '—', title = 'n = 0';
+  if (a.n > 0) {
+    texto = fmtDias(a.p90Horas);
+    title = `n = ${a.n} · mediana ${fmtDias(a.medianaHoras)} días`;
+    if (a.n >= N_MIN_INFORMES) {
+      const x = maxP90 > 0 ? a.p90Horas / maxP90 : 0;
+      clase = NIVELES_CALOR[Math.min(NIVELES_CALOR.length - 1, Math.round(x * (NIVELES_CALOR.length - 1)))];
+    }
+  }
+  return `<td class="mapa-celda ${clase}" data-dia="${dia}" title="${escAttr(title)}">${esc(texto)}</td>`;
+}
+
+function renderMapaCalor(data) {
+  const cont = document.getElementById('mapa-calor-vista');
+  const mapa = mapaCalor(data);
+  const ths = DIAS_CALOR.map(([, t]) => `<th class="num">${esc(t)}</th>`).join('');
+  const filas = Object.keys(mapa).map(mod => {
+    const m = mapa[mod];
+    return `<tr data-modalidad="${escAttr(mod)}"><th class="mapa-modalidad">${esc(mod)}</th>`
+      + DIAS_CALOR.map(([dia]) => celdaCalorHTML(dia, m.dias[dia], m.maxP90)).join('') + `</tr>`;
+  }).join('');
+  // Se arma entera cada vez: si una falla anterior dejó el aviso en el panel, el próximo render lo reemplaza.
+  cont.innerHTML = `<table class="mapa-calor" id="mapa-calor"><thead><tr><th>Modalidad</th>${ths}</tr></thead>`
+    + `<tbody>${filas}</tbody></table>`
+    + `<div class="med-nota" id="mapa-calor-leyenda">${esc(LEYENDA_CALOR())}</div>`;
 }
 
 /* ═══════════════════════════════════

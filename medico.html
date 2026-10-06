@@ -27,7 +27,7 @@
   <link rel="stylesheet" href="spcd-theme.css?v=d6e58273"/>
   <link rel="stylesheet" href="spcd-components.css?v=f7b2f276"/>
   <link rel="stylesheet" href="spcd-dialog.css?v=f6620a87"/>
-  <link rel="stylesheet" href="medico.css?v=f8fa919c"/>
+  <link rel="stylesheet" href="medico.css?v=a92bcd22"/>
 </head>
 <body>
 
@@ -164,6 +164,7 @@
     <button class="tab-btn"        onclick="switchTab('tab-pendientes',this)">Pendientes</button>
     <button class="tab-btn" id="tab-btn-medicos" onclick="switchTab('tab-medicos',this)">Médicos</button>
     <button class="tab-btn" id="tab-btn-prestaciones" onclick="switchTab('tab-prestaciones',this)">Prestaciones</button>
+    <button class="tab-btn" id="tab-btn-demora" onclick="switchTab('tab-demora',this)">Demora</button>
   </div>
 
   <!-- TAB: SEMÁFORO (FR5.1, fase 4) -->
@@ -270,6 +271,13 @@
   <div class="tab-pane" id="tab-prestaciones">
     <div id="prestaciones-vista">
       <div class="empty-state"><div class="e-icon">🩻</div><div class="e-text">Cargá un Excel para ver</div></div>
+    </div>
+  </div>
+
+  <!-- TAB: DEMORA (C7, fase 5): mapa de calor; la tendencia (C14) comparte la pestaña en la wave 9 -->
+  <div class="tab-pane" id="tab-demora">
+    <div id="mapa-calor-vista">
+      <div class="empty-state"><div class="e-icon">🔥</div><div class="e-text">Cargá un Excel para ver</div></div>
     </div>
   </div>
 
@@ -417,7 +425,7 @@
 <script src="spcd-utils.js?v=7273575b"></script>
 <script src="spcd-dialog.js?v=ee2826f0"></script>
 
-<script src="medico.js?v=019d8b87"></script>
+<script src="medico.js?v=8dd84c70"></script>
 <script src="medico-metricas.js?v=381075ba"></script>
 <!-- Toast de notificaciones (para showToast de spcd-utils.js) -->
 <div class="toast" id="toast"></div>
