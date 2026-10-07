@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="lumen-ver" content="2026-10-01-b"/>
+<meta name="lumen-ver" content="2026-10-07-a"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Validación PAMI · LUMEN</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml"/>
@@ -377,7 +377,7 @@ const DATA_KEY = 'lumen.valpami.data.v1';
 const PAMI_ORIGINS = ['https://po.pami.org.ar','https://pe.pami.org.ar'];
 /* Version de userscript que espera esta pagina. Si el puente reporta otra, el cartel
    avisa: Tampermonkey NO se actualiza solo por visitar la URL del .user.js. */
-const US_ESPERADO = '4.4.0';
+const US_ESPERADO = '4.5.0';
 
 let ORDENES = [];      // [{orden, nombre, turno, turnoD, emision, emisionD, ben14, benBase, benDv, practicas:[], verde}]
 let FILTRO  = 'habilitadas';
@@ -811,6 +811,8 @@ function irAPami(o){
     orden:   o.orden,
     nombre:  o.nombre,
     turno:   o.turno,
+    /* v4.5.0: el HIS ancla su rango de búsqueda en la emisión, no en el turno de PAMI. */
+    emision: o.emision || '',
     benBase: o.benBase,
     benDv:   o.benDv,
     fechas:  modoFechas(),

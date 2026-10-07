@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lumen · Validación PAMI
 // @namespace    https://santipitre.github.io/lumen/
-// @version      4.4.0
+// @version      4.5.0
 // @description  Tres ventanas abiertas al mismo tiempo (Lumen, PAMI, HIS): cada una se queda en su sitio y toma del bus el paso que le toca. Ninguna navega a otro dominio ni se cierra. v4.1: identidad del paciente en todos los carteles, watchdog cuando el circuito se corta, y cruce contra el HIS por region anatomica + hora del turno.
 // @author       Pyralis / Lumen
 // @match        https://pe.pami.org.ar/*
@@ -736,8 +736,10 @@
       var filas = filasHis();
       if (!filas.length) {
         avisarEspera(p, 'El HIS no devolvió ningún turno para ese DNI.');
-        panel(p, 'err', 'El HIS no devolvió turnos para el DNI <b>' + esc(p.dni) + '</b>.',
-          '<div class="lp-tip">Revisá a mano y marcá en Lumen.</div>');
+        var fD0 = document.getElementById('_FECHATURNODESDE'), fH0 = document.getElementById('_FECHATURNOHASTA');
+        var rTxt = (fD0 && fH0) ? ' entre el <b>' + esc(fD0.value) + '</b> y el <b>' + esc(fH0.value) + '</b>' : '';
+        panel(p, 'err', 'El HIS no devolvió turnos para el DNI <b>' + esc(p.dni) + '</b>' + rTxt + '.',
+          '<div class="lp-tip">Revisá a mano y marcá en Lumen. Ojo: el HIS devuelve 0 en silencio si el rango pasa de ~6 meses.</div>');
         return;
       }
 
@@ -832,6 +834,40 @@
         avisoOme);
     };
 
+    /* ══════════ v4.5.0 — EL RANGO DE FECHAS DEL HIS (2026-10-07) ══════════
+       BUG: el userscript completaba N° Doc. y apretaba BUSCAR, pero NUNCA tocaba
+       «Desde/Hasta». El HIS conserva el rango de la búsqueda anterior (o el default,
+       hoy ±90 días), así que todo turno fuera de esa ventana daba "no devolvió turnos".
+       Caso real: BARAS AMELIA ISABEL, DNI 3308029, orden 3326174686367. Pantalla con
+       Desde 01/06/2026 → 0 turnos. Con 01/03–30/06/2026 → 4 turnos, entre ellos
+       TC HELICOIDAL TORAX en TCMC PHIL.-BRILLANCE 64 HITALI el 03/04/2026 (día de emisión).
+       Y la fecha de turno de PAMI NO sirve de ancla (muchas dicen 01/06/2026; la real era 03/04).
+       SEGUNDA TRAMPA, MEDIDA el mismo día: con un rango largo el HIS devuelve 0 EN SILENCIO
+       (01/01–07/10/2026 y 01/01/2025–31/12/2026 → 0 para pacientes que sí tienen turnos).
+       Por eso la ventana es de 170 días, anclada en la FECHA DE EMISIÓN menos 15 días. */
+    var HIS_VENTANA_DIAS = 170;
+    var parseDMY = function (s) {
+      var m = String(s || '').match(/(\d{2})\/(\d{2})\/(\d{4})/);
+      return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null;
+    };
+    var fmtDMY = function (d) {
+      return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear();
+    };
+    var masDias = function (d, n) { var x = new Date(d.getTime()); x.setDate(x.getDate() + n); return x; };
+    var rangoHis = function (p) {
+      var hoy = new Date(); hoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+      var em = parseDMY(p.emision);
+      var desde = em ? masDias(em, -15) : masDias(hoy, -HIS_VENTANA_DIAS);
+      var hasta = masDias(desde, HIS_VENTANA_DIAS);
+      if (hasta > hoy) hasta = hoy;
+      if (desde > hasta) desde = masDias(hasta, -HIS_VENTANA_DIAS);
+      return { desde: fmtDMY(desde), hasta: fmtDMY(hasta), ancla: em ? 'emisión' : 'hoy' };
+    };
+    var setGx = function (el, v) {
+      setNativeValue(el, v);
+      try { if (typeof unsafeWindow !== 'undefined' && unsafeWindow.gxonchange) unsafeWindow.gxonchange(el); } catch (e) {}
+    };
+
     var correrHis = function (p) {
       if (!p || !p.dni) return;
       var campo = document.getElementById('_DOCUMENTOPERSONA');
@@ -844,14 +880,18 @@
         return;
       }
       var mismoDni = String(campo.value || '').replace(/\D/g, '') === String(p.dni).replace(/\D/g, '');
-      if ((mismoDni && document.getElementById('span__NOMBRE1_0001')) || ss('lumen_his_done_' + p.id)) {
+      var rg = rangoHis(p);
+      var fD = document.getElementById('_FECHATURNODESDE'), fH = document.getElementById('_FECHATURNOHASTA');
+      var mismoRango = !fD || !fH || (fD.value.trim() === rg.desde && fH.value.trim() === rg.hasta);
+      if ((mismoDni && mismoRango && document.getElementById('span__NOMBRE1_0001')) || ss('lumen_his_done_' + p.id)) {
         evaluarHis(p); return;
       }
       ssSet('lumen_his_done_' + p.id, '1');
       panelProg(p, 'elegir', 'Buscando el DNI <b>' + esc(p.dni) + '</b> en el HIS…',
-        'Completo <b>N° Doc.</b> y aprieto <b>BUSCAR</b>. La grilla se recarga sola y después leo los equipos.');
-      setNativeValue(campo, String(p.dni));
-      try { if (typeof unsafeWindow !== 'undefined' && unsafeWindow.gxonchange) unsafeWindow.gxonchange(campo); } catch (e) {}
+        'Completo <b>N° Doc.</b>, pongo el rango <b>' + esc(rg.desde) + ' – ' + esc(rg.hasta) +
+        '</b> (ancla: ' + esc(rg.ancla) + ') y aprieto <b>BUSCAR</b>. La grilla se recarga sola y después leo los equipos.');
+      if (fD && fH) { setGx(fD, rg.desde); setGx(fH, rg.hasta); }
+      setGx(campo, String(p.dni));
       var btn = document.querySelector('input[name="BUTTON7"]');
       if (!btn) {
         panel(p, 'err', 'No encontré el botón BUSCAR del HIS. Buscá vos el DNI <b>' + esc(p.dni) + '</b>.', '');
