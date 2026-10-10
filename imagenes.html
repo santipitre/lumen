@@ -28,13 +28,14 @@
 })();
 </script>
 <meta charset="UTF-8"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="lumen-ver" content="imagenes-0.1.0"/>
 <title>Dashboard Imágenes H.Italiano · Lumen by Pyralis</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml"/>
 <link rel="stylesheet" href="spcd-theme.css?v=d6e58273"/>
 <link rel="stylesheet" href="spcd-components.css?v=f7b2f276"/>
-<link rel="stylesheet" href="imagenes.css?v=fb93537e"/>
+<link rel="stylesheet" href="imagenes.css?v=a02051cf"/>
 </head>
 <body>
 <header class="topbar">
@@ -70,27 +71,29 @@
     <a role="tab" href="#administrativos" id="t-administrativos" aria-controls="tab-administrativos">Administrativos <span class="n">—</span></a>
   </nav>
 
+  <div id="aviso" class="vacio" hidden role="status"></div>
+
   <section role="tabpanel" id="tab-medicos" aria-labelledby="t-medicos" hidden>
     <nav class="subtabs" aria-label="Vistas de Médicos">
       <a href="#medicos/staff">Staff médico</a>
       <a href="#medicos/eco">Cronograma Ecografía/Doppler</a>
       <a href="#medicos/rm">Informantes RM</a>
     </nav>
-    <div id="sub-staff" hidden><div class="vacio"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="2.6"/><path d="M5 6v6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6V6"/><path d="M5 12v6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6v-6"/></svg><h2>TODAVÍA NO HAY DATOS CARGADOS</h2><p>Staff médico · los datos llegan cuando esté lista la base.</p></div></div>
-    <div id="sub-eco" hidden><div class="vacio"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="2.6"/><path d="M5 6v6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6V6"/><path d="M5 12v6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6v-6"/></svg><h2>TODAVÍA NO HAY DATOS CARGADOS</h2><p>Cronograma Ecografía/Doppler · los datos llegan cuando esté lista la base.</p></div></div>
-    <div id="sub-rm" hidden><div class="vacio"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="2.6"/><path d="M5 6v6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6V6"/><path d="M5 12v6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6v-6"/></svg><h2>TODAVÍA NO HAY DATOS CARGADOS</h2><p>Informantes RM · los datos llegan cuando esté lista la base.</p></div></div>
+    <div id="sub-staff" hidden><div class="vista" id="v-staff"></div></div>
+    <div id="sub-eco" hidden><div class="vista" id="v-eco"></div></div>
+    <div id="sub-rm" hidden><div class="vista" id="v-rm"></div></div>
   </section>
   <section role="tabpanel" id="tab-residentes" aria-labelledby="t-residentes" hidden>
-    <div class="vacio"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="2.6"/><path d="M5 6v6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6V6"/><path d="M5 12v6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6v-6"/></svg><h2>TODAVÍA NO HAY DATOS CARGADOS</h2><p>Residentes · los datos llegan cuando esté lista la base.</p></div>
+    <div class="vista" id="v-residentes"></div>
   </section>
   <section role="tabpanel" id="tab-tecnicos" aria-labelledby="t-tecnicos" hidden>
-    <div class="vacio"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="2.6"/><path d="M5 6v6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6V6"/><path d="M5 12v6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6v-6"/></svg><h2>TODAVÍA NO HAY DATOS CARGADOS</h2><p>Técnicos · los datos llegan cuando esté lista la base.</p></div>
+    <div class="vista" id="v-tecnicos"></div>
   </section>
   <section role="tabpanel" id="tab-administrativos" aria-labelledby="t-administrativos" hidden>
-    <div class="vacio"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="2.6"/><path d="M5 6v6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6V6"/><path d="M5 12v6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6v-6"/></svg><h2>TODAVÍA NO HAY DATOS CARGADOS</h2><p>Administrativos · los datos llegan cuando esté lista la base.</p></div>
+    <div class="vista" id="v-administrativos"></div>
   </section>
 </main>
 <script src="spcd-bg.js?v=646bb8f5"></script>
-<script src="imagenes.js?v=ca8f17eb"></script>
+<script src="imagenes.js?v=5b6039e0"></script>
 </body>
 </html>
