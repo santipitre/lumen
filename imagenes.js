@@ -67,7 +67,7 @@ const btn = document.getElementById('tema-btn');
 function pintarBoton(){
   const claro = document.documentElement.dataset.tema === 'claro';
   btn.setAttribute('aria-pressed', claro ? 'true' : 'false');
-  btn.textContent = claro ? 'Tema claro' : 'Tema oscuro';
+  btn.setAttribute('aria-label', claro ? 'Tema claro' : 'Tema oscuro');
   btn.title = claro ? 'Cambiar a tema oscuro' : 'Cambiar a tema claro';
 }
 btn.addEventListener('click', function(){
