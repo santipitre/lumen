@@ -21,6 +21,10 @@ function render(){
   if(r.tab === null){
     history.replaceState(null, '', '#medicos');
     r = parseHash('#medicos');
+  } else {
+    // Subvista inválida (o segmento extra en otra pestaña): se normaliza a la pestaña sola.
+    const sub = String(location.hash).replace(/^#/, '').split('/')[1];
+    if(sub !== undefined && sub !== r.sub) history.replaceState(null, '', '#' + r.tab);
   }
   TABS.forEach(function(k){
     const t = document.getElementById('t-' + k);
