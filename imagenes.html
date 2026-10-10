@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<script>
+/* Lumen Auth Gate - Dashboard Imagenes. Sin sesion o vencida -> index.html; sin permiso -> app.html. ASCII puro: corre antes de meta charset. */
+(function(){
+  var KEY='spcd_session', TO=8*60*60*1000;
+  var DEFAULTS={ admin:{admin:'edit'}, consultor:{admin:'view'} };
+  var dest='index.html';
+  try{
+    var t=localStorage.getItem('img_tema');
+    document.documentElement.dataset.tema=(t==='claro')?'claro':'oscuro';
+  }catch(e){ document.documentElement.dataset.tema='oscuro'; }
+  try{
+    var s=JSON.parse(localStorage.getItem(KEY));
+    if(!s||!s.user||!(Date.now()-s.ts<TO)) throw 0;
+    dest='app.html';
+    var p=s.user.permisos;
+    var pm=(p&&(p.sedes||p.modulos))?(p.modulos||{}):(DEFAULTS[s.user.rol]||{});
+    var perm=pm.imagenes;
+    if(!perm&&(pm.admin==='edit'||pm.admin==='admin')) perm='edit';
+    if(!perm) throw 0;
+    window.__img_user=s.user;
+    window.__img_perm=perm;
+    window.__img_modo=(perm==='view')?'view':'edit';
+    document.documentElement.dataset.modo=window.__img_modo;
+  }catch(e){ if(dest==='app.html') location.replace('app.html'); else location.replace('index.html'); }
+})();
+</script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="lumen-ver" content="imagenes-0.1.0"/>
+<title>Dashboard Imágenes H.Italiano · Lumen by Pyralis</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml"/>
+<link rel="stylesheet" href="spcd-theme.css?v=d6e58273"/>
+<link rel="stylesheet" href="imagenes.css?v=4d3572ab"/>
+</head>
+<body>
+<header class="topbar">
+  <span class="tb-crumb">Dashboard Imágenes H.Italiano</span>
+  <div class="tb-right">
+    <span id="modo-chip" class="chip"></span>
+    <span id="ses-chip" class="chip"></span>
+    <button id="tema-btn" type="button" aria-pressed="false" class="tema-btn">Tema</button>
+    <a class="tb-back" href="app.html">← Lumen</a>
+  </div>
+</header>
+
+<nav role="tablist" aria-label="Secciones" class="tabs">
+  <a role="tab" href="#medicos" id="t-medicos" aria-controls="tab-medicos">Médicos</a>
+  <a role="tab" href="#residentes" id="t-residentes" aria-controls="tab-residentes">Residentes</a>
+  <a role="tab" href="#tecnicos" id="t-tecnicos" aria-controls="tab-tecnicos">Técnicos</a>
+  <a role="tab" href="#administrativos" id="t-administrativos" aria-controls="tab-administrativos">Administrativos</a>
+</nav>
+
+<main class="main">
+  <section role="tabpanel" id="tab-medicos" aria-labelledby="t-medicos" hidden>
+    <nav class="subtabs" aria-label="Vistas de Médicos">
+      <a href="#medicos/staff">Staff médico</a>
+      <a href="#medicos/eco">Cronograma Ecografía/Doppler</a>
+      <a href="#medicos/rm">Informantes RM</a>
+    </nav>
+    <div id="sub-staff" hidden><p class="vacio">Todavía no hay datos cargados.</p></div>
+    <div id="sub-eco" hidden><p class="vacio">Todavía no hay datos cargados.</p></div>
+    <div id="sub-rm" hidden><p class="vacio">Todavía no hay datos cargados.</p></div>
+  </section>
+  <section role="tabpanel" id="tab-residentes" aria-labelledby="t-residentes" hidden>
+    <p class="vacio">Todavía no hay datos cargados.</p>
+  </section>
+  <section role="tabpanel" id="tab-tecnicos" aria-labelledby="t-tecnicos" hidden>
+    <p class="vacio">Todavía no hay datos cargados.</p>
+  </section>
+  <section role="tabpanel" id="tab-administrativos" aria-labelledby="t-administrativos" hidden>
+    <p class="vacio">Todavía no hay datos cargados.</p>
+  </section>
+</main>
+<script src="imagenes.js?v=3175a558"></script>
+</body>
+</html>

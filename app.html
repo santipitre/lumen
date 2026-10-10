@@ -480,6 +480,20 @@
     }
     .mod-fila.harefield .mod-icono svg { filter: drop-shadow(0 0 7px rgba(251,146,60,.40)); }
 
+    /* Dashboard Imágenes H.Italiano (padre y subrecuadros comparten acento) */
+    .mod-fila.imagenes { border-color: rgba(163,230,53,.24); }
+    .mod-fila.imagenes::before { background: #A3E635; color: #A3E635; }
+    .mod-fila.imagenes:hover {
+      border-color: #A3E635;
+      box-shadow: 0 -1px 0 rgba(148,197,255,.12) inset, 8px 10px 24px rgba(0,0,0,.55),
+                  0 0 38px rgba(163,230,53,.26);
+    }
+    .mod-fila.imagenes .mod-icono {
+      background: linear-gradient(150deg, rgba(163,230,53,.14), rgba(10,15,20,.65));
+      border-color: rgba(163,230,53,.22);
+    }
+    .mod-fila.imagenes .mod-icono svg { filter: drop-shadow(0 0 7px rgba(163,230,53,.40)); }
+
     @media (prefers-reduced-motion: reduce) {
       .mod-fila, .mod-fila::before, .mod-icono, .mod-flecha { transition: none; }
       .mod-grupo { animation: none; }
@@ -1067,6 +1081,33 @@ const MODULE_CARDS = {
   }
 };
 
+/* -- Dashboard Imágenes H.Italiano: se agrega aparte para no tocar las entradas existentes -- */
+MODULE_CARDS.imagenes = {
+  clase: 'imagenes', nombre: 'Dashboard Imágenes H.Italiano', key: 'imagenes',
+  desc: 'M&eacute;dicos &middot; Residentes &middot; T&eacute;cnicos &middot; Administrativos',
+  svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/><rect x="40" y="34" width="120" height="84" rx="8" fill="none" stroke="#A3E635" stroke-width="3.5"/><circle cx="100" cy="76" r="26" fill="none" stroke="#A3E635" stroke-width="3"/><circle cx="100" cy="76" r="14" fill="none" stroke="#A3E635" stroke-width="2" stroke-opacity="0.6"/><path d="M100 50 L100 102 M74 76 L126 76" stroke="#22DBAE" stroke-width="2" stroke-linecap="round" stroke-opacity="0.8"/><path d="M100 118 L100 134 M76 138 L124 138" fill="none" stroke="#A3E635" stroke-width="3.5" stroke-linecap="round"/><text x="100" y="200" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">DASHBOARD</text><text x="100" y="222" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">IM&#193;GENES</text></svg>`
+};
+MODULE_CARDS.img_medicos = {
+  clase: 'imagenes', nombre: 'Médicos', key: 'img_medicos',
+  desc: 'Staff m&eacute;dico &middot; Cronograma Eco/Doppler &middot; Informantes RM',
+  svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/><path d="M62 40 L62 70 Q62 94 86 94 Q110 94 110 70 L110 40" fill="none" stroke="#A3E635" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M58 40 L66 40 M106 40 L114 40" stroke="#A3E635" stroke-width="4" stroke-linecap="round"/><path d="M86 94 L86 108 Q86 130 108 130 Q130 130 130 108 L130 98" fill="none" stroke="#A3E635" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="130" cy="88" r="10" fill="none" stroke="#22DBAE" stroke-width="3.5"/><text x="100" y="200" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">M&#201;DICOS</text><text x="100" y="222" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">IM&#193;GENES</text></svg>`
+};
+MODULE_CARDS.img_residentes = {
+  clase: 'imagenes', nombre: 'Residentes', key: 'img_residentes',
+  desc: 'Residentes por a&ntilde;o y servicio',
+  svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/><path d="M100 40 L160 68 L100 96 L40 68 Z" fill="none" stroke="#A3E635" stroke-width="4" stroke-linejoin="round"/><path d="M68 82 L68 106 Q100 126 132 106 L132 82" fill="none" stroke="#A3E635" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M160 68 L160 108" stroke="#22DBAE" stroke-width="3.5" stroke-linecap="round"/><circle cx="160" cy="113" r="5" fill="#22DBAE"/><text x="100" y="200" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">RESIDENTES</text><text x="100" y="222" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">IM&#193;GENES</text></svg>`
+};
+MODULE_CARDS.img_tecnicos = {
+  clase: 'imagenes', nombre: 'Técnicos', key: 'img_tecnicos',
+  desc: 'T&eacute;cnicos por servicio y equipo',
+  svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/><path d="M40 40 L160 40" stroke="#A3E635" stroke-width="4" stroke-linecap="round"/><path d="M100 40 L100 56" stroke="#A3E635" stroke-width="4" stroke-linecap="round"/><rect x="70" y="56" width="60" height="34" rx="8" fill="none" stroke="#A3E635" stroke-width="3.5"/><path d="M84 90 L78 108 L122 108 L116 90" fill="none" stroke="#A3E635" stroke-width="3" stroke-linejoin="round"/><path d="M86 116 L80 130 M100 116 L100 132 M114 116 L120 130" stroke="#22DBAE" stroke-width="3" stroke-linecap="round" stroke-opacity="0.85"/><rect x="40" y="140" width="120" height="10" rx="4" fill="none" stroke="#A3E635" stroke-width="3"/><text x="100" y="200" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">T&#201;CNICOS</text><text x="100" y="222" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">IM&#193;GENES</text></svg>`
+};
+MODULE_CARDS.img_admin = {
+  clase: 'imagenes', nombre: 'Administrativos', key: 'img_admin',
+  desc: 'Personal administrativo del servicio',
+  svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/><path d="M40 62 L40 128 Q40 134 46 134 L154 134 Q160 134 160 128 L160 74 Q160 68 154 68 L102 68 L92 56 L46 56 Q40 56 40 62 Z" fill="none" stroke="#A3E635" stroke-width="4" stroke-linejoin="round"/><path d="M40 84 L160 84" stroke="#A3E635" stroke-width="2.5" stroke-opacity="0.5"/><path d="M62 104 L128 104 M62 118 L106 118" stroke="#22DBAE" stroke-width="3" stroke-linecap="round" stroke-opacity="0.85"/><text x="100" y="200" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">ADMINISTRATIVOS</text><text x="100" y="222" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">IM&#193;GENES</text></svg>`
+};
+
 /* -- SESSION -- */
 function getSession() {
   try {
@@ -1498,15 +1539,25 @@ async function renderModules() {
   if (!modulos.harefield && (modulos.admin === 'edit' || modulos.admin === 'admin')) {
     modulos.harefield = 'edit';
   }
+  // Dashboard Imágenes H.Italiano: derivado del permiso administrativo de ESCRITURA (como Harefield).
+  if (!modulos.imagenes && (modulos.admin === 'edit' || modulos.admin === 'admin')) {
+    modulos.imagenes = 'edit';
+  }
+  // Sus subrecuadros heredan el permiso del padre.
+  for (const k of ['img_medicos', 'img_residentes', 'img_tecnicos', 'img_admin']) {
+    if (!modulos[k] && modulos.imagenes) modulos[k] = modulos.imagenes;
+  }
 
   // Atajo: si el usuario tiene acceso a UN SOLO m\u00f3dulo, lo mandamos directo ah\u00ed
   // (no tiene sentido mostrarle la pantalla de selecci\u00f3n con una sola card).
   // Si tiene 2 o m\u00e1s (ej: operativo + personal para solicitantes), mostramos la pantalla.
   const modulosConPermiso = ['admin', 'tecnico', 'medico', 'operativo', 'personal', 'caja', 'conciliacion', 'validacion', 'harefield']
     .filter(key => modulos[key]);
+  if (modulos.imagenes) modulosConPermiso.push('imagenes');
   if (modulosConPermiso.length === 1) {
     const key = modulosConPermiso[0];
     const destinos = { admin:'admin.html', tecnico:'tecnico.html', medico:'medico.html', operativo:'operativo.html?modo=pedidos', personal:'personal.html', caja:'caja.html', conciliacion:'conciliacion-pami.html', validacion:'validacion-pami.html', harefield:'harefield.html' };
+    Object.assign(destinos, { imagenes:'imagenes.html', img_medicos:'imagenes.html#medicos', img_residentes:'imagenes.html#residentes', img_tecnicos:'imagenes.html#tecnicos', img_admin:'imagenes.html#administrativos' });
     localStorage.setItem('spcd_rol', key);
     window.location.replace(destinos[key] || 'index.html');
     return;
@@ -1532,6 +1583,7 @@ async function renderModules() {
     { padre: 'medico',  hijos: [] },
     { padre: 'tecnico', hijos: [] }
   ];
+  GRUPOS.push({ padre: 'imagenes', hijos: ['img_medicos', 'img_residentes', 'img_tecnicos', 'img_admin'] }); // después de tecnico
 
   // El SVG de cada módulo trae el nombre adentro; acá sólo queremos el dibujo.
   const soloIcono = (m) => m.svg
@@ -1587,6 +1639,7 @@ function selectRol(nombre, clase) {
   selectedRol = nombre;
   localStorage.setItem('spcd_rol', nombre);
   const destinos = { admin:'admin.html', tecnico:'tecnico.html', medico:'medico.html', operativo:'operativo.html', personal:'personal.html', caja:'caja.html', conciliacion:'conciliacion-pami.html', validacion:'validacion-pami.html', harefield:'harefield.html' };
+  Object.assign(destinos, { imagenes:'imagenes.html', img_medicos:'imagenes.html#medicos', img_residentes:'imagenes.html#residentes', img_tecnicos:'imagenes.html#tecnicos', img_admin:'imagenes.html#administrativos' });
   window.location.href = destinos[clase] || 'index.html';
 }
 
