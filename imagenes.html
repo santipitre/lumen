@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<script>
+/* Lumen Auth Gate - Dashboard Imagenes. Sin sesion o vencida -> index.html; sin cuenta Auth -> app.html. Nivel y pestanas: img_mi_acceso en imagenes.js. */
+(function(){
+  var KEY='spcd_session', TO=8*60*60*1000;
+  try{
+    var t=localStorage.getItem('img_tema');
+    document.documentElement.dataset.tema=(t==='claro')?'claro':'oscuro';
+  }catch(e){ document.documentElement.dataset.tema='oscuro'; }
+  try{
+    var s=JSON.parse(localStorage.getItem(KEY));
+    if(!s||!s.user||!(Date.now()-s.ts<TO)){ location.replace('index.html'); return; }
+    if(!s.user.auth_user_id){ location.replace('app.html'); return; }
+    window.__img_user=s.user;
+  }catch(e){ location.replace('index.html'); }
+})();
+</script>
+<meta charset="UTF-8"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://erjdncsnomwymjiaslpx.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="lumen-ver" content="imagenes-0.1.0"/>
+<title>Dashboard Imágenes H.Italiano · Lumen by Pyralis</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml"/>
+<link rel="stylesheet" href="spcd-theme.css?v=d6e58273"/>
+<link rel="stylesheet" href="spcd-components.css?v=f7b2f276"/>
+<link rel="stylesheet" href="imagenes.css?v=a02051cf"/>
+</head>
+<body>
+<header class="topbar">
+  <a href="app.html" class="topbar-logo" title="Lumen"><svg class="firefly-svg" width="28" height="28" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" aria-label="Lumen by Pyralis"><rect x="3" y="3" width="54" height="54" rx="13" fill="#0A0F14" stroke="#1F2937" stroke-width="0.8"/><path d="M16 14 L16 46 L44 46" fill="none" stroke="#F1F5F9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="22" r="9" fill="none" stroke="#F59E0B" stroke-width="0.6" opacity="0.4"/><circle cx="38" cy="22" r="4" fill="#F59E0B"/><circle cx="38" cy="22" r="1.8" fill="#FEF3C7"/></svg><span>L<span class="firefly-o">u</span>men</span></a>
+  <div class="topbar-sep"></div>
+  <nav class="topbar-crumbs" aria-label="Ubicación">
+    <a href="app.html" title="Volver al inicio">Inicio</a><span>›</span>
+    <a href="index.html?screen=roles" title="Volver a selección de módulo">Sede</a><span>›</span>
+    <span class="crumb-active">IMÁGENES H.ITALIANO</span>
+  </nav>
+  <div class="topbar-right">
+    <span id="modo-chip" class="chip"></span>
+    <span id="ses-chip" class="chip"></span>
+    <div class="sede-chip">SEDE HOSPITAL ITALIANO</div>
+    <button id="tema-btn" type="button" aria-pressed="false" class="btn-back-top tema-btn">◐</button>
+    <a class="btn-back-top" href="app.html">← Atrás</a>
+  </div>
+</header>
+
+<main class="main">
+  <div class="head">
+    <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="2.5"/><circle cx="12" cy="11" r="3.4"/><path d="M8 21h8"/></svg></div>
+    <div>
+      <h1>DASHBOARD IMÁGENES H.ITALIANO</h1>
+      <div class="sub">Médicos · Residentes · Técnicos · Administrativos</div>
+    </div>
+  </div>
+
+  <nav role="tablist" aria-label="Secciones" class="tabs">
+    <a role="tab" href="#medicos" id="t-medicos" aria-controls="tab-medicos">Médicos <span class="n">—</span></a>
+    <a role="tab" href="#residentes" id="t-residentes" aria-controls="tab-residentes">Residentes <span class="n">—</span></a>
+    <a role="tab" href="#tecnicos" id="t-tecnicos" aria-controls="tab-tecnicos">Técnicos <span class="n">—</span></a>
+    <a role="tab" href="#administrativos" id="t-administrativos" aria-controls="tab-administrativos">Administrativos <span class="n">—</span></a>
+  </nav>
+
+  <div id="aviso" class="vacio" hidden role="status"></div>
+
+  <section role="tabpanel" id="tab-medicos" aria-labelledby="t-medicos" hidden>
+    <nav class="subtabs" aria-label="Vistas de Médicos">
+      <a href="#medicos/staff">Staff médico</a>
+      <a href="#medicos/eco">Cronograma Ecografía/Doppler</a>
+      <a href="#medicos/rm">Informantes RM</a>
+    </nav>
+    <div id="sub-staff" hidden><div class="vista" id="v-staff"></div></div>
+    <div id="sub-eco" hidden><div class="vista" id="v-eco"></div></div>
+    <div id="sub-rm" hidden><div class="vista" id="v-rm"></div></div>
+  </section>
+  <section role="tabpanel" id="tab-residentes" aria-labelledby="t-residentes" hidden>
+    <div class="vista" id="v-residentes"></div>
+  </section>
+  <section role="tabpanel" id="tab-tecnicos" aria-labelledby="t-tecnicos" hidden>
+    <div class="vista" id="v-tecnicos"></div>
+  </section>
+  <section role="tabpanel" id="tab-administrativos" aria-labelledby="t-administrativos" hidden>
+    <div class="vista" id="v-administrativos"></div>
+  </section>
+</main>
+<script src="spcd-bg.js?v=646bb8f5"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="spcd-supabase.js?v=4420ca43"></script>
+<script src="imagenes.js?v=ecfa1bd3"></script>
+</body>
+</html>

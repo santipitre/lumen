@@ -738,6 +738,50 @@
     .fade-in { animation:fadeIn .4s ease both; }
     @keyframes fadeIn { from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);} }
   </style>
+<style>/* IMG-SELECTOR */
+.ia-sec { margin-top:16px; border:1px solid rgba(163,230,53,.35); border-radius:10px; background:linear-gradient(180deg,rgba(163,230,53,.06),transparent 60%); }
+.ia-head { display:flex; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid rgba(163,230,53,.18); }
+.ia-ico { width:32px; height:32px; border-radius:8px; border:1px solid rgba(163,230,53,.35); display:grid; place-items:center; color:#A3E635; box-shadow:0 0 12px rgba(163,230,53,.2); flex:none; }
+.ia-tit { font-weight:700; letter-spacing:1.5px; font-size:14px; color:#A3E635; flex:1; text-transform:uppercase; }
+.ia-sw { position:relative; width:42px; height:24px; flex:none; }
+.ia-sw input { opacity:0; width:0; height:0; }
+.ia-sw span { position:absolute; inset:0; background:#2D3748; border-radius:999px; cursor:pointer; transition:.2s; }
+.ia-sw span:before { content:""; position:absolute; width:18px; height:18px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
+.ia-sw input:checked + span { background:#A3E635; }
+.ia-sw input:checked + span:before { transform:translateX(18px); background:#111; }
+.ia-sw input:disabled + span { opacity:.4; cursor:not-allowed; }
+.ia-body { padding:14px; }
+.ia-lbl { font-size:11px; color:#94A3B8; text-transform:uppercase; letter-spacing:.8px; margin:0 0 8px; }
+.ia-niveles { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.ia-niv { border:1px solid #2D3748; border-radius:8px; padding:10px; cursor:pointer; background:#1A2332; color:inherit; text-align:left; font:inherit; }
+.ia-niv b { font-size:13px; letter-spacing:1px; display:block; }
+.ia-niv span { font-size:11.5px; color:#94A3B8; display:block; margin-top:3px; line-height:1.35; }
+.ia-niv.on { border-color:#A3E635; background:rgba(163,230,53,.12); box-shadow:0 0 0 1px #A3E635 inset; }
+.ia-niv.on b { color:#A3E635; }
+.ia-tabs { display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
+.ia-tab { display:flex; align-items:center; gap:6px; border:1px solid #2D3748; border-radius:999px; padding:6px 12px; font-weight:700; letter-spacing:1px; font-size:12px; cursor:pointer; background:#1A2332; color:inherit; user-select:none; }
+.ia-tab .ck { width:14px; height:14px; border:1px solid currentColor; border-radius:3px; display:grid; place-items:center; font-size:10px; }
+.ia-tab.on { border-color:#A3E635; color:#A3E635; background:rgba(163,230,53,.12); }
+.ia-tab.lock { opacity:.8; cursor:default; }
+.ia-sub { font-size:11.5px; color:#64748B; margin:6px 0 0; }
+.ia-res { margin-top:14px; border:1px solid #1F2937; border-radius:8px; padding:10px 12px; font-size:12.5px; background:rgba(0,0,0,.2); }
+.ia-res b { color:#F1F5F9; }
+.ia-res ul { margin:6px 0 0; padding-left:18px; color:#94A3B8; }
+.ia-res li.no { color:#F87171; }
+.ia-res li.si { color:#34D399; }
+.ia-warn { display:flex; gap:8px; margin-top:12px; font-size:12px; border:1px solid rgba(251,191,36,.35); background:rgba(251,191,36,.08); color:#FBBF24; border-radius:8px; padding:9px 11px; }
+.ia-block { padding:16px 14px; font-size:13px; color:#94A3B8; display:flex; gap:10px; align-items:flex-start; }
+.ia-block b { color:#F1F5F9; }
+.ia-foot { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:12px 14px; border-top:1px solid rgba(163,230,53,.18); flex-wrap:wrap; }
+.ia-foot small { color:#64748B; font-size:11.5px; }
+.ia-btn-lima { background:#A3E635; color:#111; border:0; border-radius:6px; padding:8px 14px; font-weight:700; font-size:12px; letter-spacing:.5px; cursor:pointer; }
+.ia-btn-lima:disabled { opacity:.35; cursor:not-allowed; }
+.ia-hidden { display:none !important; }
+@media (max-width:640px) {
+  .ia-niveles { grid-template-columns:1fr 1fr; }
+  .ia-modal-full { max-width:100% !important; max-height:100vh !important; height:100vh !important; border-radius:0 !important; }
+}
+/* /IMG-SELECTOR */</style>
 </head>
 <body>
 
@@ -1059,12 +1103,13 @@
             <th>Rol</th>
             <th>Sedes</th>
             <th>Módulos</th>
+            <th>Imágenes</th>
             <th>Login</th>
             <th>Activo</th>
             <th>Acciones</th>
           </tr></thead>
           <tbody id="tbody-usuarios">
-            <tr><td colspan="9" style="text-align:center; padding:24px; color:var(--muted);">Cargando usuarios...</td></tr>
+            <tr><td colspan="10" style="text-align:center; padding:24px; color:var(--muted);">Cargando usuarios...</td></tr>
           </tbody>
         </table>
       </div>
@@ -1185,6 +1230,46 @@
           <label for="mu-activo" style="color:var(--text); cursor:pointer;">Usuario activo</label>
         </div>
       </div>
+      <!-- IMG-SELECTOR -->
+      <section class="ia-sec" id="mu-img-sec">
+        <div class="ia-head">
+          <div class="ia-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><circle cx="12" cy="11" r="3"/><path d="M8 21h8"/></svg></div>
+          <div class="ia-tit">Dashboard Imágenes H.Italiano</div>
+          <label class="ia-sw" title="Acceso al módulo"><input type="checkbox" id="mu-img-acc"><span></span></label>
+        </div>
+        <div id="mu-img-sin-email" class="ia-block ia-hidden">
+          <span style="font-size:20px">🔑</span>
+          <div><b>Este usuario entra solo con PIN.</b><br>Para darle acceso a Imágenes primero tiene que ingresar con email: cargá su email arriba y vinculalo con 🔗 en la tabla. Mientras tanto no se puede activar.</div>
+        </div>
+        <div id="mu-img-err" class="ia-block ia-hidden"><span style="font-size:18px">⚠</span><div><b>No se pudo leer el acceso a Imágenes.</b></div></div>
+        <div id="mu-img-off" class="ia-block ia-hidden"><span style="font-size:18px">⛔</span><div><b>Sin acceso.</b> No ve el recuadro de Imágenes en el inicio de Lumen.</div></div>
+        <div id="mu-img-on" class="ia-hidden">
+          <div class="ia-body">
+            <p class="ia-lbl">Nivel</p>
+            <div class="ia-niveles" id="mu-img-niveles">
+              <button type="button" class="ia-niv" data-v="ver"><b>VER</b><span>Listados, fichas y cronograma. Sin celular, email ni matrícula.</span></button>
+              <button type="button" class="ia-niv" data-v="ver_contactos"><b>VER + CONTACTOS</b><span>Lo anterior, con celular, email y matrícula.</span></button>
+              <button type="button" class="ia-niv" data-v="editar"><b>EDITAR</b><span>Alta y edición de personal y turnos en sus pestañas.</span></button>
+              <button type="button" class="ia-niv" data-v="admin"><b>ADMIN</b><span>Todo, catálogos y las 4 pestañas.</span></button>
+            </div>
+            <p class="ia-lbl" style="margin-top:16px">Pestañas que puede ver</p>
+            <div class="ia-tabs" id="mu-img-tabs">
+              <button type="button" class="ia-tab" data-v="medicos"><span class="ck"></span>MÉDICOS</button>
+              <button type="button" class="ia-tab" data-v="residentes"><span class="ck"></span>RESIDENTES</button>
+              <button type="button" class="ia-tab" data-v="tecnicos"><span class="ck"></span>TÉCNICOS</button>
+              <button type="button" class="ia-tab" data-v="administrativos"><span class="ck"></span>ADMINISTRATIVOS</button>
+            </div>
+            <p class="ia-sub">Médicos incluye Staff, Cronograma Eco/Doppler e Informantes RM.</p>
+            <div class="ia-res" id="mu-img-res"></div>
+            <div class="ia-warn ia-hidden" id="mu-img-warn"><span>⚠</span><span><b>Altas bloqueadas hasta la prueba del nivel VER</b> (ISSUE-031). Por ahora solo se puede guardar el usuario de prueba. Se habilita sola cuando la prueba da OK.</span></div>
+          </div>
+        </div>
+        <div class="ia-foot">
+          <small id="mu-img-foot">Se guarda aparte del resto del usuario. Último cambio: —</small>
+          <button type="button" class="ia-btn-lima" id="mu-img-guardar" onclick="guardarAccesoImagenes()" disabled>Guardar acceso a Imágenes</button>
+        </div>
+      </section>
+      <!-- /IMG-SELECTOR -->
       <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:24px;">
         <button onclick="cerrarModalUsuario()" style="padding:10px 18px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer;">Cancelar</button>
         <button onclick="guardarUsuario()" style="padding:10px 18px; border-radius:6px; border:1px solid rgba(59,130,246,.5); background:rgba(59,130,246,.2); color:var(--blue); cursor:pointer; font-weight:600;">💾 Guardar</button>
@@ -4991,28 +5076,251 @@ function emptyState(icon, text) {
   });
 })();
 
+// IMG-SELECTOR
+// Selector de acceso a Imagenes (fase 4, Pedido 3). Lectura: img_acceso_listar. Escritura: solo img_acceso_guardar.
+const IMG_TXT = { ver: 'VER', ver_contactos: 'VER + CONTACTOS', editar: 'EDITAR', admin: 'ADMIN' };
+const IMG_CHIP = { ver: 'Ver', ver_contactos: 'Ver + contactos', editar: 'Editar', admin: '★ Admin' };
+const IMG_NOM = { medicos: 'Médicos', residentes: 'Residentes', tecnicos: 'Técnicos', administrativos: 'Administrativos' };
+const IMG_ORDEN = ['medicos', 'residentes', 'tecnicos', 'administrativos'];
+const IMG_NIVELES = ['ver', 'ver_contactos', 'editar', 'admin'];
+// mapa auth_user_id -> {nivel, pestanas, version, updated_at}; null = no se pudo leer
+let imgAccesos = null;
+let imgAccesoError = null;
+
+async function imgRecargarAccesos() {
+  try {
+    const r = await sbRpc('img_acceso_listar', {});
+    if (r && r.ok === true && Array.isArray(r.accesos)) {
+      imgAccesos = {};
+      r.accesos.forEach(a => { imgAccesos[a.auth_user_id] = a; });
+      imgAccesoError = null;
+    } else {
+      imgAccesos = null;
+      imgAccesoError = (r && r.error) || 'RESPUESTA';
+    }
+  } catch (e) {
+    imgAccesos = null;
+    imgAccesoError = 'RED';
+  }
+}
+
+function imgPestanasValidas(p) {
+  return Array.isArray(p) ? IMG_ORDEN.filter(x => p.indexOf(x) >= 0) : [];
+}
+
+function imgChipCelda(u) {
+  const base = 'display:inline-block; font-size:11px; font-weight:600; padding:3px 8px; border-radius:999px; white-space:nowrap; border:1px solid ';
+  const gris = base + '#2D3748; color:#94A3B8;';
+  if (!u || !u.auth_user_id) {
+    return '<span style="' + base + 'rgba(251,191,36,.4); color:#FBBF24; background:rgba(251,191,36,.1);">requiere email</span>';
+  }
+  if (imgAccesos === null) return '<span style="color:var(--muted);">—</span>';
+  const fila = imgAccesos[u.auth_user_id];
+  if (!fila) return '<span style="' + gris + '">— sin acceso</span>';
+  const pest = imgPestanasValidas(fila.pestanas);
+  const txtPest = pest.length === IMG_ORDEN.length ? '4 pestañas'
+    : (pest.map(t => IMG_NOM[t]).join(', ') || 'sin pestañas');
+  const txt = (IMG_CHIP[fila.nivel] || String(fila.nivel)) + ' · ' + txtPest;
+  return '<span style="' + base + 'rgba(163,230,53,.35); color:#A3E635; background:rgba(163,230,53,.12);">' + escapeHtml(txt) + '</span>';
+}
+// /IMG-SELECTOR
+// IMG-SELECTOR
+// ISSUE-031: se cambia a mano solo tras el OK de la prueba del nivel ver
+const IMG_ALTAS_DESBLOQUEADAS = true;
+// lista blanca de uuid de prueba (nunca un email); se completa a mano
+const IMG_UUID_PRUEBA = [];
+const imgAltaPermitida = (uid) => IMG_ALTAS_DESBLOQUEADAS === true || IMG_UUID_PRUEBA.indexOf(uid) >= 0;
+
+let imgEstado = { uid: null, fila: null, acc: false, nivel: 'ver', tabs: [], guardando: false };
+
+function imgAviso(msg) {
+  if (typeof showToast === 'function') showToast(msg);
+  else alert(msg);
+}
+
+function imgFechaVersion(fila) {
+  if (!fila) return '—';
+  const d = new Date(fila.updated_at);
+  const p2 = n => (n < 10 ? '0' : '') + n;
+  const fecha = isNaN(d.getTime()) ? '—' : (p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear());
+  return fecha + ' · v' + Number(fila.version);
+}
+
+function imgPintarModal(u) {
+  const caja = document.getElementById('modal-usuario').firstElementChild;
+  if (caja) caja.classList.add('ia-modal-full');
+  const uid = (u && u.auth_user_id) ? String(u.auth_user_id) : null;
+  const fila = (uid && imgAccesos) ? (imgAccesos[uid] || null) : null;
+  imgEstado = {
+    uid: uid,
+    fila: fila,
+    acc: !!fila,
+    nivel: (fila && IMG_NIVELES.indexOf(fila.nivel) >= 0) ? fila.nivel : 'ver',
+    tabs: fila ? imgPestanasValidas(fila.pestanas) : [],
+    guardando: false
+  };
+  imgRender();
+}
+
+function imgRender() {
+  const E = imgEstado;
+  const g = id => document.getElementById(id);
+  const sinEmail = !E.uid;
+  const sinLectura = !sinEmail && imgAccesos === null;
+  const bloqueado = sinEmail || sinLectura;
+  const acc = E.acc && !bloqueado;
+  const adm = E.nivel === 'admin';
+  const tabs = adm ? IMG_ORDEN.slice() : IMG_ORDEN.filter(t => E.tabs.indexOf(t) >= 0);
+  const permitida = imgAltaPermitida(E.uid);
+  const sw = g('mu-img-acc');
+  sw.checked = acc;
+  sw.disabled = bloqueado || E.guardando;
+  g('mu-img-sin-email').classList.toggle('ia-hidden', !sinEmail);
+  g('mu-img-err').classList.toggle('ia-hidden', !sinLectura);
+  g('mu-img-off').classList.toggle('ia-hidden', bloqueado || acc);
+  g('mu-img-on').classList.toggle('ia-hidden', !acc);
+  g('mu-img-niveles').querySelectorAll('.ia-niv').forEach(b => {
+    b.classList.toggle('on', b.dataset.v === E.nivel);
+  });
+  g('mu-img-tabs').querySelectorAll('.ia-tab').forEach(b => {
+    const on = tabs.indexOf(b.dataset.v) >= 0;
+    b.classList.toggle('on', on);
+    b.classList.toggle('lock', adm);
+    b.querySelector('.ck').textContent = on ? '✓' : '';
+  });
+  const cont = E.nivel !== 'ver';
+  const edit = E.nivel === 'editar' || adm;
+  const nombre = g('mu-nombre').value.trim() || 'El usuario';
+  const li = (si, a, b) => '<li class="' + (si ? 'si' : 'no') + '">' + (si ? a : b) + '</li>';
+  g('mu-img-res').innerHTML = '<b>Resumen:</b> ' + escapeHtml(nombre) + ' va a ver <b>'
+    + (tabs.map(t => escapeHtml(IMG_NOM[t])).join(', ') || 'ninguna pestaña')
+    + '</b> con nivel <b>' + escapeHtml(IMG_TXT[E.nivel]) + '</b>.<ul>'
+    + li(cont, 'Ve celular, email y matrícula', 'No ve celular, email ni matrícula')
+    + li(edit, 'Puede editar personal y turnos', 'No puede editar personal y turnos')
+    + li(adm, 'Puede editar catálogos', 'No puede editar catálogos') + '</ul>';
+  g('mu-img-warn').classList.toggle('ia-hidden', !(acc && !permitida));
+  const btn = g('mu-img-guardar');
+  btn.textContent = (acc || bloqueado) ? 'Guardar acceso a Imágenes' : 'Quitar acceso a Imágenes';
+  btn.disabled = E.guardando || bloqueado || (acc ? (!permitida || !tabs.length) : !E.fila);
+  g('mu-img-foot').textContent = sinEmail
+    ? 'Requiere email vinculado.'
+    : 'Se guarda aparte del resto del usuario. Último cambio: ' + imgFechaVersion(E.fila);
+}
+
+async function imgRecargarYRepintar(uid) {
+  await imgRecargarAccesos();
+  const u = (window._spcdUsuarios || []).find(x => x.auth_user_id === uid) || null;
+  imgPintarModal(u);
+  renderTablaUsuarios(window._spcdUsuarios || []);
+}
+
+async function guardarAccesoImagenes() {
+  const E = imgEstado;
+  if (!E.uid || E.guardando) return;
+  const uid = E.uid;
+  let nivel = null;
+  let pestanas = null;
+  if (E.acc) {
+    if (IMG_NIVELES.indexOf(E.nivel) < 0) { imgAviso('Datos inválidos (nivel).'); return; }
+    if (!imgAltaPermitida(uid)) { imgAviso('Altas bloqueadas hasta la prueba del nivel VER (ISSUE-031).'); return; }
+    nivel = E.nivel;
+    if (nivel === 'admin') {
+      pestanas = ['medicos', 'residentes', 'tecnicos', 'administrativos'];
+    } else {
+      pestanas = IMG_ORDEN.filter(t => E.tabs.indexOf(t) >= 0);
+    }
+    if (!pestanas.length) { imgAviso('Marcá al menos una pestaña.'); return; }
+  } else if (!E.fila) {
+    return;
+  }
+  const version = E.fila ? Number(E.fila.version) : 0;
+  E.guardando = true;
+  imgRender();
+  let recargar = false;
+  try {
+    const r = await sbRpc('img_acceso_guardar', {
+      p_auth_user_id: uid,
+      p_nivel: nivel,
+      p_pestanas: pestanas,
+      p_version: version
+    });
+    if (r && r.ok === true) {
+      imgAviso('Acceso a Imágenes guardado.');
+      recargar = true;
+    } else {
+      const err = r && r.error;
+      if (err === 'CONFLICTO') {
+        imgAviso('Otro administrador cambió este acceso. Se recargó; revisá y volvé a guardar.');
+        recargar = true;
+      } else if (err === 'ULTIMO_ADMIN') {
+        imgAviso('No se puede quitar el último administrador de Imágenes.');
+      } else if (err === 'INVALIDO') {
+        imgAviso('Datos inválidos (' + escapeHtml(r.campo) + ').');
+      } else if (err === 'NO_EXISTE') {
+        imgAviso('La cuenta no existe o el acceso ya no existe. Se recargó.');
+        recargar = true;
+      } else if (err === 'SIN_PERMISO' || err === 'SIN_SESION') {
+        imgAviso('Solo un administrador de Imágenes con sesión de email puede cambiar accesos.');
+      } else {
+        imgAviso('No se pudo guardar. Probá de nuevo.');
+      }
+    }
+  } catch (e) {
+    imgAviso('No se pudo guardar. Probá de nuevo.');
+  }
+  if (recargar) {
+    await imgRecargarYRepintar(uid);
+  } else {
+    E.guardando = false;
+    imgRender();
+  }
+}
+
+(function imgInit() {
+  const sw = document.getElementById('mu-img-acc');
+  if (!sw) return;
+  sw.addEventListener('change', () => { imgEstado.acc = sw.checked; imgRender(); });
+  document.getElementById('mu-img-niveles').addEventListener('click', ev => {
+    const b = ev.target.closest('.ia-niv');
+    if (!b || IMG_NIVELES.indexOf(b.dataset.v) < 0) return;
+    imgEstado.nivel = b.dataset.v;
+    if (imgEstado.nivel === 'admin') imgEstado.tabs = IMG_ORDEN.slice();
+    imgRender();
+  });
+  document.getElementById('mu-img-tabs').addEventListener('click', ev => {
+    const b = ev.target.closest('.ia-tab');
+    if (!b || imgEstado.nivel === 'admin' || IMG_ORDEN.indexOf(b.dataset.v) < 0) return;
+    const i = imgEstado.tabs.indexOf(b.dataset.v);
+    if (i >= 0) imgEstado.tabs.splice(i, 1); else imgEstado.tabs.push(b.dataset.v);
+    imgRender();
+  });
+})();
+// /IMG-SELECTOR
 // Cache de usuarios para uso del modal
 window._spcdUsuarios = [];
 
 async function cargarUsuariosPanel() {
   const tbody = document.getElementById('tbody-usuarios');
   const info  = document.getElementById('permisos-info');
-  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:24px; color:var(--muted);">⏳ Cargando...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:24px; color:var(--muted);">⏳ Cargando...</td></tr>';
   try {
     const usuarios = await sbRpc('admin_listar_usuarios', {});
     window._spcdUsuarios = usuarios || [];
     if (info) info.textContent = `${usuarios.length} usuarios · ${usuarios.filter(u=>u.activo).length} activos · ${usuarios.filter(u=>u.auth_user_id).length} con login OTP habilitado`;
+    // IMG-SELECTOR
+    await imgRecargarAccesos();
+    // /IMG-SELECTOR
     renderTablaUsuarios(usuarios);
   } catch (e) {
     console.error('[cargarUsuariosPanel]', e);
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:24px; color:var(--red);">❌ Error: ${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:24px; color:var(--red);">❌ Error: ${e.message}</td></tr>`;
   }
 }
 
 function renderTablaUsuarios(usuarios) {
   const tbody = document.getElementById('tbody-usuarios');
   if (!usuarios || !usuarios.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:24px; color:var(--muted);">No hay usuarios</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:24px; color:var(--muted);">No hay usuarios</td></tr>';
     return;
   }
   const rolColor = {
@@ -5040,6 +5348,7 @@ function renderTablaUsuarios(usuarios) {
       <td><span style="color:${rolColor[u.rol]||'#94A3B8'}; font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:1px;">${escapeHtml(u.rol)}</span></td>
       <td style="font-size:12px;">${sedes}</td>
       <td style="font-size:11px; color:var(--muted);">${modulos}</td>
+      <td>${imgChipCelda(u)}</td>
       <td>${loginIcon}</td>
       <td>${activoChip}</td>
       <td style="white-space:nowrap;">
@@ -5071,6 +5380,7 @@ function abrirModalCrearUsuario() {
     document.getElementById('mu-mod-' + m).value = '';
   });
   document.getElementById('mu-activo').checked = true;
+  imgPintarModal(null);
   document.getElementById('modal-usuario').style.display = 'flex';
 }
 
@@ -5091,6 +5401,7 @@ function editarUsuarioPanel(id) {
     document.getElementById('mu-mod-' + m).value = mods[m] || '';
   });
   document.getElementById('mu-activo').checked = !!u.activo;
+  imgPintarModal(u);
   document.getElementById('modal-usuario').style.display = 'flex';
 }
 
@@ -5105,5 +5416,80 @@ async function guardarUsuario() {
   const email    = document.getElementById('mu-email').value.trim();
   const rol      = document.getElementById('mu-rol').value;
   const sedes    = document.getElementById('mu-sedes').value
-                
+                    .split(',').map(s => s.trim()).filter(Boolean);
+  const modulos  = {};
+  ['operativo','medico','admin','licencias','mensajeria','stats'].forEach(m => {
+    const v = document.getElementById('mu-mod-' + m).value;
+    if (v) modulos[m] = v;
+  });
+  const activo = document.getElementById('mu-activo').checked;
+  const permisos = { sedes, modulos };
 
+  if (!username) { alert('Username es obligatorio'); return; }
+
+  try {
+    if (id) {
+      // Editar
+      await sbRpc('admin_actualizar_usuario', {
+        p_usuario_id: id, p_nombre: nombre, p_email: email,
+        p_rol: rol, p_permisos: permisos, p_activo: activo
+      });
+      if (typeof showToast === 'function') showToast('✅ Usuario actualizado: ' + username);
+    } else {
+      // Crear
+      await sbRpc('admin_crear_usuario', {
+        p_username: username, p_nombre: nombre, p_email: email,
+        p_rol: rol, p_permisos: permisos
+      });
+      if (typeof showToast === 'function') {
+        showToast('✅ Usuario creado: ' + username + '. PIN inicial: 1234. Ahora invitalo desde Dashboard de Supabase.');
+      } else {
+        alert('Usuario creado. PIN inicial 1234. Ahora invitalo desde Dashboard de Supabase con el email.');
+      }
+    }
+    cerrarModalUsuario();
+    await cargarUsuariosPanel();
+  } catch (e) {
+    console.error('[guardarUsuario]', e);
+    alert('Error: ' + e.message);
+  }
+}
+
+async function resetearPinPanel(id, username) {
+  if (!confirm(`¿Resetear PIN de ${username} a 1234? El usuario deberá cambiarlo al loguearse.`)) return;
+  try {
+    const res = await sbRpc('admin_reset_pin', { p_usuario_id: id });
+    if (typeof showToast === 'function') showToast('🔑 ' + (res.mensaje || 'PIN reseteado'));
+    else alert(res.mensaje || 'PIN reseteado a 1234');
+  } catch (e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+async function vincularAuthPanel(id, username) {
+  const authId = prompt(
+    `Vincular ${username} con un auth.users.id\n\n` +
+    `1) Andá al Dashboard de Supabase → Authentication → Users\n` +
+    `2) Buscá al usuario por email y copiá su UID\n` +
+    `3) Pegalo acá:`
+  );
+  if (!authId) return;
+  const clean = authId.trim();
+  if (!/^[0-9a-f-]{36}$/i.test(clean)) {
+    alert('UUID inválido. Debe tener formato 8-4-4-4-12 chars hex.');
+    return;
+  }
+  try {
+    await sbRpc('admin_vincular_auth_id', { p_usuario_id: id, p_auth_user_id: clean });
+    if (typeof showToast === 'function') showToast('🔗 Vinculado: ' + username + ' ahora puede loguearse con magic link');
+    else alert('Vinculado OK. ' + username + ' ya puede loguearse con su email.');
+    await cargarUsuariosPanel();
+  } catch (e) {
+    alert('Error: ' + e.message);
+  }
+}
+</script>
+
+<script src="chatbot.js?v=ai-2026-04-20-g"></script>
+</body>
+</html>
