@@ -2,29 +2,19 @@
 <html lang="es">
 <head>
 <script>
-/* Lumen Auth Gate - Dashboard Imagenes. Sin sesion o vencida -> index.html; sin permiso -> app.html. ASCII puro: corre antes de meta charset. */
+/* Lumen Auth Gate - Dashboard Imagenes. Sin sesion o vencida -> index.html; sin cuenta Auth -> app.html. Nivel y pestanas: img_mi_acceso en imagenes.js. */
 (function(){
   var KEY='spcd_session', TO=8*60*60*1000;
-  var DEFAULTS={ admin:{admin:'edit'}, consultor:{admin:'view'} };
-  var dest='index.html';
   try{
     var t=localStorage.getItem('img_tema');
     document.documentElement.dataset.tema=(t==='claro')?'claro':'oscuro';
   }catch(e){ document.documentElement.dataset.tema='oscuro'; }
   try{
     var s=JSON.parse(localStorage.getItem(KEY));
-    if(!s||!s.user||!(Date.now()-s.ts<TO)) throw 0;
-    dest='app.html';
-    var p=s.user.permisos;
-    var pm=(p&&(p.sedes||p.modulos))?(p.modulos||{}):(DEFAULTS[s.user.rol]||{});
-    var perm=pm.imagenes;
-    if(!perm&&(pm.admin==='edit'||pm.admin==='admin')) perm='edit';
-    if(!perm) throw 0;
+    if(!s||!s.user||!(Date.now()-s.ts<TO)){ location.replace('index.html'); return; }
+    if(!s.user.auth_user_id){ location.replace('app.html'); return; }
     window.__img_user=s.user;
-    window.__img_perm=perm;
-    window.__img_modo=(perm==='view')?'view':'edit';
-    document.documentElement.dataset.modo=window.__img_modo;
-  }catch(e){ if(dest==='app.html') location.replace('app.html'); else location.replace('index.html'); }
+  }catch(e){ location.replace('index.html'); }
 })();
 </script>
 <meta charset="UTF-8"/>
@@ -96,6 +86,6 @@
 <script src="spcd-bg.js?v=646bb8f5"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="spcd-supabase.js?v=4420ca43"></script>
-<script src="imagenes.js?v=5b6039e0"></script>
+<script src="imagenes.js?v=ecfa1bd3"></script>
 </body>
 </html>

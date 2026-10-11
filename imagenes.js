@@ -9,6 +9,7 @@ const TITULOS = { medicos:'Médicos', residentes:'Residentes', tecnicos:'Técnic
 const BASE = 'Dashboard Imágenes H.Italiano';
 const TIPO_DE = { medicos:'medico', residentes:'residente', tecnicos:'tecnico', administrativos:'administrativo' };
 const RPC_LECTURA = ['img_mi_acceso','img_catalogos','img_listar','img_ficha','img_cronograma'];
+const NIVELES_VALIDOS = ['ver','ver_contactos','editar','admin'];
 const NIVELES_CONTACTOS = ['ver_contactos','editar','admin'];
 const NIVELES_SOLO_LECTURA = ['ver','ver_contactos'];
 const ANIOS = [1, 2, 3, 4];
@@ -367,7 +368,13 @@ async function cargar(){
   E.errores = {};
   try{
     const a = await rpc('img_mi_acceso');
-    E.nivel = a.nivel || null;
+    if(NIVELES_VALIDOS.indexOf(a.nivel) < 0){
+      E.errores.acceso = 'SIN_PERMISO';
+      E.pestanas = [];
+      E.cargando = false;
+      return;
+    }
+    E.nivel = a.nivel;
     const asignadas = Array.isArray(a.pestanas) ? a.pestanas : [];
     E.pestanas = TABS.filter(function(t){ return asignadas.indexOf(t) >= 0; });
     E.contactos = hayContactos(E.nivel);
@@ -1066,6 +1073,7 @@ function pintarModo(){
     document.documentElement.dataset.modo = 'view';
   } else {
     chip.textContent = '';
+    document.documentElement.dataset.modo = 'edit';
   }
 }
 
@@ -1107,7 +1115,7 @@ async function iniciar(){
   }
   avisar('CARGANDO', 'Cargando…', false);
   await cargar();
-  pintarModo();
+  if(E.errores.acceso === 'SIN_PERMISO' || E.errores.acceso === 'SIN_SESION'){ location.replace('app.html'); return; }
   if(E.errores.acceso){
     ocultarTodo();
     avisar('NO SE PUDO LEER', mensajeDe(E.errores.acceso), true);
@@ -1118,6 +1126,7 @@ async function iniciar(){
     avisar('SIN PESTAÑAS', 'No tenés pestañas asignadas en este módulo.', false);
     return;
   }
+  pintarModo();
   document.getElementById('aviso').hidden = true;
   document.querySelector('[role="tablist"]').hidden = false;
   render();

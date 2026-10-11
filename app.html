@@ -1521,6 +1521,22 @@ function selectSede(nombre) {
   navigate('screen-roles');
 }
 
+// Dashboard Imágenes H.Italiano: nivel y pestañas solo desde img_mi_acceso (tabla img_acceso).
+async function imgCargarAcceso() {
+  const NIVELES = ['ver', 'ver_contactos', 'editar', 'admin'];
+  const TABS = ['medicos', 'residentes', 'tecnicos', 'administrativos'];
+  if (!window.sbAuth || typeof sbRpc !== 'function' || !currentUser || !currentUser.auth_user_id) return null;
+  try {
+    const s = await window.sbAuth.auth.getSession();
+    const uid = s && s.data && s.data.session && s.data.session.user ? s.data.session.user.id : null;
+    if (!uid || uid !== currentUser.auth_user_id) return null;
+    const r = await sbRpc('img_mi_acceso', {});
+    if (!r || r.ok !== true || NIVELES.indexOf(r.nivel) < 0) return null;
+    const p = Array.isArray(r.pestanas) ? r.pestanas : [];
+    return { nivel: r.nivel, pestanas: TABS.filter(t => p.indexOf(t) >= 0) };
+  } catch (e) { return null; }
+}
+
 async function renderModules() {
   const permisos = getPermisos();
   const modulos = { ...(permisos.modulos || {}) };
@@ -1539,13 +1555,13 @@ async function renderModules() {
   if (!modulos.harefield && (modulos.admin === 'edit' || modulos.admin === 'admin')) {
     modulos.harefield = 'edit';
   }
-  // Dashboard Imágenes H.Italiano: derivado del permiso administrativo de ESCRITURA (como Harefield).
-  if (!modulos.imagenes && (modulos.admin === 'edit' || modulos.admin === 'admin')) {
-    modulos.imagenes = 'edit';
-  }
-  // Sus subrecuadros heredan el permiso del padre.
-  for (const k of ['img_medicos', 'img_residentes', 'img_tecnicos', 'img_admin']) {
-    if (!modulos[k] && modulos.imagenes) modulos[k] = modulos.imagenes;
+  // Dashboard Imágenes H.Italiano: permiso propio (img_mi_acceso); se ignora lo que traiga usuarios.permisos.
+  for (const k of ['imagenes', 'img_medicos', 'img_residentes', 'img_tecnicos', 'img_admin']) delete modulos[k];
+  const imgAcc = await imgCargarAcceso();
+  if (imgAcc && imgAcc.pestanas.length) {
+    const IMG_HIJO = { medicos:'img_medicos', residentes:'img_residentes', tecnicos:'img_tecnicos', administrativos:'img_admin' };
+    modulos.imagenes = imgAcc.nivel;
+    for (const t of imgAcc.pestanas) modulos[IMG_HIJO[t]] = imgAcc.nivel;
   }
 
   // Atajo: si el usuario tiene acceso a UN SOLO m\u00f3dulo, lo mandamos directo ah\u00ed
