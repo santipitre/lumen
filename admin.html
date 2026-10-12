@@ -1130,6 +1130,25 @@
     </div><!-- /max-width wrapper -->
   </div><!-- /modal-panel-permisos -->
 
+  <!-- MODAL DESBLOQUEAR PIN -->
+  <div id="modal-desbloquear-pin" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:var(--bg, #0F172A); border:1px solid var(--border-a); border-radius:12px; padding:24px; max-width:460px; width:100%;">
+      <h3 style="margin:0 0 12px; color:var(--text);">🔓 DESBLOQUEAR PIN</h3>
+      <p id="mdp-texto" style="margin:0 0 14px; color:var(--text); font-size:14px;"></p>
+      <dl style="margin:0 0 14px; font-size:13px; color:var(--muted);">
+        <dt style="float:left; clear:left; margin-right:8px;">Bloqueado hasta</dt><dd id="mdp-hasta" style="margin:0 0 4px; color:var(--text);"></dd>
+        <dt style="float:left; clear:left; margin-right:8px;">Bloqueos</dt><dd id="mdp-bloqueos" style="margin:0; color:var(--text);"></dd>
+      </dl>
+      <div style="background:rgba(251,191,36,.12); border:1px solid rgba(251,191,36,.4); color:#FBBF24; border-radius:8px; padding:10px 12px; font-size:13px; margin-bottom:18px;">⚠ Si no fue la persona, puede ser alguien probando su PIN. Antes de desbloquear, confirmá con ella.</div>
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button type="button" onclick="cerrarDesbloqueoPin()" style="background:transparent; border:1px solid var(--border-a); color:var(--muted); padding:8px 14px; border-radius:6px; cursor:pointer;">Cancelar</button>
+        <button type="button" id="mdp-confirmar" onclick="confirmarDesbloqueoPin()" style="background:rgba(251,191,36,.2); border:1px solid rgba(251,191,36,.6); color:#FBBF24; padding:8px 14px; border-radius:6px; cursor:pointer; font-weight:600;">Desbloquear ahora</button>
+      </div>
+    </div>
+  </div>
+
+  <style>#toast{z-index:1100}</style>
+
   <!-- MODAL CREAR/EDITAR USUARIO -->
   <div id="modal-usuario" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:1000; align-items:center; justify-content:center; padding:20px;">
     <div style="background:var(--bg, #0F172A); border:1px solid var(--border-a); border-radius:12px; padding:24px; max-width:540px; width:100%; max-height:90vh; overflow-y:auto;">
@@ -5306,6 +5325,11 @@ async function cargarUsuariosPanel() {
   try {
     const usuarios = await sbRpc('admin_listar_usuarios', {});
     window._spcdUsuarios = usuarios || [];
+    window._spcdPinBloqueados = {};
+    try {
+      const bl = await sbRpc('admin_listar_pin_bloqueados', {});
+      (bl || []).forEach(b => { window._spcdPinBloqueados[b.usuario_id] = b; });
+    } catch (e) { console.warn('[pin-bloqueados]', e.message); }
     if (info) info.textContent = `${usuarios.length} usuarios · ${usuarios.filter(u=>u.activo).length} activos · ${usuarios.filter(u=>u.auth_user_id).length} con login OTP habilitado`;
     // IMG-SELECTOR
     await imgRecargarAccesos();
@@ -5338,9 +5362,15 @@ function renderTablaUsuarios(usuarios) {
                     : (u.email
                        ? `<span title="Pendiente invitar" style="color:#FBBF24;">⏳ pendiente</span>`
                        : '<span title="Solo PIN legacy" style="color:var(--muted);">🔑 PIN</span>');
-    const activoChip = u.activo
+    let activoChip = u.activo
                      ? '<span style="color:#34D399; font-weight:600;">✓ activo</span>'
                      : '<span style="color:var(--red);">✗ inactivo</span>';
+    const bl = (window._spcdPinBloqueados || {})[u.id];
+    const blVigente = !!(bl && Date.parse(bl.bloqueado_hasta) > Date.now());
+    const minRest = blVigente ? Math.max(1, Math.ceil((Date.parse(bl.bloqueado_hasta) - Date.now()) / 60000)) : 0;
+    if (blVigente) {
+      activoChip += ` <span title="PIN bloqueado por intentos fallidos" style="color:#FBBF24; font-weight:600; font-size:11px; margin-left:6px;">🔒 Bloqueado · ${minRest} min</span>`;
+    }
     return `<tr>
       <td style="font-weight:600; color:var(--text);">${escapeHtml(u.username)}</td>
       <td>${escapeHtml(u.nombre || '—')}</td>
@@ -5352,6 +5382,7 @@ function renderTablaUsuarios(usuarios) {
       <td>${loginIcon}</td>
       <td>${activoChip}</td>
       <td style="white-space:nowrap;">
+        ${blVigente ? `<button data-id="${escapeHtml(u.id)}" onclick="abrirDesbloqueoPin(this.dataset.id)" title="Desbloquear PIN" style="background:rgba(251,191,36,.15); border:1px solid rgba(251,191,36,.5); color:#FBBF24; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin-right:4px;">Desbloquear</button>` : ''}
         <button onclick="editarUsuarioPanel('${u.id}')" title="Editar" style="background:rgba(59,130,246,.15); border:1px solid rgba(59,130,246,.4); color:var(--blue); padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin-right:4px;">✏️</button>
         <button onclick="resetearPinPanel('${u.id}','${escapeHtml(u.username)}')" title="Reset PIN a 1234" style="background:rgba(251,191,36,.15); border:1px solid rgba(251,191,36,.4); color:#FBBF24; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin-right:4px;">🔑</button>
         ${!u.auth_user_id && u.email ? `<button onclick="vincularAuthPanel('${u.id}','${escapeHtml(u.username)}')" title="Vincular auth.users.id" style="background:rgba(167,139,250,.15); border:1px solid rgba(167,139,250,.4); color:#A78BFA; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px;">🔗</button>` : ''}
@@ -5365,6 +5396,44 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
   }[c]));
+}
+
+function abrirDesbloqueoPin(id) {
+  const u = (window._spcdUsuarios || []).find(x => String(x.id) === String(id));
+  const b = (window._spcdPinBloqueados || {})[id];
+  if (!u || !b) return;
+  window._spcdDesbloqueoId = id;
+  const hasta = Date.parse(b.bloqueado_hasta);
+  const faltan = Math.max(1, Math.ceil((hasta - Date.now()) / 60000));
+  const hora = new Date(hasta).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+  document.getElementById('mdp-texto').textContent = `${u.username} (${u.nombre || '—'}) no puede entrar por PIN equivocados repetidos.`;
+  document.getElementById('mdp-hasta').textContent = `${hora} (faltan ${faltan} min)`;
+  document.getElementById('mdp-bloqueos').textContent = String(b.bloqueos);
+  document.getElementById('modal-desbloquear-pin').style.display = 'flex';
+}
+
+function cerrarDesbloqueoPin() {
+  document.getElementById('modal-desbloquear-pin').style.display = 'none';
+  window._spcdDesbloqueoId = null;
+}
+
+async function confirmarDesbloqueoPin() {
+  const id = window._spcdDesbloqueoId;
+  if (!id) return;
+  const u = (window._spcdUsuarios || []).find(x => String(x.id) === String(id));
+  const btn = document.getElementById('mdp-confirmar');
+  btn.disabled = true;
+  try {
+    const r = await sbRpc('admin_desbloquear_pin', { p_usuario_id: id });
+    const nombre = u ? u.username : '';
+    showToast(r && r.desbloqueado ? '✓ ' + nombre + ' desbloqueado · puede volver a entrar' : nombre + ' ya no estaba bloqueado');
+    cerrarDesbloqueoPin();
+    await cargarUsuariosPanel();
+  } catch (e) {
+    showToast('No se pudo desbloquear: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 function abrirModalCrearUsuario() {
