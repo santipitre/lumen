@@ -1149,6 +1149,48 @@
 
   <style>#toast{z-index:1100}</style>
 
+  <!-- MODAL RESETEAR PIN -->
+  <div id="modal-reset-pin" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:var(--bg, #0F172A); border:1px solid var(--border-a); border-radius:12px; padding:24px; max-width:460px; width:100%;">
+      <div id="mrp-etapa-confirmar">
+        <h3 style="margin:0 0 12px; color:var(--text);">🔑 RESETEAR PIN</h3>
+        <p id="mrp-texto" style="margin:0 0 18px; color:var(--text); font-size:14px;"></p>
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+          <button type="button" onclick="cerrarResetPin()" style="background:transparent; border:1px solid var(--border-a); color:var(--muted); padding:8px 14px; border-radius:6px; cursor:pointer;">Cancelar</button>
+          <button type="button" id="mrp-generar" onclick="confirmarResetPin()" style="background:rgba(251,191,36,.2); border:1px solid rgba(251,191,36,.6); color:#FBBF24; padding:8px 14px; border-radius:6px; cursor:pointer; font-weight:600;">Generar PIN nuevo</button>
+        </div>
+      </div>
+      <div id="mrp-etapa-resultado" style="display:none;">
+        <h3 id="mrp-titulo" style="margin:0 0 12px; color:var(--text);"></h3>
+        <div id="mrp-pin" style="font-family:ui-monospace, Consolas, monospace; font-size:40px; letter-spacing:8px; text-align:center; color:var(--text); background:rgba(255,255,255,.06); border:1px solid var(--border-a); border-radius:8px; padding:16px 8px; margin:0 0 12px; user-select:all;"></div>
+        <p style="margin:0 0 18px; color:var(--muted); font-size:13px;">Se muestra una sola vez. Al entrar, la persona tiene que cambiarlo.</p>
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+          <button type="button" id="mrp-copiar" onclick="copiarPinReset()" style="background:transparent; border:1px solid var(--border-a); color:var(--text); padding:8px 14px; border-radius:6px; cursor:pointer;">📋 Copiar</button>
+          <button type="button" onclick="listoResetPin()" style="background:rgba(251,191,36,.2); border:1px solid rgba(251,191,36,.6); color:#FBBF24; padding:8px 14px; border-radius:6px; cursor:pointer; font-weight:600;">Listo, ya lo anoté</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL VINCULAR EMAIL -->
+  <div id="modal-vincular-auth" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:var(--bg, #0F172A); border:1px solid var(--border-a); border-radius:12px; padding:24px; max-width:460px; width:100%;">
+      <h3 style="margin:0 0 12px; color:var(--text);">🔗 VINCULAR EMAIL</h3>
+      <p id="mva-texto" style="margin:0 0 12px; color:var(--text); font-size:14px;"></p>
+      <ol style="margin:0 0 14px; padding-left:20px; color:var(--muted); font-size:13px;">
+        <li>Abrí Supabase y andá a Authentication, Users.</li>
+        <li>Buscá a la persona por su email y copiá su UID.</li>
+        <li>Pegalo acá abajo.</li>
+      </ol>
+      <input type="text" id="mva-uuid" autocomplete="off" maxlength="36" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" style="width:100%; box-sizing:border-box; background:rgba(255,255,255,.06); border:1px solid var(--border-a); color:var(--text); padding:8px 10px; border-radius:6px; font-family:ui-monospace, Consolas, monospace; font-size:13px;">
+      <p id="mva-error" style="margin:8px 0 0; min-height:18px; color:#F87171; font-size:13px;"></p>
+      <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px;">
+        <button type="button" onclick="cerrarVincularAuth()" style="background:transparent; border:1px solid var(--border-a); color:var(--muted); padding:8px 14px; border-radius:6px; cursor:pointer;">Cancelar</button>
+        <button type="button" id="mva-vincular" onclick="confirmarVincularAuth()" style="background:rgba(167,139,250,.2); border:1px solid rgba(167,139,250,.6); color:#A78BFA; padding:8px 14px; border-radius:6px; cursor:pointer; font-weight:600;">Vincular</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL CREAR/EDITAR USUARIO -->
   <div id="modal-usuario" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:1000; align-items:center; justify-content:center; padding:20px;">
     <div style="background:var(--bg, #0F172A); border:1px solid var(--border-a); border-radius:12px; padding:24px; max-width:540px; width:100%; max-height:90vh; overflow-y:auto;">
@@ -5383,9 +5425,9 @@ function renderTablaUsuarios(usuarios) {
       <td>${activoChip}</td>
       <td style="white-space:nowrap;">
         ${blVigente ? `<button data-id="${escapeHtml(u.id)}" onclick="abrirDesbloqueoPin(this.dataset.id)" title="Desbloquear PIN" style="background:rgba(251,191,36,.15); border:1px solid rgba(251,191,36,.5); color:#FBBF24; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin-right:4px;">Desbloquear</button>` : ''}
-        <button onclick="editarUsuarioPanel('${u.id}')" title="Editar" style="background:rgba(59,130,246,.15); border:1px solid rgba(59,130,246,.4); color:var(--blue); padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin-right:4px;">✏️</button>
-        <button onclick="resetearPinPanel('${u.id}','${escapeHtml(u.username)}')" title="Reset PIN a 1234" style="background:rgba(251,191,36,.15); border:1px solid rgba(251,191,36,.4); color:#FBBF24; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin-right:4px;">🔑</button>
-        ${!u.auth_user_id && u.email ? `<button onclick="vincularAuthPanel('${u.id}','${escapeHtml(u.username)}')" title="Vincular auth.users.id" style="background:rgba(167,139,250,.15); border:1px solid rgba(167,139,250,.4); color:#A78BFA; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px;">🔗</button>` : ''}
+        <button data-id="${escapeHtml(u.id)}" onclick="editarUsuarioPanel(this.dataset.id)" title="Editar" style="background:rgba(59,130,246,.15); border:1px solid rgba(59,130,246,.4); color:var(--blue); padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin-right:4px;">✏️</button>
+        <button data-id="${escapeHtml(u.id)}" onclick="abrirResetPin(this.dataset.id)" title="Generar un PIN nuevo" style="background:rgba(251,191,36,.15); border:1px solid rgba(251,191,36,.4); color:#FBBF24; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin-right:4px;">🔑 Resetear PIN</button>
+        ${!u.auth_user_id && u.email ? `<button data-id="${escapeHtml(u.id)}" onclick="abrirVincularAuth(this.dataset.id)" title="Vincular con su cuenta de acceso" style="background:rgba(167,139,250,.15); border:1px solid rgba(167,139,250,.4); color:#A78BFA; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px;">🔗 Vincular email</button>` : ''}
       </td>
     </tr>`;
   }).join('');
@@ -5524,37 +5566,128 @@ async function guardarUsuario() {
   }
 }
 
-async function resetearPinPanel(id, username) {
-  if (!confirm(`¿Resetear PIN de ${username} a 1234? El usuario deberá cambiarlo al loguearse.`)) return;
+// ---- Resetear PIN (modal de confirmacion -> RPC -> modal de resultado) ----
+function _buscarUsuarioPanel(id) {
+  return (window._spcdUsuarios || []).find(x => String(x.id) === String(id));
+}
+
+function _mostrarEtapaResetPin(etapa) {
+  document.getElementById('mrp-etapa-confirmar').style.display = etapa === 'resultado' ? 'none' : 'block';
+  document.getElementById('mrp-etapa-resultado').style.display = etapa === 'resultado' ? 'block' : 'none';
+}
+
+function abrirResetPin(id) {
+  const u = _buscarUsuarioPanel(id);
+  if (!u) return;
+  window._spcdResetId = id;
+  document.getElementById('mrp-pin').textContent = '';
+  document.getElementById('mrp-texto').textContent = 'Vas a generarle un PIN nuevo a ' + u.username + '. El PIN actual deja de servir.';
+  document.getElementById('mrp-generar').disabled = false;
+  _mostrarEtapaResetPin('confirmar');
+  document.getElementById('modal-reset-pin').style.display = 'flex';
+}
+
+function cerrarResetPin() {
+  document.getElementById('mrp-pin').textContent = '';
+  document.getElementById('modal-reset-pin').style.display = 'none';
+  _mostrarEtapaResetPin('confirmar');
+  window._spcdResetId = null;
+}
+
+async function confirmarResetPin() {
+  const id = window._spcdResetId;
+  if (!id) return;
+  const u = _buscarUsuarioPanel(id);
+  const nombre = u ? u.username : '';
+  const btn = document.getElementById('mrp-generar');
+  if (btn.disabled) return;
+  btn.disabled = true;
   try {
-    const res = await sbRpc('admin_reset_pin', { p_usuario_id: id });
-    if (typeof showToast === 'function') showToast('🔑 ' + (res.mensaje || 'PIN reseteado'));
-    else alert(res.mensaje || 'PIN reseteado a 1234');
+    const r = await sbRpc('admin_reset_pin', { p_usuario_id: id });
+    if (!r || !/^\d{6}$/.test(String(r.pin))) {
+      throw new Error('respuesta inesperada del servidor');
+    }
+    document.getElementById('mrp-pin').textContent = String(r.pin);
+    document.getElementById('mrp-titulo').textContent = '✓ PIN NUEVO PARA ' + nombre;
+    _mostrarEtapaResetPin('resultado');
   } catch (e) {
-    alert('Error: ' + e.message);
+    showToast('No se pudo resetear: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
   }
 }
 
-async function vincularAuthPanel(id, username) {
-  const authId = prompt(
-    `Vincular ${username} con un auth.users.id\n\n` +
-    `1) Andá al Dashboard de Supabase → Authentication → Users\n` +
-    `2) Buscá al usuario por email y copiá su UID\n` +
-    `3) Pegalo acá:`
-  );
-  if (!authId) return;
-  const clean = authId.trim();
-  if (!/^[0-9a-f-]{36}$/i.test(clean)) {
-    alert('UUID inválido. Debe tener formato 8-4-4-4-12 chars hex.');
+async function copiarPinReset() {
+  const el = document.getElementById('mrp-pin');
+  const texto = el.textContent;
+  if (!texto) return;
+  try {
+    await navigator.clipboard.writeText(texto);
+    showToast('📋 Copiado');
+  } catch (e) {
+    const rango = document.createRange();
+    rango.selectNodeContents(el);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(rango);
+    showToast('Copialo a mano', 'error');
+  }
+}
+
+async function listoResetPin() {
+  document.getElementById('mrp-pin').textContent = '';
+  document.getElementById('mrp-titulo').textContent = '';
+  document.getElementById('modal-reset-pin').style.display = 'none';
+  _mostrarEtapaResetPin('confirmar');
+  window._spcdResetId = null;
+  await cargarUsuariosPanel();
+}
+
+// ---- Vincular email (modal con uuid validado) ----
+const _UUID_ESTRICTO = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function abrirVincularAuth(id) {
+  const u = _buscarUsuarioPanel(id);
+  if (!u) return;
+  window._spcdVincularId = id;
+  document.getElementById('mva-texto').textContent = 'Vincular a ' + u.username + ' con su cuenta de acceso.';
+  document.getElementById('mva-uuid').value = '';
+  document.getElementById('mva-error').textContent = '';
+  document.getElementById('mva-vincular').disabled = false;
+  document.getElementById('modal-vincular-auth').style.display = 'flex';
+  document.getElementById('mva-uuid').focus();
+}
+
+function cerrarVincularAuth() {
+  document.getElementById('modal-vincular-auth').style.display = 'none';
+  document.getElementById('mva-uuid').value = '';
+  document.getElementById('mva-error').textContent = '';
+  window._spcdVincularId = null;
+}
+
+async function confirmarVincularAuth() {
+  const id = window._spcdVincularId;
+  if (!id) return;
+  const u = _buscarUsuarioPanel(id);
+  const nombre = u ? u.username : '';
+  const err = document.getElementById('mva-error');
+  const clean = document.getElementById('mva-uuid').value.trim();
+  err.textContent = '';
+  if (!_UUID_ESTRICTO.test(clean)) {
+    err.textContent = 'UID inválido. Tiene que ser 8-4-4-4-12 caracteres hexadecimales.';
     return;
   }
+  const btn = document.getElementById('mva-vincular');
+  btn.disabled = true;
   try {
-    await sbRpc('admin_vincular_auth_id', { p_usuario_id: id, p_auth_user_id: clean });
-    if (typeof showToast === 'function') showToast('🔗 Vinculado: ' + username + ' ahora puede loguearse con magic link');
-    else alert('Vinculado OK. ' + username + ' ya puede loguearse con su email.');
+    const r = await sbRpc('admin_vincular_auth_id', { p_usuario_id: id, p_auth_user_id: clean });
+    showToast(r && r.vinculado === false ? nombre + ' ya estaba vinculado' : '🔗 Vinculado: ' + nombre);
+    cerrarVincularAuth();
     await cargarUsuariosPanel();
   } catch (e) {
-    alert('Error: ' + e.message);
+    err.textContent = e.message;
+  } finally {
+    btn.disabled = false;
   }
 }
 </script>
