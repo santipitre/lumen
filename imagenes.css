@@ -271,6 +271,39 @@ html[data-tema="claro"] .ed-btn.prim{color:#FFFFFF}
 html:not([data-tema="claro"]) .ed-btn.peligro{color:#F87171}
 .ed-btn.contorno{border-color:var(--img-acc);color:var(--img-acc)}
 .ed-espacio{flex:1 1 auto}
+
+/* == export CSV (fase 6) == */
+.exp{position:relative;display:inline-block}
+.exp.exp-solo{margin-left:auto}
+.tool .cont:has(+ .exp-solo){margin-left:0}
+.exp-btn{color:var(--img-acc);border-color:var(--img-acc)}
+.exp-menu{position:absolute;right:0;top:calc(100% + 4px);width:290px;z-index:40;box-sizing:border-box;
+  background:var(--pyralis-bg-elevated,#111827);border:1px solid var(--pyralis-border-strong,var(--border));border-radius:10px;
+  box-shadow:0 12px 30px rgba(0,0,0,.35);padding:6px}
+.exp-it{display:flex;flex-direction:column;gap:2px;width:100%;box-sizing:border-box;text-align:left;padding:9px 10px;border:0;border-radius:8px;
+  background:transparent;color:var(--pyralis-text);cursor:pointer;font:13px 'Inter',sans-serif}
+.exp-it b{display:block;font-size:13px;font-weight:600}
+.exp-it span{font-size:11.5px;color:var(--pyralis-text-dim,var(--pyralis-text-muted));overflow-wrap:anywhere}
+.exp-it:hover{background:var(--pyralis-bg-hover,rgba(148,163,184,.12))}
+.exp-btn:focus-visible,.exp-it:focus-visible{outline:2px solid var(--img-acc);outline-offset:2px}
+@media (max-width: 640px){
+  .exp-menu{width:260px}
+}
+@media (max-width: 480px){
+  .exp-menu{position:fixed;top:auto;margin-top:4px;left:12px;right:12px;width:auto}
+}
+.exp-sep{height:1px;margin:6px 4px;background:var(--pyralis-border-strong,var(--border))}
+.exp-menu .adm b{color:#F59E0B}
+.exp-menu .adm{border-left:3px solid #F59E0B}
+.kv{display:grid;grid-template-columns:minmax(0,150px) minmax(0,1fr);gap:6px 12px;margin:12px 0;font-size:13px}
+.kv dt{color:var(--pyralis-text-muted)}
+.kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+@media (max-width: 640px){
+  .kv{grid-template-columns:1fr;gap:2px}
+  .kv dd{margin-bottom:8px}
+}
+.chk{display:flex;align-items:flex-start;gap:10px;margin-top:12px;font-size:13px;cursor:pointer}
+.chk input{width:18px;height:18px;flex:none;margin:0}
 .ed-marca{display:inline-block;font-size:10px;padding:1px 8px;border-radius:10px;margin-left:6px;vertical-align:middle;
   background:var(--img-acc-dim);color:var(--img-acc);border:1px solid var(--img-acc-ring)}
 

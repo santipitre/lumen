@@ -10,7 +10,8 @@ const BASE = 'Dashboard Imágenes H.Italiano';
 const TIPO_DE = { medicos:'medico', residentes:'residente', tecnicos:'tecnico', administrativos:'administrativo' };
 const RPC_LECTURA = ['img_mi_acceso','img_catalogos','img_listar','img_ficha','img_cronograma'];
 const RPC_ESCRITURA = ['img_persona_guardar','img_persona_borrar','img_catalogo_guardar','img_turno_guardar','img_turno_borrar'];
-const NIVELES_EDICION = ['editar','admin'];
+const RPC_ADMIN = ['img_respaldo'];
+const NIVELES_EDICION =['editar','admin'];
 const TIPOS_CATALOGO = ['servicio','estudio','tipo_licencia','subespecialidad','equipo','sede_informa'];
 const TIPOS_PACIENTE_ED = ['A','I','A+I'];
 const CAMPOS_DIFF = ['apellido','nombre','matricula','celular','email','nota','anio','servicios','estudios','turnos','horarios','licencias'];
@@ -38,6 +39,7 @@ const MENSAJES = {
   SIN_PERMISO_ESCRITURA: 'No tenés permiso para modificar datos en este módulo.',
   CONFLICTO: 'Otra persona guardó cambios en esta ficha mientras la editabas. Tu guardado no se aplicó.',
   RED_ESCRITURA: 'No se pudo confirmar el guardado. Puede haberse aplicado: se recarga antes de reintentar.',
+  RESPALDO_NO_DISPONIBLE: 'Respaldo no disponible: falta aplicar la RPC',
   INVALIDO_apellido: 'El apellido es obligatorio y no puede superar los 200 caracteres.',
   INVALIDO_nombre: 'El nombre es obligatorio y no puede superar los 200 caracteres.',
   INVALIDO_contacto: 'Revisá celular, email y matrícula: algún valor es demasiado largo.',
@@ -814,6 +816,88 @@ function validarCatalogo(antes, despues, uso){
   return errores;
 }
 
+/* == export CSV: lógica pura (espejo de _test/imagenes/exportar_ref.py) == */
+const CSV_FORMULA = '=+-@\t\r';
+
+function celdaCsv(v){
+  if(v === null || v === undefined) return '';
+  let s = String(v);
+  const base = s.replace(/^ +/, '');
+  if(base.length > 0 && CSV_FORMULA.indexOf(base.charAt(0)) >= 0) s = "'" + s;
+  if(/[;"\n\r]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+function lineaCsv(celdas){
+  return celdas.map(celdaCsv).join(';');
+}
+
+function columnasCsv(tab, contactos, editar){
+  const cols = ['Nombre'];
+  if(tab === 'residentes') cols.push('Año');
+  else if(tab !== 'administrativos') cols.push('Servicios');
+  if(contactos){
+    if(tab !== 'administrativos') cols.push('Matrícula');
+    cols.push('Celular', 'Email');
+  }
+  cols.push('Semana');
+  if(editar) cols.push('Última edición');
+  return cols;
+}
+
+function filaCsv(p, tab, contactos, editar, turnos, desfaseMin){
+  const fila = [nombreLista(p)];
+  if(tab === 'residentes'){
+    const anio = (p.datos || {}).anio;
+    fila.push(anio ? String(anio) : '');
+  } else if(tab !== 'administrativos'){
+    fila.push((p.servicios || []).join(', '));
+  }
+  if(contactos){
+    if(tab !== 'administrativos') fila.push(p.matricula || '');
+    fila.push(p.celular || '', p.email || '');
+  }
+  fila.push(diasSemana(p, turnos).filter(function(d){ return d >= 0 && d < DIAS_CORTOS.length; }).map(function(d){ return DIAS_CORTOS[d]; }).join(' '));
+  if(editar) fila.push(textoEdicion(p.updated_at, p.version, desfaseMin));
+  return fila;
+}
+
+function textoCsv(tab, personas, contactos, editar, turnos, desfaseMin){
+  const lineas = [lineaCsv(columnasCsv(tab, contactos, editar))];
+  personas.forEach(function(p){ lineas.push(lineaCsv(filaCsv(p, tab, contactos, editar, turnos, desfaseMin))); });
+  return '﻿' + lineas.join('\r\n') + '\r\n';
+}
+
+function nombreCsv(tab, hoy){
+  return 'imagenes-' + tab + '-' + hoy + '.csv';
+}
+
+function textoDescarga(nombre, n){
+  return 'Descargado · ' + nombre + ' · ' + n + (n === 1 ? ' fila' : ' filas');
+}
+
+function codigoErrorRpc(fn, mensaje){
+  if(RPC_ADMIN.indexOf(fn) >= 0 && mensaje != null && /Could not find the function|PGRST202|\b404\b/i.test(String(mensaje))) return 'RESPALDO_NO_DISPONIBLE';
+  if(RPC_ESCRITURA.indexOf(fn) >= 0) return 'RED_ESCRITURA';
+  return 'RED';
+}
+
+function nombreRespaldo(hoy){
+  return 'imagenes-respaldo-' + hoy + '.json';
+}
+
+function filasRespaldo(conteos, hoy){
+  const c = conteos || {};
+  const pers = c.personas || {};
+  const cats = c.catalogos || {};
+  return [
+    ['Personas', pers.total || 0],
+    ['Cat\u00e1logos', (cats.total || 0) + ' valores'],
+    ['Turnos / licencias', (c.turnos || 0) + ' / ' + (c.licencias || 0)],
+    ['Archivo', nombreRespaldo(hoy)]
+  ];
+}
+
 /* == DOM == */
 function h(tag, attrs, hijos){
   const el = document.createElement(tag);
@@ -882,7 +966,9 @@ async function verificarIdentidad(){
 async function rpc(fn, args){
   if(!E.identidadOk) throw err('NO_IDENTIDAD');
   const escritura = RPC_ESCRITURA.indexOf(fn) >= 0;
-  if(!escritura && RPC_LECTURA.indexOf(fn) < 0) throw err('RPC_NO_PERMITIDA');
+  const admin = RPC_ADMIN.indexOf(fn) >= 0;
+  if(!escritura && !admin && RPC_LECTURA.indexOf(fn) < 0) throw err('RPC_NO_PERMITIDA');
+  if(admin && !esAdmin(E.nivel)) throw err('SIN_PERMISO');
   if(escritura){
     if(!puedeEditar(E.nivel)) throw err('SIN_PERMISO_ESCRITURA');
     if(fn === 'img_catalogo_guardar' && !esAdmin(E.nivel)) throw err('SIN_PERMISO_ESCRITURA');
@@ -893,7 +979,7 @@ async function rpc(fn, args){
   try{
     r = await window.sbRpc(fn, args || {});
   }catch(e){
-    throw err(escritura ? 'RED_ESCRITURA' : 'RED');
+    throw err(codigoErrorRpc(fn, e && e.message));
   }
   if(escritura && (!r || typeof r !== 'object' || Array.isArray(r) || (r.ok !== true && !r.error))) throw err('RED_ESCRITURA');
   if(!r || r.ok !== true){
@@ -1042,7 +1128,182 @@ function guardarVista(v){
   try{ localStorage.setItem('img_vista', v); }catch(e){}
 }
 
+/* == export CSV: menú y descarga == */
+const EXP = { abierto: null, n: 0 };
+
+function expFilas(n){
+  return n + (n === 1 ? ' fila' : ' filas');
+}
+
+function expItems(tab){
+  const titulo = TITULOS[tab] || tab;
+  const enVista = ordenar(resultadoDe(tab).lista).length;
+  const total = (E.personas[tab] || []).length;
+  const items = [];
+  /* Con error de carga en la pestaña no hay filas que exportar: el respaldo (que no depende de la pestaña) sigue disponible para admin. */
+  if(!E.errores[tab]){
+    items.push({ titulo: 'CSV de esta vista', sub: titulo + ' · ' + expFilas(enVista) + ' (con el filtro activo) · columnas visibles', clase: '', alElegir: function(){ expDescargar(tab, 'vista'); } });
+    items.push({ titulo: 'CSV de toda la pestaña', sub: titulo + ' · ' + expFilas(total) + ' · sin filtros', clase: '', alElegir: function(){ expDescargar(tab, 'todo'); } });
+  }
+  if(esAdmin(E.nivel)){
+    items.push({ titulo: 'Respaldo completo (JSON)', sub: 'Solo admin · las 4 pestañas, catálogos, agenda y licencias', clase: 'adm', alElegir: function(){ if(esAdmin(E.nivel)) respaldoAbrir(); } });
+  }
+  return items;
+}
+
+const RESP = { ocupado: false };
+
+async function respaldoAbrir(){
+  if(!esAdmin(E.nivel)) return;
+  if(RESP.ocupado) return;
+  RESP.ocupado = true;
+  expCerrar(true);
+  try{
+    const r = await rpc('img_respaldo');
+    if(esAdmin(E.nivel)) dlgRespaldo(r);
+  }catch(e){
+    edToast(mensajeDe(codigoDe(e), e.detalle));
+  }finally{
+    RESP.ocupado = false;
+  }
+}
+
+function dlgRespaldo(r){
+  if(!esAdmin(E.nivel)) return;
+  let datos = r;
+  let ocupado = false;
+  let ctlResp = null;
+  const kv = h('dl', { class: 'kv' });
+  filasRespaldo(datos && datos.conteos, E.hoy).forEach(function(f){
+    kv.append(h('dt', { texto: f[0] }), h('dd', { texto: String(f[1]) }));
+  });
+  const chk = h('input', { type: 'checkbox' });
+  const cuerpo = [
+    h('p', { texto: 'El archivo tiene celulares, emails y matrículas de todo el personal. Guardalo en un lugar seguro, fuera de carpetas compartidas.' }),
+    kv,
+    h('label', { class: 'chk' }, [chk, h('span', { texto: 'Entiendo que el archivo tiene datos personales' })])
+  ];
+
+  function habilitar(){
+    const b = ctlResp ? ctlResp.botones[1] : null;
+    if(b) b.disabled = ocupado || !chk.checked;
+  }
+
+  chk.addEventListener('change', habilitar);
+  ctlResp = dlgAbrir({
+    titulo: 'Respaldo completo',
+    clase: 'aviso',
+    cuerpo: cuerpo,
+    botones: [
+      { texto: 'Cancelar', clase: 'ed-btn', alClic: function(c){ datos = null; c.cerrar(); } },
+      { texto: 'Descargar respaldo', clase: 'ed-btn prim', alClic: function(c){
+        if(ocupado || !chk.checked || !datos || !esAdmin(E.nivel)) return;
+        ocupado = true;
+        habilitar();
+        const nombre = nombreRespaldo(E.hoy);
+        descargarBlob(JSON.stringify(datos, null, 2), 'application/json', nombre);
+        datos = null;
+        c.cerrar();
+        edToast('Descargado · ' + nombre);
+      } }
+    ],
+    alCancelar: function(c){ datos = null; c.cerrar(); }
+  });
+  habilitar();
+}
+
+function expBoton(tab){
+  EXP.n += 1;
+  const idMenu = 'exp-menu-' + EXP.n;
+  const btn = h('button', { type: 'button', class: 'exp-btn ed-btn', texto: '⬇ Exportar ▾', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-controls': idMenu, disabled: !!E.errores[tab] && !esAdmin(E.nivel) });
+  const menu = h('div', { class: 'exp-menu', role: 'menu', id: idMenu, 'aria-label': 'Exportar', hidden: true });
+  const cont = h('span', { class: 'exp' }, [btn, menu]);
+  const ctl = { tab: tab, cont: cont, btn: btn, menu: menu };
+  btn.addEventListener('click', function(){
+    if(EXP.abierto && EXP.abierto.btn === btn) expCerrar(true);
+    else { expCerrar(false); expAbrir(ctl); }
+  });
+  return cont;
+}
+
+function expAbrir(ctl){
+  vaciar(ctl.menu);
+  expItems(ctl.tab).forEach(function(it){
+    if(it.clase === 'adm' && ctl.menu.firstChild) ctl.menu.append(h('div', { class: 'exp-sep', role: 'separator' }));
+    const b =h('button', { type: 'button', role: 'menuitem', class: 'exp-it' + (it.clase ? ' ' + it.clase : '') }, [
+      h('b', { texto: it.titulo }),
+      h('span', { texto: it.sub })
+    ]);
+    b.addEventListener('click', function(){
+      expCerrar(true);
+      it.alElegir();
+    });
+    ctl.menu.append(b);
+  });
+  ctl.alTecla = function(ev){
+    if(ev.key === 'Escape'){
+      ev.stopPropagation();
+      ev.preventDefault();
+      expCerrar(true);
+      return;
+    }
+    if(ev.key === 'ArrowDown' || ev.key === 'ArrowUp'){
+      const its = Array.prototype.slice.call(ctl.menu.querySelectorAll('button'));
+      if(!its.length) return;
+      ev.preventDefault();
+      const i = its.indexOf(document.activeElement);
+      const sig = ev.key === 'ArrowDown' ? (i + 1) % its.length : (i <= 0 ? its.length - 1 : i - 1);
+      its[sig].focus();
+      return;
+    }
+    if(ev.key === 'Tab') expCerrar(false);
+  };
+  ctl.alPuntero = function(ev){
+    if(!ctl.cont.contains(ev.target)) expCerrar(false);
+  };
+  document.addEventListener('keydown', ctl.alTecla, true);
+  document.addEventListener('pointerdown', ctl.alPuntero, true);
+  ctl.menu.hidden = false;
+  ctl.btn.setAttribute('aria-expanded', 'true');
+  EXP.abierto = ctl;
+  const primero = ctl.menu.querySelector('button');
+  if(primero) primero.focus();
+}
+
+function expCerrar(devolverFoco){
+  const ctl = EXP.abierto;
+  if(!ctl) return;
+  EXP.abierto = null;
+  document.removeEventListener('keydown', ctl.alTecla, true);
+  document.removeEventListener('pointerdown', ctl.alPuntero, true);
+  ctl.menu.hidden = true;
+  vaciar(ctl.menu);
+  ctl.btn.setAttribute('aria-expanded', 'false');
+  if(devolverFoco) ctl.btn.focus();
+}
+
+function descargarBlob(texto, tipo, nombre){
+  const url = URL.createObjectURL(new Blob([texto], { type: tipo }));
+  const a = h('a', { href: url, download: nombre });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
+}
+
+function expDescargar(tab, modo){
+  const lista = modo === 'vista' ? ordenar(resultadoDe(tab).lista) : ordenar(E.personas[tab] || []);
+  if(!lista.length){
+    edToast('Nada para exportar');
+    return;
+  }
+  const nombre = nombreCsv(tab, E.hoy);
+  descargarBlob(textoCsv(tab, lista, E.contactos, puedeEditar(E.nivel), E.turnos, -new Date().getTimezoneOffset()), 'text/csv;charset=utf-8', nombre);
+  edToast(textoDescarga(nombre, lista.length));
+}
+
 function construirBarra(tab, cont){
+  expCerrar(false);
   vaciar(cont);
   const cat = E.catalogos || {};
   const lista = E.personas[tab] || [];
@@ -1116,6 +1377,10 @@ function construirBarra(tab, cont){
   r.cont = h('span', { class: 'cont', 'aria-live': 'polite' });
   tool.push(r.btnLic, r.btnLimpiar, h('div', { class: 'seg', role: 'group', 'aria-label': 'Vista' }, [r.btnTabla, r.btnTarj]), r.cont);
   if(puedeEditar(E.nivel)) edBarra(tab, tool);
+  const exp = expBoton(tab);
+  const iEsp = tool.findIndex(function(el){ return el && el.classList && el.classList.contains('ed-espacio'); });
+  if(iEsp >= 0) tool.splice(iEsp + 1, 0, exp);
+  else { exp.classList.add('exp-solo'); tool.push(exp); }
   r.resultados = h('div', { class: 'resultados' });
   cont.append(h('div', { class: 'tool', role: 'search' }, tool), r.resultados);
   REFS[tab] = r;
@@ -2829,6 +3094,7 @@ function alCambiarHash(){
 }
 
 function render(){
+  expCerrar(false);
   const r = resolverHash(location.hash, E.pestanas);
   if(r === null) return;
   if(hashDe(r) !== location.hash) history.replaceState(null, '', hashDe(r));
