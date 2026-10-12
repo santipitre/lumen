@@ -5553,9 +5553,9 @@ async function guardarUsuario() {
         p_rol: rol, p_permisos: permisos
       });
       if (typeof showToast === 'function') {
-        showToast('✅ Usuario creado: ' + username + '. PIN inicial: 1234. Ahora invitalo desde Dashboard de Supabase.');
+        showToast('✅ Usuario creado: ' + username + '. Ahora invitalo desde Dashboard de Supabase. Si va a entrar con PIN, usá 🔑 Resetear PIN.');
       } else {
-        alert('Usuario creado. PIN inicial 1234. Ahora invitalo desde Dashboard de Supabase con el email.');
+        alert('Usuario creado. Ahora invitalo desde Dashboard de Supabase con el email. Si va a entrar con PIN, usá Resetear PIN.');
       }
     }
     cerrarModalUsuario();
