@@ -27,7 +27,7 @@
   <link rel="stylesheet" href="spcd-theme.css?v=d6e58273"/>
   <link rel="stylesheet" href="spcd-components.css?v=f7b2f276"/>
   <link rel="stylesheet" href="spcd-dialog.css?v=f6620a87"/>
-  <link rel="stylesheet" href="medico.css?v=a92bcd22"/>
+  <link rel="stylesheet" href="medico.css?v=34fa3fa2"/>
 </head>
 <body>
 
@@ -274,10 +274,13 @@
     </div>
   </div>
 
-  <!-- TAB: DEMORA (C7, fase 5): mapa de calor; la tendencia (C14) comparte la pestaña en la wave 9 -->
+  <!-- TAB: DEMORA (fase 5): mapa de calor (C7) y tendencia semanal (C14), cada uno en su propio panel -->
   <div class="tab-pane" id="tab-demora">
     <div id="mapa-calor-vista">
       <div class="empty-state"><div class="e-icon">🔥</div><div class="e-text">Cargá un Excel para ver</div></div>
+    </div>
+    <div id="tendencia-vista">
+      <div class="empty-state"><div class="e-icon">📈</div><div class="e-text">Cargá un Excel para ver</div></div>
     </div>
   </div>
 
@@ -425,8 +428,8 @@
 <script src="spcd-utils.js?v=7273575b"></script>
 <script src="spcd-dialog.js?v=ee2826f0"></script>
 
-<script src="medico.js?v=8dd84c70"></script>
-<script src="medico-metricas.js?v=381075ba"></script>
+<script src="medico.js?v=5f519b59"></script>
+<script src="medico-metricas.js?v=267a3442"></script>
 <!-- Toast de notificaciones (para showToast de spcd-utils.js) -->
 <div class="toast" id="toast"></div>
 
