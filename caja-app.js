@@ -485,7 +485,9 @@ function pintarSello(){
 const ocupado=()=>!!document.querySelector("dialog[open]");
 
 async function refrescar(motivo){
-  if(ocupado()){RT_PENDIENTE=true;return}
+  /* ni con un diálogo abierto ni con un guardado en vuelo: la nube todavía no
+     tiene lo último que tildaste y al repintar lo borraría de la pantalla */
+  if(ocupado()||GUARDANDO>0){RT_PENDIENTE=true;return}
   RT_PENDIENTE=false;
   const y=window.scrollY;
   try{

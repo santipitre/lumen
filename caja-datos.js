@@ -134,23 +134,40 @@ async function sincronizar(){
   snapshot();
 }
 
+let GUARDANDO=0;   // guardados en vuelo: un refresco no puede pisarlos
 function guardar(cambio=true){
   if(!puedeEditar()){toast("Tu usuario es de solo lectura.");return}
   YO_GUARDE=Date.now(); ULTIMA_CARGA=Date.now(); pintarSello();
+  GUARDANDO++;
   sincronizar().catch(e=>{
     toast("No se guard\u00f3 en la nube: "+e.message+". Actualiz\u00e1 la p\u00e1gina.");
     console.error("[caja] sync",e);
-  });
+  }).finally(()=>{GUARDANDO--});
 }
 
+/* PostgREST corta TODA respuesta en 1000 filas (max-rows) y no avisa: la
+   pantalla recibe una lista incompleta como si fuera la completa. Con las
+   tildes de verificado (una fila por comprobante) la tabla ya pasó las 1000 y
+   las que quedaban afuera se veían desmarcadas. Se pide por páginas, con un
+   orden total (si no, entre página y página las filas se repiten o se saltean),
+   hasta que una página viene vacía. */
+async function sbQueryTodo(tabla,params){
+  const PAG=1000, out=[];
+  for(let i=0;i<500;i++){
+    const f=await sbQuery(tabla,params+"&limit="+PAG+"&offset="+out.length);
+    if(!f.length) break;
+    out.push(...f);
+  }
+  return out;
+}
 async function cargarDesdeNube(){
   const q="sede=eq."+encodeURIComponent(SEDE);
   const [gr,re,rv,im,cp]=await Promise.all([
-    sbQuery("caja_grupos","select=*&"+q+"&order=fecha.asc"),
-    sbQuery("caja_retiros","select=*&"+q+"&order=fecha.asc"),
-    sbQuery("caja_revisados","select=*&"+q),
-    sbQuery("caja_importaciones","select=*&"+q+"&order=creado_en.desc"),
-    sbQuery("caja_comprobantes","select=*&"+q)
+    sbQueryTodo("caja_grupos","select=*&"+q+"&order=fecha.asc,id.asc"),
+    sbQueryTodo("caja_retiros","select=*&"+q+"&order=fecha.asc,id.asc"),
+    sbQueryTodo("caja_revisados","select=*&"+q+"&order=fecha.asc,cajero.asc,medio.asc,comp.asc"),
+    sbQueryTodo("caja_importaciones","select=*&"+q+"&order=creado_en.desc,id.asc"),
+    sbQueryTodo("caja_comprobantes","select=*&"+q+"&order=id.asc")
   ]);
   db.grupos=gr.map(r=>({id:r.id,imp:r.imp||"manual",fecha:r.fecha,cajero:r.cajero,
     medio:r.medio,categoria:r.categoria,monto:Number(r.monto),n:r.n||0,comps:r.comps||[],
