@@ -42,14 +42,32 @@ function pintarCinta(){
 }
 const TITULOS={importar:"Importar listados",dias:"D\u00edas cargados",reportes:"Reportes",retiros:"Retiros y dep\u00f3sitos",revisar:"Revisar",manual:"Cargar a mano",datos:"Datos y respaldo"};
 const VISTAS={importar:vistaImportar,dias:vistaDias,reportes:vistaReportes,retiros:vistaRetiros,revisar:vistaRevisar,manual:vistaManual,datos:vistaDatos};
+/* Al tocar un tilde, "Medios" o cualquier valor, la vista se vuelve a armar
+   entera. Si es la MISMA vista, la pantalla y el recuadro con scroll de la
+   tabla tienen que quedar donde el usuario los dejó; al cambiar de pestaña
+   arrancan arriba. */
+let vistaPrevia=null;
 function render(){
+  const mismaVista=vistaPrevia===vista;
+  const cajas=mismaVista?[...document.querySelectorAll("#main .tabla-scroll")].map(e=>[e.scrollTop,e.scrollLeft]):[];
+  const wy=mismaVista?window.scrollY:0;
   $("#main").replaceChildren(VISTAS[vista]());
+  vistaPrevia=vista;
   limpiarBotonesEdicion();
   for(const b of $("#tabs").children) b.setAttribute("aria-current",b.dataset.v===vista?"true":"false");
   const tv=$("#titulo-vista");
   tv.textContent=TITULOS[vista]||"";
   tv.classList.remove("entra"); void tv.offsetWidth; tv.classList.add("entra");
   pintarCinta();
+  if(mismaVista){
+    const volver=()=>{
+      document.querySelectorAll("#main .tabla-scroll").forEach((e,i)=>{if(cajas[i]){e.scrollTop=cajas[i][0];e.scrollLeft=cajas[i][1]}});
+      if(window.scrollY!==wy) window.scrollTo(0,wy);
+    };
+    volver();
+    // algunas vistas se rearman una vez más en el próximo cuadro (ajuste de ancho)
+    requestAnimationFrame(volver);
+  }
 }
 $("#tabs").addEventListener("click",e=>{const b=e.target.closest("button[data-v]");if(!b)return;vista=b.dataset.v;render();window.scrollTo({top:0})});
 $("#btn-depositar").addEventListener("click",dialogoDeposito);
