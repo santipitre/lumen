@@ -71,6 +71,8 @@ const CAJEROS_INI=["ITORRES","JMONICA","ZABRAHAM","JAVILA","ASOSA","CMAIDA"];
 const RESP_INI=["SERGIO","MAXI"];      // se llevan el efectivo
 const DEPOS_INI=["LALIAS","OGARCIA"];  // tesoreros: reciben del mensajero y depositan
 const BANCOS=["SANTANDER"];
+/* Desde 2026-10-14 deposita una sola persona y no se registran más retiros. */
+const DEPOSITANTE="SPITRELLA";
 /* A quién se le avisa cuando un reemplazo cobró bajo otra sucursal (falta el
    cambio de caja en el sistema). Es informativo: el cambio lo pide Santiago. */
 const AVISO_CAJA_PARA="itasso@fuesmen.edu.ar";
@@ -197,10 +199,12 @@ const retirosOrd=()=>db.retiros.slice().sort((a,b)=>a.fecha.localeCompare(b.fech
    nadie arme otro retiro con los mismos mientras espera. */
 const retirosFirmados=()=>db.retiros.filter(retiroFirmado);
 const hayPendientes=()=>db.retiros.some(esperaFirma);
-/* El retiro saca la plata de la caja. El deposito bancario NO: es la boleta que
-   rinde un retiro que ya salio, asi que no vuelve a bajar el saldo. Un mismo
-   retiro puede depositarse con varias boletas que entre todas suman su monto. */
-const saldoEfectivo=()=>db.grupos.filter(g=>g.categoria==="efectivo").reduce((s,g)=>s+g.monto,0)-retirosFirmados().reduce((s,r)=>s+r.monto,0);
+/* Desde 2026-10-14 el efectivo en caja es el efectivo cargado menos lo
+   depositado en el banco. Los retiros ya no se registran: los que quedaron
+   son historia y NO mueven el saldo (si se vuelven a restar aca, se descuenta
+   dos veces la misma plata que despues se deposito). */
+const depositadoTotal=()=>db.retiros.filter(esDeposito).reduce((s,r)=>s+r.monto,0);
+const saldoEfectivo=()=>db.grupos.filter(g=>g.categoria==="efectivo").reduce((s,g)=>s+g.monto,0)-depositadoTotal();
 const enEsperaDeFirma=()=>db.retiros.filter(esperaFirma).reduce((s,r)=>s+r.monto,0);
 const ultimoRetiro=()=>{const r=retirosOrd().filter(retiroFirmado);return r.length?r[r.length-1]:null};
 
@@ -248,7 +252,8 @@ function proxDesde(){
   const f=db.grupos.map(g=>g.fecha).sort();
   return f.length?f[0]:hoyISO();
 }
-function periodoAbierto(){const ur=ultimoRetiro();const d=ur?proxDesde():null;return{desde:d,gr:db.grupos.filter(g=>!d||g.fecha>=d)}}
+/* sin retiros ya no hay "periodo abierto": la cinta muestra todo lo cargado */
+function periodoAbierto(){return{desde:null,gr:db.grupos}}
 
 /* --- Anomalías, ahora a nivel día+cajero ------------------- */
 function anomaliasDia(d){

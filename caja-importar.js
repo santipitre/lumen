@@ -319,9 +319,9 @@ function vistaDias(sinTotalForzado){
       const rot=(dp?"BOLETA · ":"RETIRO · ")+r.responsable+(dp&&clavePer(r)?"  ("+perTexto(r)+")":"");
       tb.append(el("tr",{class:"fila-retiro"},el("td",{title:fechaCorta(r.fecha)},fechaDM(r.fecha)),
         el("td",{title:rot},rot),
-        // la boleta no descuenta: la plata ya salió con el retiro del período
-        el("td",{class:"num",title:dp?"Rinde el retiro de ese período; no vuelve a bajar el saldo":null},
-          (dp?"":"− ")+plata(r.monto)),
+        // el depósito baja el efectivo en caja; el retiro es historia y no lo mueve
+        el("td",{class:"num",title:dp?"Depósito bancario: se descontó del efectivo en caja":"Retiro anterior (ya no se registran): no mueve el efectivo en caja"},
+          (dp?"− ":"")+plata(r.monto)),
         ...Array.from({length:NC-4},()=>el("td",{class:"num"},"—")),
         el("td",{},"")));
       continue;
@@ -451,7 +451,6 @@ function vistaReportes(){
       el("button",{class:"btn ghost small",type:"button",onclick:()=>set(iso(new Date(hoy.getFullYear(),hoy.getMonth(),1)),iso(hoy))},"Este mes"),
       el("button",{class:"btn ghost small",type:"button",onclick:()=>set(iso(new Date(hoy.getFullYear(),hoy.getMonth()-1,1)),iso(new Date(hoy.getFullYear(),hoy.getMonth(),0)))},"Mes pasado"),
       el("button",{class:"btn ghost small",type:"button",onclick:()=>set(iso(new Date(hoy-29*864e5)),iso(hoy))},"Últimos 30 días"),
-      el("button",{class:"btn ghost small",type:"button",onclick:()=>set(periodoAbierto().desde||"",iso(hoy))},"Desde el último retiro"),
       el("button",{class:"btn ghost small",type:"button",onclick:()=>set("","")},"Todo"))));
 
   const gr=db.grupos.filter(g=>(!rango.desde||g.fecha>=rango.desde)&&(!rango.hasta||g.fecha<=rango.hasta));

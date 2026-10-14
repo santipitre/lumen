@@ -20,10 +20,12 @@ function pintarCinta(){
   const s=saldoEfectivo(); const{desde,gr}=periodoAbierto(); const t=totales(gr);
   $("#saldo-monto").textContent=plata(s);
   $("#saldo-monto").style.color=s<0?"var(--alerta)":"var(--efectivo)";
-  $("#saldo-desde").textContent=desde?`Período abierto desde el ${fechaCorta(desde)}`:(db.grupos.length?"Desde el inicio":"Sin movimientos todavía");
+  $("#saldo-desde").textContent=db.grupos.length?"Efectivo cargado \u2212 depósitos":"Sin movimientos todavía";
   /* replaceChildren() convierte null en el texto "null": hay que filtrar. */
   $("#cinta-rows").replaceChildren(...[
     el("div",{class:"cr"},el("span",{},"Efectivo"),el("b",{style:"color:var(--efectivo)"},plata(t.efectivo))),
+    depositadoTotal()?el("div",{class:"cr",title:"Depositado en el banco: se descuenta del efectivo en caja"},
+      el("span",{},"Depositado"),el("b",{style:"color:var(--alerta)"},"\u2212 "+plata(depositadoTotal()))):null,
     el("div",{class:"cr"},el("span",{},"Tarjetas"),el("b",{style:"color:var(--tarjeta)"},plata(t.tarjeta))),
     el("div",{class:"cr"},el("span",{},"Billetera"),el("b",{style:"color:var(--billetera)"},plata(t.billetera))),
     t.otros?el("div",{class:"cr"},el("span",{},"Otros valores"),el("b",{style:"color:var(--otros)"},plata(t.otros))):null,
@@ -35,9 +37,8 @@ function pintarCinta(){
       el("span",{},"Espera firma"),el("b",{style:"color:var(--aviso)"},plata(enEsperaDeFirma()))):null
   ].filter(Boolean));
   const r=diasARevisar().filter(x=>!estaRevisado(x.d)).length; $("#cnt-rev").textContent=r?`(${r})`:"";
-  $("#btn-retirar").disabled=!diasPendientes().length;
-  const bd=$("#btn-depositar"); bd.disabled=!hayQueRendir();
-  bd.title=bd.disabled?"No hay retiros pendientes de depositar":"";
+  const bd=$("#btn-depositar"); bd.disabled=s<=.005;
+  bd.title=bd.disabled?"No hay efectivo en caja para depositar":"";
 }
 const TITULOS={importar:"Importar listados",dias:"D\u00edas cargados",reportes:"Reportes",retiros:"Retiros y dep\u00f3sitos",revisar:"Revisar",manual:"Cargar a mano",datos:"Datos y respaldo"};
 const VISTAS={importar:vistaImportar,dias:vistaDias,reportes:vistaReportes,retiros:vistaRetiros,revisar:vistaRevisar,manual:vistaManual,datos:vistaDatos};
@@ -51,7 +52,6 @@ function render(){
   pintarCinta();
 }
 $("#tabs").addEventListener("click",e=>{const b=e.target.closest("button[data-v]");if(!b)return;vista=b.dataset.v;render();window.scrollTo({top:0})});
-$("#btn-retirar").addEventListener("click",dialogoRetiro);
 $("#btn-depositar").addEventListener("click",dialogoDeposito);
 $("#btn-backup").addEventListener("click",exportarJSON);
 document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();exportarJSON()}});
@@ -358,7 +358,6 @@ function aplicarModo(){
   document.querySelectorAll("#tabs button").forEach(b=>{
     if(ro&&TABS_EDICION.includes(b.dataset.v)) b.remove();
   });
-  $("#btn-retirar").style.display=ro?"none":"";
   $("#btn-depositar").style.display=ro?"none":"";
   $("#btn-backup").textContent=ro?"Exportar respaldo":"Guardar respaldo";
   if(ro&&TABS_EDICION.includes(vista)) vista="dias";
