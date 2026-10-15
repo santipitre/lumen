@@ -36,3 +36,5 @@ admin_*.html
 .shipyard/
 CLAUDE.local.md
 _test/
+
+docs/cronogramas/boceto-*.html
