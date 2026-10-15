@@ -211,7 +211,7 @@ html[data-tema="claro"] .cr-root,html[data-tema="claro"] .cr-pop{--cr-warn:#B453
 
 /* ficha lateral y formularios */
 .cr-drawer{position:fixed;top:0;right:0;bottom:0;z-index:70;width:min(440px,100vw);overflow:auto;background:var(--cr-card);border-left:1px solid var(--cr-line);box-shadow:-8px 0 24px rgba(0,0,0,.35);padding:14px;box-sizing:border-box}
-.cr-dh2{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-bottom:8px}.cr-dh2 small{color:var(--cr-mut)}
+.cr-dh2{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin:-14px -14px 8px;padding:14px;position:sticky;top:-14px;z-index:2;background:var(--cr-card);border-bottom:1px solid var(--cr-line)}.cr-dh2 small{color:var(--cr-mut)}
 .cr-sec{border-top:1px solid var(--cr-line);padding:10px 0}.cr-sec h4{margin:0 0 6px;font:700 12px 'Rajdhani',sans-serif;letter-spacing:2px;text-transform:uppercase;color:var(--cr-mut)}
 .cr-fr{padding:4px 6px;margin:3px 0;border-radius:6px;border:1px solid transparent;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;overflow-wrap:anywhere}
 .cr-fr.sel,.cr-lic.sel{border-color:var(--cr-acc)}
