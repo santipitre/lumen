@@ -1,0 +1,2030 @@
+/* Cronogramas - Dashboard Imágenes H.Italiano (Lumen).
+ * Módulo montado por imagenes.js en la pestaña #cronogramas. Datos: img_cron_leer / img_cron_guardar / img_cron_borrar
+ * (05_cronogramas.sql) + personas de img_listar + Eco/Doppler de img_cronograma (img_agenda), sin duplicarlo.
+ * Todo texto de la base entra al DOM con textContent (nunca como HTML). Sin contactos: solo id, apellido, nombre y servicios. */
+(function(){
+'use strict';
+if(!window.__img_user) return;
+
+/* == constantes == */
+const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const MN = MESES.map(function(x){ return x.toLowerCase(); });
+const TURN = { M: ['07:00', '13:00', 'Mañana'], T: ['13:00', '19:00', 'Tarde'], N: ['19:00', '07:00', 'Noche'], D: ['07:00', '19:00', 'Guardia día'] };
+const DL = { M: 'Mañana', T: 'Tarde', N: 'Noche', D: 'Guardia día' };
+const SEC = { 'Tomografía': 'TC', 'Radiología': 'RX', 'Resonancia Magnética': 'RM' };
+const END = '9999-12-31';
+const PAL = [205, 265, 330, 28, 172, 48, 150, 300, 10, 230, 120, 190, 80, 350, 250];
+const TIPOS_LIC = ['Vacaciones', 'Profiláctica', 'Licencia', 'Licencia (a especificar)', 'Examen', 'Maternidad', 'Paternidad', 'Matrimonio', 'Fallecimiento de familiar', 'Congreso / capacitación', 'Sin goce de haberes', 'Cambio de turno', 'Ausencia puntual'];
+const TH_BASE = [150, 40, 8, 25, 220, 330, 200, 290, 0, 265, 60];
+const OFICINA = 'Oficina propia';
+const TARIFAS_DEF = { diurna: 0, nocturna: 0 };
+const SAT0_DEF = '2026-10-03';
+const SUBS = [
+  { k: 'tecnicos', n: 'Técnicos', tab: 'tec' },
+  { k: 'administrativos', n: 'Administrativos', tab: 'adm' },
+  { k: 'radiografias', n: 'Radiografías', tab: 'rx' },
+  { k: 'tc', n: 'Tomografía (guardias)', tab: 'tc' },
+  { k: 'eco', n: 'Eco/Doppler', tab: 'eco' },
+  { k: 'licencias', n: 'Licencias y reemplazos', tab: 'lic' },
+  { k: 'pago', n: 'Pago de técnicos', tab: 'tec', soloEdicion: true },
+  { k: 'alertas', n: 'Alertas', tab: 'todo' }
+];
+const VISTAS = {
+  tecnicos: [['diag', 'Diagrama del mes'], ['horas', 'Horas por técnico'], ['sem', 'Semana tipo'], ['sems', 'Semanas del mes'], ['cuadro', 'Cuadro'], ['mes', 'Mes']],
+  administrativos: [['sem', 'Semana tipo'], ['sems', 'Semanas del mes'], ['horas', 'Horas por semana'], ['cuadro', 'Cuadro'], ['mes', 'Mes']],
+  radiografias: [['sem', 'Semana tipo'], ['sems', 'Semanas del mes'], ['cuadro', 'Cuadro'], ['mes', 'Mes'], ['anio', 'Año']],
+  tc: [['tcg', 'Guardias de Tomografía']],
+  eco: [['sem', 'Semana tipo']],
+  licencias: [['conf', 'Confirmar reemplazos'], ['lista', 'Licencias'], ['anio', 'Año']],
+  pago: [['pago', 'Horas y valor']],
+  alertas: [['alertas', 'Alertas']]
+};
+const MSG = {
+  CONFLICTO: 'Otra persona cambió este dato mientras lo editabas. Tu cambio no se aplicó y se recargó el cronograma.',
+  NO_EXISTE: 'Ese dato ya no existe (alguien lo borró). Se recargó el cronograma.',
+  INVALIDO: 'Algún dato no es válido (horas, fechas o campos obligatorios). Se recargó el cronograma.',
+  DUPLICADO: 'Ya existe un registro igual.',
+  SIN_PERMISO: 'No tenés permiso para esta operación.',
+  SIN_PERMISO_ESCRITURA: 'No tenés permiso para modificar datos en este módulo.',
+  RED_ESCRITURA: 'No se pudo confirmar el guardado. Puede haberse aplicado: se recargó el cronograma.',
+  LECTURA: 'No se pudieron leer los cronogramas. Probá recargar la página.'
+};
+
+/* == fechas y horas (puras) == */
+function pad(n){ return String(n).padStart(2, '0'); }
+function iso(y, mo, d){ return y + '-' + pad(mo + 1) + '-' + pad(d); }
+function mins(s){ const p = String(s).split(':'); return (+p[0]) * 60 + (+p[1]); }
+function hhmm(x){ return Math.floor(x / 60) + ':' + pad(x % 60); }
+function hm(s){ return s ? String(s).slice(0, 5) : ''; }
+function fmtH(x){ return (x).toLocaleString('es-AR', { maximumFractionDigits: 1 }) + ' h'; }
+function fmtF(s){ return s ? s.split('-').reverse().join('/') : ''; }
+function fmtC(s){ return s ? fmtF(s).slice(0, 5) : ''; }
+function fmtM(v){ return '$ ' + Math.round(v).toLocaleString('es-AR'); }
+function wdOf(s){ return (new Date(s + 'T12:00:00').getDay() + 6) % 7; }
+function addD(s, n){ const d = new Date(s + 'T12:00:00'); d.setDate(d.getDate() + n); return iso(d.getFullYear(), d.getMonth(), d.getDate()); }
+function diffD(a, b){ return Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 864e5); }
+function mondayOf(s){ return addD(s, -wdOf(s)); }
+function dimOf(y, mo){ return new Date(y, mo + 1, 0).getDate(); }
+function monthDays(y, mo){ const n = dimOf(y, mo), o = []; for(let i = 1; i <= n; i++) o.push(iso(y, mo, i)); return o; }
+function weeksOf(y, mo){
+  const first = iso(y, mo, 1), last = iso(y, mo, dimOf(y, mo)), o = [];
+  let w = mondayOf(first);
+  while(w <= last){ o.push(w); w = addD(w, 7); }
+  return o;
+}
+function uni(l){
+  const a = l.map(function(x){ return [x[0], x[1]]; }).sort(function(p, q){ return p[0] - q[0]; }), o = [];
+  a.forEach(function(x){
+    if(o.length && x[0] <= o[o.length - 1][1]) o[o.length - 1][1] = Math.max(o[o.length - 1][1], x[1]);
+    else o.push(x);
+  });
+  return o;
+}
+function sumi(l){ return l.reduce(function(s, x){ return s + x[1] - x[0]; }, 0); }
+function splitDN(d, hasta){
+  const a = mins(d), len = (mins(hasta) - a + 1440) % 1440;
+  let n = 0;
+  for(let k = 0; k < len; k++){ const t = (a + k) % 1440; if(t >= 1200 || t < 420) n++; }
+  return [(len - n) / 60, n / 60];
+}
+function letterOf(d, hasta){
+  const a = mins(d), dur = (mins(hasta) - a + 1440) % 1440;
+  if(dur === 720 && a === 420) return 'D';
+  if(a >= 1140 || a < 300) return 'N';
+  if(a >= 780) return 'T';
+  return 'M';
+}
+
+/* == modelo: respuesta de img_cron_leer + personas -> objetos de trabajo == */
+function grpDe(tipo){ return tipo === 'medico' ? 'med' : tipo === 'tecnico' ? 'tec' : tipo === 'administrativo' ? 'adm' : 'res'; }
+
+function armarModelo(raw, listas){
+  const M = { PM: {}, P: [], F: [], G: [], XT: [], L: [], FER: {}, TC: { cal: {}, calV: {}, cambios: [] }, cfg: { sat0: null, tarifas: null, jefa: null, ver: {} } };
+  Object.keys(listas || {}).forEach(function(tipo){
+    (listas[tipo] || []).forEach(function(p){
+      if(!p || !p.id) return;
+      M.PM[p.id] = { key: p.id, id: p.id, tipo: p.tipo || tipo, grp: grpDe(p.tipo || tipo), ap: String(p.apellido || ''), nom: String(p.nombre || ''),
+        serv: Array.isArray(p.servicios) ? p.servicios.slice() : [], orden: +p.orden || 0, anio: (String((p.datos || {}).anio || '').match(/\d/) || [''])[0] };
+    });
+  });
+  function persona(id, nombreLibre, grp){
+    const k = id || ('libre:' + nombreLibre);
+    if(!M.PM[k]){
+      if(id) M.PM[k] = { key: k, id: id, tipo: null, grp: grp || 'med', ap: '(persona no visible)', nom: '', serv: [], orden: 9999, oculta: true };
+      else M.PM[k] = { key: k, id: null, tipo: 'medico', grp: 'med', ap: String(nombreLibre || ''), nom: '', serv: ['Radiología'], orden: 9999, libre: true };
+    }
+    return k;
+  }
+  (raw.franjas || []).forEach(function(f){
+    M.F.push({ id: f.id, ver: f.version, tab: f.tab, key: persona(f.persona_id, f.nombre_libre), dia: +f.dia, d: hm(f.desde), h: hm(f.hasta), sec: f.sec || '',
+      asig: f.asig || [], guardia: !!f.guardia, sem: +f.sem || 0, turno: f.turno || '', pend: !!f.pendiente, motivo: f.pendiente_motivo || '' });
+  });
+  (raw.guardias || []).forEach(function(g){ M.G.push({ id: g.id, ver: g.version, key: persona(g.persona_id), fecha: g.fecha, t: g.t, pend: !!g.pendiente, motivo: g.pendiente_motivo || '' }); });
+  (raw.turnos_extra || []).forEach(function(x){ M.XT.push({ id: x.id, ver: x.version, key: persona(x.persona_id), fecha: x.fecha, d: hm(x.desde), h: hm(x.hasta), nota: x.nota || '' }); });
+  const LM = {};
+  (raw.licencias || []).forEach(function(l){
+    const o = { id: l.id, ver: l.version, key: persona(l.persona_id), tipo: l.tipo, desde: l.desde, hasta: l.hasta || '', obs: l.obs || '', pend: !!l.pendiente, motivo: l.pendiente_motivo || '', reemps: [] };
+    LM[l.id] = o;
+    M.L.push(o);
+  });
+  (raw.reemplazos || []).forEach(function(r){
+    const l = LM[r.licencia_id];
+    if(!l) return;
+    l.reemps.push({ id: r.id, ver: r.version, lid: r.licencia_id, key: r.persona_id ? persona(r.persona_id) : '', nombre: r.nombre || '', d: hm(r.hora_desde), h: hm(r.hora_hasta),
+      nota: r.nota || '', fechas: (r.fechas || []).slice(), desde: r.fecha_desde || '', hasta: r.fecha_hasta || '', est: r.est || '' });
+  });
+  (raw.feriados || []).forEach(function(f){ M.FER[f.fecha] = f.nombre; M.cfg.ver['fer:' + f.fecha] = f.version; });
+  (raw.tc || []).forEach(function(t){ M.TC.cal[t.fecha] = t.medico; M.TC.calV[t.fecha] = t.version; });
+  (raw.tc_cambios || []).forEach(function(c){ M.TC.cambios.push({ id: c.id, ver: c.version, fecha: c.fecha, antes: c.medico_antes || '', nuevo: c.medico_nuevo, nota: c.nota || '', at: c.updated_at || '' }); });
+  (raw.config || []).forEach(function(c){
+    M.cfg.ver[c.clave] = c.version;
+    if(c.clave === 'sat0') M.cfg.sat0 = String(c.valor);
+    else if(c.clave === 'tarifas') M.cfg.tarifas = c.valor;
+    else if(c.clave === 'jefa') M.cfg.jefa = c.valor;
+  });
+  M.P = Object.keys(M.PM).map(function(k){ return M.PM[k]; }).sort(function(a, b){
+    const g = ['tec', 'adm', 'med', 'res'];
+    return g.indexOf(a.grp) - g.indexOf(b.grp) || a.orden - b.orden || a.ap.localeCompare(b.ap, 'es');
+  });
+  return M;
+}
+
+/* == cálculos del cronograma (puros; portados del boceto v16) == */
+function calculos(M, hoy){
+  const PM = M.PM, P = M.P, F = M.F, G = M.G, XT = M.XT, L = M.L, FER = M.FER;
+  const SAT0 = M.cfg.sat0 || SAT0_DEF;
+  const nm = function(p){ return p.ap + (p.nom ? ' ' + p.nom : ''); };
+  const lend = function(l){ return l.hasta || END; };
+  const satPrev = function(d){ let x = d; while(wdOf(x) !== 5) x = addD(x, -1); return x; };
+  const satTipo = function(d){ const w = Math.round(diffD(SAT0, d) / 7); return (((w % 2) + 2) % 2) === 0 ? 2 : 1; };
+  const satTipoW = function(d){ return satTipo(satPrev(d)); };
+  /* dinámicos: las altas/bajas locales (optimistas) cambian G y F sin recalcular el modelo */
+  const esGuard = function(k){ return G.some(function(g){ return g.key === k; }) || F.some(function(f){ return f.key === k && f.guardia; }); };
+  const esOfi = function(k){ return F.some(function(f){ return f.key === k && f.tab === 'adm' && String(f.sec).toLowerCase() === OFICINA.toLowerCase(); }); };
+  const licOn = function(k, d){ return L.find(function(l){ return l.key === k && l.desde <= d && d <= lend(l); }); };
+  const repOn = function(r, l, d){
+    return d >= l.desde && d <= lend(l) && (!r.desde || d >= r.desde) && (!r.hasta || d <= r.hasta) && (!(r.fechas && r.fechas.length) || r.fechas.indexOf(d) >= 0);
+  };
+  const rname = function(r){ return r.key && PM[r.key] ? nm(PM[r.key]) : (r.nombre || '(sin definir)'); };
+  const rshort = function(r){ return r.key && PM[r.key] ? PM[r.key].ap : (r.nombre || '?').split(' ')[0]; };
+  const repEst = function(r){ return r.est === 'ok' ? 'ok' : r.est === 'no' ? 'no' : 'pe'; };
+  const people = function(t){
+    if(t === 'tec') return P.filter(function(p){ return p.grp === 'tec'; });
+    if(t === 'adm') return P.filter(function(p){ return p.grp === 'adm'; });
+    const keys = new Set(F.filter(function(f){ return f.tab === t; }).map(function(f){ return f.key; }));
+    const srv = t === 'rx' ? 'Radiología' : t === 'tc' ? 'Tomografía' : null;
+    return P.filter(function(p){ return p.grp === 'med' && (keys.has(p.key) || (srv && p.serv.indexOf(srv) >= 0)); });
+  };
+  const grpDeTab = function(t){ return t === 'tec' ? 'tec' : t === 'adm' ? 'adm' : 'med'; };
+
+  function dayData(t, d, pf){
+    const wd = wdOf(d), items = [], strip = [], fer = FER[d];
+    const frs = F.filter(function(f){ return f.tab === t && f.dia === wd && (!f.sem || f.sem === satTipoW(d)) && !(fer && (t === 'tec' || t === 'adm')); });
+    const gs = t === 'tec' ? G.filter(function(g){ return g.fecha === d; }).map(function(g){
+      return { id: g.id, tab: 'tec', key: g.key, dia: wd, d: TURN[g.t][0], h: TURN[g.t][1], sec: '', asig: [], guardia: true, g: true, t: g.t, fecha: g.fecha, pend: g.pend };
+    }) : [];
+    const xs = t === 'tec' ? XT.filter(function(x){ return x.fecha === d; }).map(function(x){
+      return { id: x.id, tab: 'tec', key: x.key, dia: wd, d: x.d, h: x.h, xt: true, nota: x.nota || '' };
+    }) : [];
+    const hasF = function(k){ return frs.some(function(f){ return f.key === k; }) || gs.some(function(g){ return g.key === k; }); };
+    frs.forEach(function(f){ const l = licOn(f.key, d); items.push(l ? { kind: 'lic', f: f, k: f.key, d: f.d, h: f.h, l: l } : { kind: 'w', f: f, k: f.key, d: f.d, h: f.h }); });
+    gs.forEach(function(f){ const l = licOn(f.key, d); items.push(l ? { kind: 'lic', f: f, k: f.key, d: f.d, h: f.h, l: l } : { kind: 'w', f: f, k: f.key, d: f.d, h: f.h }); });
+    xs.forEach(function(f){ items.push({ kind: 'w', f: f, k: f.key, d: f.d, h: f.h }); });
+    people(t).forEach(function(p){
+      const l = licOn(p.key, d);
+      if(!l) return;
+      const anyF = F.some(function(f){ return f.tab === t && f.key === p.key; }) || (t === 'tec' && G.some(function(g){ return g.key === p.key; }));
+      if(!hasF(p.key)) strip.push({ k: p.key, l: l });
+      if(!anyF || hasF(p.key)){
+        l.reemps.forEach(function(r){
+          if(!repOn(r, l, d)) return;
+          if(esGuard(p.key) && !gs.some(function(g){ return g.key === p.key && g.d === r.d && g.h === r.h; })) return;
+          items.push({ kind: 'rep', k: r.key || null, r: r, 'for': p.key, d: r.d, h: r.h, l: l });
+        });
+      }
+    });
+    if(t === 'tec'){
+      /* quien cubre un reemplazo ese día no hace su horario habitual: se quita su franja propia (guardias y turnos extra se mantienen) */
+      const cubre = new Set(items.filter(function(i){ return i.kind === 'rep' && i.k; }).map(function(i){ return i.k; }));
+      if(cubre.size) for(let i = items.length - 1; i >= 0; i--){
+        const x = items[i];
+        if(x.kind === 'w' && cubre.has(x.k) && x.f && !x.f.g && !x.f.xt) items.splice(i, 1);
+      }
+    }
+    if(t === 'adm'){
+      for(let i = items.length - 1; i >= 0; i--) if(items[i].kind === 'lic') items.splice(i, 1);
+      strip.length = 0;
+    }
+    if(pf) return { items: items.filter(function(i){ return i.k === pf || i['for'] === pf; }), strip: strip.filter(function(s){ return s.k === pf; }) };
+    return { items: items, strip: strip };
+  }
+  function ownShifts(k, d, ig){
+    const wd = wdOf(d), o = [];
+    if(!ig && licOn(k, d)) return o;
+    const fin = function(a, b){ return [mins(a), mins(b) <= mins(a) ? mins(b) + 1440 : mins(b)]; };
+    F.filter(function(f){ return f.key === k && f.dia === wd && (!f.sem || f.sem === satTipoW(d)) && !(FER[d] && f.tab === 'tec'); }).forEach(function(f){ o.push(fin(f.d, f.h)); });
+    G.filter(function(g){ return g.key === k && g.fecha === d; }).forEach(function(g){ o.push(fin(TURN[g.t][0], TURN[g.t][1])); });
+    XT.filter(function(x){ return x.key === k && x.fecha === d; }).forEach(function(x){ o.push(fin(x.d, x.h)); });
+    return o;
+  }
+  function repDays(l, r){
+    const out = [], to = lend(l) > addD(hoy, 120) ? addD(hoy, 120) : lend(l), a = mins(r.d), b = mins(r.h) <= a ? mins(r.h) + 1440 : mins(r.h);
+    for(let d = l.desde; d <= to; d = addD(d, 1)){
+      if(!repOn(r, l, d)) continue;
+      const need = ownShifts(l.key, d, true);
+      if(!need.length) continue;
+      if(esGuard(l.key) && !need.some(function(x){ return x[0] === a && x[1] === b; })) continue;
+      out.push(d);
+    }
+    return out;
+  }
+  function popOverlap(k, d, a, b){
+    const w = [];
+    ownShifts(k, d).forEach(function(z){ if(z[0] < b && a < z[1]) w.push('ya trabaja en ese horario'); });
+    const lo = licOn(k, d);
+    if(lo && lo.tipo !== 'Cambio de turno') w.push('tiene licencia ese día');
+    return w;
+  }
+  function repAll(){
+    const out = [];
+    L.filter(function(l){ return PM[l.key] && (PM[l.key].grp === 'tec' || PM[l.key].grp === 'adm'); }).forEach(function(l){
+      l.reemps.forEach(function(r, i){
+        const x = { l: l, r: r, i: i, est: repEst(r), pasado: lend(l) < hoy };
+        if((x.est === 'ok' && x.pasado) || repDays(l, r).length || x.pasado) out.push(x);
+      });
+    });
+    return out;
+  }
+  function repCheck(l, r){
+    const ds = repDays(l, r).filter(function(d){ return d >= hoy; }), a = mins(r.d), b = mins(r.h) <= a ? mins(r.h) + 1440 : mins(r.h), iss = {};
+    const oth = repAll().filter(function(x){ return x.r !== r && x.r.key === r.key && x.est !== 'no'; }).map(function(x){
+      return { x: x, set: new Set(repDays(x.l, x.r)), a: mins(x.r.d), b: mins(x.r.h) <= mins(x.r.d) ? mins(x.r.h) + 1440 : mins(x.r.h) };
+    });
+    ds.forEach(function(d){
+      popOverlap(r.key, d, a, b).forEach(function(z){ (iss[z] = iss[z] || []).push(d); });
+      oth.forEach(function(o){
+        if(o.set.has(d) && o.a < b && a < o.b){ const kk = 'ya cubre a ' + PM[o.x.l.key].ap + ' en ese horario'; (iss[kk] = iss[kk] || []).push(d); }
+      });
+    });
+    return { ds: ds, iss: iss };
+  }
+  function repConflicts(l){
+    const out = [];
+    l.reemps.forEach(function(r){
+      if(!r.key) return;
+      const a = mins(r.d), b = mins(r.h) <= a ? mins(r.h) + 1440 : mins(r.h);
+      let first = null, n = 0;
+      const to = lend(l) > addD(hoy, 90) ? addD(hoy, 90) : lend(l);
+      for(let d = l.desde; d <= to; d = addD(d, 1)){
+        if(!repOn(r, l, d)) continue;
+        const need = ownShifts(l.key, d, true);
+        if(!need.length) continue;
+        if(esGuard(l.key) && !need.some(function(x){ return x[0] === a && x[1] === b; })) continue;
+        if(ownShifts(r.key, d).find(function(x){ return x[0] < b && a < x[1]; })){ n++; first = first || d; }
+      }
+      if(n) out.push({ l: l, r: r, n: n, first: first });
+    });
+    return out;
+  }
+
+  /* diagrama / horas */
+  function diagCells(y, mo){
+    const o = {};
+    monthDays(y, mo).forEach(function(d){
+      const dd = dayData('tec', d, null);
+      o[d] = {};
+      dd.items.forEach(function(i){
+        const k = i.k || (i.kind === 'rep' && i.r ? '_ext:' + i.r.nombre : null);
+        if(k) (o[d][k] = o[d][k] || []).push(i);
+      });
+      dd.strip.forEach(function(x){ (o[d][x.k] = o[d][x.k] || []).push({ kind: 'lic', k: x.k, l: x.l }); });
+    });
+    return o;
+  }
+  function horasData(y, mo, pf){
+    const C = diagCells(y, mo), days = monthDays(y, mo), wk = [];
+    days.forEach(function(d){ if(!wk.length || wdOf(d) === 0) wk.push([]); wk[wk.length - 1].push(d); });
+    return people('tec').filter(function(p){ return !pf || p.key === pf; }).map(function(p){
+      const o = { p: p, own: 0, rep: 0, gua: 0, ext: 0, lic: 0, D: 0, N: 0, pend: 0, cat: { own: [0, 0], rep: [0, 0], gua: [0, 0], ext: [0, 0] }, wk: wk.map(function(){ return 0; }), det: [], wkDias: wk };
+      days.forEach(function(d){
+        const its = (C[d] && C[d][p.key]) || [], wi = wk.findIndex(function(w){ return w.indexOf(d) >= 0; });
+        const hasRep = its.some(function(i){ return i.kind === 'rep'; }), cam = its.some(function(i){ return i.kind === 'lic' && i.l.tipo === 'Cambio de turno'; });
+        if(its.some(function(i){ return i.kind === 'lic'; }) && !cam) o.lic++;
+        its.forEach(function(i){
+          let t = null, tx = '', pe = false;
+          if(i.kind === 'w'){
+            t = i.f && i.f.g ? 'gua' : i.f && i.f.xt ? 'ext' : 'own';
+            tx = t === 'gua' ? 'Guardia ' + (i.f.t === 'N' ? 'noche' : 'día') + ' ' + i.d + '–' + i.h : t === 'ext' ? 'Turno extra ' + i.d + '–' + i.h : DL[letterOf(i.d, i.h)] + ' ' + i.d + '–' + i.h;
+            pe = !!(i.f && i.f.pend);
+          } else if(i.kind === 'rep'){
+            t = 'rep'; tx = 'Cubre a ' + PM[i['for']].ap + ' ' + i.d + '–' + i.h;
+            pe = repEst(i.r) !== 'ok' || !!i.l.pend;
+          } else if(i.kind === 'lic' && cam && !hasRep && i.f){
+            t = 'own'; tx = DL[letterOf(i.d, i.h)] + ' ' + i.d + '–' + i.h + ' (cambio de turno)';
+          }
+          if(!t) return;
+          const hs = ((mins(i.h) - mins(i.d) + 1440) % 1440) / 60;
+          o[t] += hs; o.wk[wi] += hs;
+          const z = splitDN(i.d, i.h);
+          o.D += z[0]; o.N += z[1]; o.cat[t][0] += z[0]; o.cat[t][1] += z[1];
+          if(pe) o.pend += hs;
+          o.det.push(DIAS[wdOf(d)].slice(0, 3) + ' ' + fmtC(d) + ' · ' + tx + ' · ' + fmtH(hs) + (pe ? ' · a confirmar' : ''));
+        });
+      });
+      o.tot = o.own + o.rep + o.gua + o.ext;
+      return o;
+    });
+  }
+  function admIv(dd){
+    const o = [];
+    dd.items.forEach(function(x){
+      if(x.kind !== 'w' && x.kind !== 'rep') return;
+      if(x.k && PM[x.k] && esOfi(x.k)) return;
+      const a = mins(x.d), b = mins(x.h) <= a ? 1440 : mins(x.h);
+      o.push({ a: a, b: b, n: x.k ? PM[x.k].ap : (x.r && x.r.nombre) || '?' });
+    });
+    return o;
+  }
+  function admConc(dd){
+    const iv = admIv(dd);
+    let mx = 0, who = [];
+    iv.forEach(function(z){
+      const at = iv.filter(function(y){ return y.a <= z.a && z.a < y.b; });
+      if(at.length > mx){ mx = at.length; who = at.map(function(y){ return y.n; }); }
+    });
+    return { n: mx, who: who };
+  }
+  function admPeak(y, mo){
+    let n = 0;
+    const bad = [];
+    monthDays(y, mo).forEach(function(d){
+      const c = admConc(dayData('adm', d, null));
+      n = Math.max(n, c.n);
+      if(c.n > 2) bad.push({ d: d, who: c.who });
+    });
+    return { n: n, bad: bad };
+  }
+  return { PM: PM, nm: nm, lend: lend, satTipo: satTipo, satTipoW: satTipoW, esGuard: esGuard, esOfi: esOfi, licOn: licOn, repOn: repOn, rname: rname, rshort: rshort,
+    repEst: repEst, people: people, grpDeTab: grpDeTab, dayData: dayData, ownShifts: ownShifts, repDays: repDays, popOverlap: popOverlap, repAll: repAll, repCheck: repCheck,
+    repConflicts: repConflicts, diagCells: diagCells, horasData: horasData, admIv: admIv, admConc: admConc, admPeak: admPeak, hoy: hoy };
+}
+
+/* pago: horas diurnas/nocturnas por categoría; sinPropias excluye la planta propia */
+function horasPago(o, sinPropias){
+  let D = 0, N = 0;
+  ['own', 'rep', 'gua', 'ext'].forEach(function(k){
+    if(sinPropias && k === 'own') return;
+    D += o.cat[k][0]; N += o.cat[k][1];
+  });
+  return [D, N];
+}
+
+/* == estado de la interfaz == */
+const ST = {
+  puente: null, raw: null, M: null, C: null, el: null, nav: null, cuerpo: null,
+  cargando: false, cargado: false, error: null, eco: [], ecoError: null, leidoEn: 0, iniciado: false, gen: 0, cola: Promise.resolve(), tmp: 0, escribiendo: 0,
+  S: { sub: 'tecnicos', vistas: {}, y: 0, m: 0, wk: null, we: true, pf: null, dm: 'none', dp: null, hl: null, hlL: null, addF: false, addL: false, addR: null, nk: 'f',
+       tcUp: false, tcPrev: null, solo: false, pop: null, msg: {} },
+  R: {}
+};
+const S = ST.S;
+
+function h(tag, a){
+  const el = document.createElement(tag);
+  if(a){
+    Object.keys(a).forEach(function(k){
+      const v = a[k];
+      if(v === null || v === undefined || v === false) return;
+      if(k === 't') el.textContent = String(v);
+      else if(k === 's'){ Object.keys(v).forEach(function(p){ el.style.setProperty(p, String(v[p])); }); }
+      else if(k === 'on'){ Object.keys(v).forEach(function(e){ el.addEventListener(e, v[e]); }); }
+      else if(k === 'value'){ el.value = String(v); }
+      else el.setAttribute(k, v === true ? '' : String(v));
+    });
+  }
+  for(let i = 2; i < arguments.length; i++) anexar(el, arguments[i]);
+  return el;
+}
+function anexar(el, c){
+  if(c === null || c === undefined || c === false) return;
+  if(Array.isArray(c)){ c.forEach(function(x){ anexar(el, x); }); return; }
+  el.append(typeof c === 'object' ? c : document.createTextNode(String(c)));
+}
+function vaciar(el){ while(el.firstChild) el.removeChild(el.firstChild); }
+function btn(txt, cls, fn, extra){
+  const a = { type: 'button', class: 'cr-btn' + (cls ? ' ' + cls : ''), t: txt, on: { click: fn } };
+  if(extra) Object.keys(extra).forEach(function(k){ a[k] = extra[k]; });
+  return h('button', a);
+}
+function opciones(lista, val){
+  return lista.map(function(o){
+    const v = Array.isArray(o) ? o[0] : o, t = Array.isArray(o) ? o[1] : o;
+    return h('option', { value: v, selected: String(v) === String(val), t: t });
+  });
+}
+function selec(lista, val, fn, cls){ return h('select', { class: cls || '', on: { change: function(ev){ fn(ev.target.value); } } }, opciones(lista, val)); }
+function entrada(tipo, val, fn, at){
+  const a = { type: tipo, value: val, on: { change: function(ev){ fn(ev.target.value, ev.target); } } };
+  if(at) Object.keys(at).forEach(function(k){ a[k] = at[k]; });
+  return h('input', a);
+}
+function campo(txt, ctl, cls){ return h('label', { class: 'cr-f' + (cls ? ' ' + cls : '') }, txt, ctl); }
+
+/* == acceso a datos == */
+function puedeEditar(){ return ['editar', 'admin'].indexOf(ST.puente.nivel()) >= 0; }
+function esAdmin(){ return ST.puente.nivel() === 'admin'; }
+function textoError(c, e){
+  if(c === 'CONFLICTO' || c === 'NO_EXISTE' || c === 'INVALIDO' || c === 'DUPLICADO' || c === 'RED_ESCRITURA' || c === 'SIN_PERMISO' || c === 'SIN_PERMISO_ESCRITURA') return MSG[c];
+  return ST.puente.mensajeDe(c, e && e.detalle);
+}
+function listasPersonas(){
+  const p = ST.puente, o = {};
+  [['medicos', 'medico'], ['residentes', 'residente'], ['tecnicos', 'tecnico'], ['administrativos', 'administrativo']].forEach(function(par){
+    const l = p.personas(par[0]);
+    if(Array.isArray(l)) o[par[1]] = l;
+  });
+  return o;
+}
+function reconstruir(){
+  ST.M = armarModelo(ST.raw, listasPersonas());
+  ST.C = calculos(ST.M, ST.puente.hoy());
+  ST.R.hueMap = null;
+  ST.R.jefaNom = ST.M.cfg.jefa && ST.M.cfg.jefa.nom ? String(ST.M.cfg.jefa.nom) : 'a confirmar';
+  const t = ST.M.cfg.tarifas;
+  ST.R.tarifas = t && typeof t === 'object' ? { diurna: +t.diurna || 0, nocturna: +t.nocturna || 0, personas: Array.isArray(t.personas) ? t.personas.slice() : null } : null;
+}
+async function leer(){
+  /* Eco/Doppler vive en img_agenda: se lee de img_cronograma, nunca se copia a las tablas del cronograma. */
+  const par = await Promise.all([
+    ST.puente.rpc('img_cron_leer'),
+    ST.puente.rpc('img_cronograma', { p_vista: 'eco' }).then(function(x){ return x; }, function(e){ return { _fallo: ST.puente.codigoDe(e) }; })
+  ]);
+  ST.raw = par[0];
+  ST.eco = par[1] && Array.isArray(par[1].turnos) ? par[1].turnos : [];
+  ST.ecoError = par[1] && par[1]._fallo ? par[1]._fallo : null;
+  ST.leidoEn = Date.now();
+  reconstruir();
+}
+async function recargar(silencioso){
+  ST.gen++;
+  try{
+    await leer();
+    ST.error = null;
+  }catch(e){
+    ST.error = ST.puente.codigoDe(e);
+  }
+  pintar();
+}
+function nuevoTmp(){ ST.tmp++; return 'tmp:' + ST.tmp; }
+function esTmp(id){ return String(id).indexOf('tmp:') === 0; }
+
+function dialogoAviso(titulo, texto){
+  ST.puente.dialogo({
+    titulo: titulo, clase: 'aviso',
+    cuerpo: [h('p', { t: texto })],
+    botones: [{ texto: 'Entendido', clase: 'ed-btn prim', alClic: function(c){ c.cerrar(); } }]
+  });
+}
+async function fallo(e){
+  const c = ST.puente.codigoDe(e);
+  await recargar(true);
+  if(c === 'CONFLICTO') dialogoAviso('⚠ Alguien guardó antes que vos', MSG.CONFLICTO);
+  else ST.puente.aviso(textoError(c, e));
+}
+/* Escritura optimista serializada: el cambio local ya está aplicado; las llamadas salen de a una (la versión de cada fila
+   se actualiza con la respuesta antes de la siguiente). Si algo falla se recarga todo y se avisa. */
+function encolar(fn){
+  const gen = ST.gen;
+  ST.escribiendo++;
+  ST.cola = ST.cola.then(async function(){
+    if(gen !== ST.gen) return;
+    try{ await fn(); }catch(e){ await fallo(e); }
+  }).then(function(){ ST.escribiendo--; });
+  return ST.cola;
+}
+function guardarFila(ent, obj, payload){
+  encolar(async function(){
+    const nuevo = esTmp(obj.id);
+    const dato = payload();
+    if(!nuevo) dato.id = obj.id;
+    const r = await ST.puente.rpc('img_cron_guardar', { p_entidad: ent, p_dato: dato, p_version: nuevo ? null : obj.ver });
+    obj.id = r.id; obj.ver = r.version;
+  });
+}
+function borrarFila(ent, obj){
+  encolar(async function(){
+    await ST.puente.rpc('img_cron_borrar', { p_entidad: ent, p_id: String(obj.id), p_version: obj.ver });
+  });
+}
+const tm = function(s){ return s.length === 5 ? s : s; };
+function pFranja(f){
+  const libre = ST.M.PM[f.key] && ST.M.PM[f.key].libre;
+  return { tab: f.tab, persona_id: libre ? null : f.key, nombre_libre: libre ? ST.M.PM[f.key].ap : null, dia: f.dia, desde: f.d, hasta: f.h, sec: f.sec || '', asig: f.asig || [],
+    guardia: !!f.guardia, sem: f.sem || 0, turno: f.turno || '', pendiente: !!f.pend, pendiente_motivo: f.pend ? (f.motivo || null) : null };
+}
+function pGuardia(g){ return { persona_id: g.key, fecha: g.fecha, t: g.t, pendiente: !!g.pend, pendiente_motivo: g.pend ? (g.motivo || null) : null }; }
+function pExtra(x){ return { persona_id: x.key, fecha: x.fecha, desde: x.d, hasta: x.h, nota: x.nota || '' }; }
+function pLic(l){ return { persona_id: l.key, tipo: l.tipo, desde: l.desde, hasta: l.hasta || '', obs: l.obs || '', pendiente: !!l.pend, pendiente_motivo: l.pend ? (l.motivo || null) : null }; }
+function pRep(r, l){
+  return { licencia_id: l.id, persona_id: r.key || null, nombre: r.key ? null : (r.nombre || null), hora_desde: r.d, hora_hasta: r.h, nota: r.nota || '',
+    fechas: r.fechas || [], fecha_desde: r.desde || null, fecha_hasta: r.hasta || null, est: r.est || '' };
+}
+/* acciones de datos (cambio local + escritura) */
+const A = {
+  franjaAlta: function(f){ f.id = nuevoTmp(); ST.M.F.push(f); guardarFila('franja', f, function(){ return pFranja(f); }); },
+  franjaCambio: function(f){ guardarFila('franja', f, function(){ return pFranja(f); }); },
+  franjaBaja: function(f){ ST.M.F.splice(ST.M.F.indexOf(f), 1); borrarFila('franja', f); },
+  guardiaAlta: function(g){ g.id = nuevoTmp(); ST.M.G.push(g); guardarFila('guardia', g, function(){ return pGuardia(g); }); },
+  guardiaBaja: function(g){ ST.M.G.splice(ST.M.G.indexOf(g), 1); borrarFila('guardia', g); },
+  extraAlta: function(x){ x.id = nuevoTmp(); ST.M.XT.push(x); guardarFila('turno_extra', x, function(){ return pExtra(x); }); },
+  extraBaja: function(x){ ST.M.XT.splice(ST.M.XT.indexOf(x), 1); borrarFila('turno_extra', x); },
+  licAlta: function(l){ l.id = nuevoTmp(); ST.M.L.push(l); guardarFila('licencia', l, function(){ return pLic(l); }); },
+  licCambio: function(l){ guardarFila('licencia', l, function(){ return pLic(l); }); },
+  licBaja: function(l){ ST.M.L.splice(ST.M.L.indexOf(l), 1); borrarFila('licencia', l); },
+  repAlta: function(l, r){ r.id = nuevoTmp(); r.lid = l.id; l.reemps.push(r); guardarFila('reemplazo', r, function(){ return pRep(r, l); }); },
+  repCambio: function(l, r){ guardarFila('reemplazo', r, function(){ return pRep(r, l); }); },
+  repBaja: function(l, r){ l.reemps.splice(l.reemps.indexOf(r), 1); borrarFila('reemplazo', r); }
+};
+
+/* == utilidades de vista == */
+const TN = { tec: 'Técnicos', adm: 'Administrativos', rx: 'Radiografías', tc: 'Tomografía', eco: 'Eco/Doppler', lic: 'Licencias', todo: 'Todo' };
+const GN = { med: 'Informante', tec: 'Técnico', adm: 'Administrativo', res: 'Residentes' };
+function subActual(){ return SUBS.find(function(x){ return x.k === S.sub; }) || SUBS[0]; }
+function tabAct(){ const t = subActual().tab; return t === 'lic' || t === 'todo' ? 'tec' : t; }
+function vistaAct(){ return S.vistas[S.sub] || VISTAS[S.sub][0][0]; }
+function setVista(v){ S.vistas[S.sub] = v; pintar(); }
+function nmP(k){ const p = ST.M.PM[k]; return p ? ST.C.nm(p) : '?'; }
+function apP(k){ const p = ST.M.PM[k]; return p ? p.ap : '?'; }
+function hue(k){
+  if(k === 'res') return 90;
+  if(!ST.R.hueMap){ ST.R.hueMap = {}; ST.M.P.forEach(function(p, i){ ST.R.hueMap[p.key] = PAL[i % PAL.length]; }); }
+  return ST.R.hueMap[k] === undefined ? 200 : ST.R.hueMap[k];
+}
+function thLic(t){
+  const i = TIPOS_LIC.indexOf(t);
+  return TH_BASE[(i < 0 ? TIPOS_LIC.length : i) % TH_BASE.length];
+}
+function iniciales(p){ return (p.ap[0] || '?') + (p.nom ? p.nom[0] : ''); }
+function esAngosto(){ return ST.R.angosto === true; }
+function medirAngosto(){
+  const w = (ST.R.main && ST.R.main.clientWidth) || (ST.el && ST.el.clientWidth) || window.innerWidth;
+  ST.R.ancho = w;
+  ST.R.angosto = w < 700;
+}
+function nota(txt){ return h('div', { class: 'cr-note', t: txt }); }
+function pill(txt, cls){ return h('span', { class: 'cr-pill' + (cls ? ' ' + cls : ''), t: txt }); }
+function pendMarca(txt){ return h('span', { class: 'cr-apend', t: txt || 'a confirmar' }); }
+function hrsDe(list){ return sumi(uni(list.map(function(f){ return [mins(f.d), mins(f.h)]; }))); }
+function dhx(x){ return fmtH(x / 60); }
+function limpiarPop(){ const e = document.getElementById('cr-pop'); if(e) e.remove(); S.pop = null; }
+
+/* == grilla horaria == */
+function layoutCol(list){
+  const Lm = {}, s = list.slice().sort(function(a, b){ return mins(a.d) - mins(b.d) || mins(a.h) - mins(b.h); });
+  let cl = [], ends = [];
+  const fin = function(){ cl.forEach(function(a){ Lm[a.uid].n = ends.length; }); cl = []; ends = []; };
+  s.forEach(function(a){
+    const st = mins(a.d), en = mins(a.h) <= mins(a.d) ? 1440 : mins(a.h);
+    if(cl.length && ends.every(function(e){ return e <= st; })) fin();
+    let c = ends.findIndex(function(e){ return e <= st; });
+    if(c < 0){ c = ends.length; ends.push(0); }
+    ends[c] = en; Lm[a.uid] = { c: c, n: 1 }; cl.push(a);
+  });
+  fin();
+  return Lm;
+}
+function laneDe(i){
+  if(i.lane) return i.lane;
+  const PM = ST.M.PM;
+  return i.k && PM[i.k] ? PM[i.k].grp : (PM[i['for']] ? PM[i['for']].grp : ST.C.grpDeTab(tabAct()));
+}
+function itemInfo(i){
+  const C_ = ST.C, PM = ST.M.PM;
+  let lab, sub = '', cls = '', click;
+  if(i.eco){ return { lab: i.lab, sub: i.sub, cls: i.cls || '', click: function(){ openEco(i); } }; }
+  if(i.kind === 'rep'){
+    lab = C_.rshort(i.r);
+    sub = 'reemp. a ' + PM[i['for']].ap + (C_.repEst(i.r) !== 'ok' ? ' · a confirmar' : '');
+    cls = 'rep';
+    click = i.k ? function(){ openPerson(i.k); } : function(){ openPerson(i['for'], null, i.l.id); };
+  } else if(i.kind === 'lic'){
+    lab = PM[i.k].ap; sub = i.l.tipo + (i.f && i.f.g ? ' · ' + TURN[i.f.t][2] : '') + (i.l.pend ? ' · a confirmar' : ''); cls = 'lic';
+    click = function(){ openPerson(i.k, i.f.id); };
+  } else {
+    const f = i.f;
+    lab = PM[i.k].ap;
+    if(f.pend) sub = 'Horario a confirmar' + (f.sem ? ' · Sáb ' + f.sem : '');
+    else if(C_.esOfi(i.k)) sub = OFICINA;
+    else if(f.g) sub = TURN[f.t][2] + (f.pend ? ' · a confirmar' : '');
+    else if(f.xt) sub = 'Turno extra';
+    else sub = (f.sec ? SEC[f.sec] || f.sec : '') + (f.turno && TURN[f.turno] ? (f.sec ? ' · ' : '') + TURN[f.turno][2] : '') + (f.sem ? ' · Sáb ' + f.sem : '');
+    click = function(){ openPerson(i.k, f.id); };
+  }
+  return { lab: lab, sub: sub, cls: cls, click: click };
+}
+function listDays(days, nombreTab){
+  const any = days.some(function(d){ return d.items.length || d.strip.length || d.jefa; });
+  const out = h('div', null, any ? null : nota('Sin agendas cargadas en ' + nombreTab + (S.pf ? ' para esta persona' : '') + '.'));
+  days.forEach(function(d){
+    const its = d.items.slice().sort(function(a, b){ return mins(a.d) - mins(b.d); });
+    const box = h('div', { class: 'cr-ld' + (d.today ? ' today' : '') }, h('div', { class: 'cr-lt' + (d.we ? ' we' : ''), t: d.lab }));
+    if(d.jefa) box.append(h('div', { class: 'cr-li jf' }, h('span', { class: 'tt', t: d.jefa[0] + '–' + d.jefa[1] }), h('b', { t: 'Jefa de residentes' }), h('small', { t: ST.R.jefaNom })));
+    d.strip.forEach(function(sx){
+      box.append(h('div', { class: 'cr-li lic', on: { click: function(){ openPerson(sx.k, null, sx.l.id); } } }, h('b', { t: apP(sx.k) }), h('span', { t: sx.l.tipo })));
+    });
+    its.forEach(function(i){
+      const x = itemInfo(i);
+      box.append(h('div', { class: 'cr-li ' + x.cls, s: { '--h': hue(i.k || i['for']) }, on: { click: x.click } },
+        h('span', { class: 'tt', t: i.d + '–' + i.h }), h('b', { t: x.lab }), x.sub ? h('small', { t: x.sub }) : null));
+    });
+    if(!its.length && !d.strip.length && !d.jefa) box.append(h('div', { class: 'cr-hint', t: '—' }));
+    out.append(box);
+  });
+  return out;
+}
+function timeGrid(days, o){
+  o = o || {};
+  const nombreTab = o.nombreTab || TN[tabAct()];
+  if(esAngosto()) return listDays(days, nombreTab);
+  let t0 = 480, t1 = 1020;
+  days.forEach(function(d){
+    d.items.forEach(function(i, ix){
+      i.uid = ix;
+      const a = mins(i.d), b = mins(i.h) <= a ? 1440 : mins(i.h);
+      t0 = Math.min(t0, Math.floor(a / 60) * 60); t1 = Math.max(t1, Math.ceil(b / 60) * 60);
+    });
+  });
+  const PX = (t1 - t0) > 720 ? 0.75 : 1.1, H = (t1 - t0) * PX;
+  const lanes = o.lanes || (S.pf && ST.M.PM[S.pf] ? [ST.M.PM[S.pf].grp] : [ST.C.grpDeTab(tabAct())]);
+  const laneLab = o.laneLab || { med: 'Inf.', tec: 'Téc.', adm: 'Adm.', res: 'Res.' };
+  const any = days.some(function(d){ return d.items.length || d.strip.length; });
+  const g = h('div', { class: 'cr-grid', s: { '--px': PX, '--n': days.length } }, h('div'));
+  days.forEach(function(d){
+    const np = new Set(d.items.filter(function(i){ return i.kind !== 'rep'; }).map(function(i){ return i.k; })).size;
+    const col = h('div', null,
+      h('div', { class: 'cr-dh' + (d.we ? ' we' : '') + (d.today ? ' today' : '') }, d.lab, h('small', { t: d.sub !== undefined ? d.sub : (np ? np + ' persona' + (np === 1 ? '' : 's') : '—') })));
+    if(d.jefa) col.append(h('div', { class: 'cr-jf', title: 'Jefa de residentes' }, h('b', { t: 'Jefa de residentes' }), ST.R.jefaNom + ' · ' + d.jefa[0] + '–' + d.jefa[1]));
+    if(d.strip.length){
+      col.append(h('div', { class: 'cr-strip' }, d.strip.map(function(s){
+        return h('span', { class: 'cr-sc', title: nmP(s.k) + ' · ' + s.l.tipo, on: { click: function(){ openPerson(s.k, null, s.l.id); } }, t: apP(s.k) + ' · ' + s.l.tipo.slice(0, 4) + '.' });
+      })));
+    }
+    if(lanes.length > 1) col.append(h('div', { class: 'cr-lh' }, lanes.map(function(l){ return h('span', { t: laneLab[l] || l }); })));
+    g.append(col);
+  });
+  const axis = h('div', { class: 'cr-axis', s: { height: H + 'px' } });
+  for(let x = t0; x <= t1; x += 60) axis.append(h('span', { s: { top: ((x - t0) * PX) + 'px' }, t: hhmm(x) }));
+  g.append(axis);
+  days.forEach(function(d){
+    const day = h('div', { class: 'cr-day' + (d.today ? ' today' : ''), s: { height: H + 'px' } });
+    if(d.jefa) day.append(h('div', { class: 'cr-jband', title: 'Jefa de residentes ' + d.jefa[0] + '–' + d.jefa[1], s: { top: ((mins(d.jefa[0]) - t0) * PX) + 'px', height: ((mins(d.jefa[1]) - mins(d.jefa[0])) * PX) + 'px' } }));
+    lanes.forEach(function(l){
+      const li = d.items.filter(function(i){ return laneDe(i) === l; }), Lm = layoutCol(li), lane = h('div', { class: 'cr-lane' });
+      li.forEach(function(i){
+        const gg = Lm[i.uid], w = 100 / gg.n, a = mins(i.d), b = mins(i.h) <= a ? 1440 : mins(i.h), x = itemInfo(i);
+        lane.append(h('div', { class: 'cr-blk ' + x.cls + (i.kind === 'w' && S.hl === (i.f && i.f.id) ? ' sel' : ''), tabindex: '0', role: 'button',
+          s: { top: ((a - t0) * PX) + 'px', height: ((b - a) * PX) + 'px', left: (gg.c * w) + '%', width: 'calc(' + w + '% - 2px)', '--h': hue(i.k || i['for']) },
+          title: x.lab + ' ' + i.d + '–' + i.h, on: { click: x.click, keydown: function(ev){ if(ev.key === 'Enter') x.click(); } } },
+          h('b', { t: x.lab }), h('small', { t: i.d + '–' + i.h }), x.sub ? h('small', { class: 'nm' + (x.sub === 'Sin asignar' ? ' none' : ''), t: x.sub }) : null));
+      });
+      day.append(lane);
+    });
+    g.append(day);
+  });
+  return h('div', null, any ? null : nota('Sin agendas cargadas en ' + nombreTab + (S.pf ? ' para esta persona' : '') + '.'), g);
+}
+function diaItems(t, dia){
+  const C_ = ST.C, hoy = ST.puente.hoy();
+  const items = ST.M.F.filter(function(f){ return f.tab === t && f.dia === dia && (!S.pf || f.key === S.pf) && !(t === 'adm' && C_.licOn(f.key, hoy)); })
+    .map(function(f){ return { kind: 'w', f: f, k: f.key, d: f.d, h: f.h }; });
+  return { items: items, strip: [] };
+}
+function jefaDe(dia, d){
+  if(tabAct() !== 'eco' || (S.pf && S.pf !== 'res') || (d && ST.M.FER[d])) return null;
+  const j = ST.M.cfg.jefa;
+  if(!j || !j.b) return null;
+  return j.b[DIAS[dia]] || null;
+}
+function renderSem(){
+  const t = tabAct(), days = DIAS.slice(0, S.we ? 7 : 5).map(function(nom, dia){
+    return Object.assign({ lab: nom, we: dia >= 5, jefa: jefaDe(dia) }, t === 'eco' ? ecoDia(dia) : diaItems(t, dia));
+  });
+  const o = h('div');
+  if(t === 'adm') o.append(nota('Semana tipo junta todo lo cargado: una persona puede aparecer dos veces si alterna sábados (“Sáb 1” y “Sáb 2”) y las personas de licencia no se muestran. El horario real de cada día está en “Semanas del mes”.'));
+  if(t === 'tec') o.append(nota('Semana tipo = lo que se repite siempre. Las guardias de 12 h (noches y fines de semana) se asignan por fecha cada mes: miralas en “Diagrama del mes”, “Semanas del mes” o “Mes”. Los sábados alternan entre Sábado 1 y Sábado 2.'));
+  o.append(timeGrid(days, t === 'eco' ? ecoOpts() : null));
+  return o;
+}
+function renderSems(){
+  ensureWk();
+  const t = tabAct(), n = S.we ? 7 : 5, days = [], hoy = ST.puente.hoy();
+  for(let i = 0; i < n; i++){
+    const d = addD(S.wk, i), dt = new Date(d + 'T12:00:00'), dd = ST.C.dayData(t, d, S.pf);
+    days.push(Object.assign({ lab: DIAS[i].slice(0, 3) + ' ' + dt.getDate() + '/' + (dt.getMonth() + 1), we: i >= 5 || (!!ST.M.FER[d] && t === 'tec'), today: d === hoy }, ST.M.FER[d] ? { sub: 'Feriado' } : {}, dd));
+  }
+  return timeGrid(days);
+}
+function ensureWk(){
+  const ws = weeksOf(S.y, S.m);
+  if(!S.wk || ws.indexOf(S.wk) < 0){ const tw = mondayOf(ST.puente.hoy()); S.wk = ws.indexOf(tw) >= 0 ? tw : ws[0]; }
+}
+function listaPers(t){
+  if(t === 'eco') return ecoPersonas();
+  return ST.C.people(t === 'lic' ? 'tec' : t);
+}
+function renderCuadro(){
+  const t = tabAct(), days = DIAS.slice(0, S.we ? 7 : 5), ps = listaPers(t).filter(function(p){ return !S.pf || p.key === S.pf; });
+  const own = function(p){ return ST.M.F.filter(function(f){ return f.key === p.key && f.tab === t; }); };
+  if(esAngosto()){
+    return h('div', null, ps.map(function(p){
+      const o = own(p);
+      return h('div', { class: 'cr-ld' },
+        h('div', { class: 'cr-lt', s: { cursor: 'pointer' }, on: { click: function(){ openPerson(p.key); } } }, ST.C.nm(p), h('small', { t: o.length ? dhx(hrsDe(o.filter(function(f){ return f.dia < days.length; }))) + ' / sem' : 'sin agenda' })),
+        days.map(function(nom, di){
+          const fs = o.filter(function(f){ return f.dia === di; }).sort(function(a, b){ return mins(a.d) - mins(b.d); });
+          return fs.length ? h('div', { class: 'cr-li', s: { '--h': hue(p.key) }, on: { click: function(){ openPerson(p.key, fs[0].id); } } }, h('span', { class: 'tt', t: nom.slice(0, 3) }),
+            h('b', { t: fs.map(function(f){ return f.d + '–' + f.h + (f.sec ? ' ' + (SEC[f.sec] || f.sec) : '') + (f.guardia ? ' guardia' : '') + (f.pend ? ' (a confirmar)' : ''); }).join(' · ') })) : null;
+        }));
+    }));
+  }
+  const tb = h('table', { class: 'cr-tbl' }, h('tr', null, h('th', { t: 'Persona' }), days.map(function(d){ return h('th', { t: d.slice(0, 3) }); }), h('th', { t: 'Horas/sem' })));
+  ps.forEach(function(p){
+    const o = own(p), tr = h('tr', null, h('td', { class: 'p', s: { cursor: 'pointer' }, on: { click: function(){ openPerson(p.key); } } },
+      h('i', { class: 'cr-sq', s: { background: 'hsl(' + hue(p.key) + ' 75% 62%)' } }), ST.C.nm(p)));
+    days.forEach(function(d, di){
+      const fs = o.filter(function(f){ return f.dia === di; }).sort(function(a, b){ return mins(a.d) - mins(b.d); });
+      tr.append(h('td', { class: 'c', on: { click: function(){ openPerson(p.key, fs[0] ? fs[0].id : null); } } },
+        fs.length ? fs.map(function(f){
+          return h('span', { class: 'cr-tm' }, f.d + '–' + f.h, f.sec ? [' ', h('small', { t: SEC[f.sec] || f.sec })] : null, f.sem ? [' ', h('small', { t: 'Sáb ' + f.sem })] : null,
+            f.turno && TURN[f.turno] ? [' ', h('small', { t: TURN[f.turno][2] })] : null, f.guardia ? [' ', h('small', { t: 'guardia' })] : null, f.pend ? [' ', pendMarca()] : null);
+        }) : h('span', { class: 'cr-hint', t: '—' })));
+    });
+    tr.append(h('td', null, o.length ? dhx(hrsDe(o.filter(function(f){ return f.dia < days.length; }))) : h('span', { class: 'cr-pill z', t: 'sin agenda' })));
+    tb.append(tr);
+  });
+  return h('div', { class: 'cr-scrollx' }, tb);
+}
+function chipsFor(d){
+  const t = tabAct(), dd = ST.C.dayData(t, d, S.pf), seen = new Set(), out = [];
+  dd.items.forEach(function(it){
+    const key = it.kind + '|' + (it.k || (it.r && it.r.nombre)) + '|' + (it['for'] || '');
+    if(it.kind === 'lic'){
+      if(seen.has(key)) return;
+      seen.add(key);
+      out.push(h('div', { class: 'cr-chp lic', s: { '--h': hue(it.k) }, on: { click: function(){ openPerson(it.k, null, it.l.id); } } }, h('b', { t: apP(it.k) }), h('small', { t: it.l.tipo })));
+    } else if(it.kind === 'rep'){
+      out.push(h('div', { class: 'cr-chp rep', s: { '--h': hue(it.k || it['for']) }, on: { click: function(){ if(it.k) openPerson(it.k); else openPerson(it['for'], null, it.l.id); } } },
+        h('b', { t: ST.C.rshort(it.r) }), h('small', { t: 'reemp. a ' + apP(it['for']) + ' · ' + it.d + '–' + it.h + (ST.C.repEst(it.r) !== 'ok' ? ' · a confirmar' : '') })));
+    } else {
+      const f = it.f;
+      out.push(h('div', { class: 'cr-chp w', s: { '--h': hue(it.k) }, on: { click: function(){ openPerson(it.k, f.id); } } }, h('b', { t: apP(it.k) }),
+        h('small', { t: it.d + '–' + it.h + (f.g ? ' · ' + TURN[f.t][2] : ((f.sec ? ' · ' + (SEC[f.sec] || f.sec) : '') + (f.turno && TURN[f.turno] ? ' · ' + TURN[f.turno][2] : ''))) + (f.pend ? ' · a confirmar' : '') })));
+    }
+  });
+  dd.strip.forEach(function(sx){
+    out.push(h('div', { class: 'cr-chp lic', s: { '--h': hue(sx.k) }, on: { click: function(){ openPerson(sx.k, null, sx.l.id); } } }, h('b', { t: apP(sx.k) }), h('small', { t: sx.l.tipo })));
+  });
+  const jf = jefaDe(wdOf(d), d);
+  if(jf) out.push(h('div', { class: 'cr-chp jfc' }, h('b', { t: 'Jefa de residentes' }), h('small', { t: ST.R.jefaNom + ' · ' + jf[0] + '–' + jf[1] })));
+  return out;
+}
+function renderMes(){
+  const t = tabAct(), first = new Date(S.y, S.m, 1), off = (first.getDay() + 6) % 7, dim = dimOf(S.y, S.m), n = Math.ceil((off + dim) / 7) * 7, hoy = ST.puente.hoy();
+  const any = ST.M.F.some(function(f){ return f.tab === t; }) || ST.M.L.length;
+  const o = h('div', null, any ? null : nota('Sin agendas ni licencias cargadas en ' + TN[t] + '.'));
+  if(esAngosto()){
+    let c = 0;
+    for(let dn = 1; dn <= dim; dn++){
+      const d = iso(S.y, S.m, dn), ch = chipsFor(d);
+      if(!ch.length) continue;
+      c++;
+      o.append(h('div', { class: 'cr-ld' + (d === hoy ? ' today' : '') }, h('div', { class: 'cr-lt' + (wdOf(d) >= 5 ? ' we' : ''), t: DIAS[wdOf(d)].slice(0, 3) + ' ' + dn }), ch));
+    }
+    if(!c && any) o.append(nota('Sin movimientos este mes.'));
+    return o;
+  }
+  const mes = h('div', { class: 'cr-mes' }, DIAS.map(function(d){ return h('div', { class: 'cr-mh', t: d.slice(0, 3) }); }));
+  for(let i = 0; i < n; i++){
+    const dn = i - off + 1, dt = new Date(S.y, S.m, dn), d = iso(dt.getFullYear(), dt.getMonth(), dt.getDate()), inM = dn >= 1 && dn <= dim;
+    mes.append(h('div', { class: 'cr-cell' + (inM ? '' : ' out') + (d === hoy ? ' today' : '') + (i % 7 >= 5 ? ' we' : '') },
+      h('div', { class: 'n', t: dt.getDate() }), inM && ST.M.FER[d] ? h('em', { class: 'cr-fer', t: 'Feriado' }) : null, inM ? chipsFor(d) : null));
+  }
+  o.append(mes);
+  return o;
+}
+function renderAnio(){
+  const y = S.y, tot = diffD(y + '-01-01', (y + 1) + '-01-01'), t = tabAct(), hoy = ST.puente.hoy();
+  const ps = (S.sub === 'licencias' ? ST.C.people('tec').concat(ST.C.people('adm')) : ST.C.people(t)).filter(function(p){ return !S.pf || p.key === S.pf; });
+  const pc = function(d){ return (d / tot * 100) + '%'; }, Y0 = y + '-01-01', Y1 = y + '-12-31';
+  const doy = function(mo, d){ return diffD(y + '-01-01', iso(y, mo, d)); };
+  const gt = h('div', { class: 'cr-gt' }, h('div', { class: 'cr-gm' }, MESES.map(function(mm, i){ return h('span', { s: { left: pc(doy(i, 1)) }, t: mm.slice(0, 3) }); })));
+  let any = false;
+  ps.forEach(function(p){
+    const ls = ST.M.L.filter(function(l){ return l.key === p.key && ST.C.lend(l) >= Y0 && l.desde <= Y1; });
+    const dias = ls.reduce(function(s, l){ return s + diffD(l.desde < Y0 ? Y0 : l.desde, ST.C.lend(l) > Y1 ? Y1 : ST.C.lend(l)) + 1; }, 0);
+    if(ls.length) any = true;
+    const gc = h('div', { class: 'cr-gc' }, MESES.map(function(_, i){ return h('i', { s: { left: pc(doy(i, 1)) } }); }));
+    if(y === +hoy.slice(0, 4)) gc.append(h('i', { class: 'td', s: { left: pc(diffD(Y0, hoy)) } }));
+    ls.forEach(function(l){
+      const a = l.desde < Y0 ? Y0 : l.desde, b = ST.C.lend(l) > Y1 ? Y1 : ST.C.lend(l), w = diffD(a, b) + 1;
+      gc.append(h('div', { class: 'cr-bar', s: { left: pc(diffD(Y0, a)), width: pc(w), '--h': thLic(l.tipo) }, tabindex: '0',
+        title: l.tipo + ' ' + fmtF(l.desde) + '–' + (l.hasta ? fmtF(l.hasta) : 'sin fecha de regreso') + (l.pend ? ' (a confirmar)' : '') + (l.reemps.length ? ' · reemplaza: ' + l.reemps.map(ST.C.rname).join(', ') : ''),
+        on: { click: function(){ openPerson(p.key, null, l.id); } }, t: l.tipo + (l.hasta ? '' : ' →') + (l.pend ? ' *' : '') }));
+    });
+    gt.append(h('div', { class: 'cr-gr' }, h('div', { class: 'cr-gl', on: { click: function(){ openPerson(p.key); } } }, ST.C.nm(p), h('small', { t: dias ? dias + ' días de licencia' : 'sin licencias' })), gc));
+  });
+  const o = h('div', null, any ? null : nota('Sin licencias cargadas en ' + y + ' para este servicio.'), gt);
+  if(S.pf){
+    const mms = h('div', { class: 'cr-mms' });
+    MESES.forEach(function(mm, i){
+      const off = (new Date(y, i, 1).getDay() + 6) % 7, dim = dimOf(y, i), d7 = h('div', { class: 'd' });
+      for(let q = 0; q < off; q++) d7.append(h('span'));
+      for(let d = 1; d <= dim; d++){
+        const ds = iso(y, i, d), l = ST.C.licOn(S.pf, ds), w = ST.M.F.some(function(f){ return f.key === S.pf && f.dia === wdOf(ds); });
+        d7.append(h('span', { class: (l ? 'l' : w ? 'k' : '') + (ds === hoy ? ' t' : ''), s: l ? { '--h': thLic(l.tipo) } : null, title: l ? l.tipo : null, t: d }));
+      }
+      mms.append(h('div', { class: 'cr-mm' }, h('b', { t: mm }), d7));
+    });
+    o.append(mms);
+  }
+  return o;
+}
+
+/* == diagrama mensual (técnicos) == */
+function cellInfo(p, d, Cc){
+  const C_ = ST.C, PM = ST.M.PM, key = p.ext ? '_ext:' + p.ext : p.key, its = (Cc[d] && Cc[d][key]) || [];
+  const turnoP = !p.ext && ST.M.F.some(function(f){ return f.tab === 'tec' && f.key === p.key && f.turno; });
+  const lic0 = its.find(function(i){ return i.kind === 'lic'; }), rs0 = its.filter(function(i){ return i.kind === 'rep'; });
+  const cam = lic0 && lic0.l.tipo === 'Cambio de turno', lic = cam ? null : lic0;
+  if(cam && !rs0.length && lic0.f){
+    const x = letterOf(lic0.d, lic0.h);
+    return { t: x, c: x, ti: C_.nm(p) + ' · cambio de turno' + (lic0.l.pend ? ' (a confirmar)' : ''), l: lic0.l, h: (mins(lic0.h) - mins(lic0.d) + 1440) % 1440 / 60 };
+  }
+  if(lic){
+    const x = lic.f && lic.f.g ? letterOf(lic.d, lic.h) : '';
+    return { t: 'L', c: 'L', ti: C_.nm(p) + ' · ' + lic.l.tipo + (x ? ' · ' + DL[x] : '') + (lic.l.pend ? ' (a confirmar)' : '') +
+      (lic.l.reemps.length ? ' · reemplaza: ' + lic.l.reemps.map(C_.rname).join(', ') : ' · sin reemplazo definido'), l: lic.l };
+  }
+  const ws = cam ? [] : its.filter(function(i){ return i.kind === 'w'; }), rs = its.filter(function(i){ return i.kind === 'rep'; });
+  if(ws.length || rs.length){
+    const ls = ws.concat(rs).map(function(i){ return letterOf(i.d, i.h); });
+    const est = rs.some(function(i){ return C_.repEst(i.r) === 'no'; }) ? 'no' : rs.some(function(i){ return C_.repEst(i.r) === 'pe'; }) ? 'pe' : 'ok';
+    const ti = ws.map(function(i){ return DL[letterOf(i.d, i.h)] + ' ' + i.d + '–' + i.h + (i.f && i.f.xt ? ' (turno extra)' : '') + (i.f && i.f.pend ? ' (a confirmar)' : ''); })
+      .concat(rs.map(function(i){ return 'Reemplaza a ' + PM[i['for']].ap + ' · ' + DL[letterOf(i.d, i.h)] + ' ' + i.d + '–' + i.h + ' (' + ESTTXT[C_.repEst(i.r)] + ')'; })).join(' | ');
+    const uniq = ls.filter(function(x, i){ return ls.indexOf(x) === i; });
+    return { t: uniq.join(''), c: ls[0] + (ws.length ? '' : ' r ' + est), ti: C_.nm(p) + ' · ' + fmtF(d) + ' · ' + ti, rep: !ws.length,
+      h: ws.concat(rs).reduce(function(s, i){ return s + ((mins(i.h) - mins(i.d) + 1440) % 1440) / 60; }, 0) };
+  }
+  if(turnoP) return { t: 'F', c: 'F', ti: (ST.M.FER[d] ? 'Feriado: ' + ST.M.FER[d] + ' · ' : '') + 'Franco' };
+  return { t: '', c: '', ti: '' };
+}
+const ESTTXT = { ok: 'confirmado', pe: 'por confirmar', no: 'no puede' };
+function diagGroups(Cc){
+  const C_ = ST.C, ps = C_.people('tec').filter(function(p){ return !S.pf || p.key === S.pf; }), ds = monthDays(S.y, S.m);
+  const has = function(p){ return ds.some(function(d){ return ((Cc[d][p.key]) || []).length; }); };
+  const tn = function(p){ const f = ST.M.F.find(function(x){ return x.tab === 'tec' && x.key === p.key && x.turno; }); return f ? f.turno : null; };
+  const g = { M: [], T: [], G: [], O: [], X: [] };
+  ps.forEach(function(p){
+    if(C_.esGuard(p.key)) g.G.push(p);
+    else if(tn(p) === 'M') g.M.push(p);
+    else if(tn(p) === 'T') g.T.push(p);
+    else if(has(p)) g.O.push(p);
+  });
+  const ex = new Set();
+  ds.forEach(function(d){ Object.keys(Cc[d]).filter(function(k){ return k.indexOf('_ext:') === 0; }).forEach(function(k){ ex.add(k.slice(5)); }); });
+  g.X = Array.from(ex).map(function(n){ return { ext: n, ap: n, nom: '', key: null }; });
+  g.sin = ps.filter(function(p){ return g.M.indexOf(p) < 0 && g.T.indexOf(p) < 0 && g.G.indexOf(p) < 0 && g.O.indexOf(p) < 0; });
+  return g;
+}
+function diagHelp(){
+  const cc = function(c, t){ return h('b', { class: 'cr-cc lg ' + c, t: t }); };
+  return h('div', null,
+    h('div', { class: 'cr-lgd' },
+      h('span', null, cc('M', 'M'), 'Mañana 07–13'), h('span', null, cc('T', 'T'), 'Tarde 13–19'), h('span', null, cc('N', 'N'), 'Noche 19–07'), h('span', null, cc('D', 'D'), 'Guardia de día 07–19'),
+      h('span', null, cc('F', 'F'), 'Franco'), h('span', null, cc('L', 'L'), 'Licencia'), h('span', null, cc('M r ok', 'M'), 'Reemplazo confirmado'),
+      h('span', null, cc('M r pe', 'M'), 'Reemplazo por confirmar'), h('span', null, cc('M r no', 'M'), 'Dijo que no puede')),
+    h('details', { class: 'cr-how' }, h('summary', { t: 'Cómo se lee y reglas del servicio' }),
+      h('p', null, h('b', { t: 'Planta (mañana o tarde): ' }), 'lunes a viernes; cada técnico conserva su horario real y la letra M/T es solo el turno. Los sábados alternan entre ', h('b', { t: 'Sábado 1' }), ' y ', h('b', { t: 'Sábado 2' }),
+        ' a partir de una fecha ancla configurada (sat0).'),
+      h('p', null, h('b', { t: 'Guardias de 12 h: ' }), 'se cargan por fecha cada mes (noche 19–07, día 07–19). Domingos y feriados llevan guardia de día más noche.'),
+      h('p', null, h('b', { t: 'Feriados: ' }), 'la columna se marca en rojo y el personal de planta tiene franco.'),
+      h('p', null, h('b', { t: 'Reemplazos: ' }), 'aparecen en la fila de quien cubre, con borde punteado según el estado. Todo reemplazo sin confirmar figura como “a confirmar”. ',
+        h('b', { t: 'Cambio de turno: ' }), 'quien pasa a cubrir otro turno figura con la letra del turno que cubre.'),
+      h('p', null, h('b', { t: 'Licencias: ' }), 'la celda pasa a L. Abajo se listan las licencias del mes con quién reemplaza.'),
+      h('p', { t: 'Tocá cualquier celda para ver el detalle' + (puedeEditar() ? ' y registrar cambios de último momento.' : '.') })));
+}
+function diagNotes(){
+  const ds = monthDays(S.y, S.m), a = ds[0], b = ds[ds.length - 1], PM = ST.M.PM, C_ = ST.C;
+  const ls = ST.M.L.filter(function(l){ return PM[l.key] && PM[l.key].grp === 'tec' && l.desde <= b && C_.lend(l) >= a && (!S.pf || l.key === S.pf); }).sort(function(x, y){ return x.desde.localeCompare(y.desde); });
+  if(!ls.length) return h('div', { class: 'cr-hint', s: { 'margin-top': '12px' }, t: 'Sin licencias de técnicos en este mes.' });
+  return h('div', null, h('div', { class: 'cr-gh2', t: 'Licencias del mes y quién cubre' }), ls.map(function(l){
+    const p = PM[l.key], rp = l.reemps;
+    return h('div', { class: 'cr-dl', on: { click: function(){ openPerson(l.key, null, l.id); } } },
+      h('b', { t: C_.nm(p) }), ' · ' + l.tipo + ' · ' + fmtF(l.desde) + (l.hasta ? ' al ' + fmtF(l.hasta) : ' · sin fecha de regreso'),
+      l.pend ? [' ', pendMarca()] : null, l.obs ? h('small', { class: 'cr-mut', t: ' · ' + l.obs }) : null,
+      rp.length ? rp.map(function(r){
+        return h('div', { class: 'rr' }, 'Reemplaza: ', h('b', { t: C_.rname(r) }), ' · ' + r.d + '–' + r.h + (r.fechas.length ? ' · solo ' + r.fechas.map(fmtC).join(', ') : '') + (r.desde ? ' · desde ' + fmtF(r.desde) : ''),
+          C_.repEst(r) !== 'ok' ? [' ', pendMarca(ESTTXT[C_.repEst(r)])] : null, r.nota ? h('small', { t: ' (' + r.nota + ')' }) : null);
+      }) : h('div', { class: 'rr no', t: 'Sin reemplazo definido.' }));
+  }));
+}
+function renderDiag(){
+  const days = monthDays(S.y, S.m), Cc = ST.C.diagCells(S.y, S.m), Gp = diagGroups(Cc), WL = ['L', 'M', 'Mi', 'J', 'V', 'S', 'D'], C_ = ST.C, hoy = ST.puente.hoy();
+  const sections = [['Turno mañana', Gp.M], ['Turno tarde', Gp.T], ['Guardias de 12 h', Gp.G], ['Suplentes y otros que cubren este mes', Gp.O], ['Reemplazantes externos', Gp.X]].filter(function(x){ return x[1].length; });
+  const out = h('div', null, diagHelp());
+  if(!sections.length) out.append(nota('Sin turnos cargados este mes en Técnicos.'));
+  const stat = function(p){
+    let hs = 0, fr = 0;
+    days.forEach(function(d){ const x = cellInfo(p, d, Cc); if(x.h) hs += x.h; if(x.c === 'F' && !ST.M.FER[d] && wdOf(d) !== 6) fr++; });
+    return { hs: Math.round(hs), fr: fr };
+  };
+  const celda = function(p, d, x, extra){
+    return h('span', { class: 'cr-cc ' + (extra || '') + (x.c || 'e'), title: x.ti || 'Tocá para ver', tabindex: p.key ? '0' : null, role: p.key ? 'button' : null,
+      on: p.key ? { click: function(ev){ cellPop(ev, p.key, d); }, keydown: function(ev){ if(ev.key === 'Enter') cellPop(ev, p.key, d); } } : null }, extra ? [h('i', { t: +d.slice(8) }), x.t] : (x.t || ' '));
+  };
+  const angosto = (ST.R.ancho || 0) < 860;
+  if(angosto){
+    const off = (new Date(S.y, S.m, 1).getDay() + 6) % 7;
+    sections.forEach(function(sec){
+      out.append(h('div', { class: 'cr-gh2', t: sec[0] }));
+      sec[1].forEach(function(p){
+        const st = stat(p), dgd = h('div', { class: 'cr-dgd' }, WL.map(function(x){ return h('b', { class: 'wh', t: x }); }));
+        for(let q = 0; q < off; q++) dgd.append(h('span'));
+        days.forEach(function(d){
+          const x = cellInfo(p, d, Cc);
+          dgd.append(h('span', { class: 'cr-cc dc ' + (x.c || 'e') + (ST.M.FER[d] ? ' fer' : ''), title: x.ti || 'Tocá para ver', tabindex: p.key ? '0' : null,
+            on: p.key ? { click: function(ev){ cellPop(ev, p.key, d); } } : null }, h('i', { t: +d.slice(8) }), x.t));
+        });
+        out.append(h('div', { class: 'cr-dgm' }, h('div', { class: 'cr-dgn', on: p.key ? { click: function(){ openPerson(p.key); } } : null }, ST.C.nm(p) + (p.ext ? ' (externo)' : ''), h('small', { t: st.hs + ' h en el mes' })), dgd));
+      });
+    });
+  } else {
+    const tb = h('table', { class: 'cr-dg' }, h('colgroup', null, h('col', { s: { width: '128px' } }), days.map(function(){ return h('col'); }), h('col', { s: { width: '34px' } })),
+      h('thead', null, h('tr', null, h('th', { class: 'nm', s: { cursor: 'default' }, t: MESES[S.m] + ' ' + S.y }),
+        days.map(function(d){ const w = wdOf(d); return h('th', { class: (ST.M.FER[d] ? 'fer ' : '') + (w >= 5 ? 'we' : ''), title: ST.M.FER[d] ? 'Feriado: ' + ST.M.FER[d] : null }, WL[w], h('small', { t: +d.slice(8) })); }),
+        h('th', { class: 'st', t: 'Hs' }))));
+    const body = h('tbody');
+    sections.forEach(function(sec){
+      body.append(h('tr', { class: 'gh' }, h('td', { colspan: days.length + 2, t: sec[0] })));
+      sec[1].forEach(function(p){
+        const st = stat(p);
+        body.append(h('tr', null, h('td', { class: 'nm', title: C_.nm(p), on: p.key ? { click: function(){ openPerson(p.key); } } : null }, p.ext ? p.ap + ' (ext.)' : p.ap + ' ' + (p.nom || '')[0] + '.'),
+          days.map(function(d){ const x = cellInfo(p, d, Cc), w = wdOf(d); return h('td', { class: (ST.M.FER[d] ? 'fer ' : '') + (w >= 5 ? 'we' : '') }, p.key ? celda(p, d, x) : (x.t ? h('span', { class: 'cr-cc ' + x.c, title: x.ti, t: x.t }) : null)); }),
+          h('td', { class: 'st', t: st.hs || '' })));
+      });
+    });
+    tb.append(body);
+    out.append(h('div', { class: 'cr-scrollx' }, tb));
+  }
+  if(Gp.sin.length) out.append(h('div', { class: 'cr-hint', s: { 'margin-top': '10px' } }, 'Sin turnos este mes: ', Gp.sin.map(function(p, i){
+    return [i ? ', ' : '', h('a', { href: '#', class: 'cr-lk', on: { click: function(ev){ ev.preventDefault(); openPerson(p.key); } }, t: C_.nm(p) })];
+  }), '.'));
+  out.append(diagNotes());
+  return out;
+}
+
+/* == pago y horas == */
+function listaPago(A_){
+  const t = ST.R.tarifas;
+  if(t && Array.isArray(t.personas)) return t.personas.map(function(id){ return A_.find(function(o){ return o.p.key === id; }); }).filter(Boolean);
+  return A_.filter(function(o){ return o.cat.rep[0] + o.cat.rep[1] > 0; });
+}
+function pagoVisible(){ return !!ST.R.tarifas && puedeEditar(); }
+function pagoPanel(){
+  const A_ = ST.C.horasData(S.y, S.m, null), rows = listaPago(A_).map(function(o){
+    const z = horasPago(o, S.solo), tf = ST.R.tarifas;
+    return { o: o, D: z[0], N: z[1], pd: z[0] * tf.diurna, pn: z[1] * tf.nocturna, t: z[0] * tf.diurna + z[1] * tf.nocturna };
+  });
+  const box = h('div', { class: 'cr-pay', id: 'cr-pay' });
+  const tf = ST.R.tarifas;
+  const num = function(v, k){
+    return entrada('number', v, function(val){ tf[k] = Math.max(0, +val || 0); guardarTarifas(); pintar(); }, { min: '0', disabled: !esAdmin(), 'aria-label': 'Tarifa ' + (k === 'diurna' ? 'diurna' : 'nocturna') });
+  };
+  box.append(h('div', { class: 'ph' }, h('b', { t: 'Horas y valor por técnico · ' + MESES[S.m] + ' ' + S.y }),
+    h('label', { class: 'cr-hint' }, 'Diurna $ ', num(tf.diurna, 'diurna'), ' 07–20 h'),
+    h('label', { class: 'cr-hint' }, 'Nocturna $ ', num(tf.nocturna, 'nocturna'), ' 20–07 h'),
+    h('label', { class: 'cr-hint cr-chk1' }, h('input', { type: 'checkbox', checked: S.solo, on: { change: function(ev){ S.solo = ev.target.checked; pintar(); } } }), 'Sin horas propias de planta (solo reemplazos, guardias y extras)')));
+  if(!esAdmin()) box.append(h('div', { class: 'cr-hint', t: 'Las tarifas solo las modifica un administrador.' }));
+  if(!tf.diurna && !tf.nocturna) box.append(nota('Tarifas sin cargar (a confirmar): los importes figuran en $ 0 hasta que un administrador las cargue.'));
+  if(!rows.length){ box.append(nota('Sin técnicos para liquidar este mes.')); }
+  else {
+    const avg = rows.reduce(function(a, r){ return a + r.t; }, 0) / rows.length, mx = Math.max(1, Math.max.apply(null, rows.map(function(r){ return r.t; })));
+    const dif = function(r){
+      const x = r.t - avg, p = avg ? x / avg * 100 : 0;
+      return h('span', { class: x > 0.5 ? 'pos' : 'neg', t: (x >= 0 ? '+' : '−') + fmtM(Math.abs(x)) + ' (' + (x >= 0 ? '+' : '−') + Math.abs(p).toLocaleString('es-AR', { maximumFractionDigits: 0 }) + '%)' });
+    };
+    const avgOf = function(f){ return rows.reduce(function(a, r){ return a + f(r); }, 0) / rows.length; };
+    if(esAngosto()){
+      box.append(h('div', { class: 'cr-pcs' }, rows.map(function(r){
+        return h('div', { class: 'cr-pc', 'data-pago': r.o.p.key }, h('div', { class: 'r1' }, h('b', { t: ST.C.nm(r.o.p) }), h('b', { t: fmtM(r.t) })),
+          h('small', { t: fmtH(r.D) + ' diurnas · ' + fmtH(r.N) + ' nocturnas · ' + fmtH(r.D + r.N) }), h('small', { t: fmtM(r.pd) + ' + ' + fmtM(r.pn) }),
+          r.o.pend ? h('small', { class: 'cr-apend', t: 'Incluye ' + fmtH(r.o.pend) + ' a confirmar' }) : null,
+          h('small', null, dif(r), ' vs. promedio'), h('div', { class: 'cr-bar2', s: { width: (r.t / mx * 100) + '%' } }));
+      }), h('div', { class: 'cr-pc' }, h('div', { class: 'r1' }, h('b', { t: 'Promedio' }), h('b', { t: fmtM(avg) })))));
+    } else {
+      const tb = h('table', { class: 'cr-pt' }, h('tr', null, ['Técnico', 'Hs diurnas', 'Hs nocturnas', 'Total hs', '$ diurnas', '$ nocturnas', 'Total $', 'Vs. promedio', 'A confirmar'].map(function(x){ return h('th', { t: x }); }), h('th', { s: { width: '12%' } })));
+      rows.forEach(function(r){
+        tb.append(h('tr', { 'data-pago': r.o.p.key }, h('td', { t: ST.C.nm(r.o.p) }), h('td', { t: fmtH(r.D) }), h('td', { t: fmtH(r.N) }), h('td', { t: fmtH(r.D + r.N) }), h('td', { t: fmtM(r.pd) }), h('td', { t: fmtM(r.pn) }),
+          h('td', null, h('b', { t: fmtM(r.t) })), h('td', null, dif(r)), h('td', { t: r.o.pend ? fmtH(r.o.pend) : '—' }), h('td', null, h('div', { class: 'cr-bar2', s: { width: (r.t / mx * 100) + '%' } }))));
+      });
+      tb.append(h('tr', { class: 'tot' }, h('td', { t: 'Promedio' }), h('td', { t: fmtH(avgOf(function(r){ return r.D; })) }), h('td', { t: fmtH(avgOf(function(r){ return r.N; })) }), h('td', { t: fmtH(avgOf(function(r){ return r.D + r.N; })) }),
+        h('td', { t: fmtM(avgOf(function(r){ return r.pd; })) }), h('td', { t: fmtM(avgOf(function(r){ return r.pn; })) }), h('td', { t: fmtM(avg) }), h('td'), h('td'), h('td')));
+      box.append(h('div', { class: 'cr-scrollx' }, tb));
+    }
+  }
+  box.append(h('div', { class: 'cr-hint', s: { 'margin-top': '6px' }, t: 'Una guardia de 19 a 07 se divide sola: 19–20 diurna, 20–07 nocturna. Las licencias no suman horas. “A confirmar” = horas de reemplazos sin confirmar o de licencias a confirmar: el importe las incluye pero no es definitivo.' }));
+  if(esAdmin()){
+    const sel = new Set(rows.map(function(r){ return r.o.p.key; }));
+    box.append(h('details', { class: 'cr-how' }, h('summary', { t: 'Quiénes figuran en este panel' }),
+      h('p', { class: 'cr-hint', t: ST.R.tarifas.personas ? 'Lista guardada por un administrador.' : 'Sin lista guardada: se muestran los técnicos que cubrieron reemplazos este mes.' }),
+      h('div', { class: 'cr-chk' }, ST.C.people('tec').map(function(p){
+        return h('label', null, h('input', { type: 'checkbox', checked: sel.has(p.key), on: { change: function(ev){
+          const cur = new Set(listaPago(A_).map(function(o){ return o.p.key; }));
+          if(ev.target.checked) cur.add(p.key); else cur.delete(p.key);
+          tf.personas = ST.C.people('tec').map(function(q){ return q.key; }).filter(function(k){ return cur.has(k); });
+          guardarTarifas(); pintar();
+        } } }), h('span', { t: ST.C.nm(p) }));
+      }))));
+  }
+  return box;
+}
+function guardarTarifas(){
+  const tf = ST.R.tarifas, valor = { diurna: tf.diurna, nocturna: tf.nocturna };
+  if(Array.isArray(tf.personas)) valor.personas = tf.personas.slice();
+  encolar(async function(){
+    const v = ST.M.cfg.ver.tarifas;
+    const r = await ST.puente.rpc('img_cron_guardar', { p_entidad: 'config', p_dato: { clave: 'tarifas', valor: valor }, p_version: v === undefined ? null : v });
+    ST.M.cfg.ver.tarifas = r.version;
+  });
+}
+function renderPago(){
+  const o = h('div');
+  if(!pagoVisible()){ o.append(nota('Esta vista requiere permiso de edición.')); return o; }
+  o.append(pagoPanel());
+  const sel = listaPago(ST.C.horasData(S.y, S.m, null));
+  ST.R.mxHoras = Math.max(1, Math.max.apply(null, sel.map(function(o){ return o.tot; })));
+  if(sel.length) o.append(h('div', { class: 'cr-hsec', t: 'Detalle de horas' }), h('div', { class: 'cr-hg' }, sel.map(function(x){ return cardHoras(x, true); })));
+  return o;
+}
+function cardHoras(o, big){
+  const seg = [['own', 190, 'Propias'], ['rep', 90, 'Cubriendo a otros'], ['gua', 255, 'Guardias 12 h'], ['ext', 35, 'Turnos extra']];
+  const mx = Math.max(1, ST.R.mxHoras || 1), wk = o.wkDias;
+  const pago = pagoVisible() && listaPago([o]).length ? horasPago(o, S.solo) : null;
+  return h('div', { class: 'cr-hc' + (big ? ' big' : ''), 'data-horas': o.p.key },
+    h('div', { class: 'hh' }, h('b', { s: { cursor: 'pointer' }, on: { click: function(){ openPerson(o.p.key); } }, t: ST.C.nm(o.p) }), h('span', { class: 'tot', t: fmtH(o.tot) })),
+    h('div', { class: 'bar', title: fmtH(o.tot) + ' en el mes' }, seg.map(function(s){ return o[s[0]] ? h('i', { s: { width: (o[s[0]] / mx * 100) + '%', background: 'hsl(' + s[1] + ' 70% 55%)' } }) : null; })),
+    h('div', { class: 'hl' }, h('span', { class: 'nw' }, '☀ Diurnas ', h('b', { t: fmtH(o.D) })), h('span', { class: 'nw' }, '☾ Nocturnas ', h('b', { t: fmtH(o.N) })),
+      pago ? h('span', { class: 'nw' }, h('b', { t: fmtM(pago[0] * ST.R.tarifas.diurna + pago[1] * ST.R.tarifas.nocturna) })) : null,
+      o.pend ? h('span', { class: 'nw cr-apend', t: fmtH(o.pend) + ' a confirmar' }) : null),
+    h('div', { class: 'hl' }, seg.map(function(s){ return h('span', { class: 'nw' }, h('i', { class: 'dot', s: { background: 'hsl(' + s[1] + ' 70% 55%)' } }), s[2] + ' ', h('b', { t: fmtH(o[s[0]]) })); }),
+      o.lic ? h('span', { class: 'nw cr-w', t: 'Licencia ' + o.lic + ' día' + (o.lic === 1 ? '' : 's') }) : null),
+    h('div', { class: 'wks' }, wk.map(function(w, i){
+      const mas = o.wk[i] > 48;
+      return h('span', { class: mas ? 'mas48' : '', title: mas ? 'Más de 48 h en la semana (referencia: tope legal de jornada)' : 'Semana del ' + (+w[0].slice(8)) + ' al ' + (+w[w.length - 1].slice(8)) },
+        (+w[0].slice(8)) + '–' + (+w[w.length - 1].slice(8)) + ' ', h('b', { t: fmtH(o.wk[i]) + (mas ? ' ⚠' : '') }));
+    })),
+    h('details', null, h('summary', { t: 'Ver día por día (' + o.det.length + ')' }), o.det.length ? o.det.map(function(z){ return h('div', { t: z }); }) : h('div', { t: 'Sin turnos este mes.' })));
+}
+function renderHoras(){
+  if(tabAct() === 'adm') return renderHorasAdm();
+  const all = ST.C.horasData(S.y, S.m, S.pf);
+  ST.R.mxHoras = Math.max(1, Math.max.apply(null, all.map(function(o){ return o.tot; })));
+  const pk = new Set(listaPago(all).map(function(o){ return o.p.key; }));
+  const rest = all.filter(function(o){ return !pk.has(o.p.key) && (o.tot > 0 || o.lic > 0); }), vac = all.filter(function(o){ return !pk.has(o.p.key) && !(o.tot > 0 || o.lic > 0); });
+  const hk = all.filter(function(o){ return pk.has(o.p.key); });
+  const pl = rest.filter(function(o){ return !ST.C.esGuard(o.p.key); }), gu = rest.filter(function(o){ return ST.C.esGuard(o.p.key); });
+  const out = h('div', null, h('div', { class: 'cr-hint', s: { 'margin-bottom': '6px' } }, 'Horas de ', h('b', { t: MESES[S.m] + ' ' + S.y }),
+    ' según lo que figura en el diagrama: turnos propios, reemplazos que cubre, guardias de 12 h y turnos extra. Una licencia descuenta las horas propias de esos días; quien cubre un reemplazo ese día no suma su horario habitual; cada noche de guardia cuenta en el día que empieza. Las semanas van de lunes a domingo (recortadas al mes). Las horas “a confirmar” vienen de reemplazos sin confirmar o licencias a confirmar.'));
+  if(hk.length) out.append(h('div', { class: 'cr-hsec', t: 'Reemplazantes y suplentes' }), h('div', { class: 'cr-hg' }, hk.map(function(o){ return cardHoras(o, true); })));
+  if(pl.length) out.append(h('div', { class: 'cr-hsec', t: 'Personal de planta' }), h('div', { class: 'cr-hg' }, pl.map(function(o){ return cardHoras(o); })));
+  if(gu.length) out.append(h('div', { class: 'cr-hsec', t: 'Guardias de 12 h' }), h('div', { class: 'cr-hg' }, gu.map(function(o){ return cardHoras(o); })));
+  if(vac.length) out.append(h('div', { class: 'cr-hint', s: { 'margin-top': '14px' }, t: 'Sin turnos cargados este mes: ' + vac.map(function(o){ return ST.C.nm(o.p); }).join(', ') + '.' }));
+  return out;
+}
+function admWeeks(){
+  const f = monthDays(S.y, S.m);
+  let w = f[0];
+  while(wdOf(w) !== 0) w = addD(w, -1);
+  const ws = [];
+  for(; w <= f[f.length - 1]; w = addD(w, 7)) ws.push(w);
+  return ws;
+}
+function renderHorasAdm(){
+  const C_ = ST.C, ws = admWeeks(), ps = C_.people('adm'), md = new Set(monthDays(S.y, S.m)), pk = C_.admPeak(S.y, S.m);
+  const rows = ps.map(function(p){ return { p: p, w: ws.map(function(){ return { h: 0, s: 0, lic: 0 }; }), mes: 0, pend: 0 }; });
+  ws.forEach(function(w, wi){
+    for(let i = 0; i < 7; i++){
+      const d = addD(w, i), dd = C_.dayData('adm', d, null);
+      rows.forEach(function(o){
+        let hs = 0;
+        dd.items.forEach(function(x){
+          if((x.kind === 'w' || x.kind === 'rep') && x.k === o.p.key){
+            const hh_ = ((mins(x.h) - mins(x.d) + 1440) % 1440) / 60;
+            hs += hh_;
+            if(md.has(d) && ((x.f && x.f.pend) || (x.kind === 'rep' && (C_.repEst(x.r) !== 'ok' || x.l.pend)))) o.pend += hh_;
+          }
+        });
+        if(C_.licOn(o.p.key, d) && dd.items.every(function(x){ return x.k !== o.p.key || x.kind !== 'w'; }) && i < 5 && !ST.M.FER[d]) o.w[wi].lic++;
+        if(i < 5) o.w[wi].h += hs; else o.w[wi].s += hs;
+        if(md.has(d)) o.mes += hs;
+      });
+    }
+  });
+  const vis = rows.filter(function(o){ return !S.pf || o.p.key === S.pf; });
+  const out = h('div', null, h('div', { class: 'cr-hint', s: { 'margin-bottom': '8px' } }, 'Horas de ', h('b', { t: MESES[S.m] + ' ' + S.y }),
+    ' por semana (lunes a domingo, semanas completas). Los feriados no suman. Los sábados se muestran aparte porque no cuentan igual que las horas semanales (se compensan). El régimen semanal de cada persona no está cargado: figura “a confirmar”.'),
+    h('div', { class: 'cr-pay' }, h('b', { t: 'Lugares de atención: 2. ' }), h('span', { class: 'cr-hint' }, 'Pico de personas en simultáneo este mes (sin contar a quien tiene oficina propia): ',
+      h('b', { class: pk.n > 2 ? 'cr-w' : '', t: pk.n }), pk.bad.length ? ' · días con más de 2: ' + pk.bad.map(function(x){ return fmtC(x.d); }).join(', ') : ' · ningún día pasa de 2')));
+  out.append(h('div', { class: 'cr-hg' }, vis.map(function(o){
+    const lic = o.w.reduce(function(a, x){ return a + x.lic; }, 0);
+    return h('div', { class: 'cr-hc', 'data-horas': o.p.key }, h('div', { class: 'hh' }, h('b', { s: { cursor: 'pointer' }, on: { click: function(){ openPerson(o.p.key); } }, t: C_.nm(o.p) }), h('span', { class: 'tot', t: fmtH(o.mes) })),
+      h('div', { class: 'hl' }, 'Régimen semanal: ', pendMarca('a confirmar'), C_.esOfi(o.p.key) ? ' · oficina propia' : '', lic ? [' · ', h('span', { class: 'cr-w', t: 'licencia ' + lic + ' día' + (lic === 1 ? '' : 's') + ' hábil' + (lic === 1 ? '' : 'es') })] : null,
+        o.pend ? [' · ', h('span', { class: 'cr-apend', t: fmtH(o.pend) + ' a confirmar' })] : null),
+      h('div', { class: 'wks' }, ws.map(function(w, i){ const x = o.w[i]; return h('span', { title: 'Semana del ' + fmtC(w) + ' al ' + fmtC(addD(w, 6)) }, fmtC(w) + '–' + fmtC(addD(w, 6)) + ' ', h('b', { t: fmtH(x.h) }), x.s ? [' + sáb ', h('b', { t: fmtH(x.s) })] : null); })));
+  })));
+  return out;
+}
+
+/* == confirmar reemplazos y licencias == */
+function opcionesReemp(l, sel){
+  const p = ST.M.PM[l.key], grp = p ? p.grp : 'tec';
+  const ps = ST.M.P.filter(function(x){ return x.grp === grp && x.key !== l.key && !x.oculta; });
+  return [['', '— elegir —']].concat(ps.map(function(x){ return [x.key, ST.C.nm(x)]; })).concat([['__ext', 'Otro (no figura en la planilla)…']]);
+}
+function periodoRep(x){
+  const l = x.l, r = x.r, ds = ST.C.repDays(l, r);
+  const lst = ds.length && ds.length <= 10 && ((r.fechas && r.fechas.length) || ST.C.esGuard(l.key));
+  if(lst){
+    const nocturna = mins(r.h) <= mins(r.d);
+    return (nocturna ? (ds.length === 1 ? 'noche del ' : 'noches del ') : (ds.length === 1 ? 'día ' : 'días ')) + ds.map(fmtC).join(', ').replace(/, ([^,]*)$/, ' y $1');
+  }
+  if(ds.length) return l.hasta ? (ds.length === 1 ? fmtC(ds[0]) : fmtC(ds[0]) + ' al ' + fmtC(ds[ds.length - 1])) + ' · ' + ds.length + ' día' + (ds.length === 1 ? '' : 's') : 'desde ' + fmtC(ds[0]) + ' · sin fecha de regreso';
+  return 'sin días a cubrir en el período';
+}
+function setEst(l, r, est){ r.est = est; A.repCambio(l, r); pintar(); }
+function repCard(x){
+  const l = x.l, r = x.r, est = x.est, p = ST.M.PM[l.key], edit = puedeEditar(), C_ = ST.C;
+  const chk = r.key ? C_.repCheck(l, r) : null;
+  let cl = null;
+  if(!r.key) cl = h('div', { class: 'cfc w', t: 'Reemplazante externo (no figura en la planilla): no se puede verificar la disponibilidad.' });
+  else if(!x.pasado){
+    const ks = Object.keys(chk.iss);
+    cl = ks.length ? h('div', { class: 'cfc w', t: '⚠ ' + ks.map(function(z){ return nmP(r.key) + ' ' + z + ' (' + chk.iss[z].length + ' día' + (chk.iss[z].length === 1 ? '' : 's') + ', desde ' + fmtC(chk.iss[z][0]) + ')'; }).join(' · ') })
+      : h('div', { class: 'cfc g', t: '✔ Sin choques de horario ni licencias cargadas en ' + (chk.ds.length ? 'esos ' + chk.ds.length + ' día' + (chk.ds.length === 1 ? '' : 's') : 'el período') + '.' + (est === 'ok' ? '' : ' Falta tu confirmación con la persona.') });
+  }
+  const has = chk && Object.keys(chk.iss).length;
+  const b = function(e, t, c){ return btn(t, 'sm ' + (c || ''), function(){ setEst(l, r, e); }); };
+  let acts = null;
+  if(edit) acts = est === 'ok' ? [b('no', '✖ No puede'), b('', '↺ Volver a por confirmar')] : est === 'no' ? [b('ok', '✔ Confirmar igual'), b('', '↺ Volver a por confirmar')] : [b('ok', has ? '✔ Confirmar igual' : '✔ Confirmar', 'pri'), b('no', '✖ No puede')];
+  const clsEst = est;
+  return h('div', { class: 'cr-cf ' + clsEst, 'data-rep': r.id },
+    h('div', { class: 'cft' }, h('div', null, h('b', { s: { cursor: 'pointer' }, on: r.key ? { click: function(){ openPerson(r.key); } } : null, t: C_.rname(r) }), ' cubre a ', h('b', { s: { cursor: 'pointer' }, on: { click: function(){ openPerson(l.key, null, l.id); } }, t: ST.C.nm(p) })),
+      h('span', { class: 'sb2', t: est === 'ok' ? 'confirmado' : est === 'no' ? 'no puede' : (x.pasado ? 'a confirmar (período pasado)' : 'a confirmar') })),
+    h('div', { class: 'cfm' }, l.tipo + ' · ', h('b', { t: r.d + '–' + r.h }), ' · ' + periodoRep(x) + (r.nota ? ' · ' + r.nota : ''), l.pend ? [' · ', pendMarca('licencia a confirmar')] : null),
+    cl, acts ? h('div', { class: 'acts' }, acts) : null,
+    edit ? entrada('text', r.nota, function(v){ r.nota = v.slice(0, 200); A.repCambio(l, r); }, { class: 'n', placeholder: 'Nota: con quién hablaste y cuándo', maxlength: '200', 'aria-label': 'Nota del reemplazo' }) : null,
+    edit ? h('details', null, h('summary', { t: 'Cambiar reemplazante' }), h('select', { on: { change: function(ev){
+      const v = ev.target.value;
+      if(!v || v === '__ext') return;
+      r.key = v; r.nombre = ''; r.est = ''; A.repCambio(l, r); pintar();
+    } } }, opciones(opcionesReemp(l, r.key).filter(function(o){ return o[0] !== '__ext'; }), ''))) : null);
+}
+function renderConf(){
+  const C_ = ST.C, all = C_.repAll(), vig = all.filter(function(x){ return !x.pasado; }), pas = all.filter(function(x){ return x.pasado; });
+  const by = function(e){ return vig.filter(function(x){ return x.est === e; }); };
+  const ord = function(a, b){ return a.l.desde.localeCompare(b.l.desde) || a.r.d.localeCompare(b.r.d); };
+  const sinR = ST.M.L.filter(function(l){ return ST.M.PM[l.key] && (ST.M.PM[l.key].grp === 'tec' || ST.M.PM[l.key].grp === 'adm') && C_.lend(l) >= ST.puente.hoy() && !l.reemps.length; });
+  const out = h('div', null, h('div', { class: 'cr-hint', s: { 'margin-bottom': '6px' } },
+    'Cada reemplazo pasa por dos controles. ', h('b', { t: '1)' }), ' El sistema revisa lo que está cargado: que el reemplazante no tenga ya turno en ese horario ni licencia. ', h('b', { t: '2)' }),
+    ' Vos confirmás con la persona y lo marcás acá. Todo reemplazo sin confirmar figura como “a confirmar”. En el diagrama, el borde de la celda del reemplazante muestra el estado: ', h('b', { t: 'sólido' }), ' = confirmado, ',
+    h('b', { class: 'cr-w', t: 'punteado rojo' }), ' = a confirmar, ', h('b', { class: 'cr-w', t: 'tachado' }), ' = dijo que no puede.'),
+    h('div', { class: 'cfs' }, h('span', { class: 'cfp pe' }, h('b', { t: by('pe').length }), 'a confirmar'), h('span', { class: 'cfp ok' }, h('b', { t: by('ok').length }), 'confirmados'), h('span', { class: 'cfp no' }, h('b', { t: by('no').length }), 'no pueden')));
+  if(by('no').length) out.append(h('div', { class: 'cr-hsec cr-w', t: 'No pueden: hay que buscar otro' }), by('no').sort(ord).map(repCard));
+  out.append(h('div', { class: 'cr-hsec', t: 'A confirmar' }), by('pe').length ? by('pe').sort(ord).map(repCard) : h('div', { class: 'cr-hint', t: 'Nada pendiente.' }));
+  if(by('ok').length) out.append(h('div', { class: 'cr-hsec', t: 'Confirmados' }), by('ok').sort(ord).map(repCard));
+  if(sinR.length) out.append(h('div', { class: 'cr-hsec cr-w', t: 'Licencias sin reemplazo cargado' }), sinR.map(function(l){
+    return h('div', { class: 'cr-cf' }, h('div', { class: 'cft' }, h('div', null, h('b', { s: { cursor: 'pointer' }, on: { click: function(){ openPerson(l.key, null, l.id); } }, t: nmP(l.key) }), ' · ' + l.tipo), h('span', { class: 'sb2', t: 'sin reemplazo' })),
+      h('div', { class: 'cfm', t: fmtC(l.desde) + (l.hasta ? ' al ' + fmtC(l.hasta) : ' · sin fecha de regreso') }));
+  }));
+  const pasPe = pas.filter(function(x){ return x.est !== 'ok'; }).sort(ord), pasOk = pas.filter(function(x){ return x.est === 'ok'; }).sort(ord);
+  if(pasPe.length) out.append(h('details', { class: 'cr-how', s: { 'margin-top': '14px' } }, h('summary', { t: 'Período pasado sin confirmar (' + pasPe.length + ')' }), pasPe.map(repCard)));
+  if(pasOk.length) out.append(h('details', { class: 'cr-how', s: { 'margin-top': '8px' } }, h('summary', { t: 'Ya realizados y confirmados (' + pasOk.length + ')' }), pasOk.map(repCard)));
+  return out;
+}
+function renderLista(){
+  const PM = ST.M.PM, ls = ST.M.L.filter(function(l){ return PM[l.key] && (PM[l.key].grp === 'tec' || PM[l.key].grp === 'adm') && (!S.pf || l.key === S.pf); }).sort(function(a, b){ return b.desde.localeCompare(a.desde); });
+  if(!ls.length) return nota('Sin licencias cargadas.');
+  return h('div', null, ls.map(function(l){
+    return h('div', { class: 'cr-dl', 'data-lic': l.id, on: { click: function(){ openPerson(l.key, null, l.id); } } }, h('b', { t: nmP(l.key) }), ' · ' + l.tipo + ' · ' + fmtF(l.desde) + (l.hasta ? ' al ' + fmtF(l.hasta) : ' · sin fecha de regreso'),
+      l.pend ? [' ', pendMarca()] : null, l.obs ? h('small', { class: 'cr-mut', t: ' · ' + l.obs }) : null,
+      l.reemps.length ? l.reemps.map(function(r){ return h('div', { class: 'rr' }, 'Reemplaza: ', h('b', { t: ST.C.rname(r) }), ' · ' + r.d + '–' + r.h, ST.C.repEst(r) !== 'ok' ? [' ', pendMarca(ESTTXT[ST.C.repEst(r)])] : null); }) : h('div', { class: 'rr no', t: 'Sin reemplazo definido.' }));
+  }));
+}
+
+/* == Tomografía: guardias de Hospital Central + cambios == */
+const TC_INF = 'Informa', TC_URG = 'Urgencias';
+function tcCambio(d, tipo){
+  const l = ST.M.TC.cambios.filter(function(c){ return c.fecha === d && c.nota === tipo; }).sort(function(a, b){ return a.at < b.at ? 1 : -1; });
+  return l[0] || null;
+}
+function tcDay(d){
+  const wd = wdOf(d), fer = ST.M.FER[d], we = wd >= 5, hc = ST.M.TC.cal[d] || '';
+  const b = tcCambio(d, TC_INF), u = tcCambio(d, TC_URG), r4 = we || !!fer;
+  return { wd: wd, fer: fer, we: we, r4: r4, hc: hc, inf: b ? b.nuevo : '', urg: u ? u.nuevo : (r4 ? '' : hc), cb: b, cu: u,
+    urgT: r4 ? 'Urgente todo el día' : 'Urgente 20–23:59' };
+}
+function tcMonths(){ const o = {}; Object.keys(ST.M.TC.cal).forEach(function(k){ const q = k.slice(0, 7); o[q] = (o[q] || 0) + 1; }); return o; }
+function tcLoaded(y, mo){ return tcMonths()[y + '-' + pad(mo + 1)] || 0; }
+function tcGuardar(fecha, medico){
+  ST.M.TC.cal[fecha] = medico;
+  encolar(async function(){
+    const v = ST.M.TC.calV[fecha];
+    const r = await ST.puente.rpc('img_cron_guardar', { p_entidad: 'tc', p_dato: { fecha: fecha, medico: medico }, p_version: v === undefined ? null : v });
+    ST.M.TC.calV[fecha] = r.version;
+  });
+}
+function tcQuitar(fecha){
+  const v = ST.M.TC.calV[fecha];
+  delete ST.M.TC.cal[fecha];
+  encolar(async function(){
+    await ST.puente.rpc('img_cron_borrar', { p_entidad: 'tc', p_id: fecha, p_version: ST.M.TC.calV[fecha] === undefined ? v : ST.M.TC.calV[fecha] });
+    delete ST.M.TC.calV[fecha];
+  });
+}
+function tcCambioGuardar(d, tipo, def, valor){
+  const ex = tcCambio(d, tipo);
+  if(valor === def || !valor){
+    if(ex){ ST.M.TC.cambios.splice(ST.M.TC.cambios.indexOf(ex), 1); borrarFila('tc_cambio', ex); }
+    return;
+  }
+  if(ex){ ex.nuevo = valor; ex.antes = def; guardarFila('tc_cambio', ex, function(){ return { fecha: d, medico_antes: def, medico_nuevo: valor, nota: tipo }; }); }
+  else {
+    const c = { id: nuevoTmp(), ver: 1, fecha: d, antes: def, nuevo: valor, nota: tipo, at: new Date().toISOString() };
+    ST.M.TC.cambios.push(c);
+    guardarFila('tc_cambio', c, function(){ return { fecha: d, medico_antes: def, medico_nuevo: valor, nota: tipo }; });
+  }
+}
+function tcEdit(ev, d){
+  ev.stopPropagation();
+  limpiarPop();
+  const x = tcDay(d), r = ev.currentTarget.getBoundingClientRect(), edit = puedeEditar();
+  S.pop = { tc: d, t: Date.now() };
+  const ib = h('input', { type: 'text', value: x.inf, maxlength: '160', disabled: !edit, 'aria-label': 'Informa Tomografía' });
+  const iu = h('input', { type: 'text', value: x.urg, maxlength: '160', disabled: !edit, 'aria-label': 'Urgencias' });
+  const defU = x.r4 ? '' : x.hc;
+  const e = h('div', { id: 'cr-pop', class: 'cr-pop', role: 'dialog' },
+    h('button', { type: 'button', class: 'x2', title: 'Cerrar', on: { click: limpiarPop }, t: '✕' }),
+    h('h4', { t: DIAS[x.wd] + ' ' + fmtC(d) + (x.fer ? ' · feriado' : '') }),
+    h('div', { class: 'sb', t: (x.fer ? 'Feriado: ' + x.fer + '. ' : '') + (edit ? 'Cambios de último momento sobre quién informa o quién cubre las urgencias.' : 'Solo lectura.') }),
+    h('label', { class: 'cr-hint', t: 'Informa Tomografía (00:00–23:59)' }), ib,
+    h('label', { class: 'cr-hint', t: x.urgT.replace('Urgente', 'Urgentes') + (x.r4 ? ' (00:00–23:59)' : '') }), iu,
+    x.hc && x.r4 ? h('div', { class: 'ln cr-mut', t: 'Cronograma mensual Hosp. Central ese día: ' + x.hc }) : null,
+    x.r4 && !x.cu ? h('div', { class: 'ln cr-mut', t: 'Urgencias de fin de semana y feriados: R4. Los nombres de las R4 están a confirmar.' }) : null,
+    edit ? h('div', { class: 'acts' }, btn('Guardar', 'pri sm', function(){
+      tcCambioGuardar(d, TC_INF, '', ib.value.trim());
+      tcCambioGuardar(d, TC_URG, defU, iu.value.trim());
+      limpiarPop(); pintar();
+    }), (x.cb || x.cu) ? btn('Volver al cronograma', 'sm dng', function(){
+      if(x.cb) tcCambioGuardar(d, TC_INF, '', '');
+      if(x.cu) tcCambioGuardar(d, TC_URG, defU, '');
+      limpiarPop(); pintar();
+    }) : null) : null);
+  document.body.append(e);
+  ubicarPop(e, r);
+}
+function ubicarPop(e, r){
+  const w = e.offsetWidth, hh_ = e.offsetHeight;
+  let top = r.top - hh_ - 8;
+  if(top < 8) top = r.bottom + 8;
+  if(top + hh_ > window.innerHeight - 8) top = Math.max(8, window.innerHeight - hh_ - 8);
+  e.style.top = top + 'px';
+  e.style.left = Math.max(10, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 10)) + 'px';
+}
+function tcNorm(n){
+  n = n.replace(/\s+/g, ' ').replace(/\s*\/\s*/g, ' / ').replace(/[\s.\-–,;:]+$/, '').trim();
+  return n.toLowerCase().replace(/(^|[\s\/(])([a-záéíóúüñ])/g, function(m_, a, b){ return a + b.toUpperCase(); }).replace(/\bR4\b/gi, 'R4').replace(/\bBastias\b/g, 'Bastías');
+}
+function tcParse(text, y, mo){
+  const dim = dimOf(y, mo), map = {}, warn = [];
+  const put = function(d, n, src){
+    n = tcNorm(n);
+    if(!n) return;
+    if(d < 1 || d > dim){ warn.push('Día ' + d + ' no existe en ' + MESES[mo] + ' (' + src.slice(0, 30) + ')'); return; }
+    const k = iso(y, mo, d);
+    if(map[k] && map[k] !== n){ warn.push('Día ' + d + ' repetido: me quedé con ' + map[k] + ' (también aparece ' + n + ')'); return; }
+    map[k] = n.slice(0, 160);
+  };
+  const rows = text.replace(/\r/g, '').split(/\n/);
+  let explicit = 0;
+  rows.forEach(function(l){
+    const m1 = l.match(/^\s*(\d{4})-(\d{2})-(\d{2})\s*[;,\t:\-–]?\s*(.+)$/), m2 = l.match(/^\s*(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\s*[;,\t:\-–]?\s*(.+)$/);
+    if(m1){ explicit++; if(+m1[1] === y && +m1[2] - 1 === mo) put(+m1[3], m1[4], l.trim()); else warn.push('Fecha de otro mes ignorada: ' + l.trim().slice(0, 40)); }
+    else if(m2){ explicit++; const yy = m2[3] ? (+m2[3] < 100 ? 2000 + (+m2[3]) : +m2[3]) : y; if(yy === y && +m2[2] - 1 === mo) put(+m2[1], m2[4], l.trim()); else warn.push('Fecha de otro mes ignorada: ' + l.trim().slice(0, 40)); }
+  });
+  if(!explicit){
+    const re = /(\d{1,2})\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ\/ .'\-]*?)(?=\s+\d{1,2}(?:\s|$)|$)/g;
+    rows.forEach(function(r){ r.split(/[;\t,|]/).forEach(function(ch){ ch = ch.trim(); if(!ch) return; let q; re.lastIndex = 0; while((q = re.exec(ch))) put(+q[1], q[2], ch); }); });
+  }
+  const miss = [];
+  for(let d = 1; d <= dim; d++) if(!map[iso(y, mo, d)]) miss.push(d);
+  return { y: y, mo: mo, map: map, warn: warn, miss: miss, dim: dim };
+}
+function tcDetect(t){ const m = t.match(new RegExp('(' + MN.join('|') + ')\\s*(?:de\\s*)?(20\\d\\d)', 'i')); return m ? { mo: MN.indexOf(m[1].toLowerCase()), y: +m[2] } : null; }
+function tcAplicar(){
+  const r = S.tcPrev;
+  if(!r) return;
+  const pref = r.y + '-' + pad(r.mo + 1);
+  Object.keys(ST.M.TC.cal).filter(function(k){ return k.indexOf(pref) === 0 && !r.map[k]; }).forEach(tcQuitar);
+  Object.keys(r.map).forEach(function(k){ if(ST.M.TC.cal[k] !== r.map[k]) tcGuardar(k, r.map[k]); });
+  S.y = r.y; S.m = r.mo; S.tcPrev = null; S.tcUp = false;
+  pintar();
+}
+function tcInterp(refs){
+  const t = refs.ta.value, det = tcDetect(t);
+  if(det){ refs.y.value = det.y; refs.m.value = det.mo; }
+  const y = +refs.y.value, mo = +refs.m.value, prev = refs.prev;
+  vaciar(prev);
+  if(!t.trim()){ prev.append(h('div', { class: 'msg', t: 'Pegá el cronograma o elegí un archivo.' })); S.tcPrev = null; return; }
+  const r = tcParse(t, y, mo), n = Object.keys(r.map).length, WL = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  S.tcPrev = n ? r : null;
+  prev.append(h('div', { class: 'cr-hint', s: { margin: '6px 0' } }, h('b', { t: MESES[mo] + ' ' + y }), ': interpreté ', h('b', { t: n + ' de ' + r.dim }), ' días' + (det ? ' (mes detectado en el archivo)' : '') + '.'));
+  if(r.miss.length && n) prev.append(h('div', { class: 'msg', t: 'Sin médico en los días: ' + r.miss.join(', ') + '.' }));
+  r.warn.slice(0, 6).forEach(function(w){ prev.append(h('div', { class: 'msg', t: w + '.' })); });
+  if(n){
+    prev.append(h('div', { class: 'cr-tcpv' }, Object.keys(r.map).map(function(k){ return h('span', null, h('b', { t: +k.slice(8) }), ' ' + WL[new Date(k + 'T12:00:00').getDay()] + ' · ' + r.map[k]); })));
+    prev.append(btn('Cargar ' + MESES[mo] + ' ' + y + (tcLoaded(y, mo) ? ' (reemplaza el actual)' : ''), 'pri sm', tcAplicar, { 'data-tc-cargar': '1' }));
+  } else prev.append(h('div', { class: 'msg', t: 'No pude interpretar ningún día. Probá con el formato “2026-11-03;Apellido”.' }));
+}
+function cargarXlsx(cb, fallo_){
+  if(window.XLSX) return cb();
+  const sc = document.createElement('script');
+  sc.src = 'xlsx.min.js';
+  sc.onload = cb; sc.onerror = fallo_;
+  document.head.appendChild(sc);
+}
+function tcArchivo(inp, refs){
+  const f = inp.files[0];
+  if(!f) return;
+  const ext = f.name.split('.').pop().toLowerCase(), rd = new FileReader();
+  if(ext === 'xlsx' || ext === 'xls'){
+    refs.msg.textContent = 'Leyendo Excel…';
+    cargarXlsx(function(){
+      rd.onload = function(e){
+        const wb = window.XLSX.read(e.target.result, { type: 'array' });
+        let txt = '';
+        wb.SheetNames.forEach(function(n){
+          const rs = window.XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: false, defval: '' }).map(function(r){ return r.map(function(c){ return String(c).replace(/\s*\n\s*/g, ' ').trim(); }); });
+          for(let i = 0; i < rs.length; i++){
+            const nums = rs[i].filter(function(c){ return /^\d{1,2}$/.test(c); }).length;
+            if(nums >= 3 && rs[i + 1]){
+              rs[i].forEach(function(c, ci){ if(/^\d{1,2}$/.test(c)){ const nmv = rs[i + 1][ci] || ''; if(nmv && !/^\d+$/.test(nmv)) txt += c + ' ' + nmv + '\n'; } });
+              i++;
+            } else txt += rs[i].join('\t') + '\n';
+          }
+        });
+        refs.ta.value = txt; refs.msg.textContent = ''; tcInterp(refs);
+      };
+      rd.readAsArrayBuffer(f);
+    }, function(){ refs.msg.textContent = 'No pude cargar el lector de Excel. Guardá el archivo como CSV o pegá el texto del calendario.'; });
+  } else { rd.onload = function(e){ refs.ta.value = String(e.target.result).slice(0, 20000); tcInterp(refs); }; rd.readAsText(f); }
+}
+function tcSubida(){
+  const refs = {};
+  refs.m = h('select', { id: 'cr-tc-m', on: { change: function(){ tcInterp(refs); } } }, opciones(MESES.map(function(x, i){ return [i, x]; }), S.m));
+  refs.y = h('input', { type: 'number', id: 'cr-tc-y', value: S.y, on: { change: function(){ tcInterp(refs); } } });
+  refs.msg = h('div', { class: 'msg', s: { 'margin-top': '6px' } });
+  refs.prev = h('div', { id: 'cr-tc-prev' });
+  let tt = null;
+  refs.ta = h('textarea', { id: 'cr-tc-t', rows: '5', placeholder: 'Pegá acá el cronograma…', class: 'cr-ta', on: { input: function(){ clearTimeout(tt); tt = setTimeout(function(){ tcInterp(refs); }, 350); } } });
+  return h('div', { class: 'cr-card inner' },
+    h('div', { class: 'cr-hint', s: { 'margin-bottom': '6px' } }, 'Subí un archivo ', h('b', { t: '.xlsx, .csv o .txt' }), ' o pegá el texto. Formatos: ', h('b', { t: 'una línea por día' }), ' (“2026-11-03;Apellido” o “3/11 Apellido”) o el calendario completo (“5 CAMPI/MERCADO”). Si el archivo dice el mes (“Noviembre 2026”) lo detecto solo.'),
+    h('div', { class: 'r2c' }, campo('Mes', refs.m), campo('Año', refs.y)),
+    h('div', { s: { margin: '8px 0' } }, h('input', { type: 'file', accept: '.xlsx,.xls,.csv,.txt', 'aria-label': 'Archivo del cronograma', on: { change: function(ev){ tcArchivo(ev.target, refs); } } })),
+    refs.ta,
+    h('div', { s: { display: 'flex', gap: '6px', 'margin-top': '6px' } }, btn('Interpretar', 'sm', function(){ tcInterp(refs); }), btn('Rellenar plantilla del mes', 'sm', function(){
+      const y = +refs.y.value, mo = +refs.m.value;
+      refs.ta.value = monthDays(y, mo).map(function(d){ return d + ';'; }).join('\n');
+      vaciar(refs.prev); refs.prev.append(h('div', { class: 'cr-hint', t: 'Completá el nombre después del “;” en cada día y apretá Interpretar.' }));
+    })), refs.msg, refs.prev);
+}
+function renderTcg(){
+  const ds = monthDays(S.y, S.m), off = (new Date(S.y, S.m, 1).getDay() + 6) % 7, WL = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'], nar = esAngosto(), lo = tcLoaded(S.y, S.m), edit = puedeEditar();
+  const cell = function(d){
+    const x = tcDay(d), ch = (x.cb || x.cu) ? ' ch' : '';
+    const infTxt = x.inf ? h('strong', { t: x.inf }) : h('strong', null, pendMarca('a confirmar'));
+    const urgTxt = x.urg ? x.urg : (x.r4 ? null : (lo ? h('i', { t: 'sin asignar' }) : h('i', { t: 'sin cronograma' })));
+    return h('div', { class: 'cr-tcd' + (x.we ? ' we' : '') + (x.fer ? ' fer' : '') + ch, tabindex: '0', role: 'button', 'data-tc': d, title: 'Tocá para ver',
+      on: { click: function(ev){ tcEdit(ev, d); }, keydown: function(ev){ if(ev.key === 'Enter') tcEdit(ev, d); } } },
+      h('div', { class: 'tcn' }, nar ? [h('b', { t: +d.slice(8) }), DIAS[x.wd].slice(0, 3)] : h('span', { t: +d.slice(8) }), x.fer ? h('em', { t: 'feriado' }) : null),
+      h('div', null, h('div', { class: 'tci big', s: { '--h': 255 } }, h('small', { t: 'Hospital Italiano · informa 24 h' }), infTxt),
+        h('div', { class: 'tcu' }, h('small', { t: x.urgT + (x.we || x.fer ? '' : ' · H. Central') }), urgTxt === null ? ['R4 ', pendMarca('nombres a confirmar')] : urgTxt),
+        x.hc && x.r4 ? h('div', { class: 'tch' }, h('small', { t: 'Cronograma H. Central' }), x.hc) : null));
+  };
+  const fer = ds.filter(function(d){ return ST.M.FER[d]; }).length;
+  const out = h('div');
+  out.append(h('div', { class: 'cr-hsec', s: { 'margin-top': '2px' }, t: 'Médicos del Hospital Italiano · guardia fija' }),
+    nota('Pendiente de carga (a confirmar): quién informa cada día de la semana, las notas del calendario mensual y quiénes son las R4 de fines de semana y feriados. Mientras tanto figuran “a confirmar” y no se asume ningún nombre.'));
+  out.append(h('div', { class: 'cr-hsec', t: 'Hospital Central · cronograma mensual (urgencias 20:00–23:59, lunes a viernes)' }));
+  const meses = Object.keys(tcMonths()).sort();
+  out.append(h('div', { s: { display: 'flex', 'flex-wrap': 'wrap', gap: '6px', 'align-items': 'center', 'margin-bottom': '6px' } },
+    meses.length ? meses.map(function(q){ const p = q.split('-'); return h('span', { class: 'cfp ok', s: { cursor: 'pointer' }, title: 'Ver ese mes', on: { click: function(){ S.y = +p[0]; S.m = +p[1] - 1; pintar(); } } }, h('b', { t: MESES[+p[1] - 1].slice(0, 3) + ' ' + p[0] }), tcMonths()[q] + ' días'); }) : h('span', { class: 'cr-hint', t: 'Todavía no hay cronogramas cargados.' }),
+    edit ? btn(S.tcUp ? 'Cerrar' : '+ Subir cronograma del mes', 'sm pri', function(){ S.tcUp = !S.tcUp; S.tcPrev = null; pintar(); }) : null,
+    edit && lo ? btn('Quitar ' + MN[S.m], 'sm dng', function(){ Object.keys(ST.M.TC.cal).filter(function(k){ return k.indexOf(S.y + '-' + pad(S.m + 1)) === 0; }).forEach(tcQuitar); pintar(); }) : null));
+  if(!lo && !S.tcUp) out.append(nota('Falta el cronograma del Hospital Central de ' + MESES[S.m] + ' ' + S.y + ': las urgencias de lunes a viernes aparecen “sin cronograma”.'));
+  if(S.tcUp && edit) out.append(tcSubida());
+  out.append(h('details', { class: 'cr-how' }, h('summary', { t: 'Reglas del cronograma' }),
+    h('p', null, h('b', { t: 'Urgencias: ' }), 'de lunes a viernes de 20:00 a 23:59 las informa el médico del Hospital Central del cronograma mensual; sábados, domingos y ', h('b', { t: 'feriados, todo el día' }), ', las R4 (' + fer + ' feriado' + (fer === 1 ? '' : 's') + ' este mes). ',
+      h('b', { t: 'Informa: ' }), 'el médico del Hospital Italiano de 00:00 a 23:59.')));
+  out.append(h('div', { class: 'cr-hsec', t: 'Calendario de ' + MESES[S.m] + ' ' + S.y }), h('div', { class: 'cr-hint', s: { 'margin-bottom': '6px' }, t: edit ? 'Tocá un día para cambiar quién informa o quién cubre las urgencias.' : 'Tocá un día para ver el detalle.' }));
+  if(nar) out.append(h('div', { class: 'cr-tcl' }, ds.map(cell)));
+  else {
+    const g = h('div', { class: 'cr-tcg' }, WL.map(function(x){ return h('b', { class: 'wh', t: x }); }));
+    for(let i = 0; i < off; i++) g.append(h('span'));
+    ds.forEach(function(d){ g.append(cell(d)); });
+    out.append(g);
+  }
+  return out;
+}
+/* == Eco/Doppler: se lee de img_agenda (img_cronograma), solo lectura acá == */
+function ecoTurnos(){ return Array.isArray(ST.eco) ? ST.eco : []; }
+function ecoNombre(t){
+  const PM = ST.M.PM;
+  if(t.es_residentes){
+    const ns = (t.residentes || []).map(function(r){ return PM[r.persona_id]; }).filter(Boolean).map(function(p){ return p.anio ? p.ap + ' R' + p.anio : p.ap; });
+    return { lab: 'Residentes', sub: ns.length ? ns.join(', ') : 'Sin asignar' };
+  }
+  const p = t.persona_id ? PM[t.persona_id] : null;
+  return { lab: p ? p.ap : '?', sub: 'Consultorio ' + t.cons };
+}
+function ecoDia(dia){
+  const items = ecoTurnos().filter(function(t){ return +t.dia === dia && (!S.pf || t.persona_id === S.pf || (S.pf === 'res' && t.es_residentes)); }).map(function(t){
+    const n = ecoNombre(t);
+    return { eco: true, t: t, lane: 'c' + t.cons, k: t.es_residentes ? 'res' : t.persona_id, d: hm(t.desde), h: hm(t.hasta), lab: n.lab, sub: n.sub, cls: 'eco c' + t.cons };
+  });
+  return { items: items, strip: [] };
+}
+function ecoOpts(){
+  const cs = Array.from(new Set(ecoTurnos().map(function(t){ return +t.cons; }).concat([1, 2]))).sort();
+  const lab = {};
+  cs.forEach(function(c){ lab['c' + c] = 'Cons. ' + c; });
+  return { lanes: cs.map(function(c){ return 'c' + c; }), laneLab: lab, nombreTab: 'Eco/Doppler' };
+}
+function ecoPersonas(){
+  const ids = new Set(ecoTurnos().filter(function(t){ return t.persona_id; }).map(function(t){ return t.persona_id; }));
+  return ST.M.P.filter(function(p){ return ids.has(p.key); });
+}
+function openEco(i){
+  const t = i.t, n = ecoNombre(t), PM = ST.M.PM;
+  const cuerpo = [h('p', { t: DIAS[+t.dia] + ' · ' + i.d + '–' + i.h + ' · Consultorio ' + t.cons })];
+  if(t.es_residentes){
+    (t.residentes || []).forEach(function(r){
+      const p = PM[r.persona_id];
+      cuerpo.push(h('p', { t: (p ? p.ap + (p.nom ? ' ' + p.nom : '') : '?') + ((r.estudios || []).length ? ' · ' + r.estudios.join(', ') : '') }));
+    });
+    if(!(t.residentes || []).length) cuerpo.push(h('p', { t: 'Sin residentes asignados.' }));
+  } else cuerpo.push(h('p', { t: n.lab }));
+  cuerpo.push(h('p', { class: 'cr-hint', t: 'Eco/Doppler se edita en Médicos › Cronograma Ecografía/Doppler.' }));
+  ST.puente.dialogo({ titulo: 'Eco/Doppler', clase: 'aviso', cuerpo: cuerpo, botones: [{ texto: 'Cerrar', clase: 'ed-btn prim', alClic: function(c){ c.cerrar(); } }] });
+}
+
+/* == alertas, pendientes y KPIs == */
+function fs5(d){ return fmtC(d); }
+function listaCorta(arr, n){ return arr.slice(0, n).join(', ') + (arr.length > n ? '…' : ''); }
+function alertasDe(scope){
+  const C_ = ST.C, M = ST.M, PM = M.PM, hoy = ST.puente.hoy(), al = [];
+  const inc = function(t){ return scope === 'todo' || scope === t; };
+  const w = function(pre, txt, go){ al.push({ w: pre, txt: txt, go: go || null }); };
+  const grpScope = function(k){
+    const g = PM[k] && PM[k].grp;
+    return scope === 'todo' ? (g === 'tec' || g === 'adm') : g === (scope === 'tec' ? 'tec' : scope === 'adm' ? 'adm' : '-');
+  };
+  if(inc('tec') || inc('adm')){
+    const mine = M.L.filter(function(l){ return grpScope(l.key); }), lim = addD(hoy, 60);
+    mine.filter(function(l){ return !l.hasta; }).forEach(function(l){ w('Sin fecha de regreso: ', nmP(l.key) + ', ' + l.tipo + ' desde ' + fmtF(l.desde) + '.'); });
+    mine.filter(function(l){ return C_.lend(l) >= hoy && l.desde <= lim && !l.reemps.length; }).forEach(function(l){
+      w('Sin reemplazo: ', nmP(l.key) + ', ' + l.tipo + ' ' + fmtF(l.desde) + '–' + (l.hasta ? fmtF(l.hasta) : 'sin fecha de regreso') + '.', { sub: 'licencias', vista: 'conf' });
+    });
+    mine.forEach(function(l){
+      l.reemps.forEach(function(r){
+        if(!r.key) return;
+        const c = M.L.find(function(x){ return x.key === r.key && x.id !== l.id && x.tipo !== 'Cambio de turno' && x.desde <= C_.lend(l) && l.desde <= C_.lend(x); });
+        if(c) w('Reemplazante de licencia: ', nmP(r.key) + ' cubre a ' + nmP(l.key) + ' pero tiene ' + c.tipo + ' ' + fmtF(c.desde) + '–' + (c.hasta ? fmtF(c.hasta) : 'sin fecha de regreso') + '.');
+      });
+    });
+    const rp = C_.repAll().filter(function(x){ return !x.pasado && (x.est === 'pe' || x.est === 'no') && grpScope(x.l.key); });
+    const pe = rp.filter(function(x){ return x.est === 'pe'; }), no = rp.filter(function(x){ return x.est === 'no'; });
+    if(no.length) w('Reemplazo rechazado (' + no.length + '): ', no.map(function(x){ return C_.rname(x.r) + ' no puede cubrir a ' + apP(x.l.key) + ' ' + x.r.d + '–' + x.r.h; }).join('; ') + '. Hay que buscar otro.', { sub: 'licencias', vista: 'conf' });
+    if(pe.length) w('Reemplazos sin confirmar (' + pe.length + '): ', listaCorta(pe.map(function(x){ return C_.rname(x.r) + ' → ' + apP(x.l.key) + ' (' + (x.r.fechas && x.r.fechas.length ? x.r.fechas.map(fs5).join(', ') : fs5(x.l.desde) + (x.l.hasta ? '–' + fs5(x.l.hasta) : '…')) + ' ' + x.r.d + '–' + x.r.h + ')'; }), 6), { sub: 'licencias', vista: 'conf' });
+    mine.forEach(function(l){
+      C_.repConflicts(l).forEach(function(c){ w('Reemplazante ocupado: ', nmP(c.r.key) + ' cubre a ' + nmP(l.key) + ' ' + c.r.d + '–' + c.r.h + ' pero ya trabaja en ese horario ' + c.n + ' día' + (c.n === 1 ? '' : 's') + ' (desde ' + fs5(c.first) + ').'); });
+    });
+  }
+  if(inc('tec')){
+    const unc = M.G.filter(function(g){ return g.fecha >= hoy; }).filter(function(g){
+      const l = C_.licOn(g.key, g.fecha);
+      if(!l) return false;
+      return !l.reemps.some(function(r){ return C_.repOn(r, l, g.fecha) && r.d === TURN[g.t][0] && r.h === TURN[g.t][1] && (r.key || r.nombre); });
+    }).sort(function(a, b){ return a.fecha.localeCompare(b.fecha); });
+    if(unc.length) w('Guardias sin reemplazante (' + unc.length + '): ', listaCorta(unc.map(function(g){ return apP(g.key) + ' ' + fs5(g.fecha) + ' ' + DL[g.t].toLowerCase(); }), 8) + '.', { sub: 'licencias', vista: 'conf' });
+    const miss = [];
+    monthDays(S.y, S.m).filter(function(d){ return d >= hoy; }).forEach(function(d){
+      const dd = C_.dayData('tec', d, null), needD = wdOf(d) === 6 || !!M.FER[d];
+      const has = function(x){
+        return dd.items.some(function(i){ return (i.kind === 'w' || i.kind === 'lic' || i.kind === 'rep') && i.d && letterOf(i.d, i.h) === x && (i.f ? i.f.g : true) && (i.kind !== 'w' || (i.f && i.f.g) || i.kind === 'rep'); });
+      };
+      if(!has('N')) miss.push(fs5(d) + ' noche');
+      if(needD && !has('D')) miss.push(fs5(d) + ' día');
+    });
+    if(miss.length) w('Sin guardia asignada (' + miss.length + '): ', listaCorta(miss, 10) + '.', { sub: 'tecnicos', vista: 'diag' });
+    const over = [];
+    C_.horasData(S.y, S.m, null).forEach(function(o){
+      o.wk.forEach(function(x, i){ if(x > 48) over.push(C_.nm(o.p) + ' (' + (+o.wkDias[i][0].slice(8)) + '–' + (+o.wkDias[i][o.wkDias[i].length - 1].slice(8)) + ': ' + fmtH(x) + ')'); });
+    });
+    if(over.length) w('Más de 48 h en la semana (' + over.length + '): ', listaCorta(over, 8) + '.', { sub: 'tecnicos', vista: 'horas' });
+  }
+  if(inc('adm')){
+    const q = C_.admPeak(S.y, S.m);
+    if(q.bad.length) w('Más de 2 personas en simultáneo (hay 2 lugares de atención): ', listaCorta(q.bad.map(function(x){ return DIAS[wdOf(x.d)].slice(0, 3) + ' ' + fs5(x.d) + ' (' + x.who.join(', ') + ')'; }), 6) + '.', { sub: 'administrativos', vista: 'sems' });
+  }
+  if(inc('tc')){
+    const lo = tcLoaded(S.y, S.m);
+    if(!lo) w('Falta el cronograma del Hospital Central de ' + MESES[S.m] + ' ' + S.y + '. ', 'Subilo en “Guardias de Tomografía”.', { sub: 'tc', vista: 'tcg' });
+    else {
+      const sin = monthDays(S.y, S.m).filter(function(d){ return d >= hoy; }).filter(function(d){ const x = tcDay(d); return !x.inf || !x.urg; }).map(fs5);
+      if(sin.length) w('Tomografía sin médico asignado (' + sin.length + '): ', listaCorta(sin, 8) + '.', { sub: 'tc', vista: 'tcg' });
+    }
+    const n = M.TC.cambios.filter(function(c){ return c.fecha.indexOf(S.y + '-' + pad(S.m + 1)) === 0; }).length;
+    if(n) w('Cambios manuales en guardias de Tomografía este mes: ', n + ' registro' + (n === 1 ? '' : 's') + '.');
+  }
+  if(scope === 'todo' || scope === 'tec' || scope === 'adm'){
+    const ext = Array.from(new Set(M.L.filter(function(l){ return grpScope(l.key); }).reduce(function(a, l){
+      return a.concat(l.reemps.filter(function(r){ return !r.key && r.nombre; }).map(function(r){ return r.nombre; }));
+    }, [])));
+    if(ext.length) w('', 'Reemplazantes que no figuran en la planilla de personal: ' + ext.join(', ') + '.');
+  }
+  return al;
+}
+/* inventario de datos "a confirmar": lo marcado pendiente en la base + lo que el seed no cargó */
+function pendientesDe(){
+  const M = ST.M, o = [];
+  const porTab = {};
+  M.F.filter(function(f){ return f.pend; }).forEach(function(f){ const n = TN[f.tab] || f.tab; porTab[n] = (porTab[n] || 0) + 1; });
+  Object.keys(porTab).forEach(function(n){ o.push('Horarios a confirmar en ' + n + ': ' + porTab[n] + ' franja' + (porTab[n] === 1 ? '' : 's') + '.'); });
+  const gp = M.G.filter(function(g){ return g.pend; }).length;
+  if(gp) o.push('Guardias de técnicos a confirmar: ' + gp + '.');
+  const lp = M.L.filter(function(l){ return l.pend; });
+  if(lp.length) o.push('Licencias a confirmar: ' + lp.map(function(l){ return nmP(l.key) + ' (' + l.tipo + ')'; }).join(', ') + '.');
+  const rs = ST.C.repAll().filter(function(x){ return !x.est || x.est === 'pe'; }).length;
+  if(rs) o.push('Reemplazos sin estado definido: ' + rs + '.');
+  if(!M.TC.cambios.length && !Object.keys(M.TC.cal).length) o.push('Tomografía: cronograma mensual del Hospital Central sin cargar.');
+  o.push('Tomografía: quién informa cada día de la semana, las notas del calendario y los nombres de las R4 de fines de semana y feriados no están cargados (a confirmar).');
+  o.push('Tomografía: guardias de Ismael y Hualpa sin cargar (a confirmar).');
+  o.push('Técnicos de Resonancia Magnética: sin cargar (a confirmar).');
+  o.push('Administrativos: régimen semanal de cada persona sin cargar (a confirmar).');
+  if(puedeEditar() && !ST.R.tarifas) o.push('Pago de técnicos: tarifas sin cargar (a confirmar).');
+  return o;
+}
+function kpisDe(){
+  const t = tabAct(), C_ = ST.C, M = ST.M, hoy = ST.puente.hoy();
+  const ps = (t === 'eco' ? ecoPersonas() : C_.people(t)).filter(function(p){ return p.key !== 'res'; });
+  const mk = S.y + '-' + pad(S.m + 1);
+  if(S.sub === 'tc'){
+    const lo = tcLoaded(S.y, S.m), dim = dimOf(S.y, S.m), fer = monthDays(S.y, S.m).filter(function(d){ return M.FER[d]; }).length;
+    return [['Días con cronograma', lo + ' / ' + dim, MESES[S.m], !lo], ['Feriados del mes', fer, 'urgencias R4 todo el día', false], ['Cambios manuales', M.TC.cambios.filter(function(c){ return c.fecha.indexOf(mk) === 0; }).length, 'este mes', false]];
+  }
+  const reales = ps, onL = reales.filter(function(p){ const q = C_.licOn(p.key, hoy); return q && q.tipo !== 'Cambio de turno'; });
+  const lim = addD(hoy, 60), mine = M.L.filter(function(l){ return reales.some(function(p){ return p.key === l.key; }); });
+  const nor = mine.filter(function(l){ return C_.lend(l) >= hoy && l.desde <= lim && !l.reemps.length; });
+  const k = [];
+  if(t === 'adm'){ const q = C_.admPeak(S.y, S.m); k.push(['Máx. en simultáneo', q.n, 'de 2 lugares de atención', q.n > 2]); }
+  else if(t === 'tec'){
+    const gm = M.G.filter(function(g){ return g.fecha.indexOf(mk) === 0; });
+    k.push(['Guardias de 12 h este mes', gm.length, gm.filter(function(g){ return g.t === 'N'; }).length + ' noches · ' + gm.filter(function(g){ return g.t === 'D'; }).length + ' de día', false]);
+    const a = C_.repAll().filter(function(x){ return !x.pasado; }), n = a.filter(function(x){ return x.est !== 'ok'; }).length;
+    k.push(['Reemplazos por confirmar', n, 'de ' + a.length + ' vigentes', n > 0]);
+  } else if(t === 'eco'){
+    k.push(['Turnos cargados', ecoTurnos().length, 'en Eco/Doppler', false]);
+  } else {
+    const fr = M.F.filter(function(f){ return f.tab === t && (!S.pf || f.key === S.pf); });
+    k.push(['Horas por semana', fr.length ? dhx(hrsDe(fr)) : '—', S.pf ? nmP(S.pf) : 'con agenda cargada', false]);
+    const withA = new Set(M.F.filter(function(f){ return f.tab === t; }).map(function(f){ return f.key; }));
+    k.push(['Personas con agenda', withA.size + ' / ' + reales.length, 'cargadas', false]);
+  }
+  k.push(['De licencia hoy', onL.length, onL.length ? onL.map(function(p){ return p.ap; }).join(', ') : 'nadie', false]);
+  if(t !== 'eco') k.push(['Licencias sin reemplazo', nor.length, 'próximos 60 días', nor.length > 0]);
+  return k;
+}
+
+/* == personal del servicio (lista lateral) == */
+function renderPersonal(){
+  const t = tabAct(), C_ = ST.C, hoy = ST.puente.hoy();
+  const ps = (t === 'eco' ? ecoPersonas() : C_.people(t)).filter(function(p){ return p.key !== 'res'; });
+  const box = h('div', { class: 'cr-card' }, h('h3', { t: 'Personal · ' + TN[t] }));
+  if(!ps.length) box.append(h('div', { class: 'cr-hint', t: 'Sin personal para mostrar.' }));
+  ps.forEach(function(p){
+    const own = ST.M.F.filter(function(f) { return f.key === p.key && f.tab === t; }), l = C_.licOn(p.key, hoy);
+    const txt = l ? (l.tipo === 'Cambio de turno' ? 'cambio de turno' : 'licencia' + (l.hasta ? ' hasta ' + fmtC(l.hasta) : ' abierta')) :
+      own.length ? (t === 'tec' || t === 'adm' ? Array.from(new Set(own.map(function(f){ return DIAS[f.dia].slice(0, 3); }))).join(' · ') : dhx(hrsDe(own))) :
+      (C_.esGuard(p.key) ? 'guardias' : 'sin agenda');
+    box.append(h('div', { class: 'cr-st' + (S.pf === p.key ? ' on' : ''), 'data-staff': p.key, tabindex: '0', role: 'button',
+      on: { click: function(){ S.pf = S.pf === p.key ? null : p.key; openPerson(p.key); }, keydown: function(ev){ if(ev.key === 'Enter') { S.pf = S.pf === p.key ? null : p.key; openPerson(p.key); } } } },
+      h('div', null, C_.nm(p), h('br'), h('small', { t: GN[p.grp] + (p.serv.length ? ' · ' + p.serv.join(' + ') : '') })), h('span', { class: 'cr-pill' + (l ? ' l' : own.length ? '' : ' z'), t: txt })));
+  });
+  return box;
+}
+function renderAlertas(scope, solo){
+  const al = alertasDe(scope), box = h('div', { class: 'cr-card', id: 'cr-alertas' }, h('h3', { t: 'Alertas' }));
+  if(!al.length) box.append(h('div', { class: 'cr-hint', t: 'Sin alertas.' }));
+  const ul = h('ul', { class: 'cr-al' });
+  al.forEach(function(a){
+    ul.append(h('li', { 'data-alerta': '1' }, a.w ? h('span', { class: 'cr-w', t: a.w }) : null, a.txt,
+      a.go ? [' ', h('a', { href: '#' + 'cronogramas/' + a.go.sub, class: 'cr-lk', on: { click: function(){ S.vistas[a.go.sub] = a.go.vista; } }, t: 'Ver' })] : null));
+  });
+  box.append(ul);
+  if(solo){
+    const pend = pendientesDe();
+    box.append(h('h3', { s: { 'margin-top': '14px' }, t: 'Datos a confirmar o sin cargar' }), h('ul', { class: 'cr-al', id: 'cr-pendientes' }, pend.map(function(x){ return h('li', { t: x }); })));
+  }
+  return box;
+}
+/* == popover de celda del diagrama == */
+function cellPop(ev, key, d){
+  if(ev.stopPropagation) ev.stopPropagation();
+  limpiarPop();
+  const el = ev.currentTarget, r = el.getBoundingClientRect(), C_ = ST.C, p = ST.M.PM[key], edit = puedeEditar();
+  const dd = C_.dayData('tec', d, key), Cc = {};
+  Cc[d] = {};
+  Cc[d][key] = dd.items.filter(function(i){ return i.k === key; }).concat(dd.strip.filter(function(x){ return x.k === key; }).map(function(x){ return { kind: 'lic', k: x.k, l: x.l }; }));
+  const x = cellInfo(p, d, Cc), lic = C_.licOn(key, d);
+  S.pop = { cell: key + '|' + d, t: Date.now() };
+  const reps = dd.items.filter(function(i){ return i.kind === 'rep' && i.k === key; });
+  const acts = [];
+  if(edit){
+    reps.forEach(function(i){
+      acts.push(btn('✔ Confirmar reemplazo ' + i.d + '–' + i.h, 'sm pri', function(){ setEst(i.l, i.r, 'ok'); }));
+      acts.push(btn('✖ No puede', 'sm', function(){ setEst(i.l, i.r, 'no'); }));
+    });
+    if(!lic) acts.push(btn('Marcar ausencia este día', 'sm', function(){
+      A.licAlta({ key: key, tipo: 'Ausencia puntual', desde: d, hasta: d, obs: '', pend: false, motivo: '', reemps: [] });
+      limpiarPop(); pintar();
+    }));
+  }
+  acts.push(btn('Ver ficha', 'sm', function(){ limpiarPop(); openPerson(key, null, lic ? lic.id : null); }));
+  let extra = null;
+  if(edit){
+    const di = h('input', { type: 'time', value: '07:00', 'aria-label': 'Turno extra desde' }), hi = h('input', { type: 'time', value: '13:00', 'aria-label': 'Turno extra hasta' });
+    extra = h('div', { class: 'cr-ex' }, h('small', { t: 'Turno extra este día' }), di, hi, btn('Agregar', 'sm', function(){
+      if(!di.value || !hi.value || di.value === hi.value) return;
+      A.extraAlta({ key: key, fecha: d, d: di.value, h: hi.value, nota: '' });
+      limpiarPop(); pintar();
+    }));
+  }
+  const e = h('div', { id: 'cr-pop', class: 'cr-pop', role: 'dialog', 'aria-label': 'Detalle del día' },
+    h('button', { type: 'button', class: 'x2', title: 'Cerrar', 'aria-label': 'Cerrar', on: { click: limpiarPop }, t: '✕' }),
+    h('h4', { t: C_.nm(p) + ' · ' + DIAS[wdOf(d)].slice(0, 3) + ' ' + fmtC(d) }),
+    h('div', { class: 'sb', t: (ST.M.FER[d] ? 'Feriado: ' + ST.M.FER[d] + '. ' : '') + (x.ti ? x.ti.split(' · ').slice(1).join(' · ') : 'Sin turno ese día.') }),
+    h('div', { class: 'acts' }, acts), extra);
+  document.body.append(e);
+  ubicarPop(e, r);
+}
+
+/* == ficha de persona (panel lateral) == */
+function openPerson(key, fid, lid){
+  limpiarPop();
+  if(!ST.M.PM[key]) return;
+  S.dp = key; S.hl = fid || null; S.hlL = lid || null; S.addF = false; S.addL = false; S.addR = null;
+  pintar();
+  const e = ST.R.drawerEl && (lid ? ST.R.drawerEl.querySelector('[data-lic="' + lid + '"]') : fid ? ST.R.drawerEl.querySelector('[data-fr="' + fid + '"]') : null);
+  if(e && e.scrollIntoView) e.scrollIntoView({ block: 'nearest' });
+}
+function cerrarPerson(){ S.dp = null; S.hl = null; S.hlL = null; S.addF = false; S.addL = false; S.addR = null; pintar(); }
+function chk(txt, val, fn, at){
+  return h('label', { class: 'cr-chk1' }, h('input', Object.assign({ type: 'checkbox', checked: !!val, on: { change: function(ev){ fn(ev.target.checked); } } }, at || {})), txt);
+}
+function horaOk(a, b){ return !!a && !!b && a !== b; }
+function franjaRow(f, p){
+  const edit = puedeEditar(), tec = f.tab === 'tec', adm = f.tab === 'adm';
+  const resumen = DIAS[f.dia] + ' ' + f.d + '–' + f.h + (f.sec ? ' · ' + (SEC[f.sec] || f.sec) : '') + (f.sem ? ' · Sáb ' + f.sem : '') + (f.turno && TURN[f.turno] ? ' · ' + TURN[f.turno][2] : '') + (f.guardia ? ' · guardia' : '');
+  const cls = 'cr-fr' + (S.hl === f.id ? ' sel' : '');
+  if(!edit) return h('div', { class: cls, 'data-fr': f.id }, h('span', { class: 'cr-mut', t: TN[f.tab] + ' · ' }), resumen, f.pend ? [' ', pendMarca()] : null);
+  const chg = function(){ A.franjaCambio(f); pintar(); };
+  return h('div', { class: cls, 'data-fr': f.id },
+    h('div', { class: 'cr-fr1' }, h('b', { t: TN[f.tab] }),
+      selec(DIAS.map(function(x, i){ return [i, x]; }), f.dia, function(v){ f.dia = +v; chg(); }),
+      entrada('time', f.d, function(v, el){ if(!horaOk(v, f.h)){ el.value = f.d; return; } f.d = v; chg(); }, { 'aria-label': 'Desde' }),
+      entrada('time', f.h, function(v, el){ if(!horaOk(f.d, v)){ el.value = f.h; return; } f.h = v; chg(); }, { 'aria-label': 'Hasta' }),
+      btn('✕', 'sm dng', function(){ A.franjaBaja(f); pintar(); }, { title: 'Quitar franja', 'aria-label': 'Quitar franja' })),
+    h('div', { class: 'cr-fr1' },
+      selec([[0, 'Todos los sábados'], [1, 'Sábado 1'], [2, 'Sábado 2']], f.sem, function(v){ f.sem = +v; chg(); }),
+      adm ? entrada('text', f.sec, function(v){ f.sec = v.slice(0, 60); chg(); }, { placeholder: 'Sector', maxlength: '60', 'aria-label': 'Sector' }) : null,
+      tec ? selec([['', 'Sin turno fijo'], ['M', 'Mañana'], ['T', 'Tarde']], f.turno, function(v){ f.turno = v; chg(); }) : null,
+      tec ? chk('Guardia', f.guardia, function(v){ f.guardia = v; chg(); }) : null,
+      chk('A confirmar', f.pend, function(v){ f.pend = v; chg(); })));
+}
+function formFranja(p){
+  const tabs = p.grp === 'tec' ? ['tec'] : p.grp === 'adm' ? ['adm'] : ['rx', 'tc', 'eco'];
+  let tab = tabs.indexOf(tabAct()) >= 0 ? tabAct() : tabs[0];
+  const refs = {};
+  refs.dia = selec(DIAS.map(function(x, i){ return [i, x]; }), 0, function(){});
+  refs.d = h('input', { type: 'time', value: '08:00', 'aria-label': 'Desde' });
+  refs.h = h('input', { type: 'time', value: '16:00', 'aria-label': 'Hasta' });
+  refs.sem = selec([[0, 'Todos los sábados'], [1, 'Sábado 1'], [2, 'Sábado 2']], 0, function(){});
+  refs.tab = selec(tabs.map(function(t){ return [t, TN[t]]; }), tab, function(v){ tab = v; });
+  refs.pend = h('input', { type: 'checkbox' });
+  return h('div', { class: 'cr-form', id: 'cr-form-franja' }, h('b', { t: 'Nueva franja semanal' }), tabs.length > 1 ? refs.tab : null, refs.dia, refs.d, refs.h, refs.sem, h('label', { class: 'cr-chk1' }, refs.pend, 'A confirmar'),
+    h('div', { class: 'acts' }, btn('Agregar', 'pri sm', function(){
+      if(!horaOk(refs.d.value, refs.h.value)) return;
+      A.franjaAlta({ tab: tab, key: p.key, dia: +refs.dia.value, d: refs.d.value, h: refs.h.value, sec: '', asig: [], guardia: false, sem: +refs.sem.value, turno: '', pend: refs.pend.checked, motivo: '' });
+      S.addF = false; pintar();
+    }), btn('Cancelar', 'sm', function(){ S.addF = false; pintar(); })));
+}
+function repFila(l, r){
+  const C_ = ST.C, edit = puedeEditar(), est = C_.repEst(r);
+  if(!edit) return h('div', { class: 'cr-rp' }, h('b', { t: C_.rname(r) }), ' · ' + r.d + '–' + r.h + ' · ', pendMarca(ESTTXT[est]));
+  const chg = function(){ A.repCambio(l, r); pintar(); };
+  const sel = selec(opcionesReemp(l, r.key).filter(function(o){ return o[0] !== '__ext'; }).concat(r.key ? [] : [['', r.nombre ? r.nombre + ' (externo)' : '— elegir —']]), r.key || '', function(v){ if(!v) return; r.key = v; r.nombre = ''; r.est = ''; chg(); });
+  return h('div', { class: 'cr-rp' },
+    h('div', { class: 'cr-fr1' }, sel,
+      entrada('time', r.d, function(v, el){ if(!horaOk(v, r.h)){ el.value = r.d; return; } r.d = v; chg(); }, { 'aria-label': 'Reemplazo desde' }),
+      entrada('time', r.h, function(v, el){ if(!horaOk(r.d, v)){ el.value = r.h; return; } r.h = v; chg(); }, { 'aria-label': 'Reemplazo hasta' }),
+      btn('✕', 'sm dng', function(){ A.repBaja(l, r); pintar(); }, { title: 'Quitar reemplazo', 'aria-label': 'Quitar reemplazo' })),
+    h('div', { class: 'cr-fr1' }, selec([['', 'a confirmar'], ['ok', 'confirmado'], ['no', 'no puede']], r.est, function(v){ r.est = v; chg(); }),
+      entrada('text', r.nota, function(v){ r.nota = v.slice(0, 200); chg(); }, { placeholder: 'Nota', maxlength: '200', 'aria-label': 'Nota del reemplazo' })));
+}
+function formReemp(l){
+  const refs = {}, p = ST.M.PM[l.key];
+  const first = ST.M.F.find(function(f){ return f.key === l.key; });
+  const op = opcionesReemp(l, '');
+  refs.who = selec(op, '', function(v){ refs.nom.hidden = v !== '__ext'; });
+  refs.nom = h('input', { type: 'text', placeholder: 'Nombre del reemplazante', maxlength: '120', hidden: true, 'aria-label': 'Nombre del reemplazante externo' });
+  refs.d = h('input', { type: 'time', value: first ? first.d : '07:00', 'aria-label': 'Desde' });
+  refs.h = h('input', { type: 'time', value: first ? first.h : '13:00', 'aria-label': 'Hasta' });
+  return h('div', { class: 'cr-form' }, h('b', { t: 'Nuevo reemplazante de ' + (p ? p.ap : '') }), refs.who, refs.nom, refs.d, refs.h,
+    h('div', { class: 'acts' }, btn('Agregar', 'pri sm', function(){
+      const v = refs.who.value, nombre = refs.nom.value.trim();
+      if(!v || (v === '__ext' && !nombre) || !horaOk(refs.d.value, refs.h.value)) return;
+      A.repAlta(l, { key: v === '__ext' ? '' : v, nombre: v === '__ext' ? nombre.slice(0, 120) : '', d: refs.d.value, h: refs.h.value, nota: '', fechas: [], desde: '', hasta: '', est: '' });
+      S.addR = null; pintar();
+    }), btn('Cancelar', 'sm', function(){ S.addR = null; pintar(); })));
+}
+function licFila(l){
+  const edit = puedeEditar(), cls = 'cr-lic' + (S.hlL === l.id ? ' sel' : '');
+  const reps = l.reemps.map(function(r){ return repFila(l, r); });
+  if(!edit){
+    return h('div', { class: cls, 'data-lic': l.id }, h('b', { t: l.tipo }), ' · ' + fmtF(l.desde) + (l.hasta ? ' al ' + fmtF(l.hasta) : ' · sin fecha de regreso'), l.pend ? [' ', pendMarca()] : null,
+      l.obs ? h('small', { class: 'cr-mut', t: ' · ' + l.obs }) : null, reps.length ? reps : h('div', { class: 'cr-hint', t: 'Sin reemplazo definido.' }));
+  }
+  const chg = function(){ A.licCambio(l); pintar(); };
+  return h('div', { class: cls, 'data-lic': l.id },
+    h('div', { class: 'cr-fr1' }, selec(TIPOS_LIC.indexOf(l.tipo) >= 0 ? TIPOS_LIC : TIPOS_LIC.concat([l.tipo]), l.tipo, function(v){ l.tipo = v; chg(); }),
+      btn('✕', 'sm dng', function(){ A.licBaja(l); pintar(); }, { title: 'Quitar licencia', 'aria-label': 'Quitar licencia' })),
+    h('div', { class: 'cr-fr1' }, h('label', { class: 'cr-f' }, 'Desde', entrada('date', l.desde, function(v, el){ if(!v){ el.value = l.desde; return; } l.desde = v; if(l.hasta && l.hasta < v) l.hasta = v; chg(); })),
+      h('label', { class: 'cr-f' }, 'Hasta', entrada('date', l.hasta, function(v, el){ if(v && v < l.desde){ el.value = l.hasta; return; } l.hasta = v; chg(); }))),
+    h('div', { class: 'cr-fr1' }, entrada('text', l.obs, function(v){ l.obs = v.slice(0, 200); chg(); }, { placeholder: 'Detalle (no cargar motivos de salud)', maxlength: '200', 'aria-label': 'Detalle de la licencia' }),
+      chk('A confirmar', l.pend, function(v){ l.pend = v; chg(); })),
+    reps.length ? reps : h('div', { class: 'cr-hint', t: 'Sin reemplazo definido.' }),
+    S.addR === l.id ? formReemp(l) : btn('+ Reemplazante', 'sm', function(){ S.addR = l.id; pintar(); }));
+}
+function formLic(p){
+  const refs = {};
+  refs.tipo = selec(TIPOS_LIC, TIPOS_LIC[0], function(){});
+  refs.desde = h('input', { type: 'date', value: ST.puente.hoy(), 'aria-label': 'Desde' });
+  refs.hasta = h('input', { type: 'date', 'aria-label': 'Hasta' });
+  refs.obs = h('input', { type: 'text', maxlength: '200', placeholder: 'Detalle (no cargar motivos de salud)', 'aria-label': 'Detalle' });
+  refs.pend = h('input', { type: 'checkbox' });
+  return h('div', { class: 'cr-form', id: 'cr-form-lic' }, h('b', { t: 'Nueva licencia' }), refs.tipo, h('label', { class: 'cr-f' }, 'Desde', refs.desde), h('label', { class: 'cr-f' }, 'Hasta (vacío = sin fecha de regreso)', refs.hasta), refs.obs,
+    h('label', { class: 'cr-chk1' }, refs.pend, 'A confirmar'),
+    h('div', { class: 'acts' }, btn('Agregar', 'pri sm', function(){
+      if(!refs.desde.value || (refs.hasta.value && refs.hasta.value < refs.desde.value)) return;
+      A.licAlta({ key: p.key, tipo: refs.tipo.value, desde: refs.desde.value, hasta: refs.hasta.value, obs: refs.obs.value.slice(0, 200), pend: refs.pend.checked, motivo: '', reemps: [] });
+      S.addL = false; pintar();
+    }), btn('Cancelar', 'sm', function(){ S.addL = false; pintar(); })));
+}
+function formGuardia(p, tipo){
+  const refs = {}, mk = S.y + '-' + pad(S.m + 1) + '-01';
+  refs.f = h('input', { type: 'date', value: mk, 'aria-label': 'Fecha' });
+  refs.t = selec([['N', 'Noche 19–07'], ['D', 'Día 07–19']], 'N', function(){});
+  refs.d = h('input', { type: 'time', value: '07:00', 'aria-label': 'Desde' });
+  refs.h = h('input', { type: 'time', value: '13:00', 'aria-label': 'Hasta' });
+  return h('div', { class: 'cr-form' }, h('b', { t: tipo === 'g' ? 'Nueva guardia de 12 h' : 'Nuevo turno extra' }), refs.f, tipo === 'g' ? refs.t : [refs.d, refs.h],
+    h('div', { class: 'acts' }, btn('Agregar', 'pri sm', function(){
+      if(!refs.f.value) return;
+      if(tipo === 'g'){
+        if(ST.M.G.some(function(g){ return g.key === p.key && g.fecha === refs.f.value && g.t === refs.t.value; })) return;
+        A.guardiaAlta({ key: p.key, fecha: refs.f.value, t: refs.t.value, pend: false, motivo: '' });
+      } else {
+        if(!horaOk(refs.d.value, refs.h.value)) return;
+        A.extraAlta({ key: p.key, fecha: refs.f.value, d: refs.d.value, h: refs.h.value, nota: '' });
+      }
+      S.nk = 'f'; pintar();
+    }), btn('Cancelar', 'sm', function(){ S.nk = 'f'; pintar(); })));
+}
+function renderDrawer(){
+  if(!S.dp || !ST.M.PM[S.dp]) return null;
+  const p = ST.M.PM[S.dp], key = p.key, edit = puedeEditar(), C_ = ST.C, mk = S.y + '-' + pad(S.m + 1);
+  const fr = ST.M.F.filter(function(f){ return f.key === key; }).sort(function(a, b){ return a.tab.localeCompare(b.tab) || a.dia - b.dia || a.d.localeCompare(b.d); });
+  const gs = ST.M.G.filter(function(g){ return g.key === key && g.fecha.indexOf(mk) === 0; }).sort(function(a, b){ return a.fecha.localeCompare(b.fecha) || a.t.localeCompare(b.t); });
+  const xs = ST.M.XT.filter(function(x){ return x.key === key && x.fecha.indexOf(mk) === 0; }).sort(function(a, b){ return a.fecha.localeCompare(b.fecha); });
+  const ls = ST.M.L.filter(function(l){ return l.key === key; }).sort(function(a, b){ return b.desde.localeCompare(a.desde); });
+  const dr = h('aside', { class: 'cr-drawer', id: 'cr-drawer', role: 'dialog', 'aria-label': 'Ficha de ' + C_.nm(p) },
+    h('div', { class: 'cr-dh2' }, h('div', null, h('b', { t: C_.nm(p) }), h('br'), h('small', { t: GN[p.grp] + (p.serv.length ? ' · ' + p.serv.join(' + ') : '') })),
+      btn('✕', 'sm', cerrarPerson, { title: 'Cerrar', 'aria-label': 'Cerrar ficha' })));
+  if(p.grp === 'adm' && edit){
+    const ofi = C_.esOfi(key), fa = ST.M.F.filter(function(f){ return f.key === key && f.tab === 'adm'; });
+    dr.append(h('div', { class: 'cr-sec' }, chk('Oficina propia (no cuenta en el máximo de 2 simultáneos)', ofi, function(v){
+      fa.forEach(function(f){ f.sec = v ? OFICINA : ''; A.franjaCambio(f); });
+      if(v && !fa.length) ST.puente.aviso('Cargá primero una franja para marcar oficina propia.');
+      pintar();
+    })));
+  } else if(C_.esOfi(key)) dr.append(h('div', { class: 'cr-sec cr-hint', t: 'Oficina propia: no cuenta en el máximo de 2 simultáneos.' }));
+  dr.append(h('div', { class: 'cr-sec' }, h('h4', { t: 'Agenda semanal' }),
+    fr.length ? fr.map(function(f){ return franjaRow(f, p); }) : h('div', { class: 'cr-hint', t: 'Sin agenda semanal cargada.' }),
+    edit ? (S.addF ? formFranja(p) : btn('+ Franja', 'sm', function(){ S.addF = true; pintar(); })) : null));
+  if(p.grp === 'tec' || gs.length || xs.length){
+    dr.append(h('div', { class: 'cr-sec' }, h('h4', { t: 'Guardias de 12 h y turnos extra · ' + MESES[S.m] }),
+      gs.map(function(g){
+        return h('div', { class: 'cr-fr' }, h('span', { t: DIAS[wdOf(g.fecha)].slice(0, 3) + ' ' + fmtC(g.fecha) + ' · ' + DL[g.t] + ' ' + TURN[g.t][0] + '–' + TURN[g.t][1] }), g.pend ? [' ', pendMarca()] : null,
+          C_.licOn(key, g.fecha) ? h('span', { class: 'cr-w', t: ' · de licencia' }) : null, edit ? btn('✕', 'sm dng', function(){ A.guardiaBaja(g); pintar(); }, { title: 'Quitar guardia', 'aria-label': 'Quitar guardia' }) : null);
+      }),
+      xs.map(function(x){
+        return h('div', { class: 'cr-fr' }, h('span', { t: 'Extra ' + DIAS[wdOf(x.fecha)].slice(0, 3) + ' ' + fmtC(x.fecha) + ' · ' + x.d + '–' + x.h }), edit ? btn('✕', 'sm dng', function(){ A.extraBaja(x); pintar(); }, { title: 'Quitar turno extra', 'aria-label': 'Quitar turno extra' }) : null);
+      }),
+      !gs.length && !xs.length ? h('div', { class: 'cr-hint', t: 'Sin guardias ni turnos extra este mes.' }) : null,
+      edit && p.grp === 'tec' ? (S.nk === 'g' || S.nk === 'x' ? formGuardia(p, S.nk) : h('div', { class: 'acts' }, btn('+ Guardia', 'sm', function(){ S.nk = 'g'; pintar(); }), btn('+ Turno extra', 'sm', function(){ S.nk = 'x'; pintar(); }))) : null));
+  }
+  dr.append(h('div', { class: 'cr-sec' }, h('h4', { t: 'Licencias y reemplazos' }),
+    ls.length ? ls.map(licFila) : h('div', { class: 'cr-hint', t: 'Sin licencias cargadas.' }),
+    edit ? (S.addL ? formLic(p) : btn('+ Licencia', 'sm', function(){ S.addL = true; pintar(); })) : null));
+  const cubre = [];
+  ST.M.L.forEach(function(l){ l.reemps.forEach(function(r){ if(r.key === key && l.key !== key) cubre.push({ l: l, r: r }); }); });
+  if(cubre.length) dr.append(h('div', { class: 'cr-sec' }, h('h4', { t: 'Cubre a otras personas' }), cubre.map(function(x){
+    return h('div', { class: 'cr-fr' }, h('b', { t: nmP(x.l.key) }), ' · ' + x.l.tipo + ' · ' + x.r.d + '–' + x.r.h + ' · ', pendMarca(ESTTXT[C_.repEst(x.r)]));
+  })));
+  if(!edit) dr.append(h('div', { class: 'cr-hint', t: 'Solo lectura.' }));
+  return dr;
+}
+
+/* == armado de la pantalla == */
+function bloqueEstado(titulo, texto, esError, reintentar){
+  return h('div', { class: 'cr-estado' + (esError ? ' error' : ''), role: esError ? 'alert' : 'status' }, h('h2', { t: titulo }), h('p', { t: texto }),
+    reintentar ? btn('Reintentar', 'sm pri', function(){ iniciarCarga(); }) : null);
+}
+function subsVisibles(){ return SUBS.filter(function(s){ return !s.soloEdicion || pagoVisible(); }); }
+function renderKpis(){
+  return h('div', { class: 'cr-kpis', id: 'cr-kpis' }, kpisDe().map(function(x){
+    return h('div', { class: 'cr-kpi' + (x[3] ? ' bad' : '') }, h('small', { t: x[0] }), h('b', { t: x[1] }), h('em', { t: x[2] }));
+  }));
+}
+function renderNav(){
+  return h('nav', { class: 'cr-subs', 'aria-label': 'Vistas de Cronogramas' }, subsVisibles().map(function(s){
+    return h('a', { href: '#cronogramas/' + s.k, 'data-sub': s.k, 'aria-current': s.k === S.sub ? 'page' : null, t: s.n });
+  }));
+}
+function personasFiltro(){
+  const t = tabAct();
+  if(S.sub === 'licencias') return ST.C.people('tec').concat(ST.C.people('adm'));
+  return (t === 'eco' ? ecoPersonas() : ST.C.people(t)).filter(function(p){ return p.key !== 'res'; });
+}
+function renderTools(){
+  const v = vistaAct(), vs = VISTAS[S.sub], tools = h('div', { class: 'cr-tools' });
+  if(vs.length > 1) tools.append(h('div', { class: 'cr-seg', role: 'group', 'aria-label': 'Vista' }, vs.map(function(x){
+    return h('button', { type: 'button', class: 'cr-btn sm' + (x[0] === v ? ' on' : ''), 'aria-pressed': x[0] === v ? 'true' : 'false', 'data-vista': x[0], t: x[1], on: { click: function(){ setVista(x[0]); } } });
+  })));
+  const conMes = ['diag', 'horas', 'sems', 'mes', 'pago', 'tcg', 'alertas'].indexOf(v) >= 0;
+  const conAnio = v === 'anio';
+  if(conMes || conAnio){
+    const mover = function(n){
+      if(conAnio) S.y += n;
+      else { S.m += n; if(S.m < 0){ S.m = 11; S.y--; } if(S.m > 11){ S.m = 0; S.y++; } }
+      S.wk = null; pintar();
+    };
+    tools.append(h('div', { class: 'cr-mnav' }, btn('◀', 'sm', function(){ mover(-1); }, { 'aria-label': conAnio ? 'Año anterior' : 'Mes anterior' }),
+      h('b', { class: 'cr-mlab', t: conAnio ? String(S.y) : MESES[S.m] + ' ' + S.y }),
+      btn('▶', 'sm', function(){ mover(1); }, { 'aria-label': conAnio ? 'Año siguiente' : 'Mes siguiente' }),
+      btn('Hoy', 'sm', function(){ const hy = ST.puente.hoy(); S.y = +hy.slice(0, 4); S.m = +hy.slice(5, 7) - 1; S.wk = null; pintar(); })));
+  }
+  if(v === 'sems'){
+    ensureWk();
+    tools.append(selec(weeksOf(S.y, S.m).map(function(w){ return [w, 'Semana del ' + fmtC(w)]; }), S.wk, function(x){ S.wk = x; pintar(); }, 'cr-sel'));
+  }
+  if(['sem', 'sems', 'cuadro'].indexOf(v) >= 0) tools.append(chk('Sáb y dom', S.we, function(x){ S.we = x; pintar(); }));
+  if(['conf', 'pago', 'tcg', 'alertas'].indexOf(v) < 0){
+    const ps = personasFiltro();
+    if(ps.length > 1) tools.append(selec([['', 'Todas las personas']].concat(ps.map(function(p){ return [p.key, ST.C.nm(p)]; })), S.pf || '', function(x){ S.pf = x || null; pintar(); }, 'cr-sel'));
+  }
+  return tools;
+}
+function renderCuerpo(){
+  const v = vistaAct();
+  try{
+    if(v === 'sem') return renderSem();
+    if(v === 'sems') return renderSems();
+    if(v === 'cuadro') return renderCuadro();
+    if(v === 'mes') return renderMes();
+    if(v === 'anio') return renderAnio();
+    if(v === 'diag') return renderDiag();
+    if(v === 'horas') return renderHoras();
+    if(v === 'conf') return renderConf();
+    if(v === 'lista') return renderLista();
+    if(v === 'tcg') return renderTcg();
+    if(v === 'pago') return renderPago();
+    if(v === 'alertas') return renderAlertas('todo', true);
+  }catch(e){
+    ST.R.errVista = String(e && e.message || e);
+    return bloqueEstado('NO SE PUDO DIBUJAR ESTA VISTA', 'Probá otra vista o recargá la página.', true, false);
+  }
+  return nota('Vista no disponible.');
+}
+function pintar(){
+  /* un cambio de campo puede dispararse al quitar el campo enfocado: se encola otra pasada en vez de anidar */
+  if(ST.R.pintando){ ST.R.otra = true; return; }
+  ST.R.pintando = true;
+  try{ do{ ST.R.otra = false; pintarYa(); }while(ST.R.otra); }
+  finally{ ST.R.pintando = false; }
+}
+function pintarYa(){
+  if(!ST.el) return;
+  const foco = document.activeElement;
+  if(foco && foco !== document.body && ST.el.contains(foco) && foco.blur) foco.blur();
+  if(ST.R.otra) return;
+  const sy = window.scrollY, ds = ST.R.drawerEl ? ST.R.drawerEl.scrollTop : 0, hadDrawer = !!ST.R.drawerEl;
+  limpiarPop();
+  medirAngosto();
+  ST.R.bucket = ST.R.ancho < 700 ? 0 : ST.R.ancho < 860 ? 1 : 2;
+  const root = ST.el;
+  vaciar(root);
+  ST.R.drawerEl = null;
+  root.classList.add('cr-root');
+  root.dataset.angosto = esAngosto() ? '1' : '0';
+  if(!ST.cargado){
+    root.append(ST.error ? bloqueEstado('NO SE PUDO LEER', textoError(ST.error, null), true, true) : bloqueEstado('CARGANDO', 'Cargando cronogramas…', false, false));
+    return;
+  }
+  if(!subsVisibles().some(function(s){ return s.k === S.sub; })) S.sub = 'tecnicos';
+  const wrap = h('div', { class: 'cr-wrap' });
+  if(!puedeEditar()) wrap.append(h('div', { class: 'cr-ro', t: 'Solo lectura' }));
+  if(ST.error) wrap.append(bloqueEstado('NO SE PUDO ACTUALIZAR', MSG.LECTURA, true, true));
+  wrap.append(renderKpis(), renderNav(), renderTools());
+  const sub = S.sub, conLado = ['tecnicos', 'administrativos', 'radiografias', 'eco', 'tc'].indexOf(sub) >= 0;
+  const main = h('div', { class: 'cr-main', id: 'cr-main' }, h('div', { class: 'cr-card', id: 'cr-vista' }, renderCuerpo()));
+  const lay = h('div', { class: 'cr-lay' + (conLado ? ' lado' : '') }, main);
+  if(conLado){
+    const side = h('div', { class: 'cr-side' }, renderAlertas(subActual().tab, false));
+    if(sub !== 'tc') side.append(renderPersonal());
+    lay.append(side);
+  }
+  wrap.append(lay);
+  root.append(wrap);
+  const dr = renderDrawer();
+  if(dr){ root.append(dr); ST.R.drawerEl = dr; if(hadDrawer) dr.scrollTop = ds; }
+  if(Math.abs(window.scrollY - sy) > 2) window.scrollTo(0, sy);
+}
+
+/* == arranque == */
+async function iniciarCarga(){
+  if(ST.cargando) return;
+  ST.cargando = true; ST.error = null;
+  pintar();
+  try{ await leer(); ST.cargado = true; ST.error = null; }
+  catch(e){ ST.error = ST.puente.codigoDe(e); }
+  ST.cargando = false;
+  pintar();
+}
+function teclaGlobal(ev){
+  if(!ST.el || !ST.el.offsetParent) return;
+  if(ev.key === 'Escape'){
+    if(document.getElementById('cr-pop')) limpiarPop();
+    else if(S.dp) cerrarPerson();
+  }
+}
+function clicGlobal(ev){
+  const pop = document.getElementById('cr-pop');
+  if(pop && !pop.contains(ev.target) && S.pop && Date.now() - S.pop.t > 80) limpiarPop();
+}
+let tRs = null;
+function alRedimensionar(){
+  clearTimeout(tRs);
+  tRs = setTimeout(function(){
+    if(!ST.el || !ST.cargado || !ST.el.offsetParent) return;
+    const w = ST.el.clientWidth || window.innerWidth, b = w < 700 ? 0 : w < 860 ? 1 : 2;
+    if(b !== ST.R.bucket) pintar();
+  }, 120);
+}
+function mostrar(el, sub, puente){
+  ST.puente = puente; ST.el = el;
+  if(sub && SUBS.some(function(s){ return s.k === sub; }) && sub !== S.sub){ S.sub = sub; S.pf = null; S.dp = null; S.hl = null; S.hlL = null; S.wk = null; }
+  if(!ST.iniciado){
+    ST.iniciado = true;
+    const hy = puente.hoy();
+    S.y = +hy.slice(0, 4); S.m = +hy.slice(5, 7) - 1;
+    document.addEventListener('keydown', teclaGlobal);
+    document.addEventListener('click', clicGlobal);
+    window.addEventListener('resize', alRedimensionar);
+  }
+  if(!ST.cargado && !ST.cargando) return iniciarCarga();
+  if(ST.cargado && !ST.cargando && !ST.escribiendo && Date.now() - ST.leidoEn > 300000) return recargar(true);
+  pintar();
+}
+window.LumenCronogramas = { mostrar: mostrar, logica: { armarModelo: armarModelo, calculos: calculos, horasPago: horasPago, splitDN: splitDN, letterOf: letterOf } };
+})();

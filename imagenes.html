@@ -26,6 +26,7 @@
 <link rel="stylesheet" href="spcd-theme.css?v=d6e58273"/>
 <link rel="stylesheet" href="spcd-components.css?v=f7b2f276"/>
 <link rel="stylesheet" href="imagenes.css?v=7a869829"/>
+<link rel="stylesheet" href="cronogramas.css?v=0f14a0f8"/>
 </head>
 <body>
 <header class="topbar">
@@ -59,6 +60,7 @@
     <a role="tab" href="#residentes" id="t-residentes" aria-controls="tab-residentes">Residentes <span class="n">—</span></a>
     <a role="tab" href="#tecnicos" id="t-tecnicos" aria-controls="tab-tecnicos">Técnicos <span class="n">—</span></a>
     <a role="tab" href="#administrativos" id="t-administrativos" aria-controls="tab-administrativos">Administrativos <span class="n">—</span></a>
+    <a role="tab" href="#cronogramas" id="t-cronogramas" aria-controls="tab-cronogramas" hidden>Cronogramas</a>
   </nav>
 
   <div id="aviso" class="vacio" hidden role="status"></div>
@@ -82,10 +84,14 @@
   <section role="tabpanel" id="tab-administrativos" aria-labelledby="t-administrativos" hidden>
     <div class="vista" id="v-administrativos"></div>
   </section>
+  <section role="tabpanel" id="tab-cronogramas" aria-labelledby="t-cronogramas" hidden>
+    <div class="vista" id="v-cronogramas"></div>
+  </section>
 </main>
 <script src="spcd-bg.js?v=646bb8f5"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="spcd-supabase.js?v=4420ca43"></script>
-<script src="imagenes.js?v=1af4ff3b"></script>
+<script src="cronogramas.js?v=57b1fa53"></script>
+<script src="imagenes.js?v=00d4773e"></script>
 </body>
 </html>

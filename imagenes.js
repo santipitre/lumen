@@ -5,11 +5,12 @@ if(!window.__img_user) return;
 /* == constantes == */
 const TABS = ['medicos','residentes','tecnicos','administrativos'];
 const SUBS = ['staff','eco','rm'];
-const TITULOS = { medicos:'Médicos', residentes:'Residentes', tecnicos:'Técnicos', administrativos:'Administrativos' };
+const TITULOS = { medicos:'Médicos', residentes:'Residentes', tecnicos:'Técnicos', administrativos:'Administrativos', cronogramas:'Cronogramas' };
+const TAB_CRON = 'cronogramas';
 const BASE = 'Dashboard Imágenes H.Italiano';
 const TIPO_DE = { medicos:'medico', residentes:'residente', tecnicos:'tecnico', administrativos:'administrativo' };
-const RPC_LECTURA = ['img_mi_acceso','img_catalogos','img_listar','img_ficha','img_cronograma'];
-const RPC_ESCRITURA = ['img_persona_guardar','img_persona_borrar','img_catalogo_guardar','img_turno_guardar','img_turno_borrar'];
+const RPC_LECTURA = ['img_mi_acceso','img_catalogos','img_listar','img_ficha','img_cronograma','img_cron_leer'];
+const RPC_ESCRITURA = ['img_persona_guardar','img_persona_borrar','img_catalogo_guardar','img_turno_guardar','img_turno_borrar','img_cron_guardar','img_cron_borrar'];
 const RPC_ADMIN = ['img_respaldo'];
 const NIVELES_EDICION =['editar','admin'];
 const TIPOS_CATALOGO = ['servicio','estudio','tipo_licencia','subespecialidad','equipo','sede_informa'];
@@ -88,7 +89,8 @@ function parseHash(h){
 function resolverHash(hash, pestanas){
   if(!pestanas || !pestanas.length) return null;
   const p = parseHash(hash);
-  const tab = pestanas.indexOf(p.tab) >= 0 && TABS.indexOf(p.tab) >= 0 ? p.tab : pestanas[0];
+  const tab = pestanas.indexOf(p.tab) >= 0 && (TABS.indexOf(p.tab) >= 0 || p.tab === TAB_CRON) ? p.tab : pestanas[0];
+  if(tab === TAB_CRON) return { tab: tab, sub: (tab === p.tab && /^[a-z]{2,20}$/.test(p.sub || '')) ? p.sub : null };
   if(tab !== 'medicos') return { tab: tab, sub: null };
   return { tab: tab, sub: (tab === p.tab && SUBS.indexOf(p.sub) >= 0) ? p.sub : 'staff' };
 }
@@ -3051,9 +3053,29 @@ function pintarInformantes(el){
   })));
 }
 
+/* Cronogramas (cronogramas.js): pestaña propia, siempre visible para quien tiene alguna pestaña asignada; los permisos por dato los aplica la base. */
+function pestanasVisibles(){
+  return E.pestanas.length && window.LumenCronogramas ? E.pestanas.concat([TAB_CRON]) : E.pestanas;
+}
+
+const PUENTE_CRON = {
+  rpc: function(fn, args){ return rpc(fn, args); },
+  codigoDe: function(e){ return codigoDe(e); },
+  mensajeDe: function(c, d){ return mensajeDe(c, d); },
+  nivel: function(){ return E.nivel; },
+  hoy: function(){ return E.hoy; },
+  personas: function(t){ return E.personas[t] || null; },
+  aviso: function(t){ edToast(t); },
+  dialogo: function(o){ return dlgAbrir(o); }
+};
+
 function pintarVista(tab, sub){
   const el = contenedor(tab, sub);
   if(!el) return;
+  if(tab === TAB_CRON){
+    window.LumenCronogramas.mostrar(el, sub, PUENTE_CRON);
+    return;
+  }
   const clave = tab === 'medicos' && sub === 'eco' ? 'cronograma' : tab;
   const listado = tab !== 'medicos' || sub === 'staff';
   if(E.errores[clave]){
@@ -3095,14 +3117,14 @@ function alCambiarHash(){
 
 function render(){
   expCerrar(false);
-  const r = resolverHash(location.hash, E.pestanas);
+  const r = resolverHash(location.hash, pestanasVisibles());
   if(r === null) return;
   if(hashDe(r) !== location.hash) history.replaceState(null, '', hashDe(r));
   E.hashActual = location.hash;
-  TABS.forEach(function(k){
+  TABS.concat([TAB_CRON]).forEach(function(k){
     const t = document.getElementById('t-' + k);
     const p = document.getElementById('tab-' + k);
-    const asignada = E.pestanas.indexOf(k) >= 0;
+    const asignada = pestanasVisibles().indexOf(k) >= 0;
     const activa = asignada && k === r.tab;
     t.hidden = !asignada;
     t.setAttribute('aria-selected', activa ? 'true' : 'false');
@@ -3124,7 +3146,7 @@ function render(){
 /* == arranque == */
 function ocultarTodo(){
   document.querySelector('[role="tablist"]').hidden = true;
-  TABS.forEach(function(k){ document.getElementById('tab-' + k).hidden = true; });
+  TABS.concat([TAB_CRON]).forEach(function(k){ document.getElementById('tab-' + k).hidden = true; });
 }
 
 function avisar(titulo, texto, esError){
@@ -3134,7 +3156,7 @@ function avisar(titulo, texto, esError){
 }
 
 function teclasTablist(ev){
-  const ps = E.pestanas;
+  const ps = pestanasVisibles();
   if(!ps.length) return;
   const k = ev.key;
   if(k !== 'ArrowLeft' && k !== 'ArrowRight' && k !== 'Home' && k !== 'End') return;

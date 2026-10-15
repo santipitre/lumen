@@ -34,7 +34,7 @@ Base visual aprobada: `boceto-cronogramas-imagenes-v16.html` (OK de Santiago). E
 1. Migraciones + RLS + seed desde el JSON que genera el boceto (botón "Copiar datos").
 2. Capa de datos (carga al abrir, escritura optimista por cambio) reemplazando el estado en memoria.
 3. Import mensual del diagrama de técnicos (xlsx) y del cronograma TC.
-4. Pruebas con Playwright: errores JS, sin scroll horizontal a 1400/900/380 px, horas y $ de octubre 2026 (Flavia 210 h / $1.688.038; Natalia 84 h / $828.044; Celeste 132 h / $1.071.708; Hernán 66 h / $492.822, con todas las horas).
+4. Pruebas con Playwright: errores JS, sin scroll horizontal a 1400/900/380 px, horas y $ de octubre 2026 (Flavia 144 h / $1.137.840 — cuando cubre un reemplazo no suma su 16–22 de ese día; antes 210 h / $1.688.038; Natalia 84 h / $828.044; Celeste 132 h / $1.071.708; Hernán 66 h / $492.822, con todas las horas).
 5. Revisión y commit lo hace Santiago.
 
 ## Prompt para pegar en Claude Code
