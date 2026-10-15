@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="lumen-ver" content="2026-10-15-a"/>
+<meta name="lumen-ver" content="2026-10-15-b"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Validación PAMI · LUMEN</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml"/>
@@ -175,6 +175,20 @@
   /* ── LUPA: clic para ver completo lo que la tabla trunca ────────────────── */
   .zoomable{cursor:zoom-in}
   .zoomable:hover, tbody tr:hover .zoomable{color:var(--pyralis-firefly)}
+  /* Diálogo propio de la página: reemplaza confirm()/prompt() del navegador (2026-10-15). */
+  #dlg-bg{position:fixed;inset:0;z-index:300;background:rgba(5,8,12,.62);backdrop-filter:blur(3px);
+    display:flex;align-items:center;justify-content:center;padding:20px}
+  #dlg{width:min(460px,94vw);background:#111a26;border:1px solid var(--border-a);border-radius:12px;
+    box-shadow:0 18px 50px rgba(0,0,0,.6);overflow:hidden}
+  #dlg .dl-h{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:17px;letter-spacing:1.2px;
+    text-transform:uppercase;color:var(--pyralis-firefly);padding:15px 18px 0}
+  #dlg .dl-b{padding:10px 18px 4px;font-size:14px;color:var(--pyralis-text);line-height:1.55}
+  #dlg .dl-b p{margin:0 0 9px}
+  #dlg .dl-b b{color:var(--pyralis-firefly-soft)}
+  #dlg .dl-in{width:100%;box-sizing:border-box;margin:4px 0 6px;background:#0b121b;color:var(--pyralis-text);
+    border:1px solid var(--border);border-radius:7px;padding:9px 11px;font-size:14px;font-family:inherit}
+  #dlg .dl-in:focus{outline:none;border-color:var(--pyralis-firefly)}
+  #dlg .dl-f{display:flex;justify-content:flex-end;gap:9px;padding:12px 18px 16px}
   #lupa{position:fixed;z-index:200;max-width:min(470px,92vw);background:#111a26;
     border:1px solid var(--border-a);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.7);
     padding:14px 34px 14px 16px;line-height:1.5}
@@ -667,6 +681,39 @@ function estadoDe(orden){ return (ESTADOS[orden] && ESTADOS[orden].e) || 'pendie
    las 54 rechazadas de antes del arreglo del rango del HIS no se podían separar por causa.
    m = texto del motivo · src = 'auto' (lo decidió el circuito) | 'mano' (botón en Lumen o
    en el cartel del userscript sin motivo). */
+/* Diálogo con el formato de la página. Devuelve una promesa:
+   true/false (pregunta) o el texto / null (si se pide un dato con input). */
+function dialogo({ titulo, html, ok = 'Aceptar', cancel = 'Cancelar', input = null }){
+  return new Promise(res => {
+    const prev = document.getElementById('dlg-bg'); if (prev) prev.remove();
+    const bg = document.createElement('div');
+    bg.id = 'dlg-bg';
+    bg.innerHTML = '<div id="dlg" role="dialog" aria-modal="true">' +
+      '<div class="dl-h">' + esc(titulo) + '</div>' +
+      '<div class="dl-b">' + html +
+        (input !== null ? '<input class="dl-in" id="dl-in" type="text" value="' + esc(input) + '"/>' : '') +
+      '</div>' +
+      '<div class="dl-f">' +
+        '<button class="btn btn-ghost" id="dl-no">' + esc(cancel) + '</button>' +
+        '<button class="btn btn-primary" id="dl-ok">' + esc(ok) + '</button>' +
+      '</div></div>';
+    document.body.appendChild(bg);
+    const inp = document.getElementById('dl-in');
+    const cerrar = v => { document.removeEventListener('keydown', tecla, true); bg.remove(); res(v); };
+    const aceptar = () => cerrar(inp ? inp.value : true);
+    const cancelar = () => cerrar(inp ? null : false);
+    const tecla = e => {
+      if (e.key === 'Escape'){ e.preventDefault(); cancelar(); }
+      else if (e.key === 'Enter'){ e.preventDefault(); aceptar(); }
+    };
+    document.addEventListener('keydown', tecla, true);
+    document.getElementById('dl-ok').onclick = aceptar;
+    document.getElementById('dl-no').onclick = cancelar;
+    bg.addEventListener('mousedown', e => { if (e.target === bg) cancelar(); });
+    if (inp){ inp.focus(); inp.select(); } else document.getElementById('dl-ok').focus();
+  });
+}
+
 function motivoDe(orden){ return (ESTADOS[orden] && ESTADOS[orden].m) || ''; }
 function setEstado(orden, e, motivo, src){
   if (e === 'pendiente') delete ESTADOS[orden];
@@ -710,7 +757,7 @@ function candidatasRever(){
     return s && s.e === 'rechazada' && !s.m && s.ts < REVER_CORTE && habilitada(o);
   }).sort((a,b) => (a.turnoD?a.turnoD.getTime():0) - (b.turnoD?b.turnoD.getTime():0));
 }
-function iniciarRever(){
+async function iniciarRever(){
   if (REVER){
     REVER.pausada = !REVER.pausada; guardarRever();
     if (!REVER.pausada && !REVER.actual) setTimeout(siguienteRever, 300);
@@ -720,8 +767,14 @@ function iniciarRever(){
   const cand = candidatasRever();
   if (!cand.length){ toast('No hay rechazadas sin motivo de antes del 07/10 en esta bandeja', 'ok'); return; }
   if (!autoOK){ toast('La re-verificación necesita el modo automático (userscript respondiendo)', 'err'); return; }
-  if (!confirm('Se van a volver a pasar por el circuito ' + cand.length + ' órdenes rechazadas antes del 07/10, de a una.\n\n' +
-               'Cada una pasa a PENDIENTE y se dispara sola cuando termina la anterior. ¿Arranco?')) return;
+  const si = await dialogo({
+    titulo: 'Re-verificar rechazadas',
+    html: '<p>Se van a volver a pasar por el circuito <b>' + cand.length + ' órdenes</b> rechazadas antes del 07/10, de a una.</p>' +
+          '<p>Cada una pasa a <b>pendiente</b> y se dispara sola cuando termina la anterior. ' +
+          'Podés pausar en cualquier momento con el mismo botón.</p>',
+    ok: 'Arrancar'
+  });
+  if (!si) return;
   REVER = { cola: cand.map(o => o.orden), hechas: {}, total: cand.length, actual: null, pausada: false, inicio: Date.now() };
   guardarRever();
   siguienteRever();
@@ -1188,11 +1241,13 @@ $('tb').addEventListener('click', ev => {
   switch (b.dataset.a){
     case 'go':   irAPami(o); break;
     case 'ok':   setEstado(orden, 'validada', '', 'mano'); break;
-    case 'no': {
-      const m = prompt('Motivo del rechazo (queda guardado):', 'a mano');
-      if (m === null) break;
-      setEstado(orden, 'rechazada', m.trim() || 'a mano', 'mano'); break;
-    }
+    case 'no':
+      dialogo({
+        titulo: 'Rechazar orden',
+        html: '<p><b>' + esc(o.orden) + '</b> · ' + esc(o.nombre) + '</p><p>Motivo del rechazo (queda guardado):</p>',
+        ok: 'Rechazar', input: 'a mano'
+      }).then(m => { if (m !== null) setEstado(orden, 'rechazada', m.trim() || 'a mano', 'mano'); });
+      break;
     case 'rst':  setEstado(orden, 'pendiente'); break;
   }
 });
