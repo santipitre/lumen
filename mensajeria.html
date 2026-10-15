@@ -568,7 +568,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 // ═════════════════ DATA ═════════════════
 async function loadMensajeros(){
   // rol='caja' son firmantes de Rendicion de Caja, no mensajeros asignables
-  try { mensajeros = await sbQuery('mensajeros', 'select=*&activo=eq.true&rol=eq.mensajero&order=nombre.asc'); }
+  try { mensajeros = await sbRpc('mensajeria_listar_mensajeros', {}); }
   catch(e){ console.error(e); mensajeros = []; }
 }
 async function loadDestinos(){

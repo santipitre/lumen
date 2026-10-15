@@ -433,6 +433,7 @@ function render(data, backlogData) {
   renderProtegido('medicos-vista', () => renderTabMedicos(data));
   renderProtegido('prestaciones-vista', () => renderTabPrestaciones(data));
   renderProtegido('mapa-calor-vista', () => renderMapaCalor(data));
+  renderProtegido('tendencia-vista', () => renderTendencia(data));
   renderTabSemaforo(filtradoBacklog);
   pintarResumenFiltros();
 }
@@ -983,6 +984,140 @@ function renderMapaCalor(data) {
   cont.innerHTML = `<table class="mapa-calor" id="mapa-calor"><thead><tr><th>Modalidad</th>${ths}</tr></thead>`
     + `<tbody>${filas}</tbody></table>`
     + `<div class="med-nota" id="mapa-calor-leyenda">${esc(LEYENDA_CALOR())}</div>`;
+}
+
+/* ═══════════════════════════════════
+   DEMORA: TENDENCIA (C14, fase 5)
+   P90 semanal (semana ISO de Turno Fecha, hora local) por modalidad: un gráfico por modalidad, cada uno con su eje Y
+   desde 0. Maduración (D7): una semana se dibuja si sus pendientes son <= MADURACION_MAX_PENDIENTE del total de la
+   semana; la semana en curso nunca. Universo (C41): fechas, modalidad, tipo de turno y prestación filtran; Médico y
+   "Con informe" no (los pendientes no tienen informante, C2). Sin línea de umbral mientras SLA_APROBADO sea false.
+═══════════════════════════════════ */
+const chartsTendencia = {};
+const ACLARACION_TENDENCIA = 'Médico e informe no aplican en esta vista';
+// Función, como AVISO_POCOS_DATOS: medico-metricas.js carga después de medico.js y N_MIN_INFORMES no existe todavía.
+const AVISO_SIN_SEMANAS = () => `Menos de ${N_MIN_INFORMES} estudios con demora por semana en el período filtrado`;
+const ddmmLunes = d => String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0');
+const lunesDe = d => new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
+
+/* → { [modalidad]: { semanas, dibujable, serie, cortadas, hasta, inmaduras, pocas } }. Las 5 modalidades de
+   EQUIPO_GROUPS siempre y OTROS sólo si hay estudios. `semanas` es un eje de calendario continuo, de la primera a la
+   última semana con estudios de la modalidad (una semana sin estudios queda con n = 0, estado 'pocos'). Estado de cada
+   semana, en este orden: 'en-curso', 'inmadura', 'pocos', 'ok'. `serie` llega hasta la última 'ok'; `cortadas` es lo que
+   viene después; `hasta` es el lunes de la última 'ok' si entre lo cortado hay una 'inmadura'; `inmaduras` son las
+   inmaduras de la serie; `pocas` son todas las 'pocos' (de la serie y cortadas) si hay alguna 'ok'. */
+function tendenciaPorModalidad(filas, fechaCorte) {
+  const semCorte = semanaIso(fechaCorte);
+  const porMod = new Map();
+  filas.forEach(r => {
+    if (!parseDate(r['Turno Fecha'])) return;
+    const m = modalidad(r);
+    if (!porMod.has(m)) porMod.set(m, []);
+    porMod.get(m).push(r);
+  });
+  const salida = Object.create(null);
+  EQUIPO_GROUPS.map(g => g.label).concat('OTROS').forEach(mod => {
+    const rows = porMod.get(mod) || [];
+    if (mod === 'OTROS' && !rows.length) return;
+    const agr = agrupar(rows, 'semana');
+    const semanas = [];
+    if (rows.length) {
+      const lunes = rows.map(r => lunesDe(parseDate(r['Turno Fecha'])).getTime());
+      const primero = lunes.reduce((a, b) => (a < b ? a : b));
+      const ultimo = lunes.reduce((a, b) => (a > b ? a : b));
+      for (let l = new Date(primero); l.getTime() <= ultimo; l = new Date(l.getFullYear(), l.getMonth(), l.getDate() + 7)) {
+        const clave = semanaIso(l);
+        const a = agr[clave] || agregados([]);
+        const excluidos = Object.values(a.excluidos).reduce((s, x) => s + x, 0);
+        const total = a.n + a.pendientes + excluidos;
+        const pctPend = total ? a.pendientes / total : 0;
+        let estado = 'ok';
+        if (clave === semCorte) estado = 'en-curso';
+        else if (pctPend > MADURACION_MAX_PENDIENTE) estado = 'inmadura';
+        else if (a.n < N_MIN_INFORMES) estado = 'pocos';
+        semanas.push({ semana: clave, lunes: new Date(l), a, total, pctPend, estado });
+      }
+    }
+    const dibujable = semanas.some(s => s.estado === 'ok');
+    const corte = dibujable ? semanas.map(s => s.estado).lastIndexOf('ok') + 1 : 0;
+    const serie = semanas.slice(0, corte);
+    const cortadas = semanas.slice(corte);
+    salida[mod] = {
+      semanas, dibujable, serie, cortadas,
+      hasta: (dibujable && cortadas.some(s => s.estado === 'inmadura')) ? serie[serie.length - 1].lunes : null,
+      inmaduras: serie.filter(s => s.estado === 'inmadura'),
+      pocas: dibujable ? semanas.filter(s => s.estado === 'pocos') : [],
+    };
+  });
+  return salida;
+}
+
+function notasTendenciaHTML(t) {
+  const nota = (clase, texto) => `<div class="${clase} med-nota">${esc(texto)}</div>`;
+  let h = '';
+  if (t.hasta) h += nota('tend-nota-hasta', `Serie hasta la semana del ${ddmmLunes(t.hasta)}; las posteriores todavía tienen estudios sin informar`);
+  if (t.inmaduras.length) {
+    h += nota('tend-nota-inmaduras', 'Semanas con estudios sin informar: '
+      + t.inmaduras.map(s => `${ddmmLunes(s.lunes)} (${s.a.pendientes} de ${s.total})`).join(', '));
+  }
+  if (t.pocas.length) {
+    h += nota('tend-nota-pocas', `Semanas con menos de ${N_MIN_INFORMES} estudios con demora: `
+      + t.pocas.map(s => `${ddmmLunes(s.lunes)} (n = ${s.a.n})`).join(', '));
+  }
+  return h;
+}
+
+function graficoTendencia(canvas, t) {
+  const tips = t.serie.map(s => (s.estado === 'ok'
+    ? `P90 ${fmtDias(s.a.p90Horas)} días · mediana ${fmtDias(s.a.medianaHoras)} días · n = ${s.a.n}` : ''));
+  return new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: t.serie.map(s => ddmmLunes(s.lunes)),
+      datasets: [{ label: 'P90 (días)', data: t.serie.map(s => (s.estado === 'ok' ? Number(fmtDias(s.a.p90Horas)) : null)),
+                   spanGaps: false, borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,.2)', pointRadius: 3, borderWidth: 2 }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => tips[ctx.dataIndex] } } },
+      scales: {
+        x: { ticks: { color: '#64748B', font: { size: 10 } }, grid: { color: 'rgba(30,58,138,.2)' } },
+        y: { min: 0, title: { display: true, text: 'días', color: '#64748B' },
+             ticks: { color: '#64748B', font: { size: 10 } }, grid: { color: 'rgba(30,58,138,.2)' } },
+      },
+    },
+  });
+}
+
+// `data` (la de todos los filtros, con Médico e informe) no se usa: el universo es el de C41 (backlog filtrado por
+// modalidad, tipo de turno y prestación, más fechas).
+function renderTendencia(data) {
+  const cont = document.getElementById('tendencia-vista');
+  Object.keys(chartsTendencia).forEach(k => { chartsTendencia[k].destroy(); delete chartsTendencia[k]; });
+  if (!fechaCorteActual) { cont.innerHTML = emptyState('📈', 'Sin datos'); return; }
+  const { desde, hasta } = filtrosAplicados;
+  const filas = filtradoBacklog.filter(r => {
+    const fd = parseDate(r['Turno Fecha']);
+    if (!fd) return false;
+    const ds = toDateStr(fd);
+    return !(desde && ds < desde) && !(hasta && ds > hasta);
+  });
+  const tend = tendenciaPorModalidad(filas, fechaCorteActual);
+  const aclara = filtrosAplicados.medico || filtrosAplicados.informe;
+  const resumen = textoFiltros('') + (aclara ? ' · ' + ACLARACION_TENDENCIA : '');
+  // Se arma entera cada vez: si una falla anterior dejó el aviso en el panel, el próximo render lo reemplaza.
+  cont.innerHTML = `<div class="tend-resumen med-nota">${esc(resumen)}</div><div id="tendencia-grid" class="tend-grid">`
+    + Object.keys(tend).map(mod => {
+      const t = tend[mod];
+      const cuerpo = t.dibujable ? '<div class="tend-lienzo"><canvas></canvas></div>'
+        : `<div class="tend-aviso med-nota">${esc(AVISO_SIN_SEMANAS())}</div>`;
+      return `<section class="tend-mod" data-modalidad="${escAttr(mod)}"><div class="med-mod-titulo">${esc(mod)}</div>`
+        + cuerpo + notasTendenciaHTML(t) + `</section>`;
+    }).join('') + `</div>`;
+  cont.querySelectorAll('section.tend-mod').forEach(sec => {
+    const mod = sec.dataset.modalidad;
+    if (tend[mod].dibujable) chartsTendencia[mod] = graficoTendencia(sec.querySelector('canvas'), tend[mod]);
+  });
 }
 
 /* ═══════════════════════════════════

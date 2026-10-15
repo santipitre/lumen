@@ -298,6 +298,11 @@
     .calor-4 { background: rgba(139,92,246,.85); }
     .calor-gris { background: rgba(148,163,184,.10); color: var(--muted); font-weight: 400; }
     .aviso-vista { padding: 14px; font-size: 12px; color: var(--muted); text-align: center; border: 1px dashed var(--border); border-radius: 8px; }
+    /* C14 (fase 5): tendencia semanal de Demora, un gráfico por modalidad. Sin colores de semáforo (C12). */
+    .tend-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 14px; }
+    .tend-mod { border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+    .tend-lienzo { position: relative; height: 200px; }
+    .tend-aviso { padding: 14px 0; }
     /* C13 (fase 5): nombre como botón del drill-down y nota de pendientes no atribuidos */
     .med-drill { background: none; border: 0; padding: 0; color: var(--text); font: inherit; cursor: pointer; text-align: left; text-decoration: underline dotted; }
     .med-drill:hover, .med-drill:focus-visible { color: var(--blue); }

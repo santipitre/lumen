@@ -49,6 +49,7 @@ let SLA_APROBADO = false;
 // C4: n mínimo de informes con demora por médico y modalidad (período filtrado). También lo usan C7, C9 y C14.
 const N_MIN_INFORMES = 20;
 const TOP_PRESTACIONES = 10;   // C9: largo de cada top por modalidad
+const MADURACION_MAX_PENDIENTE = 0.05;   // C14: una semana de la tendencia se dibuja si sus pendientes son <= 5 % de sus estudios (D7)
 // C6: Médico Informante de residentes. Se actualiza con cada cambio de camada. Vacía = sin bloque Residentes.
 const RESIDENTES = [];
 

@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="lumen-ver" content="2026-10-07-a"/>
+<meta name="lumen-ver" content="2026-10-15-b"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Validación PAMI · LUMEN</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml"/>
@@ -139,6 +139,11 @@
     border:1px solid var(--border);color:var(--muted);white-space:nowrap}
   .est.validada{background:rgba(16,185,129,.15);border-color:rgba(16,185,129,.5);color:#6ee7b7}
   .est.rechazada{background:rgba(248,113,113,.13);border-color:rgba(248,113,113,.45);color:#fca5a5}
+  .motivo{display:block;margin-top:5px;font-size:10.5px;color:#fca5a5;opacity:.85;max-width:190px;
+    white-space:normal;line-height:1.35;word-break:break-word}
+  .motivo.sin{color:var(--muted);font-style:italic}
+  #btn-rever.on{border-color:#3B82F6;color:#93C5FD;background:rgba(59,130,246,.12)}
+  .est.rever{background:rgba(59,130,246,.15);border-color:rgba(59,130,246,.5);color:#93C5FD}
 
   .acts{display:flex;gap:5px;white-space:nowrap}
   .ib{border:1px solid var(--border);background:var(--glass);color:var(--muted);border-radius:6px;
@@ -170,6 +175,20 @@
   /* ── LUPA: clic para ver completo lo que la tabla trunca ────────────────── */
   .zoomable{cursor:zoom-in}
   .zoomable:hover, tbody tr:hover .zoomable{color:var(--pyralis-firefly)}
+  /* Diálogo propio de la página: reemplaza confirm()/prompt() del navegador (2026-10-15). */
+  #dlg-bg{position:fixed;inset:0;z-index:300;background:rgba(5,8,12,.62);backdrop-filter:blur(3px);
+    display:flex;align-items:center;justify-content:center;padding:20px}
+  #dlg{width:min(460px,94vw);background:#111a26;border:1px solid var(--border-a);border-radius:12px;
+    box-shadow:0 18px 50px rgba(0,0,0,.6);overflow:hidden}
+  #dlg .dl-h{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:17px;letter-spacing:1.2px;
+    text-transform:uppercase;color:var(--pyralis-firefly);padding:15px 18px 0}
+  #dlg .dl-b{padding:10px 18px 4px;font-size:14px;color:var(--pyralis-text);line-height:1.55}
+  #dlg .dl-b p{margin:0 0 9px}
+  #dlg .dl-b b{color:var(--pyralis-firefly-soft)}
+  #dlg .dl-in{width:100%;box-sizing:border-box;margin:4px 0 6px;background:#0b121b;color:var(--pyralis-text);
+    border:1px solid var(--border);border-radius:7px;padding:9px 11px;font-size:14px;font-family:inherit}
+  #dlg .dl-in:focus{outline:none;border-color:var(--pyralis-firefly)}
+  #dlg .dl-f{display:flex;justify-content:flex-end;gap:9px;padding:12px 18px 16px}
   #lupa{position:fixed;z-index:200;max-width:min(470px,92vw);background:#111a26;
     border:1px solid var(--border-a);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.7);
     padding:14px 34px 14px 16px;line-height:1.5}
@@ -338,6 +357,7 @@
       <select id="f-mes" class="sel-f"><option value="">Todos los meses</option></select>
       <select id="f-dia" class="sel-f" disabled><option value="">Todos los días</option></select>
       <button class="btn btn-primary" id="btn-next" style="margin-left:14px">▶ Siguiente pendiente</button>
+      <button class="btn btn-ghost" id="btn-rever" style="margin-left:6px" title="Vuelve a pasar por el circuito las rechazadas de antes del arreglo del rango del HIS (v4.5.0, 07/10/2026)">↻ Re-verificar rechazadas</button>
       <div class="search"><input type="text" id="q" placeholder="Buscar orden o apellido…"/></div>
     </div>
 
@@ -656,11 +676,148 @@ async function procesar(file){
 
 /* ── estados ───────────────────────────────────────────── */
 function estadoDe(orden){ return (ESTADOS[orden] && ESTADOS[orden].e) || 'pendiente'; }
-function setEstado(orden, e){
+/* v2026-10-15 — el MOTIVO se guarda. Hasta acá Lumen tiraba el motivo que mandaba el
+   userscript ("equipo: …", "sin turno del Italiano"): sólo lo mostraba en el toast. Por eso
+   las 54 rechazadas de antes del arreglo del rango del HIS no se podían separar por causa.
+   m = texto del motivo · src = 'auto' (lo decidió el circuito) | 'mano' (botón en Lumen o
+   en el cartel del userscript sin motivo). */
+/* Diálogo con el formato de la página. Devuelve una promesa:
+   true/false (pregunta) o el texto / null (si se pide un dato con input). */
+function dialogo({ titulo, html, ok = 'Aceptar', cancel = 'Cancelar', input = null }){
+  return new Promise(res => {
+    const prev = document.getElementById('dlg-bg'); if (prev) prev.remove();
+    const bg = document.createElement('div');
+    bg.id = 'dlg-bg';
+    bg.innerHTML = '<div id="dlg" role="dialog" aria-modal="true">' +
+      '<div class="dl-h">' + esc(titulo) + '</div>' +
+      '<div class="dl-b">' + html +
+        (input !== null ? '<input class="dl-in" id="dl-in" type="text" value="' + esc(input) + '"/>' : '') +
+      '</div>' +
+      '<div class="dl-f">' +
+        '<button class="btn btn-ghost" id="dl-no">' + esc(cancel) + '</button>' +
+        '<button class="btn btn-primary" id="dl-ok">' + esc(ok) + '</button>' +
+      '</div></div>';
+    document.body.appendChild(bg);
+    const inp = document.getElementById('dl-in');
+    const cerrar = v => { document.removeEventListener('keydown', tecla, true); bg.remove(); res(v); };
+    const aceptar = () => cerrar(inp ? inp.value : true);
+    const cancelar = () => cerrar(inp ? null : false);
+    const tecla = e => {
+      if (e.key === 'Escape'){ e.preventDefault(); cancelar(); }
+      else if (e.key === 'Enter'){ e.preventDefault(); aceptar(); }
+    };
+    document.addEventListener('keydown', tecla, true);
+    document.getElementById('dl-ok').onclick = aceptar;
+    document.getElementById('dl-no').onclick = cancelar;
+    bg.addEventListener('mousedown', e => { if (e.target === bg) cancelar(); });
+    if (inp){ inp.focus(); inp.select(); } else document.getElementById('dl-ok').focus();
+  });
+}
+
+function motivoDe(orden){ return (ESTADOS[orden] && ESTADOS[orden].m) || ''; }
+function setEstado(orden, e, motivo, src){
   if (e === 'pendiente') delete ESTADOS[orden];
-  else ESTADOS[orden] = { e: e, ts: Date.now() };
+  else {
+    const r = { e: e, ts: Date.now() };
+    if (motivo) r.m = String(motivo).slice(0, 200);
+    if (src) r.src = src;
+    ESTADOS[orden] = r;
+  }
   save(EST_KEY, ESTADOS);
   render();
+}
+
+/* ══════════ RE-VERIFICAR RECHAZADAS (2026-10-15) ══════════
+   Antes de la v4.5.0 (07/10/2026) el HIS buscaba con el rango de fechas que hubiera quedado
+   pegado, y con eso pudo rechazar órdenes que sí tenían turno del Italiano. Esta cola las
+   vuelve a pasar por el circuito DE A UNA, con la misma regla de "un trabajo por vez".
+   - Entran: rechazadas SIN motivo guardado y anteriores al corte (no hay forma de saber
+     por qué se rechazaron), que estén en la bandeja cargada y habilitadas.
+   - Cada una: se guarda el estado viejo en la cola, se pasa a pendiente y se dispara.
+   - La cola avanza sola cuando vuelve un estado. Si vuelve un error o el watchdog de 2,5 min
+     se dispara, la cola se PAUSA (no se saltea en silencio) y la orden queda pendiente.
+   - Si el circuito se para esperando un QR en PAMI, la cola espera: avanza cuando Santiago
+     marca la orden en el cartel. */
+const REVER_KEY   = 'lumen.valpami.rever.v1';
+const REVER_CORTE = Date.UTC(2026, 9, 8, 0, 0);   /* 07/10/2026 21:00 hora de Mendoza */
+let REVER = load(REVER_KEY, null);                /* {cola:[orden], hechas:{orden:estado}, total, actual, pausada} */
+
+function guardarRever(){ if (REVER) save(REVER_KEY, REVER); else { try { localStorage.removeItem(REVER_KEY); } catch(e){} } pintarRever(); }
+function pintarRever(){
+  const b = $('btn-rever'); if (!b) return;
+  if (!REVER){ b.textContent = '↻ Re-verificar rechazadas'; b.classList.remove('on'); return; }
+  const hechas = REVER.total - REVER.cola.length - (REVER.actual ? 1 : 0);
+  b.textContent = (REVER.pausada ? '▶ Seguir re-verificación ' : '⏸ Pausar re-verificación ') +
+                  '(' + hechas + '/' + REVER.total + ')';
+  b.classList.add('on');
+}
+function candidatasRever(){
+  return ORDENES.filter(o => {
+    const s = ESTADOS[o.orden];
+    return s && s.e === 'rechazada' && !s.m && s.ts < REVER_CORTE && habilitada(o);
+  }).sort((a,b) => (a.turnoD?a.turnoD.getTime():0) - (b.turnoD?b.turnoD.getTime():0));
+}
+async function iniciarRever(){
+  if (REVER){
+    REVER.pausada = !REVER.pausada; guardarRever();
+    if (!REVER.pausada && !REVER.actual) setTimeout(siguienteRever, 300);
+    toast(REVER.pausada ? 'Re-verificación pausada' : 'Re-verificación retomada', 'ok');
+    return;
+  }
+  const cand = candidatasRever();
+  if (!cand.length){ toast('No hay rechazadas sin motivo de antes del 07/10 en esta bandeja', 'ok'); return; }
+  if (!autoOK){ toast('La re-verificación necesita el modo automático (userscript respondiendo)', 'err'); return; }
+  const si = await dialogo({
+    titulo: 'Re-verificar rechazadas',
+    html: '<p>Se van a volver a pasar por el circuito <b>' + cand.length + ' órdenes</b> rechazadas antes del 07/10, de a una.</p>' +
+          '<p>Cada una pasa a <b>pendiente</b> y se dispara sola cuando termina la anterior. ' +
+          'Podés pausar en cualquier momento con el mismo botón.</p>',
+    ok: 'Arrancar'
+  });
+  if (!si) return;
+  REVER = { cola: cand.map(o => o.orden), hechas: {}, total: cand.length, actual: null, pausada: false, inicio: Date.now() };
+  guardarRever();
+  siguienteRever();
+}
+function siguienteRever(){
+  if (!REVER || REVER.pausada) return;
+  if (REVER.actual) return;
+  if (!REVER.cola.length){
+    const r = Object.values(REVER.hechas);
+    const v = r.filter(x => x === 'validada').length, n = r.filter(x => x === 'rechazada').length;
+    toast('Re-verificación terminada: ' + v + ' pasaron a validada, ' + n + ' siguen rechazadas, ' +
+          (r.length - v - n) + ' quedaron pendientes', 'ok');
+    REVER = null; guardarRever(); render();
+    return;
+  }
+  const orden = REVER.cola.shift();
+  const o = ORDENES.find(x => x.orden === orden);
+  if (!o){ REVER.hechas[orden] = 'fuera de bandeja'; guardarRever(); setTimeout(siguienteRever, 100); return; }
+  REVER.actual = orden; guardarRever();
+  setEstado(orden, 'pendiente');
+  irAPami(o);
+  /* irAPami puede negarse (falta una ventana, hay otra orden en curso): si no quedó en
+     curso, se pausa y vuelve a la cola para no perderla. */
+  if (!EN_CURSO || EN_CURSO.orden !== orden){
+    REVER.cola.unshift(orden); REVER.actual = null; REVER.pausada = true; guardarRever();
+    toast('Re-verificación pausada: no se pudo disparar ' + orden + '. Acomodá las ventanas y tocá Seguir.', 'err');
+    return;
+  }
+  const tr = document.querySelector('tr[data-o="' + orden + '"]');
+  if (tr) tr.scrollIntoView({ block:'center', behavior:'smooth' });
+}
+/* Devuelve true si el estado que llegó es de la cola (y entonces la cola decide qué sigue). */
+function reverRecibe(orden, estado){
+  if (!REVER || String(REVER.actual) !== String(orden)) return false;
+  REVER.hechas[orden] = estado; REVER.actual = null; guardarRever();
+  setTimeout(siguienteRever, 1500);
+  return true;
+}
+function reverError(motivo){
+  if (!REVER || !REVER.actual) return;
+  REVER.hechas[REVER.actual] = 'pendiente';
+  REVER.actual = null; REVER.pausada = true; guardarRever();
+  toast('Re-verificación pausada (' + motivo + '). Revisá las ventanas y tocá Seguir.', 'err');
 }
 
 /* ── render ────────────────────────────────────────────── */
@@ -752,7 +909,10 @@ function render(){
       <td class="mono"><span class="ben-b cp" data-cp="${o.benBase}" data-lbl="Beneficio" title="Clic para copiar el beneficio sin los 2 últimos dígitos">${o.benBase}</span> / <span class="ben-d cp" data-cp="${o.benDv}" data-lbl="Verificador" title="Clic para copiar los 2 últimos dígitos">${o.benDv}</span></td>
       <td class="rng c-emi">${esc(o.emision || '—')}</td>
       <td class="pract c-pract" title="${esc(o.practicas.join(' | '))}">${esc(o.practicas[0]||'')}${o.practicas.length>1?' +'+(o.practicas.length-1):''}</td>
-      <td class="c-est"><span class="est ${est}">${est}</span>${badge}</td>
+      <td class="c-est"><span class="est ${REVER && REVER.actual === o.orden ? 'rever' : est}">${REVER && REVER.actual === o.orden ? 're-verificando' : est}</span>${
+        est === 'rechazada' ? (motivoDe(o.orden)
+          ? `<span class="motivo" title="${esc(motivoDe(o.orden))}">${esc(motivoDe(o.orden))}</span>`
+          : '<span class="motivo sin">sin motivo guardado</span>') : ''}${badge}</td>
       <td><div class="acts">
         <button class="ib go"  data-a="go" ${hab ? '' : 'disabled'} title="${hab ? 'Abrir esta orden en el portal de PAMI' : 'Se habilita el día del turno'}"><img src="pami-iso.png" alt="" width="16" height="16"/>PAMI</button>
         <button class="ib ok"  data-a="ok"   title="Marcar validada">✓</button>
@@ -865,6 +1025,7 @@ function irAPami(o){
         toast('La orden ' + o.orden + ' no devolvió nada en 2,5 min. Revisá las ventanas de ' +
               'PAMI y del HIS, y marcala a mano si hace falta.', 'err');
         cerrarEnCurso(o.orden);
+        reverError('timeout de 2,5 min en ' + o.orden);
       }
     }, 150000);
     activa = o.orden;
@@ -936,12 +1097,15 @@ window.addEventListener('message', ev => {
   if (d.accion === 'puente'){ pintarVentanas(); return; }
   if (d.accion === 'estado' && d.orden){
     cerrarEnCurso(d.orden);
-    setEstado(d.orden, d.estado);
+    /* Rechazo sin motivo = alguien tocó ✗ en el cartel del userscript. Se guarda igual,
+       para que nunca más haya una rechazada sin explicación. */
+    const mot = d.estado === 'rechazada' ? (d.motivo || 'a mano (cartel PAMI/HIS)') : (d.motivo || '');
+    setEstado(d.orden, d.estado, mot, (d.motivo || d.estado !== 'rechazada') ? 'auto' : 'mano');
     toast(d.orden + ' → ' + d.estado + (d.motivo ? ' · ' + d.motivo : ''),
           d.estado === 'validada' ? 'ok' : (d.estado === 'rechazada' ? 'err' : ''));
-    if (d.siguiente) setTimeout(siguientePendiente, 250);
+    if (!reverRecibe(d.orden, d.estado) && d.siguiente) setTimeout(siguientePendiente, 250);
   }
-  if (d.accion === 'error'){ cerrarEnCurso(null); toast('PAMI: ' + d.msg, 'err'); }
+  if (d.accion === 'error'){ cerrarEnCurso(null); toast('PAMI: ' + d.msg, 'err'); reverError(d.msg || 'error'); }
 });
 
 /* ── exportar Excel con estados ────────────────────────── */
@@ -949,15 +1113,15 @@ function exportar(){
   if (!ORDENES.length) return;
   const hoy = fmtFecha(new Date());
   const aoa = [['NRO. ORDEN','APELLIDO Y NOMBRE','TURNO','FECHA EMISIÓN','NRO. BENEFICIO/GP',
-                'HABILITADA DESDE','ESTADO LUMEN','FECHA ESTADO','PRÁCTICAS']];
+                'HABILITADA DESDE','ESTADO LUMEN','FECHA ESTADO','MOTIVO','PRÁCTICAS']];
   ORDENES.forEach(o => {
     const e = estadoDe(o.orden);
     const ts = ESTADOS[o.orden] ? fmtFecha(new Date(ESTADOS[o.orden].ts)) : '';
     aoa.push([o.orden, o.nombre, o.turno, o.emision, o.ben14,
-              fmtFecha(habilitaDesde(o)), e.toUpperCase(), ts, o.practicas.join(' | ')]);
+              fmtFecha(habilitaDesde(o)), e.toUpperCase(), ts, motivoDe(o.orden), o.practicas.join(' | ')]);
   });
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{wch:16},{wch:34},{wch:24},{wch:20},{wch:17},{wch:9},{wch:13},{wch:13},{wch:60}];
+  ws['!cols'] = [{wch:16},{wch:34},{wch:24},{wch:20},{wch:17},{wch:9},{wch:13},{wch:13},{wch:34},{wch:60}];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'validacion');
   XLSX.writeFile(wb, 'VALIDACION_PAMI_' + hoy.replace(/\//g,'-') + '.xlsx');
@@ -971,17 +1135,17 @@ function exportarRechazadas(){
   const rech = ORDENES.filter(o => estadoDe(o.orden) === 'rechazada');
   if (!rech.length){ toast('No hay órdenes marcadas como rechazadas', 'err'); return; }
   const aoa = [['NRO. ORDEN','FECHA EMISIÓN','NRO. BENEFICIO/GP','APELLIDO Y NOMBRE','PRÁCTICA','TURNO',
-                'U. ACEPTO','VALIDADA','ESTADO LUMEN','FECHA ESTADO','HABILITADA DESDE']];
+                'U. ACEPTO','VALIDADA','ESTADO LUMEN','FECHA ESTADO','HABILITADA DESDE','MOTIVO']];
   rech.sort((a,b) => (a.turnoD?a.turnoD.getTime():0) - (b.turnoD?b.turnoD.getTime():0) ||
                      a.nombre.localeCompare(b.nombre,'es'));
   rech.forEach(o => {
     const ts = ESTADOS[o.orden] ? fmtFechaHora(ESTADOS[o.orden].ts) : '';
     const ps = o.practicas.length ? o.practicas : [''];
     ps.forEach(p => aoa.push([o.orden, o.emision, o.ben14, o.nombre, p, o.turno,
-                              FILTRO_ACEPTO, '', 'RECHAZADA', ts, fmtFecha(habilitaDesde(o))]));
+                              FILTRO_ACEPTO, '', 'RECHAZADA', ts, fmtFecha(habilitaDesde(o)), motivoDe(o.orden) || 'sin motivo guardado']));
   });
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{wch:16},{wch:20},{wch:19},{wch:32},{wch:58},{wch:24},{wch:13},{wch:11},{wch:14},{wch:17},{wch:17}];
+  ws['!cols'] = [{wch:16},{wch:20},{wch:19},{wch:32},{wch:58},{wch:24},{wch:13},{wch:11},{wch:14},{wch:17},{wch:17},{wch:34}];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'rechazadas');
   XLSX.writeFile(wb, 'RECHAZADAS_PAMI_' + fmtFecha(new Date()).replace(/\//g,'-') + '.xlsx');
@@ -1076,8 +1240,14 @@ $('tb').addEventListener('click', ev => {
   const o = ORDENES.find(x => x.orden === orden); if (!o) return;
   switch (b.dataset.a){
     case 'go':   irAPami(o); break;
-    case 'ok':   setEstado(orden, 'validada'); break;
-    case 'no':   setEstado(orden, 'rechazada'); break;
+    case 'ok':   setEstado(orden, 'validada', '', 'mano'); break;
+    case 'no':
+      dialogo({
+        titulo: 'Rechazar orden',
+        html: '<p><b>' + esc(o.orden) + '</b> · ' + esc(o.nombre) + '</p><p>Motivo del rechazo (queda guardado):</p>',
+        ok: 'Rechazar', input: 'a mano'
+      }).then(m => { if (m !== null) setEstado(orden, 'rechazada', m.trim() || 'a mano', 'mano'); });
+      break;
     case 'rst':  setEstado(orden, 'pendiente'); break;
   }
 });
@@ -1096,6 +1266,11 @@ document.querySelectorAll('thead th.ord-col').forEach(th => th.addEventListener(
 }));
 $('q').addEventListener('input', e => { QUERY = e.target.value; render(); });
 $('btn-next').addEventListener('click', siguientePendiente);
+$('btn-rever').addEventListener('click', iniciarRever);
+pintarRever();
+/* Si se recargó la página en medio de una re-verificación, la orden que estaba "actual"
+   no va a devolver nada: se vuelve a poner primera en la cola y queda pausada. */
+if (REVER && REVER.actual){ REVER.cola.unshift(REVER.actual); REVER.actual = null; REVER.pausada = true; guardarRever(); }
 $('f-mes').addEventListener('change', e => { MES = e.target.value; DIA = ''; render(); });
 $('f-dia').addEventListener('change', e => { DIA = e.target.value; render(); });
 $('btn-export').addEventListener('click', exportar);

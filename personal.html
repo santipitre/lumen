@@ -766,7 +766,8 @@ function applyPermissions() {
 /* ── Carga de datos ──────────────────────────────────── */
 async function loadUsuarios() {
   try {
-    _usuariosAll = await sbQuery('usuarios', 'select=id,username,nombre,rol&activo=eq.true&order=nombre');
+    const filas = await sbRpc('listar_usuarios_activos', {});
+    _usuariosAll = Array.isArray(filas) ? filas : [];
     // Poblar el select de compañeros
     const sel = document.getElementById('lic-companero');
     if (sel) {
@@ -776,7 +777,7 @@ async function loadUsuarios() {
           .map(u => `<option value="${u.id}">${esc(u.nombre)} (${esc(u.username)})</option>`)
           .join('');
     }
-  } catch(e) { console.error('loadUsuarios error:', e); }
+  } catch(e) { _usuariosAll = []; console.error('loadUsuarios error:', e); }
 }
 
 async function loadLicencias() {
