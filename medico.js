@@ -29,6 +29,7 @@ const AVISO_RANKING = 'Ranking de médicos visible sólo para admin/jefatura';
 function puedeVerRankingMedicos() {
   return window.__spcd_perm === 'edit' || window.__spcd_perm === 'admin';
 }
+const KPI_MEDICOS_CANDADO = '<span class="kpi-candado">🔒 Requiere permiso de edición</span>';
 const avisoRankingHTML = () => `<div class="aviso-ranking">${esc(AVISO_RANKING)}</div>`;
 const filaAvisoRanking = columnas => `<tr><td colspan="${columnas}">${avisoRankingHTML()}</td></tr>`;
 
@@ -43,6 +44,18 @@ function aplicarPermisosRanking() {
   if (fm) fm.closest('.filter-group').style.display = 'none';
   // M4 (REVIEW-3.1): sin permiso la tarjeta "Demora por médico" no tiene contenido; se oculta entera.
   const rt = document.getElementById('rank-tiempos'); if (rt) rt.closest('.chart-card').style.display = 'none';
+  // N-A1 (boceto aprobado 2026-10-12): sin permiso Pendientes no tiene columna Informante Sugerido y la tarjeta
+  // "Médicos Informantes" queda con candado, sin cifra y sin "ver detalle" (no se oculta: se reemplaza el valor).
+  const thIs = document.getElementById('th-informante-sugerido'); if (thIs) thIs.remove();
+  const kpiMed = document.getElementById('kpi-medicos');
+  if (kpiMed) {
+    const card = kpiMed.closest('.kpi-card');
+    if (card) {
+      card.removeAttribute('onclick'); card.style.cursor = 'default';
+      const hint = card.querySelector('.kpi-hint'); if (hint) hint.style.display = 'none';
+    }
+    kpiMed.innerHTML = KPI_MEDICOS_CANDADO;
+  }
   // C5 (fase 5): el export de Tiempo ya no tiene nombres; sólo el de Realizados queda bajo permiso.
   document.querySelectorAll('button[onclick^="exportRealizadosExcel"]')
     .forEach(b => { b.disabled = true; b.title = AVISO_RANKING; });
@@ -95,14 +108,33 @@ function escAttr(s) {
    admin.html lo pisa). Si spcd_data_full no trae las 12 columnas médicas,
    se usa la última copia buena y se avisa; si tampoco hay copia, se avisa
    sin mostrar ningún número (D1 de CONTEXT-2.md, SC4).
+   N-A1 (fase 6, D2): las dos columnas con nombres de médico (COLUMNAS_CON_PERMISO) sólo las
+   exige y las guarda quien tiene `edit`. Sin permiso se recortan antes de asignar rawData y
+   de guardar spcd_data_medico, y su ausencia en la fuente no dispara el aviso (cambio de SC4
+   de la fase 2, OK de Santiago 2026-10-12). NO es garantía real: spcd_data_full (que escriben
+   app.html, jefe.html y admin.html) sigue trayendo la columna.
 ═══════════════════════════════════ */
 const COLUMNAS_MEDICAS_REQUERIDAS = ['Estado','Turno Fecha','Turno N°','Paciente','Documento',
-  'Prestación','Médico','Médico Informante','Informante Sugerido','Informe','Fecha Informe','Equipo'];
+  'Prestación','Médico','Informe','Fecha Informe','Equipo'];
+const COLUMNAS_CON_PERMISO = ['Médico Informante','Informante Sugerido'];
 
 function columnasFaltantes(data) {
   const presentes = new Set();
   data.forEach(r => Object.keys(r).forEach(k => presentes.add(k)));
-  return COLUMNAS_MEDICAS_REQUERIDAS.filter(c => !presentes.has(c));
+  const requeridas = puedeVerRankingMedicos()
+    ? COLUMNAS_MEDICAS_REQUERIDAS.concat(COLUMNAS_CON_PERMISO) : COLUMNAS_MEDICAS_REQUERIDAS;
+  return requeridas.filter(c => !presentes.has(c));
+}
+
+/* N-A1: sin permiso devuelve copias de las filas sin las claves de COLUMNAS_CON_PERMISO (no toca
+   spcd_data_full ni las filas de origen); con permiso devuelve las mismas filas. */
+function recortarSinPermiso(rows) {
+  if (puedeVerRankingMedicos()) return rows;
+  return rows.map(r => {
+    const c = Object.assign({}, r);
+    COLUMNAS_CON_PERMISO.forEach(k => { delete c[k]; });
+    return c;
+  });
 }
 
 function mostrarAvisoColumnas(faltantes, copiadoEn) {
@@ -133,8 +165,9 @@ window.addEventListener('DOMContentLoaded', () => {
     dbLoad('spcd_data_full').then(data => {
       if (data && data.length > 0) {
         if (columnasFaltantes(data).length === 0) {
-          rawData = data;
-          dbSave('spcd_data_medico', { meta: { copiadoEn: new Date().toISOString() }, rows: data })
+          // N-A1: sin permiso rawData y la copia propia se guardan sin los nombres (la copia vieja con nombres se pisa acá).
+          rawData = recortarSinPermiso(data);
+          dbSave('spcd_data_medico', { meta: { copiadoEn: new Date().toISOString() }, rows: rawData })
             .catch(err => console.error('Error guardando spcd_data_medico:', err));
           try {
             onDataLoaded(rawData);
@@ -152,7 +185,14 @@ window.addEventListener('DOMContentLoaded', () => {
             return null;
           }).then(datosViejos => {
             if (datosViejos && datosViejos.rows) {
-              rawData = datosViejos.rows;
+              // N-A1: una copia vieja con nombres (de antes del recorte) no se usa tal cual sin permiso: se recorta y se vuelve a guardar.
+              const copiaConNombres = !puedeVerRankingMedicos()
+                && datosViejos.rows.some(r => COLUMNAS_CON_PERMISO.some(k => k in r));
+              rawData = recortarSinPermiso(datosViejos.rows);
+              if (copiaConNombres) {
+                dbSave('spcd_data_medico', { meta: datosViejos.meta || {}, rows: rawData })
+                  .catch(err => console.error('Error guardando spcd_data_medico recortada:', err));
+              }
               try {
                 onDataLoaded(rawData);
               } catch(err) {
@@ -422,19 +462,18 @@ function calcFechaCorte(data) {
 function render(data, backlogData) {
   filtradoBacklog = backlogData || filtrarBacklog(realizados);
   fechaCorteActual = calcFechaCorte(realizados);
-  calcKPIs(data);
-  renderAlertPendientes(data);
-  renderChartDias(data);
-  renderChartDonut(data);
-  renderRankMedicos(data);
-  renderRankTiempos();
-  sincronizarPendModalidad();
-  renderTabPendientes(filtradoBacklog);
+  renderProtegidoConservando('kpi-vista', () => calcKPIs(data));
+  renderProtegidoConservando('alert-pendientes', () => renderAlertPendientes(data));
+  renderProtegidoConservando('chart-dias-vista', () => renderChartDias(data));
+  renderProtegidoConservando('chart-donut-vista', () => renderChartDonut(data));
+  renderProtegidoConservando('rank-medicos-vista', () => renderRankMedicos(data));
+  renderProtegidoConservando('rank-tiempos-vista', () => renderRankTiempos());
+  renderProtegidoConservando('tab-pendientes', () => { sincronizarPendModalidad(); renderTabPendientes(filtradoBacklog); });
   renderProtegido('medicos-vista', () => renderTabMedicos(data));
   renderProtegido('prestaciones-vista', () => renderTabPrestaciones(data));
   renderProtegido('mapa-calor-vista', () => renderMapaCalor(data));
   renderProtegido('tendencia-vista', () => renderTendencia(data));
-  renderTabSemaforo(filtradoBacklog);
+  renderProtegidoConservando('tab-semaforo', () => renderTabSemaforo(filtradoBacklog));
   pintarResumenFiltros();
 }
 
@@ -447,6 +486,29 @@ function renderProtegido(panelId, fn) {
     console.error('Vista ' + panelId + ' no se pudo renderizar: ' + (e && e.message), '\n' + ((e && e.stack) || ''));
     const p = document.getElementById(panelId);
     if (p) p.innerHTML = `<div class="aviso-vista">${esc(AVISO_VISTA_FALLO)}</div>`;
+  }
+}
+
+/* PLAN-3.1 (C21, D3): variante para las vistas viejas de Resumen, Pendientes y Semáforo. No pisa el panel: sus canvas,
+   selects y tbody tienen que seguir en el DOM para que el render limpio siguiente funcione. Si la vista falla, oculta
+   el contenido (clase vista-fallida) y pone el aviso como primer hijo; un render sin error lo quita. */
+function renderProtegidoConservando(panelId, fn) {
+  const p = document.getElementById(panelId);
+  try {
+    fn();
+    if (p) {
+      p.classList.remove('vista-fallida');
+      const previo = p.querySelector(':scope > .aviso-vista');
+      if (previo) previo.remove();
+    }
+  } catch (e) {
+    console.error('Vista ' + panelId + ' no se pudo renderizar: ' + (e && e.message), '\n' + ((e && e.stack) || ''));
+    if (p) {
+      p.classList.add('vista-fallida');
+      let aviso = p.querySelector(':scope > .aviso-vista');
+      if (!aviso) { aviso = document.createElement('div'); aviso.className = 'aviso-vista'; p.insertBefore(aviso, p.firstChild); }
+      aviso.textContent = AVISO_VISTA_FALLO;
+    }
   }
 }
 
@@ -485,8 +547,13 @@ function calcKPIs(data) {
     linkInconsistentes.style.display = totalInconsistentes > 0 ? 'block' : 'none';
   }
 
-  const medActivos = new Set(conInforme.map(r => r['Médico Informante']).filter(m => medicoValido(m)));
-  document.getElementById('kpi-medicos').textContent = medActivos.size;
+  // N-A1: sin permiso no hay cifra (los nombres ni se cargan): la tarjeta queda con el candado.
+  if (puedeVerRankingMedicos()) {
+    const medActivos = new Set(conInforme.map(r => r['Médico Informante']).filter(m => medicoValido(m)));
+    document.getElementById('kpi-medicos').textContent = medActivos.size;
+  } else {
+    document.getElementById('kpi-medicos').innerHTML = KPI_MEDICOS_CANDADO;
+  }
   // B9/C18e: el subtítulo no nombra médicos, con y sin permiso.
   document.getElementById('kpi-med-sub').textContent = 'con al menos un informe en el período';
 }
@@ -673,7 +740,7 @@ function renderTabPendientes(data) {
   const tbody = document.getElementById('tbody-pendientes');
   if (!visibles.length) {
     const msg = todos.length ? 'Ningún pendiente con estos filtros' : '¡Sin informes pendientes!';
-    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="e-icon">✅</div><div class="e-text">${msg}</div></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${puedeVerRankingMedicos() ? 8 : 7}"><div class="empty-state"><div class="e-icon">✅</div><div class="e-text">${msg}</div></div></td></tr>`;
     return;
   }
 
@@ -686,7 +753,7 @@ function renderTabPendientes(data) {
       <td>${esc((r['Paciente']||'').slice(0,24))}</td>
       <td title="${escAttr(r['Prestación']||'')}">${esc((r['Prestación']||'').slice(0,32))}…</td>
       <td>${esc(r['Médico']||'—')}</td>
-      <td>${r['Informante Sugerido'] ? esc(r['Informante Sugerido']) : '<span style="color:var(--muted)">No asignado</span>'}</td>
+      ${puedeVerRankingMedicos() ? `<td>${r['Informante Sugerido'] ? esc(r['Informante Sugerido']) : '<span style="color:var(--muted)">No asignado</span>'}</td>` : ''}
       <td style="text-align:center;font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700">${diasStr}</td>
       <td class="${CLASE_BANDA[banda]}">${ETIQUETA_BANDA[banda]}</td>
     </tr>`;
@@ -1052,19 +1119,37 @@ function tendenciaPorModalidad(filas, fechaCorte) {
   return salida;
 }
 
-function notasTendenciaHTML(t) {
-  const nota = (clase, texto) => `<div class="${clase} med-nota">${esc(texto)}</div>`;
-  let h = '';
-  if (t.hasta) h += nota('tend-nota-hasta', `Serie hasta la semana del ${ddmmLunes(t.hasta)}; las posteriores todavía tienen estudios sin informar`);
+// Universo de la tendencia (C41): el backlog filtrado por modalidad, tipo de turno y prestación, más fechas. null si no hay
+// fecha de corte. Lo usan la pantalla (renderTendencia) y el export (exportTendenciaExcel): el mismo cálculo.
+function tendenciaVigente() {
+  if (!fechaCorteActual) return null;
+  const { desde, hasta } = filtrosAplicados;
+  const filas = filtradoBacklog.filter(r => {
+    const fd = parseDate(r['Turno Fecha']);
+    if (!fd) return false;
+    const ds = toDateStr(fd);
+    return !(desde && ds < desde) && !(hasta && ds > hasta);
+  });
+  return tendenciaPorModalidad(filas, fechaCorteActual);
+}
+
+// → [[clase, texto]] con las notas de maduración de una modalidad; la pantalla las pinta como HTML y el export, como texto.
+function notasTendencia(t) {
+  const notas = [];
+  if (t.hasta) notas.push(['tend-nota-hasta', `Serie hasta la semana del ${ddmmLunes(t.hasta)}; las posteriores todavía tienen estudios sin informar`]);
   if (t.inmaduras.length) {
-    h += nota('tend-nota-inmaduras', 'Semanas con estudios sin informar: '
-      + t.inmaduras.map(s => `${ddmmLunes(s.lunes)} (${s.a.pendientes} de ${s.total})`).join(', '));
+    notas.push(['tend-nota-inmaduras', 'Semanas con estudios sin informar: '
+      + t.inmaduras.map(s => `${ddmmLunes(s.lunes)} (${s.a.pendientes} de ${s.total})`).join(', ')]);
   }
   if (t.pocas.length) {
-    h += nota('tend-nota-pocas', `Semanas con menos de ${N_MIN_INFORMES} estudios con demora: `
-      + t.pocas.map(s => `${ddmmLunes(s.lunes)} (n = ${s.a.n})`).join(', '));
+    notas.push(['tend-nota-pocas', `Semanas con menos de ${N_MIN_INFORMES} estudios con demora: `
+      + t.pocas.map(s => `${ddmmLunes(s.lunes)} (n = ${s.a.n})`).join(', ')]);
   }
-  return h;
+  return notas;
+}
+
+function notasTendenciaHTML(t) {
+  return notasTendencia(t).map(([clase, texto]) => `<div class="${clase} med-nota">${esc(texto)}</div>`).join('');
 }
 
 function graficoTendencia(canvas, t) {
@@ -1094,15 +1179,8 @@ function graficoTendencia(canvas, t) {
 function renderTendencia(data) {
   const cont = document.getElementById('tendencia-vista');
   Object.keys(chartsTendencia).forEach(k => { chartsTendencia[k].destroy(); delete chartsTendencia[k]; });
-  if (!fechaCorteActual) { cont.innerHTML = emptyState('📈', 'Sin datos'); return; }
-  const { desde, hasta } = filtrosAplicados;
-  const filas = filtradoBacklog.filter(r => {
-    const fd = parseDate(r['Turno Fecha']);
-    if (!fd) return false;
-    const ds = toDateStr(fd);
-    return !(desde && ds < desde) && !(hasta && ds > hasta);
-  });
-  const tend = tendenciaPorModalidad(filas, fechaCorteActual);
+  const tend = tendenciaVigente();
+  if (!tend) { cont.innerHTML = emptyState('📈', 'Sin datos'); return; }
   const aclara = filtrosAplicados.medico || filtrosAplicados.informe;
   const resumen = textoFiltros('') + (aclara ? ' · ' + ACLARACION_TENDENCIA : '');
   // Se arma entera cada vez: si una falla anterior dejó el aviso en el panel, el próximo render lo reemplaza.
@@ -1262,8 +1340,9 @@ const EQUIPO_GROUPS = [
 const EQUIPO_SET = new Set();
 EQUIPO_GROUPS.forEach(g => g.equipos.forEach(e => EQUIPO_SET.add(e.toUpperCase())));
 
-/* A10: equipos de eco de residentes. Se basa en el Equipo, no en Servicio,
-   para que la fase 4 pueda filtrar o subagrupar "Eco residentes". */
+/* A10: equipos de eco de residentes (por Equipo, no por Servicio).
+   Sin callers de producción; se conserva porque la red la exige (A10, A12b).
+   La vista Médicos usa esResidenteMedico(). */
 const EQUIPOS_RESIDENTE = ['ECOG-DOPP H.ITALIANO RESIDENTE'];
 function esResidente(r) {
   return EQUIPOS_RESIDENTE.includes(String((r && r['Equipo']) || '').trim().toUpperCase());
@@ -1540,7 +1619,8 @@ function openRealizadosPage() {
   const medData = Object.entries(byMed).map(([med, rows]) => ({ medico: med, count: rows.length }))
     .sort((a,b) => b.count - a.count);
 
-  const maxCount = medData[0]?.count || 1;
+  // D6: Participación = % del total de informes con médico válido (la columna suma 100 %)
+  const totalMed = medData.reduce((a, m) => a + m.count, 0) || 1;
 
   // B5: demora mediana y P90 generales, sin tope (agregados del motor)
   const demora = resumenDemora(conInforme);
@@ -1554,7 +1634,9 @@ function openRealizadosPage() {
   // Tabla (B9: sin permiso, el aviso en lugar del detalle por médico)
   const tbody = document.getElementById('real-tbody');
   tbody.innerHTML = !puedeVerRankingMedicos() ? filaAvisoRanking(4) : medData.map((m, i) => {
-    const pct = ((m.count / maxCount) * 100).toFixed(0);
+    // La suma de las celdas visibles es 100 ± el redondeo de cada fila (un decimal).
+    const pct = (m.count / totalMed) * 100;
+    const pctTxt = pct.toFixed(1);
 
     return `<tr>
       <td class="rank-col">${i + 1}</td>
@@ -1562,8 +1644,9 @@ function openRealizadosPage() {
       <td class="num-col">${m.count}</td>
       <td class="bar-col">
         <div class="real-bar-wrap">
-          <div class="real-bar" style="width:${pct}%"></div>
+          <div class="real-bar" style="width:${pctTxt}%"></div>
         </div>
+        <span class="real-pct">${pctTxt} %</span>
       </td>
     </tr>`;
   }).join('');
@@ -1872,6 +1955,67 @@ function getExportSubtitle(groupFilter) {
   return group ? group.label : null;
 }
 
+/* ── Columnas del libro de exportExcel: fijas, sin Equipo si el modal no es de pendientes (C19) ── */
+function columnasExportModal(isPend) {
+  const allCols   = ['Turno Fecha','Turno N°','Paciente','Documento','Prestación','Equipo','Informe','Días Pendiente'];
+  const allShortH = ['Fecha','Turno N°','Paciente','DNI','Prestación','Equipo','Informe','Días'];
+  const allColW   = [11,12,24,12,30,16,10,8];
+
+  const excludeCols = isPend ? new Set([]) : new Set(['Equipo']);
+  const indices = [];
+  allCols.forEach((c,i) => { if (!excludeCols.has(c)) indices.push(i); });
+  return {
+    cols:   indices.map(i => allCols[i]),
+    shortH: indices.map(i => allShortH[i]),
+    colW:   indices.map(i => allColW[i])
+  };
+}
+
+/* ── KPIs del libro de exportExcel (C19) ── */
+function kpisExportModal(dataRows, isPend, hoy) {
+  const conI = dataRows.filter(r => tieneInformeIF(r)).length;
+  const sinI = dataRows.length - conI;
+  const pendientes = isPend ? dataRows : dataRows.filter(r => !tieneInformeIF(r));
+  const dias = pendientes.map(r => {
+    const d = edadEnDias(r, hoy);
+    return d === null ? 0 : Math.floor(d);
+  });
+  const maxDias = dias.reduce((a, b) => (a > b ? a : b), 0);
+  const equipos = new Set(dataRows.map(r => r['Equipo']||'—'));
+  // Tono del KPI según la peor banda de semaforo() entre los pendientes (FR5.2).
+  const TONO_BANDA = { rojo: 'rose', amarillo: 'amber' };
+  const tonoMax = TONO_BANDA[peorBanda(pendientes, hoy)] || 'emerald';
+
+  const kpis = [
+    { label:'Registros',        value: dataRows.length.toLocaleString('es-AR'), tone:'cyan' },
+    { label:'Con informe',      value: conI,                                    tone:'emerald' },
+    { label:'Sin informe',      value: sinI, tone: sinI>0 ? 'rose' : 'cyan' },
+    isPend
+      ? { label:'Máx. días pend.', value: maxDias, tone: tonoMax }
+      : { label:'Equipos',         value: equipos.size, tone:'silver' }
+  ];
+  return { kpis, conI, sinI, maxDias };
+}
+
+/* ── Formatter de la tabla de exportExcel: color por banda de semaforo() en los días pendientes (C19) ── */
+function formatterExportModal(cols, dataRows, isPend, hoy) {
+  return (cell, v, rd, idx, ci) => {
+    const c = cols[ci];
+    const r = dataRows[idx];
+    const tieneInf = tieneInformeIF(r);
+    if (c === 'Informe' && !tieneInf) SpcdExcel.Fmt.error(cell);
+    if (c === 'Días Pendiente' && isPend && typeof v === 'number') {
+      SpcdExcel.Fmt.center(cell);
+      // Color por la banda de semaforo() (FR5.2), no por días fijos.
+      const banda = bandaPendiente(r, hoy);
+      if (banda === 'rojo')          SpcdExcel.Fmt.error(cell);
+      else if (banda === 'amarillo') SpcdExcel.Fmt.warn(cell);
+      else if (banda === 'verde')    SpcdExcel.Fmt.success(cell);
+    }
+    if (c === 'Turno N°' || c === 'Documento') SpcdExcel.Fmt.center(cell);
+  };
+}
+
 /* ── Generar y descargar Excel. share=true abre diálogo compartir ── */
 async function exportExcel(groupFilter, share) {
   if (!modalFiltered.length) { spcdAlert('No hay datos para exportar', { type:'alert', title:'Sin datos' }); return; }
@@ -1879,44 +2023,14 @@ async function exportExcel(groupFilter, share) {
     await SpcdExcel.ready();
 
     const isPend = (modalTipo === 'pendientes');
-    const allCols   = ['Turno Fecha','Turno N°','Paciente','Documento','Prestación','Equipo','Informe','Días Pendiente'];
-    const allShortH = ['Fecha','Turno N°','Paciente','DNI','Prestación','Equipo','Informe','Días'];
-    const allColW   = [11,12,24,12,30,16,10,8];
-
-    const excludeCols = isPend ? new Set([]) : new Set(['Equipo']);
-    const indices = [];
-    allCols.forEach((c,i) => { if (!excludeCols.has(c)) indices.push(i); });
-    const cols   = indices.map(i => allCols[i]);
-    const shortH = indices.map(i => allShortH[i]);
-    const colW   = indices.map(i => allColW[i]);
+    const { cols, shortH, colW } = columnasExportModal(isPend);
 
     const dataRows = isPend ? getExportRows(groupFilter) : deduplicarPorTurno(modalFiltered);
     const subtitleSuf = isPend ? getExportSubtitle(groupFilter) : null;
     if (!dataRows.length) { spcdAlert('No hay datos en este grupo', { type:'alert', title:'Sin datos' }); return; }
 
-    /* KPIs */
     const hoy = fechaCorteActual;
-    const conI = dataRows.filter(r => tieneInformeIF(r)).length;
-    const sinI = dataRows.length - conI;
-    const pendientes = isPend ? dataRows : dataRows.filter(r => !tieneInformeIF(r));
-    const dias = pendientes.map(r => {
-      const d = edadEnDias(r, hoy);
-      return d === null ? 0 : Math.floor(d);
-    });
-    const maxDias = dias.reduce((a, b) => (a > b ? a : b), 0);
-    const equipos = new Set(dataRows.map(r => r['Equipo']||'—'));
-    // Tono del KPI según la peor banda de semaforo() entre los pendientes (FR5.2).
-    const TONO_BANDA = { rojo: 'rose', amarillo: 'amber' };
-    const tonoMax = TONO_BANDA[peorBanda(pendientes, hoy)] || 'emerald';
-
-    const kpis = [
-      { label:'Registros',        value: dataRows.length.toLocaleString('es-AR'), tone:'cyan' },
-      { label:'Con informe',      value: conI,                                    tone:'emerald' },
-      { label:'Sin informe',      value: sinI, tone: sinI>0 ? 'rose' : 'cyan' },
-      isPend
-        ? { label:'Máx. días pend.', value: maxDias, tone: tonoMax }
-        : { label:'Equipos',         value: equipos.size, tone:'silver' }
-    ];
+    const { kpis, conI, sinI, maxDias } = kpisExportModal(dataRows, isPend, hoy);
 
     const subtitle = `INFORME MÉDICO · ${modalTitle.toUpperCase()}` + (subtitleSuf ? ` · ${subtitleSuf.toUpperCase()}` : '');
     const { wb, ws } = SpcdExcel.createBook({ subtitle, sheetName:'Detalle' });
@@ -1953,21 +2067,7 @@ async function exportExcel(groupFilter, share) {
         return cols.map(c => valMap[c]);
       }).map(sanearFilaExport),
       startRow: s.nextRow, totalCols: cols.length,
-      formatter: (cell, v, rd, idx, ci) => {
-        const c = cols[ci];
-        const r = dataRows[idx];
-        const tieneInf = tieneInformeIF(r);
-        if (c === 'Informe' && !tieneInf) SpcdExcel.Fmt.error(cell);
-        if (c === 'Días Pendiente' && isPend && typeof v === 'number') {
-          SpcdExcel.Fmt.center(cell);
-          // Color por la banda de semaforo() (FR5.2), no por días fijos.
-          const banda = bandaPendiente(r, hoy);
-          if (banda === 'rojo')          SpcdExcel.Fmt.error(cell);
-          else if (banda === 'amarillo') SpcdExcel.Fmt.warn(cell);
-          else if (banda === 'verde')    SpcdExcel.Fmt.success(cell);
-        }
-        if (c === 'Turno N°' || c === 'Documento') SpcdExcel.Fmt.center(cell);
-      }
+      formatter: formatterExportModal(cols, dataRows, isPend, hoy)
     });
     const tot = SpcdExcel.buildTotals(ws, {
       startRow:t.nextRow, totalCols:cols.length,
@@ -2096,6 +2196,186 @@ async function exportMedicosExcel(share) {
       alert('Error al exportar: ' + err.message);
     }
   }
+}
+
+/* ── Exports de Prestaciones, mapa de calor y tendencia (fase 6, C16, C9, C17, C28) ──
+   Mismo modelo que exportMedicosExcel: filas 1-4 el encabezado de la plantilla, fila 5 la línea de filtros de su
+   pestaña (escribirLineaFiltros con la vista), texto y tablas después, todas las buildTable con freezeHeader:false y una
+   sola asignación de ws.views (congela hasta la fila 5). Los datos salen de las mismas funciones que la pantalla
+   (prestacionesPorModalidad, mapaCalor, tendenciaVigente) y no se calcula nada aparte. Agregados: sin nombres de médicos,
+   sin banda ni color (C12; el mapa de calor lleva el número y la leyenda como texto). Cada fila pasa por sanearFilaExport
+   y cada texto por sanearCelda (C17). Los botones viven fuera de los paneles que renderProtegido pisa. */
+const diasExport = h => (h === null || h === undefined) ? null : Number(fmtDias(h));
+const fechaLunesExport = d => ddmmLunes(d) + '/' + d.getFullYear();
+const ESTADO_SEMANA_EXPORT = { ok: 'Con datos', inmadura: 'Con estudios sin informar', pocos: 'Pocos datos', 'en-curso': 'En curso' };
+const COLUMNAS_PRESTACIONES_P90 = ['Prestación', 'Código', 'n', 'P90 (días)', 'Mediana (días)'];
+const COLUMNAS_PRESTACIONES_VOL = ['Prestación', 'Código', 'Volumen (sin ponderar)'];
+const COLUMNAS_TENDENCIA_EXPORT = ['Semana (lunes)', 'P90 (días)', 'Mediana (días)', 'n', 'Estado'];
+
+function alertaErrorExport(err) {
+  console.error('Export error:', err);
+  if (typeof spcdAlert === 'function') {
+    spcdAlert('Error al exportar: ' + err.message, { type:'error', title:'Error al exportar' });
+  } else {
+    alert('Error al exportar: ' + err.message);
+  }
+}
+
+function alertaSinDatosExport() {
+  if (typeof spcdAlert === 'function') spcdAlert('No hay datos para exportar', { type:'alert', title:'Sin datos' });
+}
+
+// Escribe texto y tablas desde la fila `fila` (la siguiente a la de filtros). `e.fila` avanza con cada escritura.
+function escritorVista(ws, fila, totalCols, widths) {
+  const e = { fila };
+  e.texto = (valor, alto) => {
+    const c = ws.getCell(e.fila, 1);
+    c.value = sanearCelda(valor);
+    c.alignment = { wrapText:true, vertical:'top' };
+    ws.mergeCells(e.fila, 1, e.fila, totalCols);
+    if (alto) ws.getRow(e.fila).height = alto;
+    e.fila++;
+  };
+  e.seccion = titulo => {
+    e.fila = SpcdExcel.buildSection(ws, { startRow:e.fila, totalCols, title: sanearCelda(titulo) }).nextRow;
+  };
+  e.tabla = (columns, rows, formatter) => {
+    e.fila = SpcdExcel.buildTable(ws, { columns, widths, rows, startRow:e.fila, totalCols,
+                                        freezeHeader:false, formatter }).nextRow;
+  };
+  return e;
+}
+
+// Pie del libro: nota de SLA provisorio donde hay demora, pie de plantilla y la única asignación de ws.views (C28).
+function cerrarLibroVista(ws, e, totalCols, hash) {
+  if (!SLA_APROBADO) e.texto(NOTA_SLA_PROVISORIO);
+  SpcdExcel.buildFooter(ws, { startRow:e.fila, totalCols, hash });
+  ws.views = [{ state:'frozen', xSplit:0, ySplit:5, showGridLines:false, zoomScale:100 }];
+}
+
+async function exportPrestacionesExcel(share) {
+  try {
+    await SpcdExcel.ready();
+    const res = prestacionesPorModalidad(filtered);
+    const mods = Object.keys(res);
+    if (!mods.length) { alertaSinDatosExport(); return; }
+    const totalCols = COLUMNAS_PRESTACIONES_P90.length;
+    const filasP90 = lista => lista.map(e => [e.prestacion, e.codigo, e.n, diasExport(e.p90Horas), diasExport(e.medianaHoras)]).map(sanearFilaExport);
+    const filasVol = lista => lista.map(e => [e.prestacion, e.codigo, e.volumen]).map(sanearFilaExport);
+    const nRegistros = mods.reduce((a, m) => a + res[m].porP90.length + res[m].porVolumen.length, 0);
+
+    const subtitle = 'PRESTACIONES POR MODALIDAD';
+    const { wb, ws } = SpcdExcel.createBook({ subtitle, sheetName:'Prestaciones' });
+    const h = SpcdExcel.buildHeader(ws, {
+      subtitle, totalCols,
+      meta:{ modulo:'MEDICO', sede:SpcdExcel.getCurrentSede(), usuario:SpcdExcel.getCurrentUser(), registros: nRegistros }
+    });
+    const lf = escribirLineaFiltros(ws, h.nextRow, totalCols, 'tab-prestaciones');
+    const w = escritorVista(ws, lf.nextRow, totalCols, [40, 16, 12, 14, 16]);
+    w.texto(NOTA_PRIMERA_PRESTACION);                    // C9: la misma constante que en pantalla
+    w.texto(NOTA_VOLUMEN_PRESTACIONES);
+    const fmtNum = (cell, v, rd, idx, ci, cName) => {
+      if (cName !== 'Prestación' && cName !== 'Código') SpcdExcel.Fmt.center(cell);
+      if (typeof v === 'number' && (cName === 'P90 (días)' || cName === 'Mediana (días)')) cell.numFmt = '0.0';
+    };
+    mods.forEach(mod => {
+      const b = res[mod];
+      w.seccion(`${mod} · Top por P90`);
+      if (b.porP90.length) w.tabla(COLUMNAS_PRESTACIONES_P90, filasP90(b.porP90), fmtNum); else w.texto(AVISO_POCOS_DATOS());
+      w.seccion(`${mod} · Top por volumen`);
+      w.tabla(COLUMNAS_PRESTACIONES_VOL, filasVol(b.porVolumen), fmtNum);
+    });
+    cerrarLibroVista(ws, w, totalCols, h.hash);
+
+    const fileName = `SPCD_Medico_Prestaciones_${SpcdExcel.nowIsoDate()}.xlsx`;
+    await SpcdExcel.exportAndShare(wb, fileName, share ? {
+      titulo:'Prestaciones por modalidad', periodo: SpcdExcel.dateAr(), cantidad: nRegistros,
+      modulo:'medico', tipoExport:'prestaciones'
+    } : null);
+  } catch(err) { alertaErrorExport(err); }
+}
+
+async function exportMapaCalorExcel(share) {
+  try {
+    await SpcdExcel.ready();
+    const mapa = mapaCalor(filtered);
+    const mods = Object.keys(mapa);
+    const cols = ['Modalidad'].concat(DIAS_CALOR.map(([, t]) => t));
+    const totalCols = cols.length;
+    const filasP90 = mods.map(mod => [mod].concat(DIAS_CALOR.map(([dia]) => {
+      const a = mapa[mod].dias[dia];
+      return a.n === 0 ? '—' : diasExport(a.p90Horas);      // la misma marca que la pantalla para n = 0
+    }))).map(sanearFilaExport);
+    const filasN = mods.map(mod => [mod].concat(DIAS_CALOR.map(([dia]) => mapa[mod].dias[dia].n))).map(sanearFilaExport);
+    const nRegistros = mods.reduce((a, m) => a + DIAS_CALOR.reduce((s, [dia]) => s + mapa[m].dias[dia].n, 0), 0);
+
+    const subtitle = 'DEMORA · MAPA DE CALOR (P90 EN DÍAS)';
+    const { wb, ws } = SpcdExcel.createBook({ subtitle, sheetName:'Mapa de calor' });
+    const h = SpcdExcel.buildHeader(ws, {
+      subtitle, totalCols,
+      meta:{ modulo:'MEDICO', sede:SpcdExcel.getCurrentSede(), usuario:SpcdExcel.getCurrentUser(), registros: nRegistros }
+    });
+    const lf = escribirLineaFiltros(ws, h.nextRow, totalCols, 'tab-demora');
+    const w = escritorVista(ws, lf.nextRow, totalCols, [26, 10, 10, 10, 10, 10, 10, 10]);
+    w.texto(LEYENDA_CALOR());                            // la leyenda va como texto: el Excel no lleva color por nivel
+    const fmtCelda = (cell, v, rd, idx, ci) => {
+      if (ci > 0) SpcdExcel.Fmt.center(cell);
+      if (ci > 0 && typeof v === 'number') cell.numFmt = '0.0';
+    };
+    w.tabla(cols, filasP90, fmtCelda);
+    w.seccion('Estudios con demora (n) por día');
+    w.tabla(cols, filasN, (cell, v, rd, idx, ci) => { if (ci > 0) SpcdExcel.Fmt.center(cell); });
+    cerrarLibroVista(ws, w, totalCols, h.hash);
+
+    const fileName = `SPCD_Medico_Mapa_de_Calor_${SpcdExcel.nowIsoDate()}.xlsx`;
+    await SpcdExcel.exportAndShare(wb, fileName, share ? {
+      titulo:'Demora · mapa de calor', periodo: SpcdExcel.dateAr(), cantidad: nRegistros,
+      modulo:'medico', tipoExport:'mapa-calor'
+    } : null);
+  } catch(err) { alertaErrorExport(err); }
+}
+
+async function exportTendenciaExcel(share) {
+  try {
+    await SpcdExcel.ready();
+    const tend = tendenciaVigente();                     // el mismo universo y cálculo que renderTendencia
+    if (!tend) { alertaSinDatosExport(); return; }
+    const mods = Object.keys(tend);
+    const totalCols = COLUMNAS_TENDENCIA_EXPORT.length;
+    // El eje es `serie` (labels del gráfico): hasta la última semana 'ok'; lo cortado y la semana en curso no van.
+    const filasTendencia = serie => serie.map(s => [fechaLunesExport(s.lunes),
+      s.estado === 'ok' ? diasExport(s.a.p90Horas) : null, s.estado === 'ok' ? diasExport(s.a.medianaHoras) : null,
+      s.a.n, ESTADO_SEMANA_EXPORT[s.estado]]).map(sanearFilaExport);
+    const nRegistros = mods.reduce((a, m) => a + tend[m].serie.length, 0);
+
+    const subtitle = 'DEMORA · TENDENCIA SEMANAL (P90 EN DÍAS)';
+    const { wb, ws } = SpcdExcel.createBook({ subtitle, sheetName:'Tendencia' });
+    const h = SpcdExcel.buildHeader(ws, {
+      subtitle, totalCols,
+      meta:{ modulo:'MEDICO', sede:SpcdExcel.getCurrentSede(), usuario:SpcdExcel.getCurrentUser(), registros: nRegistros }
+    });
+    const lf = escribirLineaFiltros(ws, h.nextRow, totalCols, 'tab-demora');
+    const w = escritorVista(ws, lf.nextRow, totalCols, [26, 14, 16, 10, 28]);
+    w.texto(ACLARACION_TENDENCIA);
+    const fmtSemana = (cell, v, rd, idx, ci) => {
+      if ([1, 2, 3].includes(ci)) SpcdExcel.Fmt.center(cell);
+      if ((ci === 1 || ci === 2) && typeof v === 'number') cell.numFmt = '0.0';
+    };
+    mods.forEach(mod => {
+      const t = tend[mod];
+      w.seccion(mod);
+      if (!t.dibujable) w.texto(AVISO_SIN_SEMANAS());
+      notasTendencia(t).forEach(([, nota]) => w.texto(nota));
+      if (t.serie.length) w.tabla(COLUMNAS_TENDENCIA_EXPORT, filasTendencia(t.serie), fmtSemana);
+    });
+    cerrarLibroVista(ws, w, totalCols, h.hash);
+
+    const fileName = `SPCD_Medico_Tendencia_${SpcdExcel.nowIsoDate()}.xlsx`;
+    await SpcdExcel.exportAndShare(wb, fileName, share ? {
+      titulo:'Demora · tendencia semanal', periodo: SpcdExcel.dateAr(), cantidad: nRegistros,
+      modulo:'medico', tipoExport:'tendencia'
+    } : null);
+  } catch(err) { alertaErrorExport(err); }
 }
 
 /* ── Export del drill-down (C13/C16): las columnas de la pantalla (sin Paciente ni Documento), la banda por estudio

@@ -27,7 +27,7 @@
   <link rel="stylesheet" href="spcd-theme.css?v=d6e58273"/>
   <link rel="stylesheet" href="spcd-components.css?v=f7b2f276"/>
   <link rel="stylesheet" href="spcd-dialog.css?v=f6620a87"/>
-  <link rel="stylesheet" href="medico.css?v=34fa3fa2"/>
+  <link rel="stylesheet" href="medico.css?v=71971d64"/>
 </head>
 <body>
 
@@ -120,7 +120,7 @@
   </div>
 
   <!-- KPIs -->
-  <div class="kpi-grid fade-in">
+  <div class="kpi-grid fade-in" id="kpi-vista">
     <div class="kpi-card green" onclick="openRealizadosPage()">
       <div class="kpi-icon">✅</div>
       <div class="kpi-label">Informes Realizados</div>
@@ -179,24 +179,24 @@
   <!-- TAB: RESUMEN -->
   <div class="tab-pane active" id="tab-resumen">
     <div class="charts-row fade-in">
-      <div class="chart-card">
+      <div class="chart-card" id="chart-dias-vista">
         <div class="chart-title">Informes por Día</div>
         <canvas id="chart-dias"></canvas>
       </div>
-      <div class="chart-card">
+      <div class="chart-card" id="chart-donut-vista">
         <div class="chart-title">Con / Sin Informe</div>
         <canvas id="chart-donut"></canvas>
       </div>
     </div>
     <div class="charts-row-2 fade-in">
-      <div class="chart-card">
+      <div class="chart-card" id="rank-medicos-vista">
         <div class="chart-title">Top Médicos Informantes · Volumen (sin ponderar)</div>
         <div class="rank-list" id="rank-medicos">
           <div class="empty-state"><div class="e-icon">👨‍⚕️</div><div class="e-text">Sin datos</div></div>
         </div>
         <div class="med-nota" id="rank-medicos-nota"></div>
       </div>
-      <div class="chart-card">
+      <div class="chart-card" id="rank-tiempos-vista">
         <div class="chart-title">Demora por médico</div>
         <div class="rank-list" id="rank-tiempos"></div>
         <div class="nota-demora" id="rank-tiempos-nota"></div>
@@ -243,7 +243,7 @@
             <th>Paciente</th>
             <th>Prestación</th>
             <th>Médico Derivante</th>
-            <th>Informante Sugerido</th>
+            <th id="th-informante-sugerido">Informante Sugerido</th>
             <th>Días Transcurridos</th>
             <th>Semáforo</th>
           </tr></thead>
@@ -267,8 +267,11 @@
     </div>
   </div>
 
-  <!-- TAB: PRESTACIONES (C9, fase 5; sin export, C16) -->
+  <!-- TAB: PRESTACIONES (C9, fase 5; export C16, fase 6: el botón va FUERA de #prestaciones-vista, que renderProtegido pisa) -->
   <div class="tab-pane" id="tab-prestaciones">
+    <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+      <button class="btn-export" id="btn-export-prestaciones" onclick="exportPrestacionesExcel(false)">⬇ Exportar Excel</button>
+    </div>
     <div id="prestaciones-vista">
       <div class="empty-state"><div class="e-icon">🩻</div><div class="e-text">Cargá un Excel para ver</div></div>
     </div>
@@ -276,8 +279,14 @@
 
   <!-- TAB: DEMORA (fase 5): mapa de calor (C7) y tendencia semanal (C14), cada uno en su propio panel -->
   <div class="tab-pane" id="tab-demora">
+    <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+      <button class="btn-export" id="btn-export-mapa-calor" onclick="exportMapaCalorExcel(false)">⬇ Exportar mapa de calor</button>
+    </div>
     <div id="mapa-calor-vista">
       <div class="empty-state"><div class="e-icon">🔥</div><div class="e-text">Cargá un Excel para ver</div></div>
+    </div>
+    <div style="display:flex; justify-content:flex-end; margin:10px 0;">
+      <button class="btn-export" id="btn-export-tendencia" onclick="exportTendenciaExcel(false)">⬇ Exportar tendencia</button>
     </div>
     <div id="tendencia-vista">
       <div class="empty-state"><div class="e-icon">📈</div><div class="e-text">Cargá un Excel para ver</div></div>
@@ -428,7 +437,7 @@
 <script src="spcd-utils.js?v=7273575b"></script>
 <script src="spcd-dialog.js?v=ee2826f0"></script>
 
-<script src="medico.js?v=5f519b59"></script>
+<script src="medico.js?v=64aca89d"></script>
 <script src="medico-metricas.js?v=267a3442"></script>
 <!-- Toast de notificaciones (para showToast de spcd-utils.js) -->
 <div class="toast" id="toast"></div>
