@@ -2558,7 +2558,7 @@ function renderTITab(data) {
 ══════════════════════════════════ */
 function populateFilters(data) {
   const fechas = data.map(r => parseDate(r['Turno Fecha'])).filter(Boolean)
-    .map(d => d.toISOString().slice(0,10)).sort();
+    .map(d => toDateStr(d)).sort();
   if (fechas.length) {
     document.getElementById('f-desde').value = fechas[0];
     document.getElementById('f-hasta').value = fechas[fechas.length-1];
@@ -2580,7 +2580,7 @@ function applyFilters() {
   const consola = document.getElementById('f-consola').value;
   filtered = rawData.filter(r => {
     const fd = parseDate(r['Turno Fecha']); if (!fd) return false;
-    const ds = fd.toISOString().slice(0,10);
+    const ds = toDateStr(fd);
     if (desde && ds < desde) return false;
     if (hasta && ds > hasta) return false;
     if (aseg && r['Aseguradora']    !== aseg) return false;
@@ -4239,7 +4239,7 @@ function parseDate(val) {
   if (val instanceof Date) return isNaN(val)?null:val;
   const d = new Date(val); return isNaN(d)?null:d;
 }
-function toDateStr(d) { return d ? d.toISOString().slice(0,10) : null; }
+function toDateStr(d) { return d ? (d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0')) : null; }
 function groupBy(arr, keyFn) {
   return arr.reduce((acc,item) => {
     const k = keyFn(item)||'Sin datos';
