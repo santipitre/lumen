@@ -384,8 +384,9 @@ function horasPago(o, sinPropias){
 const ST = {
   puente: null, raw: null, M: null, C: null, el: null, nav: null, cuerpo: null,
   cargando: false, cargado: false, error: null, eco: [], ecoError: null, leidoEn: 0, iniciado: false, gen: 0, cola: Promise.resolve(), tmp: 0, escribiendo: 0,
+  base: null, guardando: false,
   S: { sub: 'tecnicos', vistas: {}, y: 0, m: 0, wk: null, we: true, pf: null, dm: 'none', dp: null, hl: null, hlL: null, addF: false, addL: false, addR: null, nk: 'f',
-       tcUp: false, tcPrev: null, solo: false, pop: null, msg: {} },
+       tcUp: false, tcPrev: null, solo: false, pop: null, msg: {}, edit: false, addP: false, addLP: false, ed: {}, pcAbierto: true, pcR: null },
   R: {}
 };
 const S = ST.S;
@@ -433,7 +434,10 @@ function entrada(tipo, val, fn, at){
 function campo(txt, ctl, cls){ return h('label', { class: 'cr-f' + (cls ? ' ' + cls : '') }, txt, ctl); }
 
 /* == acceso a datos == */
-function puedeEditar(){ return ['editar', 'admin'].indexOf(ST.puente.nivel()) >= 0; }
+function permisoEditar(){ return ['editar', 'admin'].indexOf(ST.puente.nivel()) >= 0; }
+/* mientras se guarda el lote la pantalla queda en solo lectura (evita editar a mitad de la escritura) */
+function puedeEditar(){ return permisoEditar() && !ST.guardando; }
+function enEdicion(){ return S.edit && puedeEditar(); }
 function esAdmin(){ return ST.puente.nivel() === 'admin'; }
 function textoError(c, e){
   if(c === 'CONFLICTO' || c === 'NO_EXISTE' || c === 'INVALIDO' || c === 'DUPLICADO' || c === 'RED_ESCRITURA' || c === 'SIN_PERMISO' || c === 'SIN_PERMISO_ESCRITURA') return MSG[c];
@@ -454,6 +458,8 @@ function reconstruir(){
   ST.R.jefaNom = ST.M.cfg.jefa && ST.M.cfg.jefa.nom ? String(ST.M.cfg.jefa.nom) : 'a confirmar';
   const t = ST.M.cfg.tarifas;
   ST.R.tarifas = t && typeof t === 'object' ? { diurna: +t.diurna || 0, nocturna: +t.nocturna || 0, personas: Array.isArray(t.personas) ? t.personas.slice() : null } : null;
+  S.ed = {};
+  tomarBase();
 }
 async function leer(){
   /* Eco/Doppler vive en img_agenda: se lee de img_cronograma, nunca se copia a las tablas del cronograma. */
@@ -487,11 +493,12 @@ function dialogoAviso(titulo, texto){
     botones: [{ texto: 'Entendido', clase: 'ed-btn prim', alClic: function(c){ c.cerrar(); } }]
   });
 }
+const MSG_LOTE = ' Los cambios que ya se habían guardado quedaron; los demás se perdieron. Revisá el cronograma y repetí lo que falte.';
 async function fallo(e){
-  const c = ST.puente.codigoDe(e);
+  const c = ST.puente.codigoDe(e), lote = ST.guardando ? MSG_LOTE : '';
   await recargar(true);
-  if(c === 'CONFLICTO') dialogoAviso('⚠ Alguien guardó antes que vos', MSG.CONFLICTO);
-  else ST.puente.aviso(textoError(c, e));
+  if(c === 'CONFLICTO') dialogoAviso('⚠ Alguien guardó antes que vos', MSG.CONFLICTO + lote);
+  else ST.puente.aviso(textoError(c, e) + lote);
 }
 /* Escritura optimista serializada: el cambio local ya está aplicado; las llamadas salen de a una (la versión de cada fila
    se actualiza con la respuesta antes de la siguiente). Si algo falla se recarga todo y se avisa. */
@@ -504,8 +511,13 @@ function encolar(fn){
   }).then(function(){ ST.escribiendo--; });
   return ST.cola;
 }
-function guardarFila(ent, obj, payload){
-  encolar(async function(){
+/* Borrador: las acciones solo cambian el modelo local. Nada va a la base hasta confirmar el diálogo de revisión
+   (revisarYGuardar), que arma las escrituras reales con escribirFila / borrarReal / escribirTc / borrarTc / escribirTarifas. */
+function marcarSucio(){ pintarBarra(); }
+function guardarFila(){ marcarSucio(); }
+function borrarFila(){ marcarSucio(); }
+function escribirFila(ent, obj, payload){
+  return encolar(async function(){
     const nuevo = esTmp(obj.id);
     const dato = payload();
     if(!nuevo) dato.id = obj.id;
@@ -513,8 +525,8 @@ function guardarFila(ent, obj, payload){
     obj.id = r.id; obj.ver = r.version;
   });
 }
-function borrarFila(ent, obj){
-  encolar(async function(){
+function borrarReal(ent, obj){
+  return encolar(async function(){
     await ST.puente.rpc('img_cron_borrar', { p_entidad: ent, p_id: String(obj.id), p_version: obj.ver });
   });
 }
@@ -537,6 +549,7 @@ const A = {
   franjaCambio: function(f){ guardarFila('franja', f, function(){ return pFranja(f); }); },
   franjaBaja: function(f){ ST.M.F.splice(ST.M.F.indexOf(f), 1); borrarFila('franja', f); },
   guardiaAlta: function(g){ g.id = nuevoTmp(); ST.M.G.push(g); guardarFila('guardia', g, function(){ return pGuardia(g); }); },
+  guardiaCambio: function(g){ guardarFila('guardia', g, function(){ return pGuardia(g); }); },
   guardiaBaja: function(g){ ST.M.G.splice(ST.M.G.indexOf(g), 1); borrarFila('guardia', g); },
   extraAlta: function(x){ x.id = nuevoTmp(); ST.M.XT.push(x); guardarFila('turno_extra', x, function(){ return pExtra(x); }); },
   extraBaja: function(x){ ST.M.XT.splice(ST.M.XT.indexOf(x), 1); borrarFila('turno_extra', x); },
@@ -547,6 +560,841 @@ const A = {
   repCambio: function(l, r){ guardarFila('reemplazo', r, function(){ return pRep(r, l); }); },
   repBaja: function(l, r){ l.reemps.splice(l.reemps.indexOf(r), 1); borrarFila('reemplazo', r); }
 };
+
+/* == borrador: lo que cambió el usuario y todavía no se guardó == */
+function valorTarifas(){
+  const tf = ST.R.tarifas;
+  if(!tf) return null;
+  const v = { diurna: +tf.diurna || 0, nocturna: +tf.nocturna || 0 };
+  if(Array.isArray(tf.personas)) v.personas = tf.personas.slice();
+  return v;
+}
+function payloadDe(ent, o, l){
+  if(ent === 'franja') return pFranja(o);
+  if(ent === 'guardia') return pGuardia(o);
+  if(ent === 'turno_extra') return pExtra(o);
+  if(ent === 'licencia') return pLic(o);
+  if(ent === 'reemplazo'){ const p = pRep(o, l); delete p.licencia_id; return p; }
+  if(ent === 'tc') return { fecha: o.fecha, medico: o.medico };
+  if(ent === 'tc_cambio') return { fecha: o.fecha, medico_antes: o.antes, medico_nuevo: o.nuevo, nota: o.nota };
+  if(ent === 'config') return valorTarifas();
+  return {};
+}
+function filasActuales(){
+  const M = ST.M, out = {};
+  const put = function(ent, id, o, l){
+    const k = ent + ':' + id;
+    out[k] = { k: k, ent: ent, id: id, o: o, l: l || null, json: JSON.stringify(payloadDe(ent, o, l)) };
+  };
+  M.F.forEach(function(f){ put('franja', f.id, f); });
+  M.G.forEach(function(g){ put('guardia', g.id, g); });
+  M.XT.forEach(function(x){ put('turno_extra', x.id, x); });
+  M.L.forEach(function(l){ put('licencia', l.id, l); l.reemps.forEach(function(r){ put('reemplazo', r.id, r, l); }); });
+  Object.keys(M.TC.cal).forEach(function(f){ put('tc', f, { fecha: f, medico: M.TC.cal[f] }); });
+  M.TC.cambios.forEach(function(c){ put('tc_cambio', c.id, c); });
+  if(ST.R.tarifas) put('config', 'tarifas', ST.R.tarifas);
+  return out;
+}
+function tomarBase(){
+  if(!ST.M) return;
+  const f = filasActuales();
+  Object.keys(f).forEach(function(k){ f[k].et = etiquetaDe(f[k].ent, f[k].o, f[k].l); });
+  ST.base = f;
+}
+
+/* textos humanos */
+function vTxt(v){ return v === null || v === undefined || v === '' ? '(vacío)' : String(v); }
+function vFecha(v){ return v ? fmtF(v) : '(sin fecha)'; }
+function vHasta(v){ return v ? fmtF(v) : 'sin fecha de regreso'; }
+function vPend(v){ return v ? 'a confirmar' : 'confirmado'; }
+function vEst(v){ return v === 'ok' ? 'confirmado' : v === 'no' ? 'no puede' : 'a confirmar'; }
+function vSiNo(v){ return v ? 'sí' : 'no'; }
+function vSem(v){ return +v ? 'Sábado ' + v : 'todos los sábados'; }
+function vDia(v){ return DIAS[+v] || String(v); }
+function vTurno(v){ return v && TURN[v] ? TURN[v][2] : 'sin turno fijo'; }
+function vTurnoG(v){ return DL[v] || String(v); }
+function vPlata(v){ return fmtM(+v || 0); }
+function vPers(v){ return v ? nmP(v) : '(vacío)'; }
+function quienRep(p){ return p.persona_id ? nmP(p.persona_id) : (p.nombre ? p.nombre + ' (externo)' : 'sin definir'); }
+function rangoLic(l){ return l.desde && l.hasta && l.hasta !== l.desde ? fmtC(l.desde) + ' al ' + fmtC(l.hasta) : l.desde ? (l.hasta ? fmtC(l.desde) : 'desde ' + fmtC(l.desde)) : ''; }
+function etiquetaDe(ent, o, l){
+  if(ent === 'franja') return TN[o.tab] + ' · ' + nmP(o.key) + ' · ' + DIAS[o.dia] + (o.sem ? ' (Sáb ' + o.sem + ')' : '');
+  if(ent === 'guardia') return 'Guardia · ' + nmP(o.key) + ' · ' + DIAS[wdOf(o.fecha)].slice(0, 3) + ' ' + fmtC(o.fecha) + ' ' + vTurnoG(o.t).toLowerCase();
+  if(ent === 'turno_extra') return 'Turno extra · ' + nmP(o.key) + ' · ' + DIAS[wdOf(o.fecha)].slice(0, 3) + ' ' + fmtC(o.fecha);
+  if(ent === 'licencia') return nmP(o.key) + ' (' + o.tipo + ' ' + rangoLic(o) + ')';
+  if(ent === 'reemplazo') return nmP(l.key) + ' (' + l.tipo + ' ' + rangoLic(l) + ')';
+  if(ent === 'tc') return 'Tomografía · Hospital Central · ' + DIAS[wdOf(o.fecha)].slice(0, 3) + ' ' + fmtF(o.fecha);
+  if(ent === 'tc_cambio') return 'Tomografía · ' + (o.nota || 'cambio') + ' · ' + DIAS[wdOf(o.fecha)].slice(0, 3) + ' ' + fmtF(o.fecha);
+  if(ent === 'config') return 'Tarifas de pago';
+  return ent;
+}
+const CAMPOS = {
+  franja: [['dia', 'Día', vDia], ['desde', 'Desde'], ['hasta', 'Hasta'], ['sem', 'Sábado', vSem], ['sec', 'Sector', vTxt], ['turno', 'Turno', vTurno], ['guardia', 'Guardia', vSiNo],
+    ['pendiente', 'Estado', vPend], ['tab', 'Pestaña', function(v){ return TN[v] || v; }], ['persona_id', 'Persona', vPers], ['nombre_libre', 'Nombre', vTxt]],
+  guardia: [['fecha', 'Fecha', vFecha], ['t', 'Turno', vTurnoG], ['pendiente', 'Estado', vPend]],
+  turno_extra: [['fecha', 'Fecha', vFecha], ['desde', 'Desde'], ['hasta', 'Hasta'], ['nota', 'Nota', vTxt]],
+  licencia: [['tipo', 'Tipo'], ['desde', 'Desde', vFecha], ['hasta', 'Hasta', vHasta], ['obs', 'Detalle', vTxt], ['pendiente', 'Estado', vPend]],
+  reemplazo: [['hora_desde', 'Desde (hora)'], ['hora_hasta', 'Hasta (hora)'], ['nota', 'Nota', vTxt], ['fecha_desde', 'Cubre desde', vFecha], ['fecha_hasta', 'Cubre hasta', vFecha], ['est', 'Estado', vEst]],
+  tc: [['medico', 'Médico', vTxt]],
+  tc_cambio: [['medico_antes', 'Antes', vTxt], ['medico_nuevo', 'Ahora', vTxt], ['nota', 'Tipo', vTxt]],
+  config: [['diurna', 'Tarifa diurna', vPlata], ['nocturna', 'Tarifa nocturna', vPlata]]
+};
+function listaDias(a){
+  const ds = a.map(fmtC);
+  return ds.length > 1 ? ds.slice(0, -1).join(', ') + ' y ' + ds[ds.length - 1] : ds[0] || '';
+}
+function detallesMod(ent, a, b){
+  const out = [];
+  (CAMPOS[ent] || []).forEach(function(c){
+    const x = a[c[0]], y = b[c[0]];
+    if(JSON.stringify(x === undefined ? null : x) === JSON.stringify(y === undefined ? null : y)) return;
+    const f = c[2] || function(v){ return v === null || v === undefined ? '' : String(v); };
+    out.push({ campo: c[1], antes: f(x), despues: f(y) });
+  });
+  if(ent === 'reemplazo'){
+    if(a.persona_id !== b.persona_id || (a.nombre || '') !== (b.nombre || '')) out.unshift({ campo: 'Reemplazante', antes: quienRep(a), despues: quienRep(b) });
+    const fa = a.fechas || [], fb = b.fechas || [];
+    if(JSON.stringify(fa) !== JSON.stringify(fb)){
+      const q = fa.filter(function(d){ return fb.indexOf(d) < 0; }), n = fb.filter(function(d){ return fa.indexOf(d) < 0; });
+      if(q.length) out.push({ campo: 'Días', antes: listaDias(q), despues: '', texto: 'Se quit' + (q.length === 1 ? 'ó el día ' : 'aron los días ') + listaDias(q) });
+      if(n.length) out.push({ campo: 'Días', antes: '', despues: listaDias(n), texto: 'Se agreg' + (n.length === 1 ? 'ó el día ' : 'aron los días ') + listaDias(n) });
+      if(!fa.length && fb.length) out.push({ campo: 'Días', antes: 'todo el período', despues: 'solo ' + listaDias(fb), texto: 'Pasa a cubrir solo ' + listaDias(fb) });
+      if(fa.length && !fb.length) out.push({ campo: 'Días', antes: listaDias(fa), despues: 'todo el período', texto: 'Pasa a cubrir todo el período' });
+    }
+  }
+  if(ent === 'config'){
+    const pa = a.personas || null, pb = b.personas || null;
+    if(JSON.stringify(pa) !== JSON.stringify(pb)){
+      const nn = function(l){ return l ? l.map(nmP) : []; };
+      const q = nn(pa).filter(function(x){ return nn(pb).indexOf(x) < 0; }), n = nn(pb).filter(function(x){ return nn(pa).indexOf(x) < 0; });
+      if(q.length) out.push({ campo: 'Panel de pago', antes: q.join(', '), despues: '', texto: 'Se saca del panel de pago: ' + q.join(', ') });
+      if(n.length) out.push({ campo: 'Panel de pago', antes: '', despues: n.join(', '), texto: 'Se agrega al panel de pago: ' + n.join(', ') });
+      if(!q.length && !n.length) out.push({ campo: 'Panel de pago', antes: '', despues: '', texto: 'Cambia la lista del panel de pago' });
+    }
+  }
+  return out;
+}
+function detallesAlta(ent, o, l){
+  const p = payloadDe(ent, o, l), d = [];
+  const t = function(x){ d.push({ campo: '', antes: '', despues: '', texto: x }); };
+  if(ent === 'franja'){
+    if(o.sec) t('sector ' + o.sec);
+    if(o.turno) t(vTurno(o.turno));
+    if(o.guardia) t('guardia');
+    if(o.pend) t('a confirmar');
+  } else if(ent === 'guardia'){ if(o.pend) t('a confirmar'); }
+  else if(ent === 'turno_extra'){ if(o.nota) t(o.nota); }
+  else if(ent === 'licencia'){ if(o.obs) t(o.obs); if(o.pend) t('a confirmar'); if(!o.hasta) t('sin fecha de regreso'); }
+  else if(ent === 'reemplazo'){
+    t(quienRep(p) + ' ' + o.d + '–' + o.h);
+    if(o.fechas && o.fechas.length) t('solo ' + listaDias(o.fechas));
+    else if(o.desde || o.hasta) t('desde ' + (o.desde ? fmtC(o.desde) : 'el inicio') + ' hasta ' + (o.hasta ? fmtC(o.hasta) : 'el final'));
+    t(vEst(o.est));
+    if(o.nota) t(o.nota);
+  } else if(ent === 'tc') t(p.medico);
+  else if(ent === 'tc_cambio'){ t((o.antes ? o.antes + ' → ' : '') + o.nuevo); }
+  else if(ent === 'config'){ t('diurna ' + fmtM(p.diurna) + ', nocturna ' + fmtM(p.nocturna)); }
+  return d;
+}
+function tituloAlta(ent, o, l){
+  const e = etiquetaDe(ent, o, l);
+  if(ent === 'franja') return 'Nueva franja · ' + e + ' ' + o.d + '–' + o.h;
+  if(ent === 'guardia') return 'Nueva guardia · ' + e.replace('Guardia · ', '');
+  if(ent === 'turno_extra') return 'Nuevo turno extra · ' + e.replace('Turno extra · ', '') + ' ' + o.d + '–' + o.h;
+  if(ent === 'licencia') return 'Nueva licencia · ' + e;
+  if(ent === 'reemplazo') return 'Nuevo reemplazo · ' + e;
+  if(ent === 'tc') return 'Tomografía · Hospital Central · se carga ' + e.split(' · ').pop();
+  if(ent === 'tc_cambio') return 'Nuevo cambio · ' + e;
+  return 'Nuevo · ' + e;
+}
+function tituloBaja(b){
+  const e = b.et;
+  const q = JSON.parse(b.json);
+  if(b.ent === 'franja') return 'Se quita la franja · ' + e + ' ' + q.desde + '–' + q.hasta;
+  if(b.ent === 'guardia') return 'Se quita la guardia · ' + e.replace('Guardia · ', '');
+  if(b.ent === 'turno_extra') return 'Se quita el turno extra · ' + e.replace('Turno extra · ', '');
+  if(b.ent === 'licencia') return 'Se quita la licencia · ' + e;
+  if(b.ent === 'reemplazo') return 'Se quita un reemplazo · ' + e + ': ' + quienRep(JSON.parse(b.json));
+  if(b.ent === 'tc') return 'Tomografía · Hospital Central · se quita ' + e.split(' · ').pop();
+  if(b.ent === 'tc_cambio') return 'Se quita el cambio · ' + e;
+  return 'Se quita · ' + e;
+}
+function cambioAlta(c){
+  return { tipo: 'alta', ent: c.ent, titulo: tituloAlta(c.ent, c.o, c.l), detalles: detallesAlta(c.ent, c.o, c.l), ops: [{ fase: 0, ent: c.ent, id: c.id, o: c.o, l: c.l }] };
+}
+function cambioMod(b, c){
+  const a = JSON.parse(b.json), n = JSON.parse(c.json);
+  let ds = detallesMod(c.ent, a, n);
+  if(!ds.length) ds = [{ campo: 'Otros datos', antes: '', despues: '', texto: 'se actualizan otros datos' }];
+  let tit = etiquetaDe(c.ent, c.o, c.l);
+  if(c.ent === 'franja') tit = 'Franja · ' + b.et;
+  else if(c.ent === 'guardia' || c.ent === 'turno_extra') tit = c.ent === 'guardia' ? 'Guardia · ' + b.et.replace('Guardia · ', '') : 'Turno extra · ' + b.et.replace('Turno extra · ', '');
+  else if(c.ent === 'licencia') tit = 'Licencia · ' + b.et;
+  else if(c.ent === 'reemplazo') tit = 'Reemplazo · ' + etiquetaDe('reemplazo', c.o, c.l) + (c.l && c.l.reemps.length > 1 ? ' · ' + quienRep(n) : '');
+  else if(c.ent === 'tc') tit = 'Tomografía · Hospital Central · ' + DIAS[wdOf(c.id)].slice(0, 3) + ' ' + fmtF(c.id);
+  else if(c.ent === 'tc_cambio') tit = 'Cambio · ' + b.et;
+  else if(c.ent === 'config') tit = 'Tarifas de pago';
+  return { tipo: 'mod', ent: c.ent, titulo: tit, detalles: ds, ops: [{ fase: 1, ent: c.ent, id: c.id, o: c.o, l: c.l }] };
+}
+function cambioBaja(b){
+  return { tipo: 'baja', ent: b.ent, titulo: tituloBaja(b), detalles: [], ops: [{ fase: 2, ent: b.ent, id: b.id, o: b.o, l: b.l }], lic: b.ent === 'reemplazo' && b.l ? b.l.id : null, licId: b.ent === 'licencia' ? b.id : null };
+}
+function mesDe(f){ return MESES[+f.slice(5, 7) - 1] + ' ' + f.slice(0, 4); }
+function agruparCambios(lista){
+  /* bajas de reemplazos cuya licencia también se quita: se muestran dentro de la licencia (igual se ejecutan antes) */
+  const licBaja = {};
+  lista.forEach(function(c){ if(c.licId) licBaja[c.licId] = c; });
+  const res = [];
+  lista.forEach(function(c){
+    if(c.lic && licBaja[c.lic]){
+      const L_ = licBaja[c.lic];
+      L_.ops = L_.ops.concat(c.ops);
+      L_.nRep = (L_.nRep || 0) + 1;
+      return;
+    }
+    res.push(c);
+  });
+  res.forEach(function(c){ if(c.nRep) c.detalles = [{ campo: '', antes: '', despues: '', texto: 'y ' + (c.nRep === 1 ? 'su reemplazo' : 'sus ' + c.nRep + ' reemplazos') }]; });
+  /* Tomografía: un renglón por mes con el detalle día por día adentro */
+  const out = [], mes = {};
+  res.forEach(function(c){
+    if(c.ent !== 'tc'){ out.push(c); return; }
+    const f = c.ops[0].id, k = f.slice(0, 7);
+    if(!mes[k]){ mes[k] = { tipo: c.tipo, ent: 'tc', titulo: 'Tomografía · Hospital Central · ' + mesDe(f), detalles: [], ops: [], tipos: {} }; out.push(mes[k]); }
+    const m = mes[k];
+    m.ops = m.ops.concat(c.ops);
+    m.tipos[c.tipo] = (m.tipos[c.tipo] || 0) + 1;
+    const dia = DIAS[wdOf(f)].slice(0, 3) + ' ' + fmtC(f);
+    if(c.tipo === 'alta') m.detalles.push({ campo: dia, antes: '', despues: c.detalles.length ? c.detalles[0].texto : '', texto: dia + ': ' + (c.detalles.length ? c.detalles[0].texto : '') });
+    else if(c.tipo === 'baja') m.detalles.push({ campo: dia, antes: '', despues: '', texto: dia + ': se quita' });
+    else m.detalles.push({ campo: dia, antes: c.detalles[0].antes, despues: c.detalles[0].despues, texto: dia + ': ' + c.detalles[0].antes + ' → ' + c.detalles[0].despues });
+  });
+  Object.keys(mes).forEach(function(k){
+    const m = mes[k], n = m.tipos;
+    m.tipo = (n.alta && !n.mod && !n.baja) ? 'alta' : (n.baja && !n.mod && !n.alta) ? 'baja' : 'mod';
+    const parts = [];
+    if(n.alta) parts.push(n.alta + ' día' + (n.alta === 1 ? '' : 's') + ' nuevo' + (n.alta === 1 ? '' : 's'));
+    if(n.mod) parts.push(n.mod + ' cambiado' + (n.mod === 1 ? '' : 's'));
+    if(n.baja) parts.push(n.baja + ' quitado' + (n.baja === 1 ? '' : 's'));
+    m.resumen = parts.join(', ');
+  });
+  return out;
+}
+function cambiosPendientes(){
+  if(!ST.base || !ST.M || !ST.cargado) return [];
+  const cur = filasActuales(), base = ST.base, out = [];
+  Object.keys(cur).forEach(function(k){
+    const c = cur[k], b = base[k];
+    if(!b) out.push(cambioAlta(c));
+    else if(b.json !== c.json) out.push(cambioMod(b, c));
+  });
+  Object.keys(base).forEach(function(k){ if(!cur[k]) out.push(cambioBaja(base[k])); });
+  return agruparCambios(out);
+}
+function textoCambio(c){
+  const ds = c.detalles.map(function(d){ return d.texto || (d.campo + ' ' + d.antes + ' → ' + d.despues); });
+  if(c.resumen) return c.titulo + ': ' + c.resumen + ' (' + ds.join(' · ') + ')';
+  return c.titulo + (ds.length ? ': ' + ds.join(' · ') : '');
+}
+function nCambiosTxt(n){ return n + ' cambio' + (n === 1 ? '' : 's'); }
+function hayBorrador(){ return !!ST.cargado && cambiosPendientes().length > 0; }
+
+/* ejecución real del borrador, en orden: altas -> reemplazos nuevos -> modificaciones -> bajas (reemplazos primero, licencias al final) */
+const ORD_ENT = { franja: 1, guardia: 2, turno_extra: 3, licencia: 4, tc: 5, tc_cambio: 6, config: 7, reemplazo: 8 };
+const ORD_BAJA = { reemplazo: 0, franja: 1, guardia: 2, turno_extra: 3, tc: 4, tc_cambio: 5, config: 6, licencia: 9 };
+function ordenOps(ops){
+  return ops.map(function(o, i){ return { o: o, i: i }; }).sort(function(a, b){
+    const x = a.o, y = b.o;
+    if(x.fase !== y.fase) return x.fase - y.fase;
+    const ox = x.fase === 2 ? ORD_BAJA[x.ent] : ORD_ENT[x.ent], oy = y.fase === 2 ? ORD_BAJA[y.ent] : ORD_ENT[y.ent];
+    return ox - oy || a.i - b.i;
+  }).map(function(z){ return z.o; });
+}
+function ejecutarOp(op){
+  if(op.fase === 2) return op.ent === 'tc' ? borrarTc(op.id) : borrarReal(op.ent, op.o);
+  if(op.ent === 'tc') return escribirTc(op.id, ST.M.TC.cal[op.id]);
+  if(op.ent === 'config') return escribirTarifas();
+  return escribirFila(op.ent, op.o, function(){ return op.ent === 'reemplazo' ? pRep(op.o, op.l) : payloadDe(op.ent, op.o, op.l); });
+}
+async function guardarTodo(cambios, opt){
+  if(ST.guardando) return;
+  const ops = [];
+  cambios.forEach(function(c){ c.ops.forEach(function(o){ ops.push(o); }); });
+  const n = cambios.length, gen0 = ST.gen;
+  ST.guardando = true;
+  limpiarPop();
+  pintar();
+  ordenOps(ops).forEach(ejecutarOp);
+  await ST.cola;
+  if(ST.gen !== gen0){ ST.guardando = false; pintar(); return; }
+  await recargar();
+  ST.guardando = false;
+  if(ST.error) tomarBase();
+  if(opt && opt.salir) S.edit = false;
+  pintar();
+  if(!ST.error) ST.puente.aviso('Guardado: ' + nCambiosTxt(n));
+}
+async function descartarYa(){
+  S.pop = null;
+  await recargar();
+  ST.puente.aviso('Se descartaron los cambios sin guardar.');
+}
+function confirmar(titulo, cuerpo, okTxt, noTxt, okClase){
+  return new Promise(function(res){
+    let ctl = null;
+    function fin(v){ if(ctl) ctl.cerrar(); res(v); }
+    ctl = ST.puente.dialogo({ titulo: titulo, clase: 'aviso', cuerpo: cuerpo,
+      botones: [{ texto: noTxt || 'Cancelar', clase: 'ed-btn', alClic: function(){ fin(false); } }, { texto: okTxt, clase: 'ed-btn ' + (okClase || 'prim'), alClic: function(){ fin(true); } }],
+      alCancelar: function(){ fin(false); } });
+  });
+}
+function descartar(){
+  const cs = cambiosPendientes();
+  if(!cs.length){ ST.puente.aviso('No hay cambios para descartar.'); return Promise.resolve(); }
+  limpiarPop();
+  return confirmar('¿Descartar los cambios?', [h('p', { t: 'Vas a perder ' + nCambiosTxt(cs.length) + ' que todavía no guardaste. Se vuelve a leer el cronograma guardado.' })], 'Sí, descartar', 'No, seguir editando', 'peligro')
+    .then(function(ok){ if(ok) return descartarYa(); });
+}
+function itemCambio(c){
+  const li = h('li', { class: 'cr-rev-i', 'data-ent': c.ent });
+  if(c.detalles.length > 6 || c.resumen){
+    poner(li, h('b', { t: c.titulo }), c.resumen ? ': ' + c.resumen : '',
+      h('details', { class: 'cr-rev-ds' }, h('summary', { t: 'Ver el detalle (' + c.detalles.length + ')' }), h('ul', null, c.detalles.map(function(d){ return h('li', { t: d.texto || (d.campo + ' ' + d.antes + ' → ' + d.despues) }); }))));
+    return li;
+  }
+  poner(li, h('b', { t: c.titulo }));
+  if(c.detalles.length){
+    poner(li, ': ');
+    c.detalles.forEach(function(d, i){
+      poner(li, i ? ' · ' : '', h('span', { class: 'cr-rev-d', t: d.texto || (d.campo + ' ' + d.antes + ' → ' + d.despues) }));
+    });
+  }
+  return li;
+}
+function revisarYGuardar(opt){
+  const cs = cambiosPendientes();
+  if(!cs.length){
+    ST.puente.aviso('No hiciste cambios.');
+    if(opt && opt.salir){ S.edit = false; pintar(); }
+    return;
+  }
+  limpiarPop();
+  const n = cs.length, cuerpo = [h('p', { class: 'cr-rev-t', t: (n === 1 ? 'Este es el cambio que vas a guardar.' : 'Estos son los ' + n + ' cambios que vas a guardar.') + ' Mientras no confirmes, la base no cambia.' })];
+  const lista = h('div', { class: 'cr-rev', id: 'cr-rev', tabindex: '0', 'aria-label': 'Lista de cambios' });
+  [['alta', 'Altas'], ['mod', 'Modificaciones'], ['baja', 'Se quitan']].forEach(function(g){
+    const del = cs.filter(function(c){ return c.tipo === g[0]; });
+    if(!del.length) return;
+    poner(lista, h('div', { class: 'cr-rev-h ' + g[0], t: g[1] + ' (' + del.length + ')' }), h('ul', { class: 'cr-rev-l' }, del.map(itemCambio)));
+  });
+  cuerpo.push(lista);
+  ST.puente.dialogo({ titulo: '¿Guardar los cambios?', clase: 'ancho', cuerpo: cuerpo,
+    botones: [
+      { texto: 'Guardar ' + nCambiosTxt(n), clase: 'ed-btn prim', alClic: function(c){ c.cerrar(); guardarTodo(cs, opt); } },
+      { texto: 'Seguir editando', clase: 'ed-btn', alClic: function(c){ c.cerrar(); } },
+      { texto: 'Descartar todo', clase: 'ed-btn peligro', alClic: function(c){ c.cerrar(); descartarYa(); } }
+    ] });
+}
+function barraBorrador(n, sfx){
+  const sf = sfx ? '-' + sfx : '';
+  return h('div', { class: 'cr-borrador' + (sfx ? ' cr-bchica' : ''), id: 'cr-borrador' + sf, role: 'status' },
+    h('b', { class: 'bn', t: ST.guardando ? 'Guardando…' : '✎ ' + nCambiosTxt(n) + ' sin guardar' }),
+    h('span', { class: 'bs', t: ST.guardando ? 'Un momento, no cierres la página.' : 'Todavía no se guardó nada en la base.' }),
+    h('div', { class: 'ba' },
+      btn('Revisar y guardar', 'sm pri', function(){ revisarYGuardar(); }, { id: 'cr-revisar' + sf, disabled: ST.guardando }),
+      btn('Descartar', 'sm dng', function(){ descartar(); }, { id: 'cr-descartar' + sf, disabled: ST.guardando })));
+}
+function pintarBarra(){
+  if(!ST.cargado) return;
+  const cs = cambiosPendientes(), n = cs.length;
+  ST.R.nCambios = n;
+  [['bhost', ''], ['dhost', 'ficha']].forEach(function(z){
+    const host = ST.R[z[0]];
+    if(!host) return;
+    vaciar(host);
+    if(n || ST.guardando) poner(host, barraBorrador(n, z[1]));
+  });
+}
+function avisoSalida(ev){
+  if(ST.cargado && (ST.guardando || hayBorrador())){
+    ev.preventDefault();
+    ev.returnValue = '';
+  }
+}
+
+/* == reemplazos por día: quitar un día, pasarlo a otra persona, asignarlo (lógica sin DOM; ops permite probarla sobre un modelo suelto) == */
+function opsReal(){ return { alta: A.repAlta, cambio: A.repCambio, baja: A.repBaja, PM: ST.M ? ST.M.PM : {} }; }
+function minT(x){ x = ((x % 1440) + 1440) % 1440; return pad(Math.floor(x / 60)) + ':' + pad(x % 60); }
+function quienDe(v, PM){
+  if(v && typeof v === 'object') return { key: v.key || '', nombre: v.key ? '' : (v.nombre || '') };
+  return PM && PM[v] ? { key: v, nombre: '' } : { key: '', nombre: String(v || '') };
+}
+/* primer y último día efectivos de un reemplazo por rango; fin '' = abierto */
+function repBordes(l, r){
+  const ini = r.desde && r.desde > l.desde ? r.desde : l.desde;
+  const fl = l.hasta || '', fin = r.hasta && (!fl || r.hasta < fl) ? r.hasta : fl;
+  return { ini: ini, fin: fin };
+}
+/* devuelve null si el día no pertenece al reemplazo; si no, cómo quedó: 'baja' | 'fechas' | 'inicio' | 'fin' | 'partido' */
+function repDiaQuitar(l, r, d, ops){
+  ops = ops || opsReal();
+  if(r.fechas && r.fechas.length){
+    if(r.fechas.indexOf(d) < 0) return null;
+    const resto = r.fechas.filter(function(x){ return x !== d; });
+    if(!resto.length){ ops.baja(l, r); return 'baja'; }
+    r.fechas = resto; ops.cambio(l, r);
+    return 'fechas';
+  }
+  const e = repBordes(l, r);
+  if(d < e.ini || (e.fin && d > e.fin)) return null;
+  if(d === e.ini){
+    if(e.fin && e.fin === d){ ops.baja(l, r); return 'baja'; }
+    r.desde = addD(d, 1); ops.cambio(l, r);
+    return 'inicio';
+  }
+  if(e.fin && d === e.fin){ r.hasta = addD(d, -1); ops.cambio(l, r); return 'fin'; }
+  const r2 = { key: r.key, nombre: r.nombre, d: r.d, h: r.h, nota: r.nota, fechas: [], desde: addD(d, 1), hasta: r.hasta, est: r.est };
+  r.hasta = addD(d, -1);
+  ops.cambio(l, r); ops.alta(l, r2);
+  return 'partido';
+}
+/* da el día d a quien (key o nombre externo) con esas horas: suma a un reemplazo por fechas de la misma persona y horas que siga a confirmar, o crea uno */
+function repDiaAsignar(l, quien, d, dh, hh, ops){
+  ops = ops || opsReal();
+  const q = quienDe(quien, ops.PM);
+  const ex = l.reemps.find(function(x){ return x.fechas && x.fechas.length && (x.key || '') === q.key && (x.nombre || '') === q.nombre && x.d === dh && x.h === hh && !x.est; });
+  if(ex){
+    if(ex.fechas.indexOf(d) < 0){ ex.fechas = ex.fechas.concat([d]).sort(); ops.cambio(l, ex); }
+    return ex;
+  }
+  const nr = { key: q.key, nombre: q.nombre, d: dh, h: hh, nota: '', fechas: [d], desde: '', hasta: '', est: '' };
+  ops.alta(l, nr);
+  return nr;
+}
+function repDiaMover(l, r, d, quien, ops){
+  ops = ops || opsReal();
+  const q = quienDe(quien, ops.PM), dh = r.d, hh = r.h;
+  if(repDiaQuitar(l, r, d, ops) === null) return null;
+  return repDiaAsignar(l, q, d, dh, hh, ops);
+}
+/* suma el día d a este reemplazo: 'ok' | 'ya' (ya lo cubría) | 'fuera' (fuera de la licencia) */
+function repDiaAgregar(l, r, d, ops){
+  ops = ops || opsReal();
+  if(d < l.desde || (l.hasta && d > l.hasta)) return 'fuera';
+  if(r.fechas && r.fechas.length){
+    if(r.fechas.indexOf(d) >= 0) return 'ya';
+    r.fechas = r.fechas.concat([d]).sort(); ops.cambio(l, r);
+    return 'ok';
+  }
+  const e = repBordes(l, r);
+  if(d >= e.ini && (!e.fin || d <= e.fin)) return 'ya';
+  repDiaAsignar(l, { key: r.key, nombre: r.nombre }, d, r.d, r.h, ops);
+  return 'ok';
+}
+/* el reemplazo r cubre efectivamente el día d del titular (hay turno que cubrir; si es de guardias, el horario coincide) */
+function repCubre(l, r, d){
+  const C_ = ST.C, need = C_.ownShifts(l.key, d, true);
+  if(!need.length || !C_.repOn(r, l, d)) return false;
+  if(C_.esGuard(l.key)){
+    const a = mins(r.d), b = mins(r.h) <= a ? mins(r.h) + 1440 : mins(r.h);
+    return need.some(function(x){ return x[0] === a && x[1] === b; });
+  }
+  return true;
+}
+/* advertencias (no bloquean) de poner a quien en el día d con el horario de r */
+function avisosDia(l, r, q, d, dh, hh){
+  if(!q.key) return ['es un reemplazante externo: no se puede verificar su disponibilidad'];
+  const C_ = ST.C, a = mins(dh || r.d), e = mins(hh || r.h), b = e <= a ? e + 1440 : e;
+  const out = C_.popOverlap(q.key, d, a, b).slice();
+  C_.repAll().forEach(function(x){
+    if(x.r === r || x.r.key !== q.key || x.est === 'no') return;
+    if(C_.repDays(x.l, x.r).indexOf(d) < 0) return;
+    const a2 = mins(x.r.d), b2 = mins(x.r.h) <= a2 ? mins(x.r.h) + 1440 : mins(x.r.h);
+    if(a2 < b && a < b2) out.push('ya cubre a ' + apP(x.l.key) + ' en ese horario');
+  });
+  return out;
+}
+
+/* selector de persona (misma planilla que el titular + "otro/externo") */
+function selectorQuien(l, excluirKey, rotulo, alCambiar){
+  const op = opcionesReemp(l, '').filter(function(o){ return o[0] !== excluirKey; });
+  op[0] = ['', rotulo];
+  const refs = {};
+  refs.nom = h('input', { type: 'text', placeholder: 'Nombre del reemplazante', maxlength: '120', hidden: true, 'aria-label': 'Nombre del reemplazante externo', on: { input: function(){ if(alCambiar) alCambiar(); } } });
+  refs.sel = selec(op, '', function(v){ refs.nom.hidden = v !== '__ext'; if(alCambiar) alCambiar(); }, 'cr-qsel');
+  refs.sel.setAttribute('aria-label', rotulo);
+  return {
+    el: h('span', { class: 'cr-quien' }, refs.sel, refs.nom),
+    valor: function(){
+      const v = refs.sel.value;
+      if(!v) return null;
+      if(v === '__ext'){ const n = refs.nom.value.trim(); return n ? { key: '', nombre: n.slice(0, 120) } : null; }
+      return { key: v, nombre: '' };
+    }
+  };
+}
+function textoQuien(q){ return q.key ? nmP(q.key) : q.nombre; }
+function controlPasar(l, r, d){
+  const box = h('div', { class: 'cr-pasar', 'data-pasar': d }), av = h('div', { class: 'cr-pasar-av' });
+  let q = null;
+  function ver(){
+    vaciar(av);
+    const v = q.valor();
+    if(!v) return;
+    const w = avisosDia(l, r, v, d);
+    if(w.length) poner(av, h('div', { class: 'cfc w', t: '⚠ ' + textoQuien(v) + ': ' + w.join(' · ') + '. Se puede pasar igual.' }));
+  }
+  q = selectorQuien(l, r.key, 'Pasar a…', ver);
+  poner(box, q.el, btn('Pasar este día', 'sm', function(){
+    const v = q.valor();
+    if(!v){ ST.puente.aviso('Elegí a quién pasarle el día ' + fmtC(d) + '.'); return; }
+    repDiaMover(l, r, d, v);
+    limpiarPop(); pintar();
+  }, { 'aria-label': 'Pasar el día ' + fmtC(d) + ' a otra persona' }), av);
+  return box;
+}
+function controlAsignar(l, d, turno){
+  const dh = turno ? minT(turno[0]) : '07:00', hh = turno ? minT(turno[1]) : '13:00';
+  const di = h('input', { type: 'time', value: dh, 'aria-label': 'Reemplazo desde' }), hi = h('input', { type: 'time', value: hh, 'aria-label': 'Reemplazo hasta' });
+  const av = h('div', { class: 'cr-pasar-av' });
+  let q = null;
+  function ver(){
+    vaciar(av);
+    const v = q.valor();
+    if(!turno) poner(av, h('div', { class: 'cfc w', t: '⚠ ' + apP(l.key) + ' no tiene turno cargado ese día: el reemplazo no se va a ver en el diagrama.' }));
+    if(!v) return;
+    const w = avisosDia(l, { d: di.value, h: hi.value }, v, d, di.value, hi.value);
+    if(w.length) poner(av, h('div', { class: 'cfc w', t: '⚠ ' + textoQuien(v) + ': ' + w.join(' · ') + '. Se puede asignar igual.' }));
+  }
+  q = selectorQuien(l, '', 'Elegir reemplazante…', ver);
+  di.addEventListener('change', ver); hi.addEventListener('change', ver);
+  const box = h('div', { class: 'cr-asignar', 'data-asignar': d }, turno && ST.C.esGuard(l.key) ? h('small', { t: DL[letterOf(dh, hh)] + ' ' + dh + '–' + hh }) : null,
+    h('div', { class: 'cr-fr1' }, q.el, di, hi,
+      btn('Asignar este día', 'sm pri', function(){
+        const v = q.valor();
+        if(!v){ ST.puente.aviso('Elegí quién reemplaza a ' + apP(l.key) + ' el ' + fmtC(d) + '.'); return; }
+        if(!horaOk(di.value, hi.value)) return;
+        repDiaAsignar(l, v, d, di.value, hi.value);
+        limpiarPop(); pintar();
+      })), av);
+  ver();
+  return box;
+}
+/* lista de días de un reemplazo con quitar / pasar a otra persona / agregar */
+function diasEditor(l, r){
+  const hoy = ST.puente.hoy(), todos = ST.C.repDays(l, r), fut = todos.filter(function(d){ return d >= hoy; }), pas = todos.length - fut.length, MAXD = 40;
+  const box = h('div', { class: 'cr-dias', 'data-dias': r.id });
+  poner(box, h('div', { class: 'cr-hint', t: fut.length ? 'Días que cubre (' + fut.length + (pas ? ', y ' + pas + ' ya pasaron' : '') + '):' : 'No tiene días por cubrir de hoy en adelante.' }));
+  fut.slice(0, MAXD).forEach(function(d){
+    poner(box, h('div', { class: 'cr-dia', 'data-dia': d },
+      h('span', { class: 'chip', t: DIAS[wdOf(d)].slice(0, 3) + ' ' + fmtC(d) }),
+      btn('✕ Quitar día', 'sm dng', function(){ repDiaQuitar(l, r, d); pintar(); }, { 'aria-label': 'Quitar el día ' + fmtC(d) + ' de este reemplazo' }),
+      controlPasar(l, r, d)));
+  });
+  if(fut.length > MAXD) poner(box, h('div', { class: 'cr-hint', t: '…y ' + (fut.length - MAXD) + ' días más (el período sigue). Acortá el período para ver los demás.' }));
+  const di = h('input', { type: 'date', min: l.desde, max: l.hasta || null, 'aria-label': 'Día a agregar' });
+  poner(box, h('div', { class: 'cr-fr1' }, h('small', { t: 'Sumar un día:' }), di, btn('+ Agregar día', 'sm', function(){
+    if(!di.value){ ST.puente.aviso('Elegí la fecha del día a agregar.'); return; }
+    const res = repDiaAgregar(l, r, di.value);
+    if(res === 'ya') ST.puente.aviso('Ese día ya lo cubre este reemplazo.');
+    else if(res === 'fuera') ST.puente.aviso('Ese día está fuera de la licencia (' + rangoLic(l) + ').');
+    else pintar();
+  })));
+  return box;
+}
+
+/* == modo "Editar cuadro" == */
+function abrirPop(e, r){
+  poner(document.body, e);
+  ubicarPop(e, r);
+  e.setAttribute('tabindex', '-1');
+  try{ e.focus({ preventScroll: true }); }catch(x){}
+}
+function btnCerrarPop(){ return h('button', { type: 'button', class: 'x2', title: 'Cerrar', 'aria-label': 'Cerrar', on: { click: limpiarPop }, t: '✕' }); }
+function tabEditable(t){ return t === 'tec' || t === 'adm' || t === 'rx'; }
+function esFranjaEditable(f){ return !!f && !f.g && !f.xt && ST.M.F.indexOf(f) >= 0; }
+function resumenFranja(f){
+  return DIAS[f.dia] + ' ' + f.d + '–' + f.h + (f.sem ? ' · Sáb ' + f.sem : '') + (f.sec ? ' · ' + (SEC[f.sec] || f.sec) : '');
+}
+/* campos de una franja semanal; leer() devuelve los valores o null si falta algo */
+function camposFranja(f){
+  const tec = f.tab === 'tec', adm = f.tab === 'adm', r = {};
+  r.dia = selec(DIAS.map(function(x, i){ return [i, x]; }), f.dia, function(v){ r.semw.hidden = +v !== 5; });
+  r.dia.setAttribute('aria-label', 'Día');
+  r.d = h('input', { type: 'time', value: f.d, 'aria-label': 'Desde' });
+  r.h = h('input', { type: 'time', value: f.h, 'aria-label': 'Hasta' });
+  r.sem = selec([[0, 'Todos los sábados'], [1, 'Sábado 1'], [2, 'Sábado 2']], f.sem || 0, function(){});
+  r.sem.setAttribute('aria-label', 'Sábado');
+  r.semw = campo('Sábado', r.sem);
+  r.semw.hidden = f.dia !== 5;
+  r.sec = adm ? h('input', { type: 'text', value: f.sec || '', maxlength: '60', placeholder: 'Sector', 'aria-label': 'Sector' }) : null;
+  r.turno = tec ? selec([['', 'Sin turno fijo'], ['M', 'Mañana'], ['T', 'Tarde']], f.turno || '', function(){}) : null;
+  if(r.turno) r.turno.setAttribute('aria-label', 'Turno');
+  r.g = tec ? h('input', { type: 'checkbox', checked: !!f.guardia, 'aria-label': 'Guardia' }) : null;
+  r.pend = h('input', { type: 'checkbox', checked: !!f.pend, 'aria-label': 'A confirmar' });
+  const el = h('div', { class: 'cr-fcampos' },
+    campo('Día', r.dia), r.semw, campo('Desde', r.d), campo('Hasta', r.h),
+    adm ? campo('Sector', r.sec, 'full') : null, tec ? campo('Turno', r.turno) : null,
+    tec ? h('label', { class: 'cr-chk1' }, r.g, 'Guardia') : null, h('label', { class: 'cr-chk1' }, r.pend, 'A confirmar'));
+  return {
+    el: el,
+    leer: function(){
+      if(!horaOk(r.d.value, r.h.value)) return null;
+      const dia = +r.dia.value;
+      return { dia: dia, d: r.d.value, h: r.h.value, sem: dia === 5 ? +r.sem.value : 0, sec: r.sec ? r.sec.value.trim().slice(0, 60) : f.sec, turno: r.turno ? r.turno.value : f.turno,
+        guardia: r.g ? r.g.checked : f.guardia, pend: r.pend.checked };
+    }
+  };
+}
+function franjaPop(ev, f, nuevo){
+  if(ev && ev.stopPropagation) ev.stopPropagation();
+  limpiarPop();
+  const el = (ev && (ev.currentTarget || ev.target)) || document.body, r = el.getBoundingClientRect();
+  S.pop = { franja: f.id || 'nueva', t: Date.now() };
+  const cf = camposFranja(f), msg = h('div', { class: 'msg', role: 'alert' });
+  const aplicar = function(){
+    const v = cf.leer();
+    if(!v){ vaciar(msg); poner(msg, 'Revisá las horas: tienen que estar completas y ser distintas.'); return; }
+    if(nuevo){
+      if(ST.M.F.some(function(x){ return x.key === f.key && x.tab === f.tab && x.dia === v.dia && x.d === v.d && x.h === v.h && x.sem === v.sem; })){ vaciar(msg); poner(msg, 'Ya existe una franja igual para esa persona.'); return; }
+      Object.assign(f, v, { motivo: v.pend ? (f.motivo || '') : '' });
+      A.franjaAlta(f);
+    } else {
+      Object.assign(f, v);
+      if(!f.pend) f.motivo = '';
+      A.franjaCambio(f);
+    }
+    limpiarPop(); pintar();
+  };
+  const acts = nuevo
+    ? [btn('Agregar franja', 'pri sm', aplicar), btn('Cancelar', 'sm', limpiarPop)]
+    : [btn('Aplicar', 'pri sm', aplicar), btn('Quitar franja', 'sm dng', function(){ A.franjaBaja(f); limpiarPop(); pintar(); }), btn('Ver ficha', 'sm', function(){ limpiarPop(); openPerson(f.key, f.id); })];
+  const e = h('div', { id: 'cr-pop', class: 'cr-pop', role: 'dialog', 'aria-label': nuevo ? 'Nueva franja' : 'Editar franja' }, btnCerrarPop(),
+    h('h4', { t: (nuevo ? 'Nueva franja · ' : '') + nmP(f.key) }),
+    h('div', { class: 'sb', t: TN[f.tab] + (nuevo ? '' : ' · ' + resumenFranja(f)) + '. Es la franja semanal: vale para todas las semanas, no solo para este día.' }),
+    cf.el, msg, h('div', { class: 'acts' }, acts));
+  abrirPop(e, r);
+}
+function franjaNueva(ev, p, dia, tab){
+  const otra = ST.M.F.find(function(x){ return x.key === p.key && x.tab === tab; });
+  franjaPop(ev, { tab: tab, key: p.key, dia: dia, d: otra ? otra.d : (tab === 'adm' ? '08:00' : '07:00'), h: otra ? otra.h : (tab === 'adm' ? '16:00' : '13:00'), sec: otra ? otra.sec : '', asig: [],
+    guardia: false, sem: 0, turno: otra && tab === 'tec' ? otra.turno : '', pend: false, motivo: '' }, true);
+}
+function quitarDelCuadro(p, tab){
+  const fs = ST.M.F.filter(function(f){ return f.key === p.key && f.tab === tab; });
+  fs.forEach(function(f){ A.franjaBaja(f); });
+  limpiarPop();
+  pintar();
+  if(fs.length) ST.puente.aviso('Se quitó a ' + nmP(p.key) + ' de ' + TN[tab] + ' (' + fs.length + ' franja' + (fs.length === 1 ? '' : 's') + '). Falta guardar.');
+}
+function ordenP(a, b){
+  const g = ['tec', 'adm', 'med', 'res'];
+  return g.indexOf(a.grp) - g.indexOf(b.grp) || a.orden - b.orden || a.ap.localeCompare(b.ap, 'es');
+}
+function personaLibre(nombre){
+  const n = nombre.replace(/\s+/g, ' ').trim().slice(0, 80), k = 'libre:' + n, PM = ST.M.PM;
+  if(!PM[k]){
+    PM[k] = { key: k, id: null, tipo: 'medico', grp: 'med', ap: n, nom: '', serv: ['Radiología'], orden: 9999, libre: true };
+    ST.M.P.push(PM[k]);
+    ST.M.P.sort(ordenP);
+    ST.R.hueMap = null;
+  }
+  return k;
+}
+function formPersonaCuadro(){
+  const t = tabAct(), grp = t === 'tec' ? 'tec' : t === 'adm' ? 'adm' : 'med', M = ST.M;
+  const con = new Set(M.F.filter(function(f){ return f.tab === t; }).map(function(f){ return f.key; }));
+  const todas = M.P.filter(function(p){ return p.grp === grp && !p.oculta && p.key !== 'res'; });
+  const ord = todas.filter(function(p){ return !con.has(p.key); }).concat(todas.filter(function(p){ return con.has(p.key); }));
+  const op = [['', '— elegir persona —']].concat(ord.map(function(p){ return [p.key, ST.C.nm(p) + (con.has(p.key) ? '' : ' (sin franjas)')]; }));
+  if(t === 'rx') op.push(['__libre', 'Otra persona (nombre libre)…']);
+  const r = {}, msg = h('div', { class: 'msg', role: 'alert' });
+  r.nom = h('input', { type: 'text', placeholder: 'Nombre y apellido', maxlength: '80', hidden: true, 'aria-label': 'Nombre de la persona (nombre libre)' });
+  r.p = selec(op, '', function(v){ r.nom.hidden = v !== '__libre'; });
+  r.p.setAttribute('aria-label', 'Persona');
+  const dias = DIAS.map(function(n, i){ return h('label', { class: 'cr-chk1 cr-dsel' }, h('input', { type: 'checkbox', 'data-dia': i, 'aria-label': n, on: { change: function(){ r.semw.hidden = !dias[5].querySelector('input').checked; } } }), n.slice(0, 3)); });
+  r.sem = selec([[0, 'Todos los sábados'], [1, 'Sábado 1'], [2, 'Sábado 2']], 0, function(){});
+  r.sem.setAttribute('aria-label', 'Sábado');
+  r.semw = campo('Sábado', r.sem); r.semw.hidden = true;
+  r.d = h('input', { type: 'time', value: t === 'adm' ? '08:00' : t === 'rx' ? '08:00' : '07:00', 'aria-label': 'Desde' });
+  r.h = h('input', { type: 'time', value: t === 'adm' ? '16:00' : t === 'rx' ? '20:00' : '13:00', 'aria-label': 'Hasta' });
+  r.sec = t === 'adm' ? h('input', { type: 'text', maxlength: '60', placeholder: 'Sector', 'aria-label': 'Sector' }) : null;
+  r.turno = t === 'tec' ? selec([['', 'Sin turno fijo'], ['M', 'Mañana'], ['T', 'Tarde']], '', function(){}) : null;
+  if(r.turno) r.turno.setAttribute('aria-label', 'Turno');
+  r.pend = h('input', { type: 'checkbox', 'aria-label': 'A confirmar' });
+  const marcar = function(a){ dias.forEach(function(l, i){ l.querySelector('input').checked = a.indexOf(i) >= 0; }); r.semw.hidden = a.indexOf(5) < 0; };
+  const falla = function(t_){ vaciar(msg); poner(msg, t_); };
+  return h('div', { class: 'cr-form cr-addp', id: 'cr-form-persona' }, h('b', { t: 'Agregar persona al cuadro · ' + TN[t] }),
+    campo('Persona', r.p), r.nom,
+    h('div', { class: 'cr-dsels' }, dias, btn('Lun a Vie', 'sm', function(){ marcar([0, 1, 2, 3, 4]); }), btn('Ninguno', 'sm', function(){ marcar([]); })),
+    h('div', { class: 'cr-fcampos' }, r.semw, campo('Desde', r.d), campo('Hasta', r.h), r.sec ? campo('Sector', r.sec, 'full') : null, r.turno ? campo('Turno', r.turno) : null,
+      h('label', { class: 'cr-chk1' }, r.pend, 'A confirmar')),
+    msg,
+    h('div', { class: 'acts' }, btn('Agregar', 'pri sm', function(){
+      let key = r.p.value;
+      if(!key){ falla('Elegí una persona.'); return; }
+      if(key === '__libre'){
+        if(!r.nom.value.trim()){ falla('Escribí el nombre de la persona.'); return; }
+      }
+      const ds = [];
+      dias.forEach(function(l, i){ if(l.querySelector('input').checked) ds.push(i); });
+      if(!ds.length){ falla('Elegí al menos un día.'); return; }
+      if(!horaOk(r.d.value, r.h.value)){ falla('Revisá las horas: tienen que estar completas y ser distintas.'); return; }
+      if(key === '__libre') key = personaLibre(r.nom.value);
+      let n = 0;
+      ds.forEach(function(dia){
+        const sem = dia === 5 ? +r.sem.value : 0;
+        if(ST.M.F.some(function(x){ return x.key === key && x.tab === t && x.dia === dia && x.d === r.d.value && x.h === r.h.value && x.sem === sem; })) return;
+        A.franjaAlta({ tab: t, key: key, dia: dia, d: r.d.value, h: r.h.value, sec: r.sec ? r.sec.value.trim().slice(0, 60) : '', asig: [], guardia: false, sem: sem, turno: r.turno ? r.turno.value : '', pend: r.pend.checked, motivo: '' });
+        n++;
+      });
+      S.addP = false;
+      pintar();
+      ST.puente.aviso(n ? 'Se agregaron ' + n + ' franja' + (n === 1 ? '' : 's') + ' a ' + nmP(key) + '. Falta guardar.' : 'Esa persona ya tenía esas franjas.');
+    }), btn('Cancelar', 'sm', function(){ S.addP = false; pintar(); })));
+}
+function ayudaEdicion(v){
+  const sub = S.sub, t = tabAct();
+  if(sub === 'eco') return 'Eco/Doppler se edita en Médicos › Cronograma Ecografía/Doppler: acá es solo lectura.';
+  if(v === 'sem') return 'Tocá un bloque para cambiar día, horario o sector, o quitarlo. Con “+ Agregar persona al cuadro” cargás personal nuevo con sus horarios.';
+  if(v === 'sems' || v === 'mes') return 'Tocá un bloque para editar su franja semanal (se repite todas las semanas, no solo este día). Para cambios de un día puntual usá el diagrama o la ficha de la persona.';
+  if(v === 'cuadro') return 'Tocá un horario para editarlo, el “+” de una celda para sumar una franja ese día, o “Quitar del cuadro” para sacar a una persona de esta pestaña.';
+  if(v === 'lista') return 'Cada licencia se edita acá mismo. Con “+ Licencia” cargás una nueva.';
+  if(v === 'conf') return 'Confirmá, editá, quitá o pasá de persona los reemplazos desde el cuadro “A confirmar” de arriba.';
+  if(v === 'tcg') return 'Tocá un día para cambiar quién informa o quién cubre las urgencias; con “+ Subir cronograma del mes” cargás el calendario completo.';
+  if(v === 'pago') return 'Las tarifas y la lista de técnicos del panel se editan acá mismo (solo un administrador).';
+  if(v === 'diag') return 'Tocá una celda del diagrama para confirmar un reemplazo, quitar o pasar un día a otra persona, marcar una ausencia o sumar un turno extra. Los horarios fijos se editan en Semana tipo o Cuadro.';
+  return 'Esta vista no se edita directamente. Los horarios se cambian en ' + (tabEditable(t) ? 'Semana tipo o Cuadro' : 'su vista de edición') + '; las ausencias y reemplazos, desde el diagrama o la ficha de la persona.';
+}
+function guardarEdicion(){ revisarYGuardar({ salir: true }); }
+function cancelarEdicion(){
+  const n = cambiosPendientes().length;
+  if(!n){ S.edit = false; limpiarPop(); pintar(); return; }
+  limpiarPop();
+  confirmar('¿Salir sin guardar?', [h('p', { t: 'Tenés ' + nCambiosTxt(n) + ' sin guardar. Si cancelás la edición se pierden y se vuelve a leer el cronograma guardado.' })], 'Descartar y salir', 'Seguir editando', 'peligro')
+    .then(function(ok){ if(!ok) return; S.edit = false; return descartarYa(); });
+}
+function renderEdicion(){
+  if(!enEdicion()) return null;
+  const v = vistaAct(), t = tabAct();
+  const cuadro = ['sem', 'sems', 'cuadro', 'mes'].indexOf(v) >= 0 && tabEditable(t) && ['licencias', 'pago', 'alertas'].indexOf(S.sub) < 0;
+  const bar = h('div', { class: 'cr-edbar', id: 'cr-edbar' }, h('div', { class: 'cr-edh' }, h('b', { t: '✎ Modo edición' }), h('span', { class: 'cr-hint', t: ayudaEdicion(v) })));
+  if(S.sub === 'eco') poner(bar, h('a', { class: 'cr-lk', href: '#medicos/eco', t: 'Ir a Médicos › Cronograma Ecografía/Doppler' }));
+  if(cuadro){
+    if(S.addP) poner(bar, formPersonaCuadro());
+    else poner(bar, h('div', { class: 'acts' }, btn('+ Agregar persona al cuadro', 'sm', function(){ S.addP = true; pintar(); }, { id: 'cr-agregar-persona' })));
+  }
+  if(S.sub === 'licencias' && v === 'lista'){
+    if(S.addLP) poner(bar, formLic(null, function(){ S.addLP = false; pintar(); }));
+    else poner(bar, h('div', { class: 'acts' }, btn('+ Licencia', 'sm', function(){ S.addLP = true; pintar(); }, { id: 'cr-agregar-licencia' })));
+  }
+  return bar;
+}
+
+/* == cuadro "A confirmar" (arriba de todo) == */
+function ambitoPC(){
+  const sub = S.sub, tab = subActual().tab;
+  if(sub === 'alertas') return { grps: ['tec', 'adm'], tabs: ['tec', 'adm', 'rx', 'tc', 'eco'], g: true, nom: 'todo el módulo' };
+  if(sub === 'licencias') return { grps: ['tec', 'adm'], tabs: ['tec', 'adm'], g: true, nom: 'técnicos y administrativos' };
+  return { grps: tab === 'tec' ? ['tec'] : tab === 'adm' ? ['adm'] : [], tabs: [tab], g: tab === 'tec', nom: TN[tab] };
+}
+function itemsPC(){
+  const sc = ambitoPC(), C_ = ST.C, M = ST.M, hoy = ST.puente.hoy();
+  const grpOk = function(k){ return M.PM[k] && sc.grps.indexOf(M.PM[k].grp) >= 0; };
+  const ord = function(a, b){ return a.l.desde.localeCompare(b.l.desde) || a.r.d.localeCompare(b.r.d); };
+  const reps = C_.repAll().filter(function(x){ return !x.pasado && x.est !== 'ok' && grpOk(x.l.key); });
+  const o = {
+    no: reps.filter(function(x){ return x.est === 'no'; }).sort(ord),
+    pe: reps.filter(function(x){ return x.est !== 'no'; }).sort(ord),
+    sinR: M.L.filter(function(l){ return grpOk(l.key) && C_.lend(l) >= hoy && !l.reemps.length; }).sort(function(a, b){ return a.desde.localeCompare(b.desde); }),
+    lp: M.L.filter(function(l){ return l.pend && grpOk(l.key); }).sort(function(a, b){ return a.desde.localeCompare(b.desde); }),
+    fp: M.F.filter(function(f){ return f.pend && sc.tabs.indexOf(f.tab) >= 0; }).sort(function(a, b){ return a.tab.localeCompare(b.tab) || nmP(a.key).localeCompare(nmP(b.key), 'es') || a.dia - b.dia; }),
+    gp: sc.g ? M.G.filter(function(g){ return g.pend; }).sort(function(a, b){ return a.fecha.localeCompare(b.fecha); }) : []
+  };
+  o.total = o.no.length + o.pe.length + o.sinR.length + o.lp.length + o.fp.length + o.gp.length;
+  o.sc = sc;
+  return o;
+}
+function tarjetaPC(cls, titulo, estado, meta, acts, extra, attr){
+  const a = { class: 'cr-cf ' + cls };
+  if(attr) Object.keys(attr).forEach(function(k){ a[k] = attr[k]; });
+  return h('div', a, h('div', { class: 'cft' }, h('div', null, titulo), estado ? h('span', { class: 'sb2', t: estado }) : null),
+    meta ? h('div', { class: 'cfm' }, meta) : null, acts && acts.length ? h('div', { class: 'acts' }, acts) : null, extra || null);
+}
+function licSinCard(l){
+  const edit = puedeEditar(), ab = S.ed['l:' + l.id];
+  const acts = edit ? [
+    btn('+ Agregar reemplazante', 'sm pri', function(){ S.pcR = S.pcR === l.id ? null : l.id; pintar(); }),
+    btn(ab ? 'Cerrar editor' : 'Editar licencia', 'sm', function(){ S.ed['l:' + l.id] = !ab; pintar(); }),
+    btn('Ver ficha', 'sm', function(){ openPerson(l.key, null, l.id); }),
+    btn('Quitar licencia', 'sm dng', function(){ A.licBaja(l); pintar(); })] : [btn('Ver ficha', 'sm', function(){ openPerson(l.key, null, l.id); })];
+  return tarjetaPC('sr', [h('b', { t: nmP(l.key) }), ' · ' + l.tipo], 'sin reemplazo', [fmtC(l.desde) + (l.hasta ? ' al ' + fmtC(l.hasta) : ' · sin fecha de regreso'), l.pend ? [' · ', pendMarca('licencia a confirmar')] : null],
+    acts, [edit && S.pcR === l.id ? formReemp(l, function(){ S.pcR = null; pintar(); }) : null, edit && ab ? licFila(l) : null], { 'data-lic-sin': l.id });
+}
+function licPendCard(l){
+  const edit = puedeEditar(), ab = S.ed['l:' + l.id];
+  const acts = edit ? [
+    btn('✔ Confirmar licencia', 'sm pri', function(){ l.pend = false; l.motivo = ''; A.licCambio(l); pintar(); }),
+    btn(ab ? 'Cerrar editor' : 'Editar', 'sm', function(){ S.ed['l:' + l.id] = !ab; pintar(); }),
+    btn('Quitar', 'sm dng', function(){ A.licBaja(l); pintar(); })] : [];
+  return tarjetaPC('pe', [h('b', { t: nmP(l.key) }), ' · ' + l.tipo], 'licencia a confirmar', [fmtC(l.desde) + (l.hasta ? ' al ' + fmtC(l.hasta) : ' · sin fecha de regreso'), l.motivo ? ' · ' + l.motivo : ''],
+    acts, edit && ab ? licFila(l) : null, { 'data-lic-pend': l.id });
+}
+function franjaPendCard(f){
+  const edit = puedeEditar();
+  const acts = edit ? [
+    btn('✔ Confirmar horario', 'sm pri', function(){ f.pend = false; f.motivo = ''; A.franjaCambio(f); pintar(); }),
+    btn('✎ Editar', 'sm', function(ev){ franjaPop(ev, f); }),
+    btn('Quitar', 'sm dng', function(){ A.franjaBaja(f); pintar(); })] : [];
+  return tarjetaPC('pe', [h('b', { t: nmP(f.key) }), ' · ' + TN[f.tab]], 'horario a confirmar', [resumenFranja(f), f.motivo ? ' · ' + f.motivo : ''], acts, null, { 'data-fr-pend': f.id });
+}
+function guardiaPendCard(g){
+  const edit = puedeEditar();
+  const acts = edit ? [
+    btn('✔ Confirmar horario', 'sm pri', function(){ g.pend = false; g.motivo = ''; A.guardiaCambio(g); pintar(); }),
+    btn('✎ Editar', 'sm', function(){ openPerson(g.key); }),
+    btn('Quitar', 'sm dng', function(){ A.guardiaBaja(g); pintar(); })] : [];
+  return tarjetaPC('pe', [h('b', { t: nmP(g.key) }), ' · Guardia'], 'guardia a confirmar', DIAS[wdOf(g.fecha)].slice(0, 3) + ' ' + fmtC(g.fecha) + ' · ' + DL[g.t] + ' ' + TURN[g.t][0] + '–' + TURN[g.t][1] + (g.motivo ? ' · ' + g.motivo : ''), acts, null, { 'data-g-pend': g.id });
+}
+function renderPorConfirmar(){
+  const it = itemsPC(), n = it.total, sec = function(t, cls){ return h('div', { class: 'cr-pc-h' + (cls ? ' ' + cls : ''), t: t }); };
+  const det = h('details', { class: 'cr-pc', id: 'cr-porconf', open: S.pcAbierto, on: { toggle: function(ev){ S.pcAbierto = ev.target.open; } } },
+    h('summary', null, h('b', { t: 'A confirmar' }), h('span', { class: 'cr-pcn' + (n ? '' : ' z'), t: String(n) }), h('small', { t: ' · ' + it.sc.nom })));
+  const body = h('div', { class: 'cr-pc-b' });
+  if(!n) poner(body, h('div', { class: 'cr-hint', t: 'Nada pendiente ✔' }));
+  if(it.no.length) poner(body, sec('No pueden: hay que buscar otro (' + it.no.length + ')', 'cr-w'), it.no.map(function(x){ return repCard(x); }));
+  if(it.pe.length) poner(body, sec('Reemplazos a confirmar (' + it.pe.length + ')'), it.pe.map(function(x){ return repCard(x); }));
+  if(it.sinR.length) poner(body, sec('Licencias sin reemplazo (' + it.sinR.length + ')', 'cr-w'), it.sinR.map(licSinCard));
+  if(it.lp.length) poner(body, sec('Licencias a confirmar (' + it.lp.length + ')'), it.lp.map(licPendCard));
+  if(it.fp.length || it.gp.length) poner(body, sec('Horarios a confirmar (' + (it.fp.length + it.gp.length) + ')'), it.fp.map(franjaPendCard), it.gp.map(guardiaPendCard));
+  poner(det, body);
+  return det;
+}
+/* editor completo de un reemplazo: quién, horas, período, nota y día por día */
+function repEditor(l, r){
+  const chg = function(){ A.repCambio(l, r); pintar(); };
+  const nom = h('input', { type: 'text', value: r.nombre || '', maxlength: '120', placeholder: 'Nombre del reemplazante', hidden: !!r.key, 'aria-label': 'Nombre del reemplazante externo', on: { change: function(ev){
+    const v = ev.target.value.trim().slice(0, 120);
+    if(!v) return;
+    r.key = ''; r.nombre = v; r.est = ''; chg();
+  } } });
+  const op = opcionesReemp(l, '').filter(function(o){ return o[0] !== ''; });
+  if(r.key && !op.some(function(o){ return o[0] === r.key; })) op.unshift([r.key, nmP(r.key)]);
+  const sel = selec(op, r.key || '__ext', function(v){
+    if(v === '__ext'){ nom.hidden = false; nom.focus(); return; }
+    r.key = v; r.nombre = ''; r.est = ''; chg();
+  });
+  sel.setAttribute('aria-label', 'Reemplazante');
+  return h('div', { class: 'cr-eded', 'data-editor': r.id }, h('b', { t: 'Editar reemplazo' }),
+    h('div', { class: 'cr-fr1' }, campo('Reemplazante', sel), nom),
+    h('div', { class: 'cr-fr1' },
+      campo('Hora desde', entrada('time', r.d, function(v, el){ if(!horaOk(v, r.h)){ el.value = r.d; return; } r.d = v; chg(); }, { 'aria-label': 'Reemplazo desde' })),
+      campo('Hora hasta', entrada('time', r.h, function(v, el){ if(!horaOk(r.d, v)){ el.value = r.h; return; } r.h = v; chg(); }, { 'aria-label': 'Reemplazo hasta' }))),
+    h('div', { class: 'cr-fr1' },
+      campo('Cubre desde (vacío = desde el inicio)', entrada('date', r.desde, function(v, el){ if(v && r.hasta && v > r.hasta){ el.value = r.desde; return; } r.desde = v; chg(); }, { 'aria-label': 'Cubre desde' })),
+      campo('Cubre hasta (vacío = hasta el final)', entrada('date', r.hasta, function(v, el){ if(v && r.desde && v < r.desde){ el.value = r.hasta; return; } r.hasta = v; chg(); }, { 'aria-label': 'Cubre hasta' }))),
+    entrada('text', r.nota, function(v){ r.nota = v.slice(0, 200); chg(); }, { class: 'n', placeholder: 'Nota: con quién hablaste y cuándo', maxlength: '200', 'aria-label': 'Nota del reemplazo (editor)' }),
+    diasEditor(l, r));
+}
 
 /* == utilidades de vista == */
 const TN = { tec: 'Técnicos', adm: 'Administrativos', rx: 'Radiografías', tc: 'Tomografía', eco: 'Eco/Doppler', lic: 'Licencias', todo: 'Todo' };
@@ -620,7 +1468,7 @@ function itemInfo(i){
     else if(f.g) sub = TURN[f.t][2] + (f.pend ? ' · a confirmar' : '');
     else if(f.xt) sub = 'Turno extra';
     else sub = (f.sec ? SEC[f.sec] || f.sec : '') + (f.turno && TURN[f.turno] ? (f.sec ? ' · ' : '') + TURN[f.turno][2] : '') + (f.sem ? ' · Sáb ' + f.sem : '');
-    click = function(){ openPerson(i.k, f.id); };
+    click = function(ev){ if(enEdicion() && esFranjaEditable(f)) franjaPop(ev, f); else openPerson(i.k, f.id); };
   }
   return { lab: lab, sub: sub, cls: cls, click: click };
 }
@@ -686,7 +1534,7 @@ function timeGrid(days, o){
         const gg = Lm[i.uid], w = 100 / gg.n, a = mins(i.d), b = mins(i.h) <= a ? 1440 : mins(i.h), x = itemInfo(i);
         poner(lane, h('div', { class: 'cr-blk ' + x.cls + (i.kind === 'w' && S.hl === (i.f && i.f.id) ? ' sel' : ''), tabindex: '0', role: 'button',
           s: { top: ((a - t0) * PX) + 'px', height: ((b - a) * PX) + 'px', left: (gg.c * w) + '%', width: 'calc(' + w + '% - 2px)', '--h': hue(i.k || i['for']) },
-          title: x.lab + ' ' + i.d + '–' + i.h, on: { click: x.click, keydown: function(ev){ if(ev.key === 'Enter') x.click(); } } },
+          title: x.lab + ' ' + i.d + '–' + i.h, on: { click: x.click, keydown: function(ev){ if(ev.key === 'Enter') x.click(ev); } } },
           h('b', { t: x.lab }), h('small', { t: i.d + '–' + i.h }), x.sub ? h('small', { class: 'nm' + (x.sub === 'Sin asignar' ? ' none' : ''), t: x.sub }) : null));
       });
       poner(day, lane);
@@ -737,29 +1585,46 @@ function listaPers(t){
 function renderCuadro(){
   const t = tabAct(), days = DIAS.slice(0, S.we ? 7 : 5), ps = listaPers(t).filter(function(p){ return !S.pf || p.key === S.pf; });
   const own = function(p){ return ST.M.F.filter(function(f){ return f.key === p.key && f.tab === t; }); };
+  const ed = enEdicion() && tabEditable(t);
+  const franjaTxt = function(f){ return f.d + '–' + f.h + (f.sec ? ' ' + (SEC[f.sec] || f.sec) : '') + (f.guardia ? ' guardia' : '') + (f.pend ? ' (a confirmar)' : ''); };
   if(esAngosto()){
     return h('div', null, ps.map(function(p){
       const o = own(p);
       return h('div', { class: 'cr-ld' },
         h('div', { class: 'cr-lt', s: { cursor: 'pointer' }, on: { click: function(){ openPerson(p.key); } } }, ST.C.nm(p), h('small', { t: o.length ? dhx(hrsDe(o.filter(function(f){ return f.dia < days.length; }))) + ' / sem' : 'sin agenda' })),
+        ed ? h('div', { class: 'acts' }, btn('+ Franja', 'sm', function(ev){ franjaNueva(ev, p, 0, t); }, { 'aria-label': 'Agregar franja a ' + ST.C.nm(p) }),
+          o.length ? btn('Quitar del cuadro', 'sm dng', function(){ quitarDelCuadro(p, t); }, { 'aria-label': 'Quitar a ' + ST.C.nm(p) + ' del cuadro' }) : null) : null,
         days.map(function(nom, di){
           const fs = o.filter(function(f){ return f.dia === di; }).sort(function(a, b){ return mins(a.d) - mins(b.d); });
+          if(ed) return fs.map(function(f){
+            return h('div', { class: 'cr-li', role: 'button', tabindex: '0', s: { '--h': hue(p.key) }, on: { click: function(ev){ franjaPop(ev, f); }, keydown: function(ev){ if(ev.key === 'Enter') franjaPop(ev, f); } } },
+              h('span', { class: 'tt', t: nom.slice(0, 3) }), h('b', { t: franjaTxt(f) }));
+          });
           return fs.length ? h('div', { class: 'cr-li', s: { '--h': hue(p.key) }, on: { click: function(){ openPerson(p.key, fs[0].id); } } }, h('span', { class: 'tt', t: nom.slice(0, 3) }),
-            h('b', { t: fs.map(function(f){ return f.d + '–' + f.h + (f.sec ? ' ' + (SEC[f.sec] || f.sec) : '') + (f.guardia ? ' guardia' : '') + (f.pend ? ' (a confirmar)' : ''); }).join(' · ') })) : null;
+            h('b', { t: fs.map(franjaTxt).join(' · ') })) : null;
         }));
     }));
   }
   const tb = h('table', { class: 'cr-tbl' }, h('tr', null, h('th', { t: 'Persona' }), days.map(function(d){ return h('th', { t: d.slice(0, 3) }); }), h('th', { t: 'Horas/sem' })));
   ps.forEach(function(p){
-    const o = own(p), tr = h('tr', null, h('td', { class: 'p', s: { cursor: 'pointer' }, on: { click: function(){ openPerson(p.key); } } },
-      h('i', { class: 'cr-sq', s: { background: 'hsl(' + hue(p.key) + ' 75% 62%)' } }), ST.C.nm(p)));
+    const o = own(p), tr = h('tr', { 'data-cuadro': p.key }, h('td', { class: 'p', s: { cursor: 'pointer' }, on: { click: function(){ openPerson(p.key); } } },
+      h('i', { class: 'cr-sq', s: { background: 'hsl(' + hue(p.key) + ' 75% 62%)' } }), ST.C.nm(p),
+      ed && o.length ? h('div', null, btn('✕ Quitar del cuadro', 'sm dng', function(ev){ ev.stopPropagation(); quitarDelCuadro(p, t); }, { 'aria-label': 'Quitar a ' + ST.C.nm(p) + ' del cuadro' })) : null));
     days.forEach(function(d, di){
       const fs = o.filter(function(f){ return f.dia === di; }).sort(function(a, b){ return mins(a.d) - mins(b.d); });
-      poner(tr, h('td', { class: 'c', on: { click: function(){ openPerson(p.key, fs[0] ? fs[0].id : null); } } },
-        fs.length ? fs.map(function(f){
-          return h('span', { class: 'cr-tm' }, f.d + '–' + f.h, f.sec ? [' ', h('small', { t: SEC[f.sec] || f.sec })] : null, f.sem ? [' ', h('small', { t: 'Sáb ' + f.sem })] : null,
-            f.turno && TURN[f.turno] ? [' ', h('small', { t: TURN[f.turno][2] })] : null, f.guardia ? [' ', h('small', { t: 'guardia' })] : null, f.pend ? [' ', pendMarca()] : null);
-        }) : h('span', { class: 'cr-hint', t: '—' })));
+      const spans = fs.length ? fs.map(function(f){
+        const sp = h('span', { class: 'cr-tm' + (ed ? ' ed' : '') }, f.d + '–' + f.h, f.sec ? [' ', h('small', { t: SEC[f.sec] || f.sec })] : null, f.sem ? [' ', h('small', { t: 'Sáb ' + f.sem })] : null,
+          f.turno && TURN[f.turno] ? [' ', h('small', { t: TURN[f.turno][2] })] : null, f.guardia ? [' ', h('small', { t: 'guardia' })] : null, f.pend ? [' ', pendMarca()] : null);
+        if(ed){
+          sp.setAttribute('role', 'button'); sp.tabIndex = 0;
+          sp.setAttribute('aria-label', 'Editar franja de ' + ST.C.nm(p) + ' ' + d + ' ' + f.d + ' a ' + f.h);
+          sp.addEventListener('click', function(ev){ franjaPop(ev, f); });
+          sp.addEventListener('keydown', function(ev){ if(ev.key === 'Enter') franjaPop(ev, f); });
+        }
+        return sp;
+      }) : h('span', { class: 'cr-hint', t: '—' });
+      poner(tr, h('td', { class: 'c', on: ed ? null : { click: function(){ openPerson(p.key, fs[0] ? fs[0].id : null); } } }, spans,
+        ed ? btn('+', 'sm cr-plus', function(ev){ franjaNueva(ev, p, di, t); }, { title: 'Agregar franja', 'aria-label': 'Agregar franja a ' + ST.C.nm(p) + ' el ' + d }) : null));
     });
     poner(tr, h('td', null, o.length ? dhx(hrsDe(o.filter(function(f){ return f.dia < days.length; }))) : h('span', { class: 'cr-pill z', t: 'sin agenda' })));
     poner(tb, tr);
@@ -779,7 +1644,7 @@ function chipsFor(d){
         h('b', { t: ST.C.rshort(it.r) }), h('small', { t: 'reemp. a ' + apP(it['for']) + ' · ' + it.d + '–' + it.h + (ST.C.repEst(it.r) !== 'ok' ? ' · a confirmar' : '') })));
     } else {
       const f = it.f;
-      out.push(h('div', { class: 'cr-chp w', s: { '--h': hue(it.k) }, on: { click: function(){ openPerson(it.k, f.id); } } }, h('b', { t: apP(it.k) }),
+      out.push(h('div', { class: 'cr-chp w', s: { '--h': hue(it.k) }, on: { click: function(ev){ if(enEdicion() && esFranjaEditable(f)) franjaPop(ev, f); else openPerson(it.k, f.id); } } }, h('b', { t: apP(it.k) }),
         h('small', { t: it.d + '–' + it.h + (f.g ? ' · ' + TURN[f.t][2] : ((f.sec ? ' · ' + (SEC[f.sec] || f.sec) : '') + (f.turno && TURN[f.turno] ? ' · ' + TURN[f.turno][2] : ''))) + (f.pend ? ' · a confirmar' : '') })));
     }
   });
@@ -1017,12 +1882,12 @@ function pagoPanel(){
     };
     const avgOf = function(f){ return rows.reduce(function(a, r){ return a + f(r); }, 0) / rows.length; };
     if(esAngosto()){
-      poner(box, h('div', { class: 'cr-pcs' }, rows.map(function(r){
-        return h('div', { class: 'cr-pc', 'data-pago': r.o.p.key }, h('div', { class: 'r1' }, h('b', { t: ST.C.nm(r.o.p) }), h('b', { t: fmtM(r.t) })),
+      poner(box, h('div', { class: 'cr-pgs' }, rows.map(function(r){
+        return h('div', { class: 'cr-pgc', 'data-pago': r.o.p.key }, h('div', { class: 'r1' }, h('b', { t: ST.C.nm(r.o.p) }), h('b', { t: fmtM(r.t) })),
           h('small', { t: fmtH(r.D) + ' diurnas · ' + fmtH(r.N) + ' nocturnas · ' + fmtH(r.D + r.N) }), h('small', { t: fmtM(r.pd) + ' + ' + fmtM(r.pn) }),
           r.o.pend ? h('small', { class: 'cr-apend', t: 'Incluye ' + fmtH(r.o.pend) + ' a confirmar' }) : null,
           h('small', null, dif(r), ' vs. promedio'), h('div', { class: 'cr-bar2', s: { width: (r.t / mx * 100) + '%' } }));
-      }), h('div', { class: 'cr-pc' }, h('div', { class: 'r1' }, h('b', { t: 'Promedio' }), h('b', { t: fmtM(avg) })))));
+      }), h('div', { class: 'cr-pgc' }, h('div', { class: 'r1' }, h('b', { t: 'Promedio' }), h('b', { t: fmtM(avg) })))));
     } else {
       const tb = h('table', { class: 'cr-pt' }, h('tr', null, ['Técnico', 'Hs diurnas', 'Hs nocturnas', 'Total hs', '$ diurnas', '$ nocturnas', 'Total $', 'Vs. promedio', 'A confirmar'].map(function(x){ return h('th', { t: x }); }), h('th', { s: { width: '12%' } })));
       rows.forEach(function(r){
@@ -1050,10 +1915,10 @@ function pagoPanel(){
   }
   return box;
 }
-function guardarTarifas(){
-  const tf = ST.R.tarifas, valor = { diurna: tf.diurna, nocturna: tf.nocturna };
-  if(Array.isArray(tf.personas)) valor.personas = tf.personas.slice();
-  encolar(async function(){
+function guardarTarifas(){ marcarSucio(); }
+function escribirTarifas(){
+  const valor = valorTarifas();
+  return encolar(async function(){
     const v = ST.M.cfg.ver.tarifas;
     const r = await ST.puente.rpc('img_cron_guardar', { p_entidad: 'config', p_dato: { clave: 'tarifas', valor: valor }, p_version: v === undefined ? null : v });
     ST.M.cfg.ver.tarifas = r.version;
@@ -1176,38 +2041,38 @@ function repCard(x){
   }
   const has = chk && Object.keys(chk.iss).length;
   const b = function(e, t, c){ return btn(t, 'sm ' + (c || ''), function(){ setEst(l, r, e); }); };
+  const abierto = edit && !!S.ed['r:' + r.id];
   let acts = null;
-  if(edit) acts = est === 'ok' ? [b('no', '✖ No puede'), b('', '↺ Volver a por confirmar')] : est === 'no' ? [b('ok', '✔ Confirmar igual'), b('', '↺ Volver a por confirmar')] : [b('ok', has ? '✔ Confirmar igual' : '✔ Confirmar', 'pri'), b('no', '✖ No puede')];
+  if(edit){
+    acts = (est === 'ok' ? [b('no', '✖ No puede'), b('', '↺ Volver a por confirmar')] : est === 'no' ? [b('ok', '✔ Confirmar igual'), b('', '↺ Volver a por confirmar')] : [b('ok', has ? '✔ Confirmar igual' : '✔ Confirmar', 'pri'), b('no', '✖ No puede')])
+      .concat([btn(abierto ? 'Cerrar editor' : '✎ Editar', 'sm', function(){ S.ed['r:' + r.id] = !abierto; pintar(); }, { 'aria-expanded': abierto ? 'true' : 'false' }),
+        btn('🗑 Quitar reemplazo', 'sm dng', function(){ A.repBaja(l, r); pintar(); })]);
+  }
   const clsEst = est;
   return h('div', { class: 'cr-cf ' + clsEst, 'data-rep': r.id },
     h('div', { class: 'cft' }, h('div', null, h('b', { s: { cursor: 'pointer' }, on: r.key ? { click: function(){ openPerson(r.key); } } : null, t: C_.rname(r) }), ' cubre a ', h('b', { s: { cursor: 'pointer' }, on: { click: function(){ openPerson(l.key, null, l.id); } }, t: ST.C.nm(p) })),
       h('span', { class: 'sb2', t: est === 'ok' ? 'confirmado' : est === 'no' ? 'no puede' : (x.pasado ? 'a confirmar (período pasado)' : 'a confirmar') })),
     h('div', { class: 'cfm' }, l.tipo + ' · ', h('b', { t: r.d + '–' + r.h }), ' · ' + periodoRep(x) + (r.nota ? ' · ' + r.nota : ''), l.pend ? [' · ', pendMarca('licencia a confirmar')] : null),
     cl, acts ? h('div', { class: 'acts' }, acts) : null,
-    edit ? entrada('text', r.nota, function(v){ r.nota = v.slice(0, 200); A.repCambio(l, r); }, { class: 'n', placeholder: 'Nota: con quién hablaste y cuándo', maxlength: '200', 'aria-label': 'Nota del reemplazo' }) : null,
-    edit ? h('details', null, h('summary', { t: 'Cambiar reemplazante' }), h('select', { on: { change: function(ev){
+    edit && !abierto ? entrada('text', r.nota, function(v){ r.nota = v.slice(0, 200); A.repCambio(l, r); }, { class: 'n', placeholder: 'Nota: con quién hablaste y cuándo', maxlength: '200', 'aria-label': 'Nota del reemplazo' }) : null,
+    edit && !abierto ? h('details', null, h('summary', { t: 'Cambiar reemplazante' }), h('select', { on: { change: function(ev){
       const v = ev.target.value;
       if(!v || v === '__ext') return;
       r.key = v; r.nombre = ''; r.est = ''; A.repCambio(l, r); pintar();
-    } } }, opciones(opcionesReemp(l, r.key).filter(function(o){ return o[0] !== '__ext'; }), ''))) : null);
+    } } }, opciones(opcionesReemp(l, r.key).filter(function(o){ return o[0] !== '__ext'; }), ''))) : null,
+    abierto ? repEditor(l, r) : null);
 }
 function renderConf(){
   const C_ = ST.C, all = C_.repAll(), vig = all.filter(function(x){ return !x.pasado; }), pas = all.filter(function(x){ return x.pasado; });
   const by = function(e){ return vig.filter(function(x){ return x.est === e; }); };
   const ord = function(a, b){ return a.l.desde.localeCompare(b.l.desde) || a.r.d.localeCompare(b.r.d); };
-  const sinR = ST.M.L.filter(function(l){ return ST.M.PM[l.key] && (ST.M.PM[l.key].grp === 'tec' || ST.M.PM[l.key].grp === 'adm') && C_.lend(l) >= ST.puente.hoy() && !l.reemps.length; });
   const out = h('div', null, h('div', { class: 'cr-hint', s: { 'margin-bottom': '6px' } },
     'Cada reemplazo pasa por dos controles. ', h('b', { t: '1)' }), ' El sistema revisa lo que está cargado: que el reemplazante no tenga ya turno en ese horario ni licencia. ', h('b', { t: '2)' }),
-    ' Vos confirmás con la persona y lo marcás acá. Todo reemplazo sin confirmar figura como “a confirmar”. En el diagrama, el borde de la celda del reemplazante muestra el estado: ', h('b', { t: 'sólido' }), ' = confirmado, ',
+    ' Vos confirmás con la persona y lo marcás. Todo reemplazo sin confirmar figura como “a confirmar”. En el diagrama, el borde de la celda del reemplazante muestra el estado: ', h('b', { t: 'sólido' }), ' = confirmado, ',
     h('b', { class: 'cr-w', t: 'punteado rojo' }), ' = a confirmar, ', h('b', { class: 'cr-w', t: 'tachado' }), ' = dijo que no puede.'),
-    h('div', { class: 'cfs' }, h('span', { class: 'cfp pe' }, h('b', { t: by('pe').length }), 'a confirmar'), h('span', { class: 'cfp ok' }, h('b', { t: by('ok').length }), 'confirmados'), h('span', { class: 'cfp no' }, h('b', { t: by('no').length }), 'no pueden')));
-  if(by('no').length) poner(out, h('div', { class: 'cr-hsec cr-w', t: 'No pueden: hay que buscar otro' }), by('no').sort(ord).map(repCard));
-  poner(out, h('div', { class: 'cr-hsec', t: 'A confirmar' }), by('pe').length ? by('pe').sort(ord).map(repCard) : h('div', { class: 'cr-hint', t: 'Nada pendiente.' }));
+    h('div', { class: 'cfs' }, h('span', { class: 'cfp pe' }, h('b', { t: by('pe').length }), 'a confirmar'), h('span', { class: 'cfp ok' }, h('b', { t: by('ok').length }), 'confirmados'), h('span', { class: 'cfp no' }, h('b', { t: by('no').length }), 'no pueden')),
+    h('div', { class: 'cr-hint', s: { 'margin-bottom': '6px' }, t: 'Lo que falta confirmar (reemplazos, rechazados y licencias sin reemplazo) está en el cuadro “A confirmar” de arriba: ahí mismo podés confirmar, editar, quitar o pasar días a otra persona.' }));
   if(by('ok').length) poner(out, h('div', { class: 'cr-hsec', t: 'Confirmados' }), by('ok').sort(ord).map(repCard));
-  if(sinR.length) poner(out, h('div', { class: 'cr-hsec cr-w', t: 'Licencias sin reemplazo cargado' }), sinR.map(function(l){
-    return h('div', { class: 'cr-cf' }, h('div', { class: 'cft' }, h('div', null, h('b', { s: { cursor: 'pointer' }, on: { click: function(){ openPerson(l.key, null, l.id); } }, t: nmP(l.key) }), ' · ' + l.tipo), h('span', { class: 'sb2', t: 'sin reemplazo' })),
-      h('div', { class: 'cfm', t: fmtC(l.desde) + (l.hasta ? ' al ' + fmtC(l.hasta) : ' · sin fecha de regreso') }));
-  }));
   const pasPe = pas.filter(function(x){ return x.est !== 'ok'; }).sort(ord), pasOk = pas.filter(function(x){ return x.est === 'ok'; }).sort(ord);
   if(pasPe.length) poner(out, h('details', { class: 'cr-how', s: { 'margin-top': '14px' } }, h('summary', { t: 'Período pasado sin confirmar (' + pasPe.length + ')' }), pasPe.map(repCard)));
   if(pasOk.length) poner(out, h('details', { class: 'cr-how', s: { 'margin-top': '8px' } }, h('summary', { t: 'Ya realizados y confirmados (' + pasOk.length + ')' }), pasOk.map(repCard)));
@@ -1216,6 +2081,7 @@ function renderConf(){
 function renderLista(){
   const PM = ST.M.PM, ls = ST.M.L.filter(function(l){ return PM[l.key] && (PM[l.key].grp === 'tec' || PM[l.key].grp === 'adm') && (!S.pf || l.key === S.pf); }).sort(function(a, b){ return b.desde.localeCompare(a.desde); });
   if(!ls.length) return nota('Sin licencias cargadas.');
+  if(enEdicion()) return h('div', null, ls.map(function(l){ return h('div', { class: 'cr-ledit' }, h('b', { class: 'cr-lnom', t: nmP(l.key) }), licFila(l)); }));
   return h('div', null, ls.map(function(l){
     return h('div', { class: 'cr-dl', 'data-lic': l.id, on: { click: function(){ openPerson(l.key, null, l.id); } } }, h('b', { t: nmP(l.key) }), ' · ' + l.tipo + ' · ' + fmtF(l.desde) + (l.hasta ? ' al ' + fmtF(l.hasta) : ' · sin fecha de regreso'),
       l.pend ? [' ', pendMarca()] : null, l.obs ? h('small', { class: 'cr-mut', t: ' · ' + l.obs }) : null,
@@ -1237,19 +2103,18 @@ function tcDay(d){
 }
 function tcMonths(){ const o = {}; Object.keys(ST.M.TC.cal).forEach(function(k){ const q = k.slice(0, 7); o[q] = (o[q] || 0) + 1; }); return o; }
 function tcLoaded(y, mo){ return tcMonths()[y + '-' + pad(mo + 1)] || 0; }
-function tcGuardar(fecha, medico){
-  ST.M.TC.cal[fecha] = medico;
-  encolar(async function(){
+function tcGuardar(fecha, medico){ ST.M.TC.cal[fecha] = medico; marcarSucio(); }
+function tcQuitar(fecha){ delete ST.M.TC.cal[fecha]; marcarSucio(); }
+function escribirTc(fecha, medico){
+  return encolar(async function(){
     const v = ST.M.TC.calV[fecha];
     const r = await ST.puente.rpc('img_cron_guardar', { p_entidad: 'tc', p_dato: { fecha: fecha, medico: medico }, p_version: v === undefined ? null : v });
     ST.M.TC.calV[fecha] = r.version;
   });
 }
-function tcQuitar(fecha){
-  const v = ST.M.TC.calV[fecha];
-  delete ST.M.TC.cal[fecha];
-  encolar(async function(){
-    await ST.puente.rpc('img_cron_borrar', { p_entidad: 'tc', p_id: fecha, p_version: ST.M.TC.calV[fecha] === undefined ? v : ST.M.TC.calV[fecha] });
+function borrarTc(fecha){
+  return encolar(async function(){
+    await ST.puente.rpc('img_cron_borrar', { p_entidad: 'tc', p_id: fecha, p_version: ST.M.TC.calV[fecha] });
     delete ST.M.TC.calV[fecha];
   });
 }
@@ -1291,8 +2156,7 @@ function tcEdit(ev, d){
       if(x.cu) tcCambioGuardar(d, TC_URG, defU, '');
       limpiarPop(); pintar();
     }) : null) : null);
-  poner(document.body, e);
-  ubicarPop(e, r);
+  abrirPop(e, r);
 }
 function ubicarPop(e, r){
   const w = e.offsetWidth, hh_ = e.offsetHeight;
@@ -1628,9 +2492,12 @@ function renderPersonal(){
     const txt = l ? (l.tipo === 'Cambio de turno' ? 'cambio de turno' : 'licencia' + (l.hasta ? ' hasta ' + fmtC(l.hasta) : ' abierta')) :
       own.length ? (t === 'tec' || t === 'adm' ? Array.from(new Set(own.map(function(f){ return DIAS[f.dia].slice(0, 3); }))).join(' · ') : dhx(hrsDe(own))) :
       (C_.esGuard(p.key) ? 'guardias' : 'sin agenda');
+    const quitar = enEdicion() && tabEditable(t) && own.length;
     poner(box, h('div', { class: 'cr-st' + (S.pf === p.key ? ' on' : ''), 'data-staff': p.key, tabindex: '0', role: 'button',
-      on: { click: function(){ S.pf = S.pf === p.key ? null : p.key; openPerson(p.key); }, keydown: function(ev){ if(ev.key === 'Enter') { S.pf = S.pf === p.key ? null : p.key; openPerson(p.key); } } } },
-      h('div', null, C_.nm(p), h('br'), h('small', { t: GN[p.grp] + (p.serv.length ? ' · ' + p.serv.join(' + ') : '') })), h('span', { class: 'cr-pill' + (l ? ' l' : own.length ? '' : ' z'), t: txt })));
+      on: { click: function(){ S.pf = S.pf === p.key ? null : p.key; openPerson(p.key); }, keydown: function(ev){ if(ev.key === 'Enter' && ev.target === ev.currentTarget) { S.pf = S.pf === p.key ? null : p.key; openPerson(p.key); } } } },
+      h('div', null, C_.nm(p), h('br'), h('small', { t: GN[p.grp] + (p.serv.length ? ' · ' + p.serv.join(' + ') : '') })),
+      h('div', { class: 'cr-stx' }, h('span', { class: 'cr-pill' + (l ? ' l' : own.length ? '' : ' z'), t: txt }),
+        quitar ? btn('✕', 'sm dng', function(ev){ ev.stopPropagation(); quitarDelCuadro(p, t); }, { title: 'Quitar del cuadro', 'aria-label': 'Quitar a ' + C_.nm(p) + ' del cuadro' }) : null)));
   });
   return box;
 }
@@ -1650,6 +2517,16 @@ function renderAlertas(scope, solo){
   return box;
 }
 /* == popover de celda del diagrama == */
+function bloqueRepDia(l, r, d, esRep){
+  const C_ = ST.C, est = C_.repEst(r);
+  return h('div', { class: 'cr-repdia', 'data-repdia': r.id },
+    h('div', { class: 'ln' }, h('b', { t: esRep ? 'Cubre a ' + apP(l.key) : 'Reemplaza: ' + C_.rname(r) }), ' · ' + r.d + '–' + r.h + ' · ', pendMarca(ESTTXT[est])),
+    h('div', { class: 'acts' },
+      btn('✔ Confirmar reemplazo ' + r.d + '–' + r.h, 'sm pri', function(){ setEst(l, r, 'ok'); }),
+      btn('✖ No puede', 'sm', function(){ setEst(l, r, 'no'); }),
+      btn('Quitar este día', 'sm dng', function(){ repDiaQuitar(l, r, d); limpiarPop(); pintar(); }, { 'aria-label': 'Quitar el ' + fmtC(d) + ' de este reemplazo' })),
+    h('div', { class: 'cr-hint', t: 'Pasar este día a otra persona:' }), controlPasar(l, r, d));
+}
 function cellPop(ev, key, d){
   if(ev.stopPropagation) ev.stopPropagation();
   limpiarPop();
@@ -1660,12 +2537,19 @@ function cellPop(ev, key, d){
   const x = cellInfo(p, d, Cc), lic = C_.licOn(key, d);
   S.pop = { cell: key + '|' + d, t: Date.now() };
   const reps = dd.items.filter(function(i){ return i.kind === 'rep' && i.k === key; });
-  const acts = [];
+  const acts = [], secs = [];
   if(edit){
-    reps.forEach(function(i){
-      acts.push(btn('✔ Confirmar reemplazo ' + i.d + '–' + i.h, 'sm pri', function(){ setEst(i.l, i.r, 'ok'); }));
-      acts.push(btn('✖ No puede', 'sm', function(){ setEst(i.l, i.r, 'no'); }));
-    });
+    reps.forEach(function(i){ secs.push(bloqueRepDia(i.l, i.r, d, true)); });
+    if(lic && lic.tipo !== 'Cambio de turno'){
+      const cubre = lic.reemps.filter(function(q){ return repCubre(lic, q, d); });
+      cubre.forEach(function(q){ secs.push(bloqueRepDia(lic, q, d, false)); });
+      const need = C_.ownShifts(key, d, true), guard = C_.esGuard(key);
+      let turnos = [];
+      if(!need.length) turnos = cubre.length ? [] : [null];
+      else if(guard) turnos = need.filter(function(z){ return !cubre.some(function(q){ const a = mins(q.d), b = mins(q.h) <= a ? mins(q.h) + 1440 : mins(q.h); return z[0] === a && z[1] === b; }); });
+      else if(!cubre.length) turnos = [[Math.min.apply(null, need.map(function(z){ return z[0]; })), Math.max.apply(null, need.map(function(z){ return z[1]; }))]];
+      if(turnos.length) secs.push(h('div', { class: 'cr-repdia', 'data-sin-rep': '1' }, h('div', { class: 'ln' }, h('b', { t: 'Asignar reemplazante para este día' })), turnos.map(function(z){ return controlAsignar(lic, d, z); })));
+    }
     if(!lic) acts.push(btn('Marcar ausencia este día', 'sm', function(){
       A.licAlta({ key: key, tipo: 'Ausencia puntual', desde: d, hasta: d, obs: '', pend: false, motivo: '', reemps: [] });
       limpiarPop(); pintar();
@@ -1681,13 +2565,12 @@ function cellPop(ev, key, d){
       limpiarPop(); pintar();
     }));
   }
-  const e = h('div', { id: 'cr-pop', class: 'cr-pop', role: 'dialog', 'aria-label': 'Detalle del día' },
-    h('button', { type: 'button', class: 'x2', title: 'Cerrar', 'aria-label': 'Cerrar', on: { click: limpiarPop }, t: '✕' }),
+  const e = h('div', { id: 'cr-pop', class: 'cr-pop ancho', role: 'dialog', 'aria-label': 'Detalle del día' },
+    btnCerrarPop(),
     h('h4', { t: C_.nm(p) + ' · ' + DIAS[wdOf(d)].slice(0, 3) + ' ' + fmtC(d) }),
     h('div', { class: 'sb', t: (ST.M.FER[d] ? 'Feriado: ' + ST.M.FER[d] + '. ' : '') + (x.ti ? x.ti.split(' · ').slice(1).join(' · ') : 'Sin turno ese día.') }),
-    h('div', { class: 'acts' }, acts), extra);
-  poner(document.body, e);
-  ubicarPop(e, r);
+    secs, h('div', { class: 'acts' }, acts), extra);
+  abrirPop(e, r);
 }
 
 /* == ficha de persona (panel lateral) == */
@@ -1751,10 +2634,11 @@ function repFila(l, r){
       entrada('time', r.h, function(v, el){ if(!horaOk(r.d, v)){ el.value = r.h; return; } r.h = v; chg(); }, { 'aria-label': 'Reemplazo hasta' }),
       btn('✕', 'sm dng', function(){ A.repBaja(l, r); pintar(); }, { title: 'Quitar reemplazo', 'aria-label': 'Quitar reemplazo' })),
     h('div', { class: 'cr-fr1' }, selec([['', 'a confirmar'], ['ok', 'confirmado'], ['no', 'no puede']], r.est, function(v){ r.est = v; chg(); }),
-      entrada('text', r.nota, function(v){ r.nota = v.slice(0, 200); chg(); }, { placeholder: 'Nota', maxlength: '200', 'aria-label': 'Nota del reemplazo' })));
+      entrada('text', r.nota, function(v){ r.nota = v.slice(0, 200); chg(); }, { placeholder: 'Nota', maxlength: '200', 'aria-label': 'Nota del reemplazo' })),
+    h('details', { class: 'cr-dd', 'data-dias-det': r.id }, h('summary', { t: 'Días que cubre · quitar o pasar a otra persona' }), diasEditor(l, r)));
 }
-function formReemp(l){
-  const refs = {}, p = ST.M.PM[l.key];
+function formReemp(l, alCerrar){
+  const refs = {}, p = ST.M.PM[l.key], cerrar = alCerrar || function(){ S.addR = null; pintar(); };
   const first = ST.M.F.find(function(f){ return f.key === l.key; });
   const op = opcionesReemp(l, '');
   refs.who = selec(op, '', function(v){ refs.nom.hidden = v !== '__ext'; });
@@ -1766,8 +2650,8 @@ function formReemp(l){
       const v = refs.who.value, nombre = refs.nom.value.trim();
       if(!v || (v === '__ext' && !nombre) || !horaOk(refs.d.value, refs.h.value)) return;
       A.repAlta(l, { key: v === '__ext' ? '' : v, nombre: v === '__ext' ? nombre.slice(0, 120) : '', d: refs.d.value, h: refs.h.value, nota: '', fechas: [], desde: '', hasta: '', est: '' });
-      S.addR = null; pintar();
-    }), btn('Cancelar', 'sm', function(){ S.addR = null; pintar(); })));
+      cerrar();
+    }), btn('Cancelar', 'sm', cerrar)));
 }
 function licFila(l){
   const edit = puedeEditar(), cls = 'cr-lic' + (S.hlL === l.id ? ' sel' : '');
@@ -1787,20 +2671,26 @@ function licFila(l){
     reps.length ? reps : h('div', { class: 'cr-hint', t: 'Sin reemplazo definido.' }),
     S.addR === l.id ? formReemp(l) : btn('+ Reemplazante', 'sm', function(){ S.addR = l.id; pintar(); }));
 }
-function formLic(p){
-  const refs = {};
+function formLic(p, alCerrar){
+  const refs = {}, cerrar = alCerrar || function(){ S.addL = false; pintar(); };
   refs.tipo = selec(TIPOS_LIC, TIPOS_LIC[0], function(){});
   refs.desde = h('input', { type: 'date', value: ST.puente.hoy(), 'aria-label': 'Desde' });
   refs.hasta = h('input', { type: 'date', 'aria-label': 'Hasta' });
   refs.obs = h('input', { type: 'text', maxlength: '200', placeholder: 'Detalle (no cargar motivos de salud)', 'aria-label': 'Detalle' });
   refs.pend = h('input', { type: 'checkbox' });
-  return h('div', { class: 'cr-form', id: 'cr-form-lic' }, h('b', { t: 'Nueva licencia' }), refs.tipo, h('label', { class: 'cr-f' }, 'Desde', refs.desde), h('label', { class: 'cr-f' }, 'Hasta (vacío = sin fecha de regreso)', refs.hasta), refs.obs,
+  if(!p){
+    refs.p = selec([['', '— elegir persona —']].concat(ST.C.people('tec').concat(ST.C.people('adm')).map(function(x){ return [x.key, ST.C.nm(x)]; })), '', function(){});
+    refs.p.setAttribute('aria-label', 'Persona');
+  }
+  return h('div', { class: 'cr-form', id: 'cr-form-lic' }, h('b', { t: 'Nueva licencia' }), refs.p ? campo('Persona', refs.p) : null, refs.tipo, h('label', { class: 'cr-f' }, 'Desde', refs.desde), h('label', { class: 'cr-f' }, 'Hasta (vacío = sin fecha de regreso)', refs.hasta), refs.obs,
     h('label', { class: 'cr-chk1' }, refs.pend, 'A confirmar'),
     h('div', { class: 'acts' }, btn('Agregar', 'pri sm', function(){
+      const key = p ? p.key : refs.p.value;
+      if(!key){ ST.puente.aviso('Elegí la persona de la licencia.'); return; }
       if(!refs.desde.value || (refs.hasta.value && refs.hasta.value < refs.desde.value)) return;
-      A.licAlta({ key: p.key, tipo: refs.tipo.value, desde: refs.desde.value, hasta: refs.hasta.value, obs: refs.obs.value.slice(0, 200), pend: refs.pend.checked, motivo: '', reemps: [] });
-      S.addL = false; pintar();
-    }), btn('Cancelar', 'sm', function(){ S.addL = false; pintar(); })));
+      A.licAlta({ key: key, tipo: refs.tipo.value, desde: refs.desde.value, hasta: refs.hasta.value, obs: refs.obs.value.slice(0, 200), pend: refs.pend.checked, motivo: '', reemps: [] });
+      cerrar();
+    }), btn('Cancelar', 'sm', cerrar)));
 }
 function formGuardia(p, tipo){
   const refs = {}, mk = S.y + '-' + pad(S.m + 1) + '-01';
@@ -1828,22 +2718,25 @@ function renderDrawer(){
   const gs = ST.M.G.filter(function(g){ return g.key === key && g.fecha.indexOf(mk) === 0; }).sort(function(a, b){ return a.fecha.localeCompare(b.fecha) || a.t.localeCompare(b.t); });
   const xs = ST.M.XT.filter(function(x){ return x.key === key && x.fecha.indexOf(mk) === 0; }).sort(function(a, b){ return a.fecha.localeCompare(b.fecha); });
   const ls = ST.M.L.filter(function(l){ return l.key === key; }).sort(function(a, b){ return b.desde.localeCompare(a.desde); });
+  const bd = h('div', { class: 'cr-dbody' });
+  ST.R.dhost = h('div', { class: 'cr-dbar-host' });
   const dr = h('aside', { class: 'cr-drawer', id: 'cr-drawer', role: 'dialog', 'aria-label': 'Ficha de ' + C_.nm(p) },
-    h('div', { class: 'cr-dh2' }, h('div', null, h('b', { t: C_.nm(p) }), h('br'), h('small', { t: GN[p.grp] + (p.serv.length ? ' · ' + p.serv.join(' + ') : '') })),
-      btn('✕ Cerrar', 'sm', cerrarPerson, { title: 'Cerrar', 'aria-label': 'Cerrar ficha' })));
+    h('div', { class: 'cr-dtop' },
+      h('div', { class: 'cr-dh2' }, h('div', null, h('b', { t: C_.nm(p) }), h('br'), h('small', { t: GN[p.grp] + (p.serv.length ? ' · ' + p.serv.join(' + ') : '') })),
+        btn('✕ Cerrar', 'sm pri cr-xficha', cerrarPerson, { id: 'cr-cerrar-ficha', title: 'Cerrar ficha (Esc)', 'aria-label': 'Cerrar ficha' })), ST.R.dhost), bd);
   if(p.grp === 'adm' && edit){
     const ofi = C_.esOfi(key), fa = ST.M.F.filter(function(f){ return f.key === key && f.tab === 'adm'; });
-    poner(dr, h('div', { class: 'cr-sec' }, chk('Oficina propia (no cuenta en el máximo de 2 simultáneos)', ofi, function(v){
+    poner(bd, h('div', { class: 'cr-sec' }, chk('Oficina propia (no cuenta en el máximo de 2 simultáneos)', ofi, function(v){
       fa.forEach(function(f){ f.sec = v ? OFICINA : ''; A.franjaCambio(f); });
       if(v && !fa.length) ST.puente.aviso('Cargá primero una franja para marcar oficina propia.');
       pintar();
     })));
-  } else if(C_.esOfi(key)) poner(dr, h('div', { class: 'cr-sec cr-hint', t: 'Oficina propia: no cuenta en el máximo de 2 simultáneos.' }));
-  poner(dr, h('div', { class: 'cr-sec' }, h('h4', { t: 'Agenda semanal' }),
+  } else if(C_.esOfi(key)) poner(bd, h('div', { class: 'cr-sec cr-hint', t: 'Oficina propia: no cuenta en el máximo de 2 simultáneos.' }));
+  poner(bd, h('div', { class: 'cr-sec' }, h('h4', { t: 'Agenda semanal' }),
     fr.length ? fr.map(function(f){ return franjaRow(f, p); }) : h('div', { class: 'cr-hint', t: 'Sin agenda semanal cargada.' }),
     edit ? (S.addF ? formFranja(p) : btn('+ Franja', 'sm', function(){ S.addF = true; pintar(); })) : null));
   if(p.grp === 'tec' || gs.length || xs.length){
-    poner(dr, h('div', { class: 'cr-sec' }, h('h4', { t: 'Guardias de 12 h y turnos extra · ' + MESES[S.m] }),
+    poner(bd, h('div', { class: 'cr-sec' }, h('h4', { t: 'Guardias de 12 h y turnos extra · ' + MESES[S.m] }),
       gs.map(function(g){
         return h('div', { class: 'cr-fr' }, h('span', { t: DIAS[wdOf(g.fecha)].slice(0, 3) + ' ' + fmtC(g.fecha) + ' · ' + DL[g.t] + ' ' + TURN[g.t][0] + '–' + TURN[g.t][1] }), g.pend ? [' ', pendMarca()] : null,
           C_.licOn(key, g.fecha) ? h('span', { class: 'cr-w', t: ' · de licencia' }) : null, edit ? btn('✕', 'sm dng', function(){ A.guardiaBaja(g); pintar(); }, { title: 'Quitar guardia', 'aria-label': 'Quitar guardia' }) : null);
@@ -1854,15 +2747,16 @@ function renderDrawer(){
       !gs.length && !xs.length ? h('div', { class: 'cr-hint', t: 'Sin guardias ni turnos extra este mes.' }) : null,
       edit && p.grp === 'tec' ? (S.nk === 'g' || S.nk === 'x' ? formGuardia(p, S.nk) : h('div', { class: 'acts' }, btn('+ Guardia', 'sm', function(){ S.nk = 'g'; pintar(); }), btn('+ Turno extra', 'sm', function(){ S.nk = 'x'; pintar(); }))) : null));
   }
-  poner(dr, h('div', { class: 'cr-sec' }, h('h4', { t: 'Licencias y reemplazos' }),
+  poner(bd, h('div', { class: 'cr-sec' }, h('h4', { t: 'Licencias y reemplazos' }),
     ls.length ? ls.map(licFila) : h('div', { class: 'cr-hint', t: 'Sin licencias cargadas.' }),
     edit ? (S.addL ? formLic(p) : btn('+ Licencia', 'sm', function(){ S.addL = true; pintar(); })) : null));
   const cubre = [];
   ST.M.L.forEach(function(l){ l.reemps.forEach(function(r){ if(r.key === key && l.key !== key) cubre.push({ l: l, r: r }); }); });
-  if(cubre.length) poner(dr, h('div', { class: 'cr-sec' }, h('h4', { t: 'Cubre a otras personas' }), cubre.map(function(x){
+  if(cubre.length) poner(bd, h('div', { class: 'cr-sec' }, h('h4', { t: 'Cubre a otras personas' }), cubre.map(function(x){
     return h('div', { class: 'cr-fr' }, h('b', { t: nmP(x.l.key) }), ' · ' + x.l.tipo + ' · ' + x.r.d + '–' + x.r.h + ' · ', pendMarca(ESTTXT[C_.repEst(x.r)]));
   })));
-  if(!edit) poner(dr, h('div', { class: 'cr-hint', t: 'Solo lectura.' }));
+  if(!edit) poner(bd, h('div', { class: 'cr-hint', t: 'Solo lectura.' }));
+  poner(dr, h('div', { class: 'cr-dfoot' }, btn('Cerrar', '', cerrarPerson, { id: 'cr-cerrar-ficha-pie', 'aria-label': 'Cerrar ficha (botón al final)' })));
   return dr;
 }
 
@@ -1914,6 +2808,10 @@ function renderTools(){
     const ps = personasFiltro();
     if(ps.length > 1) poner(tools, selec([['', 'Todas las personas']].concat(ps.map(function(p){ return [p.key, ST.C.nm(p)]; })), S.pf || '', function(x){ S.pf = x || null; pintar(); }, 'cr-sel'));
   }
+  if(permisoEditar()){
+    if(!S.edit) poner(tools, h('div', { class: 'cr-edtools' }, btn('✎ Editar', 'sm', function(){ S.edit = true; limpiarPop(); pintar(); }, { id: 'cr-editar', 'aria-label': 'Editar este cuadro', disabled: ST.guardando })));
+    else poner(tools, h('div', { class: 'cr-edtools' }, btn('💾 Guardar edición', 'sm pri', guardarEdicion, { id: 'cr-guardar-edicion', disabled: ST.guardando }), btn('Cancelar edición', 'sm', cancelarEdicion, { id: 'cr-cancelar-edicion', disabled: ST.guardando })));
+  }
   return tools;
 }
 function renderCuerpo(){
@@ -1944,6 +2842,11 @@ function pintar(){
   try{ do{ ST.R.otra = false; pintarYa(); }while(ST.R.otra); }
   finally{ ST.R.pintando = false; }
 }
+function quitarFlotantes(){
+  if(ST.R.drawerEl && ST.R.drawerEl.parentNode) ST.R.drawerEl.parentNode.removeChild(ST.R.drawerEl);
+  if(ST.R.scrimEl && ST.R.scrimEl.parentNode) ST.R.scrimEl.parentNode.removeChild(ST.R.scrimEl);
+  ST.R.drawerEl = null; ST.R.scrimEl = null;
+}
 function pintarYa(){
   if(!ST.el) return;
   const foco = document.activeElement;
@@ -1955,18 +2858,23 @@ function pintarYa(){
   ST.R.bucket = ST.R.ancho < 700 ? 0 : ST.R.ancho < 860 ? 1 : 2;
   const root = ST.el;
   vaciar(root);
-  ST.R.drawerEl = null;
+  quitarFlotantes();
+  ST.R.bhost = null; ST.R.dhost = null;
   root.classList.add('cr-root');
   root.dataset.angosto = esAngosto() ? '1' : '0';
+  const tb = document.querySelector('.topbar'), fija = tb && ['sticky', 'fixed'].indexOf(getComputedStyle(tb).position) >= 0;
+  root.style.setProperty('--cr-top', (fija ? tb.offsetHeight : 0) + 'px');
   if(!ST.cargado){
     poner(root, ST.error ? bloqueEstado('NO SE PUDO LEER', textoError(ST.error, null), true, true) : bloqueEstado('CARGANDO', 'Cargando cronogramas…', false, false));
     return;
   }
   if(!subsVisibles().some(function(s){ return s.k === S.sub; })) S.sub = 'tecnicos';
   const wrap = h('div', { class: 'cr-wrap' });
-  if(!puedeEditar()) poner(wrap, h('div', { class: 'cr-ro', t: 'Solo lectura' }));
+  ST.R.bhost = h('div', { class: 'cr-bhost', id: 'cr-bhost' });
+  poner(wrap, ST.R.bhost);
+  if(!permisoEditar()) poner(wrap, h('div', { class: 'cr-ro', t: 'Solo lectura' }));
   if(ST.error) poner(wrap, bloqueEstado('NO SE PUDO ACTUALIZAR', MSG.LECTURA, true, true));
-  poner(wrap, renderKpis(), renderNav(), renderTools());
+  poner(wrap, renderKpis(), renderNav(), renderPorConfirmar(), renderTools(), renderEdicion());
   const sub = S.sub, conLado = ['tecnicos', 'administrativos', 'radiografias', 'eco', 'tc'].indexOf(sub) >= 0;
   const main = h('div', { class: 'cr-main', id: 'cr-main' }, h('div', { class: 'cr-card', id: 'cr-vista' }, renderCuerpo()));
   const lay = h('div', { class: 'cr-lay' + (conLado ? ' lado' : '') }, main);
@@ -1977,8 +2885,16 @@ function pintarYa(){
   }
   poner(wrap, lay);
   poner(root, wrap);
+  /* la ficha va colgada del body (no del módulo): <main> crea su propio contexto de apilado y la barra superior de la página tapaba el botón Cerrar */
   const dr = renderDrawer();
-  if(dr){ poner(root, dr); ST.R.drawerEl = dr; if(hadDrawer) dr.scrollTop = ds; }
+  if(dr){
+    const sc = h('div', { class: 'cr-scrim', id: 'cr-scrim', 'aria-hidden': 'true', on: { click: cerrarPerson } });
+    poner(document.body, sc, dr);
+    ST.R.scrimEl = sc; ST.R.drawerEl = dr;
+    if(hadDrawer) dr.scrollTop = ds;
+    else { const cb = dr.querySelector('#cr-cerrar-ficha'); if(cb) try{ cb.focus({ preventScroll: true }); }catch(x){} }
+  }
+  pintarBarra();
   if(Math.abs(window.scrollY - sy) > 2) window.scrollTo(0, sy);
 }
 
@@ -2012,9 +2928,17 @@ function alRedimensionar(){
     if(b !== ST.R.bucket) pintar();
   }, 120);
 }
+/* al salir de la pestaña Cronogramas la ficha (colgada del body) se cierra; el borrador se conserva */
+function alCambiarHashMod(){
+  if(location.hash.indexOf('#cronogramas') === 0) return;
+  S.dp = null; S.hl = null; S.hlL = null;
+  quitarFlotantes();
+  limpiarPop();
+  if(hayBorrador()) ST.puente.aviso('Quedaron cambios sin guardar en Cronogramas. Volvé a esa pestaña para guardarlos o descartarlos.');
+}
 function mostrar(el, sub, puente){
   ST.puente = puente; ST.el = el;
-  if(sub && SUBS.some(function(s){ return s.k === sub; }) && sub !== S.sub){ S.sub = sub; S.pf = null; S.dp = null; S.hl = null; S.hlL = null; S.wk = null; }
+  if(sub && SUBS.some(function(s){ return s.k === sub; }) && sub !== S.sub){ S.sub = sub; S.pf = null; S.dp = null; S.hl = null; S.hlL = null; S.wk = null; S.addP = false; S.addLP = false; }
   if(!ST.iniciado){
     ST.iniciado = true;
     const hy = puente.hoy();
@@ -2022,10 +2946,15 @@ function mostrar(el, sub, puente){
     document.addEventListener('keydown', teclaGlobal);
     document.addEventListener('click', clicGlobal);
     window.addEventListener('resize', alRedimensionar);
+    window.addEventListener('hashchange', alCambiarHashMod);
+    window.addEventListener('beforeunload', avisoSalida);
   }
   if(!ST.cargado && !ST.cargando) return iniciarCarga();
-  if(ST.cargado && !ST.cargando && !ST.escribiendo && Date.now() - ST.leidoEn > 300000) return recargar(true);
+  /* con borrador sin guardar nunca se vuelve a leer solo (pisaría lo que el usuario está editando) */
+  if(ST.cargado && !ST.cargando && !ST.escribiendo && !ST.guardando && Date.now() - ST.leidoEn > 300000 && !hayBorrador()) return recargar(true);
   pintar();
 }
-window.LumenCronogramas = { mostrar: mostrar, logica: { armarModelo: armarModelo, calculos: calculos, horasPago: horasPago, splitDN: splitDN, letterOf: letterOf } };
+window.LumenCronogramas = { mostrar: mostrar,
+  logica: { armarModelo: armarModelo, calculos: calculos, horasPago: horasPago, splitDN: splitDN, letterOf: letterOf, repDiaQuitar: repDiaQuitar, repDiaAsignar: repDiaAsignar, repDiaMover: repDiaMover, repDiaAgregar: repDiaAgregar },
+  cambios: function(){ return cambiosPendientes().map(function(c){ return { tipo: c.tipo, ent: c.ent, titulo: c.titulo, texto: textoCambio(c) }; }); } };
 })();
