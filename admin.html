@@ -1659,7 +1659,22 @@ async function traerUltimaDataNube() {
   try {
     if (btn) { btn.disabled = true; btn.style.opacity = 0.6; }
     setSt('⏳ Bajando de la nube...');
-    const chunks = await sbQuery('lumen_estadistica', 'select=seq,h,r,generado_en&order=seq.asc');
+    // Fuente protegida (D2 = B): RPC con el JWT de la sesión; nunca la clave anónima.
+    let ses = null;
+    try { const g = await window.sbAuth.auth.getSession(); ses = g && g.data && g.data.session; } catch (e) { ses = null; }
+    if (!ses || !ses.access_token) { setSt('⚠️ Sin sesión o sin permiso para traer la data de la nube. Iniciá sesión con tu cuenta.'); return; }
+    const resp = await fetch(SUPABASE_URL + '/rest/v1/rpc/lumen_estadistica_sin_medico', {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + ses.access_token, 'Content-Type': 'application/json' },
+      body: '{}'
+    });
+    if (!resp.ok) {
+      let cod = ''; try { cod = (await resp.json()).code || ''; } catch (e) {}
+      if (resp.status === 401 || resp.status === 403 || cod === '42501') { setSt('⚠️ Sin sesión o sin permiso para traer la data de la nube.'); return; }
+      throw new Error('DB error: ' + resp.status);
+    }
+    const chunks = await resp.json();
+    if (!Array.isArray(chunks)) throw new Error('Respuesta inesperada de la nube.');
     if (!chunks || !chunks.length) { setSt('⚠️ No hay data en la nube todavía. Corré Actualizar-Todo primero.'); return; }
     // Encabezados: del primer chunk que los traiga (seq 0).
     let headers = null;
