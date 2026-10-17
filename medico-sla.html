@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Umbrales de SLA · Médico</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0A0F14;--surface:#0E1521;--glass:rgba(14,21,33,.72);--input:#1A2332;--border:#1F2937;--border-s:#2D3748;--text:#F1F5F9;--muted:#94A3B8;--dim:#64748B;
+--lima:#A3E635;--lima-ring:rgba(163,230,53,.35);--amber:#FBBF24;--red:#F87171;--blue:#60A5FA;--green:#34D399}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 Inter,system-ui,sans-serif}
+a{color:var(--blue)}
+.wrap{max-width:1100px;margin:0 auto;padding:18px 16px 70px}
+h1{font-family:Rajdhani,system-ui,sans-serif;letter-spacing:2px;font-size:22px;margin:6px 0 2px}
+h2.sec{font-family:Rajdhani,system-ui,sans-serif;letter-spacing:2px;font-size:13px;color:var(--muted);margin:26px 0 10px;text-transform:uppercase}
+.sub{color:var(--muted);font-size:12.5px;margin:0 0 14px}
+.note{color:var(--dim);font-size:12px;margin:8px 0 0;line-height:1.6}.note b{color:var(--lima);font-weight:600}
+.banner{border:1px solid rgba(251,191,36,.5);background:rgba(251,191,36,.08);border-radius:10px;padding:10px 14px;font-size:12.5px;color:var(--text);margin-bottom:10px}
+.banner b{color:var(--amber)}
+.banner.info{border-color:rgba(96,165,250,.5);background:rgba(96,165,250,.08)}.banner.info b{color:var(--blue)}
+.banner.block{border-color:rgba(248,113,113,.5);background:rgba(248,113,113,.08)}.banner.block b{color:var(--red)}
+.banner.ok{border-color:rgba(52,211,153,.5);background:rgba(52,211,153,.08)}.banner.ok b{color:var(--green)}
+.state{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.card{border:1px solid var(--border);border-radius:12px;padding:10px 14px;background:var(--glass);min-width:220px}
+.card .l{font-size:11px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase}
+.card .v{font-family:Rajdhani,system-ui,sans-serif;font-size:22px;font-weight:700}
+.card .v.off{color:var(--amber)}.card .v.on{color:var(--green)}
+.card small{display:block;color:var(--dim);font-size:11.5px}
+.tw{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--glass)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{font-family:Rajdhani,system-ui,sans-serif;letter-spacing:1px;font-size:11.5px;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--border)}
+td{padding:6px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr.mod td{background:rgba(255,255,255,.03);font-family:Rajdhani,system-ui,sans-serif;letter-spacing:1px;font-size:14px;border-top:1px solid var(--border-s)}
+tr.mod .extra{color:var(--amber);font-family:Inter,system-ui,sans-serif;font-size:11.5px;letter-spacing:0;margin-left:8px}
+td.t{color:var(--muted);padding-left:24px;width:90px}
+td.meta{color:var(--dim);font-size:11.5px;white-space:nowrap}
+input[type=number]{width:84px;background:var(--input);border:1px solid var(--border-s);border-radius:6px;color:var(--text);padding:5px 8px;font:inherit}
+input[type=number]:disabled{opacity:.45;cursor:not-allowed}
+input[type=number].err{border-color:var(--red);box-shadow:0 0 0 2px rgba(248,113,113,.25)}
+.u{color:var(--dim);font-size:11.5px;margin-left:4px}
+.empty{color:var(--dim);font-size:11.5px;font-style:italic}
+.msg{color:var(--red);font-size:11.5px;display:block;margin-top:3px}
+.actions{display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap}
+.btn{border:1px solid var(--lima-ring);background:var(--glass);color:var(--lima);border-radius:8px;padding:8px 14px;font-size:12.5px;cursor:pointer;font-family:inherit}
+.btn[disabled]{opacity:.4;cursor:not-allowed;border-color:var(--border-s);color:var(--muted)}
+.btn.sec{border-color:var(--border-s);color:var(--muted)}
+.rules li{margin:3px 0}
+.hidden{display:none!important}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+.dv{background:var(--green)}.da{background:var(--amber)}.dr{background:var(--red)}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:80;display:grid;place-items:center;padding:16px}
+.modal{background:var(--surface);border:1px solid var(--border-s);border-radius:14px;max-width:640px;width:100%;padding:18px;max-height:90vh;overflow:auto}
+.modal h3{font-family:Rajdhani,system-ui,sans-serif;letter-spacing:1.5px;margin:0 0 4px;font-size:17px}
+.modal table{margin:10px 0}.modal td,.modal th{padding:5px 8px}
+.chg{color:var(--amber);font-weight:600}
+@media(max-width:760px){.hide-m{display:none}input[type=number]{width:68px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>UMBRALES DE SLA · INFORMES</h1>
+  <p class="sub">Plazos de informe por modalidad y tipo de turno. Página de administración; se abre por URL directa (<code>medico-sla.html</code>).</p>
+
+  <div class="banner" id="aviso-7b"><b>El semáforo todavía no lee esta tabla.</b> Lo que guardes acá queda registrado en la base, pero el semáforo de Médico sigue usando los plazos
+    incluidos en el código hasta la etapa 7b. Cambiar un valor hoy <b>no modifica</b> ningún semáforo, ranking ni Excel.</div>
+
+  <noscript><div class="banner block"><b>Hace falta JavaScript</b> para usar esta página.</div></noscript>
+
+  <div class="banner info" id="v-carga">Comprobando tu sesión…</div>
+
+  <div id="v-bloq" class="hidden">
+    <div class="banner block"><b>Acceso bloqueado.</b> <span id="bloq-motivo"></span></div>
+  </div>
+
+  <div id="v-error" class="hidden">
+    <div class="banner block"><b>No se pudieron leer los umbrales.</b> <span id="error-motivo"></span></div>
+    <div class="actions"><button class="btn" id="reintentar" type="button">Reintentar</button></div>
+  </div>
+
+  <div id="v-main" class="hidden">
+    <h2 class="sec">Estado</h2>
+    <div class="state">
+      <div class="card"><div class="l">SLA_APROBADO</div>
+        <div class="v off" id="aprobv">—</div>
+        <small id="aprobs"></small></div>
+      <div class="card"><div class="l">Tu permiso</div>
+        <div class="v" id="permv">—</div>
+        <small id="perms"></small></div>
+      <div class="card"><div class="l">Última modificación</div>
+        <div class="v" style="font-size:16px" id="lastv">—</div>
+        <small id="lasts"></small></div>
+    </div>
+
+    <div class="banner info hidden" id="b-ro"><b>Sólo lectura.</b> <span id="ro-motivo"></span></div>
+    <div class="banner ok hidden" id="b-ok" role="status" aria-live="polite"></div>
+
+    <h2 class="sec">Plazos por modalidad y turno</h2>
+    <div class="tw">
+    <table id="grid">
+      <thead><tr>
+        <th>Modalidad / turno</th>
+        <th>Verde hasta</th>
+        <th>Amarillo hasta</th>
+        <th>Verde el mismo día</th>
+        <th>Amarillo sin hora <span class="u">(sólo Eco)</span></th>
+        <th class="hide-m">Modificado</th>
+      </tr></thead>
+      <tbody id="grid-body"></tbody>
+    </table>
+    </div>
+    <p class="note"><b>Para volver al plazo del código</b>, vaciá los dos campos de la fila y guardá: se borra la fila y el semáforo usa el valor del código (cuando lea la tabla, en 7b).
+      Los valores en gris dentro de los campos vacíos son los del código. <b>Amarillo sin hora</b> (sólo Eco/Doppler AMB, opcional): días calendario que cuentan como amarillo cuando el
+      estudio no trae hora; hoy se carga pero el código usa su valor fijo.</p>
+
+    <div class="actions" id="acts">
+      <button class="btn" id="save" type="button" disabled>Guardar cambios</button>
+      <button class="btn sec" id="disc" type="button" disabled>Descartar</button>
+      <span class="note" style="margin:0">Se guarda toda la grilla de una vez. Quedan registrados quién y cuándo, por fila.</span>
+    </div>
+
+    <h2 class="sec">Reglas de validación</h2>
+    <ul class="note rules">
+      <li>Los plazos son números enteros de horas, mayores que 0.</li>
+      <li><b>Verde &lt; amarillo</b>, estrictamente. Si no, la celda se marca en rojo y no se puede guardar.</li>
+      <li>Verde y amarillo van juntos: los dos completos o los dos vacíos. Los dos vacíos = <b>se borra la fila</b> (vuelve al plazo del código, o queda «sin umbral» si el código no tiene).</li>
+      <li><b>Verde el mismo día</b> sólo existe para Ecografía / Doppler. Al tildarlo, el campo de horas de verde se deshabilita.</li>
+      <li><b>Amarillo sin hora</b>: entero de días ≥ 1, opcional, sólo Eco/Doppler AMB y sólo si la fila tiene umbrales.</li>
+      <li>Antes de guardar siempre se muestra un resumen de lo que cambia (modalidad, turno, valor anterior → nuevo).</li>
+      <li><b>Con SLA_APROBADO = true</b> el resumen agrega una advertencia y exige tildar una confirmación explícita para poder guardar.</li>
+      <li>El permiso de administrador lo comprueba la base al guardar; esta página sólo oculta los controles a quien no lo tiene.</li>
+    </ul>
+
+    <h2 class="sec">Leyenda del semáforo</h2>
+    <p class="note"><span class="dot dv"></span>verde: informado dentro del primer plazo &nbsp; <span class="dot da"></span>amarillo: dentro del segundo &nbsp; <span class="dot dr"></span>rojo: pasado el segundo plazo. Horas corridas desde la realización del estudio.</p>
+  </div>
+</div>
+
+<!-- Modal de resumen y confirmación -->
+<div class="ov hidden" id="ov" role="dialog" aria-modal="true" aria-labelledby="m-titulo">
+  <div class="modal">
+    <h3 id="m-titulo">CONFIRMAR CAMBIOS</h3>
+    <div class="note" style="margin-top:0" id="m-cant"></div>
+    <table>
+      <thead><tr><th>Modalidad · turno</th><th>Antes</th><th>Ahora</th></tr></thead>
+      <tbody id="m-filas"></tbody>
+    </table>
+    <div class="banner hidden" id="m-aprob"><b>Los plazos están aprobados.</b> Este cambio mueve semáforos y rankings reales.
+      <label style="display:flex;gap:6px;margin-top:8px;cursor:pointer"><input type="checkbox" id="m-ck"> Entiendo y quiero guardar igual</label></div>
+    <div class="banner block hidden" id="m-error" role="alert"></div>
+    <div class="actions">
+      <button class="btn" id="m-ok" type="button">Confirmar y guardar</button>
+      <button class="btn sec" id="m-no" type="button">Volver</button>
+    </div>
+  </div>
+</div>
+
+<!-- SDK de Supabase con versión EXACTA (las demás páginas usan el rango @2). Va antes de spcd-supabase.js, que crea window.sbAuth. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="spcd-supabase.js"></script>
+<!-- Sólo se LEEN SLA_DEFAULT y SLA_APROBADO; el archivo no se modifica (D9 = A). -->
+<script src="medico-metricas.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* El guard de esta página es solo de interfaz (UX). La seguridad real es auth_es_admin() dentro de
+     medico_sla_guardar, en la base. El permiso de medico.js (__spcd_perm) NO se usa acá. */
+
+  const TURNOS = ['AMB', 'INT', 'URG'];
+  const MOD_ECO = 'ECOGRAFÍA / DOPPLER';   // misma clave que SLA_DEFAULT y que el CHECK del gate 7A-01
+  const COLS_DB = 'modalidad,turno,verde_h,amarillo_h,mismo_dia,amarillo_dias_sin_hora,updated_at,updated_by';
+  const MAX_INT = 2147483647;
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const clave = (mod, turno) => mod + '|' + turno;
+
+  const ES = { rol: null, db: new Map(), mods: [], payload: [], guardando: false };
+
+  /* ---------- Código por defecto (sólo lectura) ---------- */
+  function defAmb(mod) {
+    try { return (SLA_DEFAULT[mod] && SLA_DEFAULT[mod].AMB) || null; } catch (e) { return null; }
+  }
+  function textoDef(mod) {
+    const d = defAmb(mod);
+    if (!d) return null;
+    return (d.verde === 'mismoDia' ? 'mismo día' : d.verde + ' h') + ' / ' + d.amarillo + ' h';
+  }
+  function aprobado() {
+    try { return typeof SLA_APROBADO !== 'undefined' && SLA_APROBADO === true; } catch (e) { return false; }
+  }
+
+  /* ---------- Validación (pura) ---------- */
+  function parseEntero(s) {
+    const t = String(s == null ? '' : s).trim();
+    if (t === '') return { vacio: true };
+    if (!/^[1-9]\d*$/.test(t)) return { error: true };
+    const n = Number(t);
+    if (n > MAX_INT) return { error: true };
+    return { n };
+  }
+  /* f = { verde, amar, mismo, dias } como texto/booleano del formulario. */
+  function validarFila(f, esEcoAmb) {
+    const pv = parseEntero(f.verde), pa = parseEntero(f.amar), pd = parseEntero(f.dias);
+    const mismo = !!f.mismo;
+    if (pv.vacio && pa.vacio && pd.vacio && !mismo) return { vacio: true, errores: [] };
+    const e = [];
+    const add = (campo, msg) => { if (!e.some(x => x.campo === campo && x.msg === msg)) e.push({ campo, msg }); };
+    if (pv.error) add('verde', 'Debe ser un número entero mayor que 0.');
+    if (pa.error) add('amar', 'Debe ser un número entero mayor que 0.');
+    if (pd.error) add('dias', 'Debe ser un número entero mayor que 0.');
+    if (mismo && !esEcoAmb) add('mismo', '«Verde el mismo día» sólo existe para Ecografía / Doppler (AMB).');
+    if (!pd.vacio && !esEcoAmb) add('dias', '«Amarillo sin hora» sólo existe para Ecografía / Doppler (AMB).');
+    if (mismo) {
+      if (!pv.vacio) add('verde', 'Con «mismo día» el verde no lleva horas.');
+      if (pa.vacio) add('amar', 'Completá el plazo amarillo.');
+    } else {
+      if (!pv.vacio && pa.vacio) add('amar', 'Completá los dos plazos o dejá ambos vacíos.');
+      else if (pv.vacio && !pa.vacio) add('verde', 'Completá los dos plazos o dejá ambos vacíos.');
+      else if (pv.vacio && pa.vacio) add('amar', 'El amarillo sin hora necesita los plazos de la fila.');
+      else if (!pv.error && !pa.error && pv.n >= pa.n) add('verde', 'El verde debe ser menor que el amarillo.');
+    }
+    return { vacio: false, errores: e, pv, pa, pd };
+  }
+  /* Objeto para la RPC (sólo si la fila es válida). Vacía => todo null (la RPC la borra). */
+  function aPayload(mod, turno, f, v) {
+    if (v.vacio) return { modalidad: mod, turno, verde_h: null, amarillo_h: null, mismo_dia: false, amarillo_dias_sin_hora: null };
+    return {
+      modalidad: mod, turno,
+      verde_h: f.mismo ? null : v.pv.n,
+      amarillo_h: v.pa.n,
+      mismo_dia: !!f.mismo,
+      amarillo_dias_sin_hora: v.pd.vacio ? null : v.pd.n
+    };
+  }
+
+  /* ---------- Descripciones ---------- */
+  function descrDb(r) {
+    if (!r) return null;
+    const verde = r.mismo_dia ? 'mismo día' : r.verde_h + ' h';
+    return verde + ' / ' + r.amarillo_h + ' h' + (r.amarillo_dias_sin_hora != null ? ' (+' + r.amarillo_dias_sin_hora + ' día sin hora)' : '');
+  }
+  function descrPayload(p) {
+    if (p.amarillo_h == null) return null;
+    return descrDb(p);
+  }
+  function sinFila(mod, turno) {
+    const d = turno === 'AMB' ? textoDef(mod) : null;
+    return d ? 'valor del código (' + d + ')' : 'sin umbral';
+  }
+  const fmtFecha = new Intl.DateTimeFormat('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+  const fmtFechaAnio = new Intl.DateTimeFormat('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+  function fecha(iso, conAnio) {
+    const d = new Date(iso);
+    if (isNaN(d)) return '—';
+    return (conAnio ? fmtFechaAnio : fmtFecha).format(d).replace(',', '');
+  }
+
+  /* ---------- Render ---------- */
+  function modalidades() {
+    const base = (typeof SLA_DEFAULT !== 'undefined') ? Object.keys(SLA_DEFAULT) : [];
+    const extras = [];
+    ES.db.forEach(r => { if (base.indexOf(r.modalidad) < 0 && extras.indexOf(r.modalidad) < 0) extras.push(r.modalidad); });
+    extras.sort();
+    return base.map(m => ({ mod: m, extra: false })).concat(extras.map(m => ({ mod: m, extra: true })));
+  }
+  function celdaMod(r) {
+    return r ? fecha(r.updated_at, false) + ' · ' + esc(r.updated_by == null || r.updated_by === '' ? '—' : r.updated_by) : null;
+  }
+  function renderGrid() {
+    const edita = ES.rol === 'admin';
+    ES.mods = modalidades();
+    let h = '';
+    ES.mods.forEach(m => {
+      h += '<tr class="mod"><td colspan="6">' + esc(m.mod) +
+        (m.extra ? '<span class="extra">no existe en el código: nada la usa. Vaciá los campos y guardá para borrarla.</span>' : '') + '</td></tr>';
+      TURNOS.forEach(t => {
+        const r = ES.db.get(clave(m.mod, t));
+        const ecoAmb = m.mod === MOD_ECO && t === 'AMB';
+        const d = t === 'AMB' ? defAmb(m.mod) : null;
+        const k = esc(clave(m.mod, t));
+        const et = esc(m.mod + ' ' + t);
+        let meta;
+        if (r) meta = celdaMod(r);
+        else if (t === 'AMB' && textoDef(m.mod)) meta = '— usa el código: ' + esc(textoDef(m.mod));
+        else meta = '—';
+        h += '<tr data-k="' + k + '" data-mod="' + esc(m.mod) + '" data-t="' + t + '"><td class="t">' + t + '</td>';
+        if (!edita) {
+          const sin = '<span class="empty">sin umbral</span>';
+          const usa = '<span class="empty">usa el código</span>';
+          if (r) {
+            h += '<td>' + (r.mismo_dia ? 'mismo día' : esc(r.verde_h) + ' h') + '</td><td>' + esc(r.amarillo_h) + ' h</td><td>' + (r.mismo_dia ? 'sí' : '') + '</td><td>' +
+              (r.amarillo_dias_sin_hora != null ? esc(r.amarillo_dias_sin_hora) + ' día(s)' : '') + '</td>';
+          } else {
+            const x = (t === 'AMB' && d) ? usa : sin;
+            h += '<td>' + x + '</td><td>' + x + '</td><td></td><td></td>';
+          }
+        } else {
+          const phV = d ? (d.verde === 'mismoDia' ? 'mismo día' : String(d.verde)) : '—';
+          const phA = d ? String(d.amarillo) : '—';
+          h += '<td><input type="number" min="1" step="1" class="in-verde" aria-label="' + et + ' verde, horas" placeholder="' + esc(phV) + '"><span class="u">h</span></td>';
+          h += '<td><input type="number" min="1" step="1" class="in-amar" aria-label="' + et + ' amarillo, horas" placeholder="' + esc(phA) + '"><span class="u">h</span><span class="msg-fila"></span></td>';
+          h += '<td><input type="checkbox" class="in-mismo" aria-label="' + et + ' verde el mismo día"' + (ecoAmb ? '' : ' disabled title="Sólo Ecografía / Doppler"') + '></td>';
+          h += '<td>' + (ecoAmb ? '<input type="number" min="1" step="1" class="in-dias" aria-label="' + et + ' amarillo sin hora, días" placeholder="' + (d && d.amarilloDiasSinHora ? esc(d.amarilloDiasSinHora) : '—') + '"><span class="u">día(s)</span>' : '') + '</td>';
+        }
+        h += '<td class="meta hide-m">' + meta + '</td></tr>';
+      });
+    });
+    $('grid-body').innerHTML = h;
+    if (edita) cargarInputs();
+  }
+  /* Vuelca los valores de la base en los campos (también sirve para Descartar). */
+  function cargarInputs() {
+    document.querySelectorAll('#grid-body tr[data-k]').forEach(tr => {
+      const r = ES.db.get(tr.getAttribute('data-k'));
+      const v = tr.querySelector('.in-verde'), a = tr.querySelector('.in-amar'), m = tr.querySelector('.in-mismo'), d = tr.querySelector('.in-dias');
+      v.value = r && !r.mismo_dia && r.verde_h != null ? r.verde_h : '';
+      a.value = r ? r.amarillo_h : '';
+      m.checked = !!(r && r.mismo_dia);
+      if (d) d.value = r && r.amarillo_dias_sin_hora != null ? r.amarillo_dias_sin_hora : '';
+      v.disabled = m.checked;
+    });
+    refrescar();
+  }
+  function leerFila(tr) {
+    const m = tr.querySelector('.in-mismo'), d = tr.querySelector('.in-dias');
+    return { verde: tr.querySelector('.in-verde').value, amar: tr.querySelector('.in-amar').value, mismo: m.checked, dias: d ? d.value : '' };
+  }
+  function formDesdeDb(r) {
+    return r ? { verde: r.mismo_dia || r.verde_h == null ? '' : String(r.verde_h), amar: String(r.amarillo_h), mismo: !!r.mismo_dia, dias: r.amarillo_dias_sin_hora == null ? '' : String(r.amarillo_dias_sin_hora) }
+             : { verde: '', amar: '', mismo: false, dias: '' };
+  }
+  const igualForm = (a, b) => a.verde.trim() === b.verde.trim() && a.amar.trim() === b.amar.trim() && a.mismo === b.mismo && a.dias.trim() === b.dias.trim();
+
+  /* Recalcula errores, cambios y estado de los botones. */
+  function refrescar() {
+    if (ES.rol !== 'admin') return;
+    let hayErr = false;
+    const cambios = [];
+    document.querySelectorAll('#grid-body tr[data-k]').forEach(tr => {
+      const mod = tr.getAttribute('data-mod'), t = tr.getAttribute('data-t');
+      const f = leerFila(tr);
+      const m = tr.querySelector('.in-mismo');
+      tr.querySelector('.in-verde').disabled = m.checked;
+      if (m.checked) tr.querySelector('.in-verde').value = '';
+      const ecoAmb = mod === MOD_ECO && t === 'AMB';
+      const v = validarFila(f, ecoAmb);
+      ['in-verde', 'in-amar', 'in-dias'].forEach(c => { const el = tr.querySelector('.' + c); if (el) el.classList.remove('err'); });
+      const mapa = { verde: 'in-verde', amar: 'in-amar', dias: 'in-dias' };
+      v.errores.forEach(x => { const el = tr.querySelector('.' + mapa[x.campo]); if (el) el.classList.add('err'); });
+      tr.querySelector('.msg-fila').innerHTML = v.errores.map(x => '<span class="msg">' + esc(x.msg) + '</span>').join('');
+      if (v.errores.length) hayErr = true;
+      const r = ES.db.get(clave(mod, t));
+      if (!igualForm(f, formDesdeDb(r))) {
+        if (v.errores.length === 0) cambios.push({ mod, t, f, v, r });
+        else cambios.push({ mod, t, invalida: true });
+      }
+    });
+    ES.cambios = cambios;
+    $('save').disabled = hayErr || cambios.length === 0 || ES.guardando;
+    $('disc').disabled = cambios.length === 0 || ES.guardando;
+  }
+
+  /* ---------- Guardar ---------- */
+  function abrirResumen() {
+    refrescar();
+    if ($('save').disabled) return;
+    $('b-ok').classList.add('hidden');
+    ES.payload = ES.cambios.map(c => aPayload(c.mod, c.t, c.f, c.v));
+    $('m-cant').textContent = ES.payload.length + (ES.payload.length === 1 ? ' fila cambia.' : ' filas cambian.') + ' Nada se aplica hasta que confirmes.';
+    $('m-filas').innerHTML = ES.cambios.map((c, i) => {
+      const antes = descrDb(c.r) || sinFila(c.mod, c.t);
+      const p = ES.payload[i];
+      const ahora = descrPayload(p) || ('se borra (' + (c.t === 'AMB' && textoDef(c.mod) ? 'vuelve al código: ' + textoDef(c.mod) : 'queda sin umbral') + ')');
+      return '<tr><td>' + esc(c.mod) + ' · ' + esc(c.t) + '</td><td>' + esc(antes) + '</td><td class="chg">' + esc(ahora) + '</td></tr>';
+    }).join('');
+    const ap = aprobado();
+    $('m-aprob').classList.toggle('hidden', !ap);
+    $('m-ck').checked = false;
+    $('m-ok').disabled = ap;
+    $('m-error').classList.add('hidden');
+    $('ov').classList.remove('hidden');
+  }
+  function cerrarResumen() { $('ov').classList.add('hidden'); }
+
+  async function confirmar() {
+    if (ES.guardando || ES.rol !== 'admin') return;
+    if (aprobado() && !$('m-ck').checked) return;
+    ES.guardando = true; $('m-ok').disabled = true; $('save').disabled = true;
+    const falla = txt => { $('m-error').textContent = txt; $('m-error').classList.remove('hidden'); };
+    try {
+      // sbRpc cae a la clave anónima si no hay sesión: acá se exige sesión antes de cualquier escritura.
+      const { data } = await window.sbAuth.auth.getSession();
+      if (!data || !data.session) { falla('Tu sesión venció. Volvé a iniciar sesión en la aplicación y reintentá. No se perdió lo que escribiste.'); return; }
+      const r = await sbRpc('medico_sla_guardar', { p_filas: ES.payload });
+      cerrarResumen();
+      await cargarTabla();
+      renderTodo();
+      const n = r && typeof r === 'object' ? r : {};
+      $('b-ok').innerHTML = '<b>Guardado.</b> ' + esc(n.guardadas == null ? '?' : n.guardadas) + ' guardada(s), ' + esc(n.borradas == null ? '?' : n.borradas) + ' borrada(s).';
+      $('b-ok').classList.remove('hidden');
+    } catch (e) {
+      const m = String(e && e.message || e);
+      falla(/permiso de administrador/i.test(m) ? 'La base rechazó el guardado: tu cuenta no tiene permiso de administrador.' : 'No se pudo guardar: ' + m + ' Lo que escribiste sigue en pantalla.');
+    } finally {
+      ES.guardando = false;
+      $('m-ok').disabled = aprobado() && !$('m-ck').checked;
+      refrescar();
+    }
+  }
+
+  /* ---------- Carga ---------- */
+  async function cargarTabla() {
+    const filas = await sbQuery('medico_sla', 'select=' + COLS_DB + '&order=modalidad.asc,turno.asc');
+    if (!Array.isArray(filas)) throw new Error('Respuesta inesperada de la base.');
+    ES.db = new Map();
+    filas.forEach(r => ES.db.set(clave(r.modalidad, r.turno), r));
+  }
+  function mostrar(vista) {
+    ['v-carga', 'v-bloq', 'v-error', 'v-main'].forEach(id => $(id).classList.toggle('hidden', id !== vista));
+  }
+  function bloquear(motivoHtml) { $('bloq-motivo').innerHTML = motivoHtml; mostrar('v-bloq'); }
+
+  function renderTodo() {
+    const ap = aprobado();
+    $('aprobv').textContent = ap ? 'true · aprobados' : 'false · provisorios';
+    $('aprobv').className = 'v ' + (ap ? 'on' : 'off');
+    $('aprobs').textContent = ap ? 'Aprobados por jefatura. Los cambios afectan semáforos y rankings reales.' : 'Se cambia en el código al aprobar jefatura (OQ1). No se edita desde esta página.';
+    const admin = ES.rol === 'admin';
+    $('permv').textContent = admin ? 'Administrador' : (ES.rol === 'sin-comprobar' ? 'No comprobado' : 'Sólo lectura');
+    $('perms').textContent = admin ? 'Podés editar y guardar.' : 'No podés editar.';
+    $('b-ro').classList.toggle('hidden', admin);
+    if (!admin) {
+      $('ro-motivo').textContent = ES.rol === 'sin-comprobar'
+        ? 'No se pudo comprobar tu permiso de administrador; por seguridad se muestran los valores sin controles de edición.'
+        : 'Tenés sesión pero no permiso de administrador: ves los valores y quién los modificó, sin poder editarlos.';
+    }
+    $('acts').classList.toggle('hidden', !admin);
+    let ult = null;
+    ES.db.forEach(r => { if (!ult || new Date(r.updated_at) > new Date(ult.updated_at)) ult = r; });
+    $('lastv').textContent = ult ? fecha(ult.updated_at, true) : 'sin cambios cargados';
+    $('lasts').textContent = ult ? 'por ' + (ult.updated_by || '—') : 'se usan los plazos del código';
+    renderGrid();
+    mostrar('v-main');
+  }
+
+  async function iniciar() {
+    mostrar('v-carga');
+    $('b-ok').classList.add('hidden');
+    if (!window.sbAuth || !window.sbAuth.auth) {
+      ES.rol = null;
+      return bloquear('No se pudo cargar el componente de sesión (¿sin conexión?). Recargá la página.');
+    }
+    let sesion = null;
+    try { const r = await window.sbAuth.auth.getSession(); sesion = r && r.data && r.data.session; } catch (e) { sesion = null; }
+    if (!sesion) {
+      ES.rol = null;
+      return bloquear('Para ver o editar los umbrales hay que ingresar con una cuenta con sesión de Auth (email). Quien entra sólo con PIN no puede abrir esta página. ' +
+        '<a href="app.html">Iniciar sesión</a> y volvé a abrir esta página.');
+    }
+    try {
+      const adm = await sbRpc('auth_es_admin', {});
+      ES.rol = adm === true ? 'admin' : 'lectura';
+    } catch (e) {
+      ES.rol = 'sin-comprobar';
+    }
+    try {
+      await cargarTabla();
+    } catch (e) {
+      $('error-motivo').textContent = String(e && e.message || e);
+      return mostrar('v-error');
+    }
+    renderTodo();
+  }
+
+  $('grid-body').addEventListener('input', refrescar);
+  $('grid-body').addEventListener('change', refrescar);
+  $('save').addEventListener('click', abrirResumen);
+  $('disc').addEventListener('click', () => { $('b-ok').classList.add('hidden'); cargarInputs(); });
+  $('m-no').addEventListener('click', cerrarResumen);
+  $('m-ck').addEventListener('change', e => { $('m-ok').disabled = !e.target.checked; });
+  $('m-ok').addEventListener('click', confirmar);
+  $('reintentar').addEventListener('click', iniciar);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !ES.guardando) cerrarResumen(); });
+  try {
+    if (window.sbAuth && window.sbAuth.auth && window.sbAuth.auth.onAuthStateChange) {
+      window.sbAuth.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_OUT') iniciar(); });
+    }
+  } catch (e) { /* sin evento: queda la comprobación inicial */ }
+
+  window.__sla = { validarFila, aPayload, descrDb, parseEntero, MOD_ECO };   // para las pruebas
+  iniciar();
+})();
+</script>
+</body>
+</html>
