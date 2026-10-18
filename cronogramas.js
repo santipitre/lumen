@@ -100,7 +100,7 @@ function letterOf(d, hasta){
 function grpDe(tipo){ return tipo === 'medico' ? 'med' : tipo === 'tecnico' ? 'tec' : tipo === 'administrativo' ? 'adm' : 'res'; }
 
 function armarModelo(raw, listas){
-  const M = { PM: {}, P: [], F: [], G: [], XT: [], L: [], FER: {}, TC: { cal: {}, calV: {}, cambios: [] }, cfg: { sat0: null, tarifas: null, jefa: null, ver: {} } };
+  const M = { PM: {}, P: [], F: [], G: [], XT: [], L: [], FER: {}, TC: { cal: {}, calV: {}, cambios: [] }, cfg: { sat0: null, tarifas: null, jefa: null, servicios: null, ver: {} } };
   Object.keys(listas || {}).forEach(function(tipo){
     (listas[tipo] || []).forEach(function(p){
       if(!p || !p.id) return;
@@ -142,6 +142,7 @@ function armarModelo(raw, listas){
     if(c.clave === 'sat0') M.cfg.sat0 = String(c.valor);
     else if(c.clave === 'tarifas') M.cfg.tarifas = c.valor;
     else if(c.clave === 'jefa') M.cfg.jefa = c.valor;
+    else if(c.clave === 'servicios') M.cfg.servicios = c.valor;
   });
   M.P = Object.keys(M.PM).map(function(k){ return M.PM[k]; }).sort(function(a, b){
     const g = ['tec', 'adm', 'med', 'res'];
@@ -2501,6 +2502,25 @@ function renderPersonal(){
   });
   return box;
 }
+/* Disponibilidad de servicio (solo informativa, no entra en horas ni $). Valor de config 'servicios':
+ * [{ servicio, franjas: [{ dias, horario, pend }] }]; si la base no lo tiene se muestran estos valores por defecto. */
+const SERVICIOS_DEF = [
+  { servicio: 'Tomografía (TC)', franjas: [{ dias: 'Todos los días', horario: '24 h' }] },
+  { servicio: 'Radiografía (RX)', franjas: [{ dias: 'Todos los días', horario: '24 h, a demanda' }] },
+  { servicio: 'Resonancia (RM)', franjas: [{ dias: 'Lunes a viernes', horario: '08:00–24:00' }, { dias: 'Sábado', horario: '08:00–13:00' }, { dias: 'Domingo', horario: 'cerrada', pend: true }] }
+];
+function renderServicios(){
+  const v = ST.M.cfg.servicios, lista = Array.isArray(v) && v.length ? v : SERVICIOS_DEF;
+  const box = h('div', { class: 'cr-card', id: 'cr-servicios' }, h('h3', { t: 'Disponibilidad de servicio' }));
+  lista.forEach(function(s){
+    const fr = Array.isArray(s.franjas) ? s.franjas : [];
+    poner(box, h('div', { class: 'cr-st' }, h('div', null, h('b', { t: String(s.servicio || '') })),
+      h('div', { class: 'cr-stx' }, fr.map(function(f){
+        return h('div', null, String(f.dias || '') + ': ' + String(f.horario || ''), f.pend ? [' ', pendMarca()] : null);
+      }))));
+  });
+  return box;
+}
 function renderAlertas(scope, solo){
   const al = alertasDe(scope), box = h('div', { class: 'cr-card', id: 'cr-alertas' }, h('h3', { t: 'Alertas' }));
   if(!al.length) poner(box, h('div', { class: 'cr-hint', t: 'Sin alertas.' }));
@@ -2880,6 +2900,7 @@ function pintarYa(){
   const lay = h('div', { class: 'cr-lay' + (conLado ? ' lado' : '') }, main);
   if(conLado){
     const side = h('div', { class: 'cr-side' }, renderAlertas(subActual().tab, false));
+    poner(side, renderServicios());
     if(sub !== 'tc') poner(side, renderPersonal());
     poner(lay, side);
   }
