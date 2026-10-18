@@ -41,9 +41,10 @@ function aplicarPermisosRanking() {
   const bm = document.getElementById('tab-btn-medicos'); if (bm) bm.style.display = 'none';
   const pm = document.getElementById('tab-medicos'); if (pm) pm.style.display = 'none';
   const fm = document.getElementById('f-medico');
-  if (fm) fm.closest('.filter-group').style.display = 'none';
+  if (fm) { const g = fm.closest('.filter-group'); if (g) g.style.display = 'none'; }
   // M4 (REVIEW-3.1): sin permiso la tarjeta "Demora por médico" no tiene contenido; se oculta entera.
-  const rt = document.getElementById('rank-tiempos'); if (rt) rt.closest('.chart-card').style.display = 'none';
+  const rt = document.getElementById('rank-tiempos');
+  if (rt) { const c = rt.closest('.chart-card'); if (c) c.style.display = 'none'; }
   // N-A1 (boceto aprobado 2026-10-12): sin permiso Pendientes no tiene columna Informante Sugerido y la tarjeta
   // "Médicos Informantes" queda con candado, sin cifra y sin "ver detalle" (no se oculta: se reemplaza el valor).
   const thIs = document.getElementById('th-informante-sugerido'); if (thIs) thIs.remove();
@@ -147,11 +148,36 @@ function mostrarAvisoColumnas(faltantes, copiadoEn) {
 }
 
 /* ═══════════════════════════════════
+   UMBRALES DE SLA DESDE LA BASE (fase 7b, D7 = A)
+   Lee TODAS las filas de medico_sla (modalidad × tipo de turno) con la sesión de Auth; SLA_VIGENTE las pone sobre
+   SLA_DEFAULT (medico-metricas.js). Sin sesión de Auth (quien entra sólo con PIN: la policy es TO authenticated),
+   sin SDK, con error, con tope de tiempo, sin filas o con filas inválidas, rige SLA_DEFAULT y la página sigue igual.
+   Nunca rechaza: devuelve 'tabla' o 'codigo'. SLA_APROBADO NO se toca (depende de jefatura, OQ1).
+═══════════════════════════════════ */
+const SLA_COLUMNAS = 'modalidad,turno,verde_h,amarillo_h,mismo_dia,amarillo_dias_sin_hora';
+const SLA_LECTURA_TOPE_MS = 3000;
+function cargarSlaVigente() {
+  let timer = null;
+  const tope = new Promise(res => { timer = setTimeout(() => res(null), SLA_LECTURA_TOPE_MS); });
+  const lectura = (async () => {
+    if (typeof sbQuery !== 'function' || !window.sbAuth || !window.sbAuth.auth) return null;
+    const { data } = await window.sbAuth.auth.getSession();
+    if (!data || !data.session) return null;
+    return sbQuery('medico_sla', 'select=' + SLA_COLUMNAS + '&order=modalidad.asc,turno.asc');
+  })().catch(err => { console.warn('medico_sla: no se pudo leer, rigen los plazos del código:', err && err.message); return null; });
+  return Promise.race([lectura, tope]).then(filas => {
+    clearTimeout(timer);
+    return aplicarSlaTabla(filas) ? 'tabla' : 'codigo';
+  }, () => { clearTimeout(timer); return 'codigo'; });
+}
+
+/* ═══════════════════════════════════
    INIT
 ═══════════════════════════════════ */
 window.addEventListener('DOMContentLoaded', () => {
   aplicarPortada();
   aplicarPermisosRanking();
+  const slaListo = cargarSlaVigente();
   const sede = localStorage.getItem('spcd_sede') || '';
   document.getElementById('bc-sede').textContent  = sede || 'Sede';
   document.getElementById('top-sede').textContent = sede || '—';
@@ -162,12 +188,15 @@ window.addEventListener('DOMContentLoaded', () => {
     if (uploadDate) document.getElementById('data-status').textContent = `Última actualización: ${uploadDate}`;
   }
   function tryLoad(retries) {
-    dbLoad('spcd_data_full').then(data => {
+    // 7b: el render espera (con tope) a que los umbrales estén resueltos, para no pintar con SLA_DEFAULT y repintar.
+    Promise.all([dbLoad('spcd_data_full'), slaListo]).then(([data, fuenteSla]) => {
+      if (fuenteSla === 'tabla') aplicarPortada();   // el aviso de umbrales se armó al abrir la página con SLA_DEFAULT
       if (data && data.length > 0) {
         if (columnasFaltantes(data).length === 0) {
           // N-A1: sin permiso rawData y la copia propia se guardan sin los nombres (la copia vieja con nombres se pisa acá).
           rawData = recortarSinPermiso(data);
-          dbSave('spcd_data_medico', { meta: { copiadoEn: new Date().toISOString() }, rows: rawData })
+          // 7b (REVIEW-5.1 M3): conNombres registra con qué permiso se guardó la copia (true sólo si trae los nombres).
+          dbSave('spcd_data_medico', { meta: { copiadoEn: new Date().toISOString(), conNombres: puedeVerRankingMedicos() }, rows: rawData })
             .catch(err => console.error('Error guardando spcd_data_medico:', err));
           try {
             onDataLoaded(rawData);
@@ -184,13 +213,18 @@ window.addEventListener('DOMContentLoaded', () => {
             console.error('Error leyendo spcd_data_medico:', e2);
             return null;
           }).then(datosViejos => {
+            // 7b (REVIEW-5.1 M3): con `edit`, una copia guardada recortada (conNombres === false) no sirve: se descarta y se
+            // actúa como sin copia (aviso de columnas). Sin la marca (copias anteriores a 7b) se conserva el comportamiento de siempre.
+            if (datosViejos && datosViejos.rows && puedeVerRankingMedicos() && datosViejos.meta && datosViejos.meta.conNombres === false) {
+              datosViejos = null;
+            }
             if (datosViejos && datosViejos.rows) {
               // N-A1: una copia vieja con nombres (de antes del recorte) no se usa tal cual sin permiso: se recorta y se vuelve a guardar.
               const copiaConNombres = !puedeVerRankingMedicos()
                 && datosViejos.rows.some(r => COLUMNAS_CON_PERMISO.some(k => k in r));
               rawData = recortarSinPermiso(datosViejos.rows);
               if (copiaConNombres) {
-                dbSave('spcd_data_medico', { meta: datosViejos.meta || {}, rows: rawData })
+                dbSave('spcd_data_medico', { meta: Object.assign({}, datosViejos.meta, { conNombres: false }), rows: rawData })
                   .catch(err => console.error('Error guardando spcd_data_medico recortada:', err));
               }
               try {
@@ -1226,14 +1260,18 @@ function pintarNotasDemora() {
   if (nv) nv.textContent = NOTA_VOLUMEN;
 }
 
-/* Líneas del aviso B1, generadas desde SLA_DEFAULT: la vista no tiene números propios. */
+/* Líneas del aviso B1, generadas desde SLA_VIGENTE (SLA_DEFAULT más medico_sla, fase 7b): la vista no tiene números propios.
+   Sin filas en la tabla sale exactamente lo de siempre: una línea AMB por modalidad y "INT/URG: sin umbral". */
 function textoUmbrales() {
-  const lineas = Object.keys(SLA_DEFAULT).map(mod => {
-    const u = SLA_DEFAULT[mod].AMB;
+  const linea = u => {
     const verde = u.verde === 'mismoDia' ? 'verde mismo día' : `verde ≤ ${u.verde} h`;
-    return `${mod}: ${verde} · amarillo ≤ ${u.amarillo} h · rojo > ${u.amarillo} h`;
-  });
-  return lineas.concat('INT/URG: sin umbral');
+    return `${verde} · amarillo ≤ ${u.amarillo} h · rojo > ${u.amarillo} h`;
+  };
+  const mods = Object.keys(SLA_VIGENTE);
+  const lineas = mods.map(mod => `${mod}: ${linea(SLA_VIGENTE[mod].AMB)}`);
+  const otros = [];
+  mods.forEach(mod => ['INT', 'URG'].forEach(t => { if (SLA_VIGENTE[mod][t]) otros.push(`${mod} ${t}: ${linea(SLA_VIGENTE[mod][t])}`); }));
+  return lineas.concat(otros.length ? otros.concat('Resto de INT/URG: sin umbral') : 'INT/URG: sin umbral');
 }
 
 /* B1: SLA_APROBADO (medico-metricas.js) es la única marca. Provisorio: abre en
@@ -2225,6 +2263,15 @@ function alertaSinDatosExport() {
   if (typeof spcdAlert === 'function') spcdAlert('No hay datos para exportar', { type:'alert', title:'Sin datos' });
 }
 
+/* Alto de una fila de texto combinada y con wrapText: ExcelJS no autoajusta filas combinadas, así que se estima por el
+   largo (caracteres por línea = suma de los anchos de columna). Una sola línea → undefined (alto por defecto). */
+const ALTO_LINEA_EXCEL = 15;
+function altoFilaTexto(texto, anchos) {
+  const porLinea = anchos.reduce((a, b) => a + b, 0);
+  const lineas = Math.max(Math.ceil(String(texto == null ? '' : texto).length / porLinea), 1);
+  return lineas - 1 ? lineas * ALTO_LINEA_EXCEL : undefined;   // sin comparar: el SC2 (P1) busca umbrales con > / <
+}
+
 // Escribe texto y tablas desde la fila `fila` (la siguiente a la de filtros). `e.fila` avanza con cada escritura.
 function escritorVista(ws, fila, totalCols, widths) {
   const e = { fila };
@@ -2355,7 +2402,8 @@ async function exportTendenciaExcel(share) {
       meta:{ modulo:'MEDICO', sede:SpcdExcel.getCurrentSede(), usuario:SpcdExcel.getCurrentUser(), registros: nRegistros }
     });
     const lf = escribirLineaFiltros(ws, h.nextRow, totalCols, 'tab-demora');
-    const w = escritorVista(ws, lf.nextRow, totalCols, [26, 14, 16, 10, 28]);
+    const anchosTend = [26, 14, 16, 10, 28];
+    const w = escritorVista(ws, lf.nextRow, totalCols, anchosTend);
     w.texto(ACLARACION_TENDENCIA);
     const fmtSemana = (cell, v, rd, idx, ci) => {
       if ([1, 2, 3].includes(ci)) SpcdExcel.Fmt.center(cell);
@@ -2365,7 +2413,7 @@ async function exportTendenciaExcel(share) {
       const t = tend[mod];
       w.seccion(mod);
       if (!t.dibujable) w.texto(AVISO_SIN_SEMANAS());
-      notasTendencia(t).forEach(([, nota]) => w.texto(nota));
+      notasTendencia(t).forEach(([, nota]) => w.texto(nota, altoFilaTexto(nota, anchosTend)));
       if (t.serie.length) w.tabla(COLUMNAS_TENDENCIA_EXPORT, filasTendencia(t.serie), fmtSemana);
     });
     cerrarLibroVista(ws, w, totalCols, h.hash);

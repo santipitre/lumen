@@ -43,6 +43,56 @@ const SLA_DEFAULT = deepFreeze({
   'CÁMARA GAMMA': { AMB: { verde: 72, amarillo: 120 } },
 });
 
+/* Fase 7b (D7 = A): tabla vigente = SLA_DEFAULT + filas de medico_sla (una por modalidad y tipo de turno).
+   Sin filas, o con la lectura caída, SLA_VIGENTE ES SLA_DEFAULT (mismo objeto). Una fila sólo reemplaza su
+   modalidad × turno; lo que no tiene fila conserva el valor del código; una fila sin plazos (vacía) no pisa nada.
+   semaforo() y el aviso de umbrales leen SLA_VIGENTE; SLA_DEFAULT queda como fallback y fuente de medico-sla.html. */
+let SLA_VIGENTE = SLA_DEFAULT;
+const TURNOS_SLA = ['AMB', 'INT', 'URG'];
+
+function esHorasSla(n) {
+  return typeof n === 'number' && Number.isInteger(n) && n > 0;
+}
+
+/* Devuelve la regla de una fila de medico_sla, o null si está mal formada (se ignora: cae al código). */
+function reglaDeFilaSla(f) {
+  if (!f || typeof f !== 'object' || !esHorasSla(f.amarillo_h)) return null;
+  if (f.mismo_dia === true) {
+    if (f.verde_h != null) return null;
+    const regla = { verde: 'mismoDia', amarillo: f.amarillo_h };
+    if (esHorasSla(f.amarillo_dias_sin_hora)) regla.amarilloDiasSinHora = f.amarillo_dias_sin_hora;
+    else {   // columna vacía: el valor del código para esa modalidad, si lo tiene (medico-sla.html lo documenta así)
+      const porDefecto = SLA_DEFAULT[f.modalidad] && SLA_DEFAULT[f.modalidad].AMB;
+      if (porDefecto && esHorasSla(porDefecto.amarilloDiasSinHora)) regla.amarilloDiasSinHora = porDefecto.amarilloDiasSinHora;
+    }
+    return regla;
+  }
+  if (!esHorasSla(f.verde_h) || f.verde_h >= f.amarillo_h) return null;
+  return { verde: f.verde_h, amarillo: f.amarillo_h };
+}
+
+/* Arma la tabla vigente sin tocar SLA_DEFAULT. `filas` no es un arreglo o no aporta ninguna fila válida → SLA_DEFAULT. */
+function construirSlaVigente(filas) {
+  if (!Array.isArray(filas)) return SLA_DEFAULT;
+  const t = {};
+  Object.keys(SLA_DEFAULT).forEach(m => { t[m] = Object.assign({}, SLA_DEFAULT[m]); });
+  let aplicadas = 0;
+  filas.forEach(f => {
+    if (!f || typeof f.modalidad !== 'string' || TURNOS_SLA.indexOf(f.turno) < 0) return;
+    if (!Object.prototype.hasOwnProperty.call(SLA_DEFAULT, f.modalidad)) return;   // modalidad que el código no conoce: nada la usa
+    const regla = reglaDeFilaSla(f);
+    if (!regla) return;
+    t[f.modalidad][f.turno] = regla;
+    aplicadas++;
+  });
+  return aplicadas ? deepFreeze(t) : SLA_DEFAULT;
+}
+
+function aplicarSlaTabla(filas) {
+  SLA_VIGENTE = construirSlaVigente(filas);
+  return SLA_VIGENTE !== SLA_DEFAULT;
+}
+
 // B1: única marca. false = umbrales PROVISORIOS (abre Resumen + aviso); true = aprobados (OQ1): abre Semáforo, sin aviso.
 let SLA_APROBADO = false;
 
@@ -116,8 +166,8 @@ function validarHoras(horas) {
    para el resto. 'sin umbral' se resuelve ANTES de validar horas: una fila
    INT/URG nunca tira error por el semáforo de Eco (A4). */
 function semaforo(modalidad, tipoTurno, horas, fechas) {
-  const regla = SLA_DEFAULT[modalidad];
-  if (!regla) return null;                                   // OTROS / sin SLA
+  const regla = SLA_VIGENTE[modalidad];
+  if (!regla) return null;                                  // OTROS / sin SLA
   const u = regla[normalizarClave(tipoTurno)];
   if (!u) return 'sin umbral';                                // INT, URG o faltante
   validarHoras(horas);
