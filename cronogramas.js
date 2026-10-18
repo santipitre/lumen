@@ -2511,13 +2511,15 @@ const SERVICIOS_DEF = [
 ];
 function renderServicios(){
   const v = ST.M.cfg.servicios, lista = Array.isArray(v) && v.length ? v : SERVICIOS_DEF;
-  const box = h('div', { class: 'cr-card', id: 'cr-servicios' }, h('h3', { t: 'Disponibilidad de servicio' }));
-  lista.forEach(function(s){
+  const ajuste = { 'min-width': '0', 'max-width': '100%', 'box-sizing': 'border-box', overflow: 'visible', 'white-space': 'normal', 'overflow-wrap': 'anywhere' };
+  const box = h('div', { class: 'cr-card', id: 'cr-servicios', s: ajuste }, h('h3', { t: 'Disponibilidad de servicio' }));
+  lista.forEach(function(s, i){
     const fr = Array.isArray(s.franjas) ? s.franjas : [];
-    poner(box, h('div', { class: 'cr-st' }, h('div', null, h('b', { t: String(s.servicio || '') })),
-      h('div', { class: 'cr-stx' }, fr.map(function(f){
-        return h('div', null, String(f.dias || '') + ': ' + String(f.horario || ''), f.pend ? [' ', pendMarca()] : null);
-      }))));
+    poner(box, h('div', { s: Object.assign({ display: 'block', padding: '6px 0', 'border-top': i ? '1px solid rgba(128,128,128,.25)' : 'none' }, ajuste) },
+      h('div', { s: ajuste }, h('b', { t: String(s.servicio || '') })),
+      fr.map(function(f){
+        return h('div', { s: Object.assign({ 'margin-top': '2px' }, ajuste) }, String(f.dias || '') + ': ' + String(f.horario || ''), f.pend ? [' ', pendMarca()] : null);
+      })));
   });
   return box;
 }
