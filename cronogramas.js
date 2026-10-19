@@ -1777,7 +1777,7 @@ function renderRotSab(){
 
 function diaItems(t, dia){
   const C_ = ST.C, hoy = ST.puente.hoy();
-  const items = ST.M.F.filter(function(f){ return f.tab === t && f.dia === dia && (!S.pf || f.key === S.pf) && !(t === 'adm' && C_.licOn(f.key, hoy)); })
+  const items = ST.M.F.filter(function(f){ return f.tab === t && f.dia === dia && (!S.pf || f.key === S.pf); })
     .map(function(f){ return { kind: 'w', f: f, k: f.key, d: f.d, h: f.h }; });
   if(t === 'adm' && dia === 5 && C_.rotOrden.length){
     /* los sábados no son fijos: rotan entre varias personas (ver tarjeta Rotación de sábados) */
