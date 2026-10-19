@@ -22,17 +22,22 @@ const TARIFAS_DEF = { diurna: 0, nocturna: 0 };
 const SAT0_DEF = '2026-10-03';
 /* Si hay más de 2 personas superpuestas en los 2 boxes, quien queda como SOPORTE ADMINISTRATIVO es siempre esta persona. */
 const SOPORTE_FIJO = { ap: 'Ávila', nom: 'Joel' };
+/* Box fijo de cada persona (los que no figuran aquí toman el primer lugar libre). */
+const BOX_FIJO = [
+  { ap: 'Ávila', nom: 'Joel', box: 'box1' }, { ap: 'José', nom: 'Monica', box: 'box1' },
+  { ap: 'Abraham', nom: 'Zamira', box: 'box2' }, { ap: 'Torres', nom: 'Joaquin', box: 'box2' }
+];
 /* Sábados de administrativos: cada persona hace 1 sábado por ciclo (el orden se repite desde la fecha ancla).
  * saleA = hora fija de salida lun–jue de la semana siguiente; suple = quien entra esos días en ese horario (reemplaza su horario habitual).
  * sale = minutos que se retira antes de lunes a jueves de la semana siguiente a su sábado (0 = no compensa).
  * La rotación rige desde la fecha ancla (los sábados anteriores siguen según las franjas cargadas en la base).
  * Si la base tiene la clave 'rot_sab' en img_cron_config ({ ancla, orden: [{ ap, nom, d, h, sale }] }), reemplaza estos valores. */
-const ROT_SAB_DEF = { ancla: '2026-10-24', orden: [
-  { ap: 'Torres', nom: 'Joaquin', d: '09:00', h: '13:00', sale: 60 },
-  { ap: 'Abraham', nom: 'Zamira', d: '09:00', h: '13:00', saleA: '12:00', suple: { ap: 'Torres', nom: 'Joaquin', d: '12:00', h: '18:00' } },
-  { ap: 'José', nom: 'Monica', d: '08:00', h: '14:00', sale: 0 },
-  { ap: 'Ávila', nom: 'Joel', d: '09:00', h: '13:00', sale: 60 }
-] };
+/* DESACTIVADA a pedido: el cronograma se arma a mano. Para volver a la rotación automática, reemplazar `orden: []` por la lista de abajo:
+ *   { ap: 'Torres', nom: 'Joaquin', d: '09:00', h: '13:00', sale: 60 },
+ *   { ap: 'Abraham', nom: 'Zamira', d: '09:00', h: '13:00', saleA: '12:00', suple: { ap: 'Torres', nom: 'Joaquin', d: '12:00', h: '18:00' } },
+ *   { ap: 'José', nom: 'Monica', d: '08:00', h: '14:00', sale: 0 },
+ *   { ap: 'Ávila', nom: 'Joel', d: '09:00', h: '13:00', sale: 60 }  */
+const ROT_SAB_DEF = { ancla: '2026-10-24', orden: [] };
 const SUBS = [
   { k: 'tecnicos', n: 'Técnicos', tab: 'tec' },
   { k: 'administrativos', n: 'Administrativos', tab: 'adm' },
@@ -1691,57 +1696,51 @@ function tCorto(a, b){
 function asignarBoxes(items){
   const C_ = ST.C, PM = ST.M.PM;
   const nr = function(s){ return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(); };
-  const esJoel = function(i){ const p = i.k && PM[i.k]; return !!p && nr(p.ap) === nr(SOPORTE_FIJO.ap) && nr(p.nom) === nr(SOPORTE_FIJO.nom); };
+  const persona = function(i){ const p = i.k && PM[i.k]; return p ? nr(p.ap) + '|' + nr(p.nom) : ''; };
+  const esJoel = function(i){ return persona(i) === nr(SOPORTE_FIJO.ap) + '|' + nr(SOPORTE_FIJO.nom); };
+  const fijoDe = function(i){ const k = persona(i), f = k && BOX_FIJO.find(function(x){ return nr(x.ap) + '|' + nr(x.nom) === k; }); return f ? f.box : null; };
   /* idempotente: se deshace lo que una pasada anterior partió */
   for(let n = items.length - 1; n >= 0; n--){ if(items[n].parte) items.splice(n, 1); }
   const ws = items.filter(function(i){ return i.kind === 'w' || i.kind === 'rep'; });
   ws.forEach(function(i){ if(i.d0 !== undefined){ i.d = i.d0; i.h = i.h0; } else { i.d0 = i.d; i.h0 = i.h; } delete i.lane; delete i.over; });
   const rg = function(i){ const a = mins(i.d), b = mins(i.h) <= a ? 1440 : mins(i.h); return [a, b]; };
-  const choca = function(l, a, b){ return l.some(function(x){ return x.a < b && x.b > a; }); };
-  const occ = { box1: [], box2: [] };
   const trozos = [];
   ws.forEach(function(i){
     if(i.k && C_.esOfi(i.k)){ i.lane = 'ofi'; return; }
     if(i.rotTipo){ i.lane = 'box1'; return; }
+    const f = fijoDe(i);
+    if(f){ const r = rg(i); trozos.push({ i: i, a: r[0], b: r[1], lane: f }); }
   });
-  /* Joel va siempre en BOX 1; solo el tramo que se superpone con un 3.º pasa a SOPORTE ADMINISTRATIVO */
-  ws.filter(function(i){ return !i.lane && i.kind === 'w' && esJoel(i); }).forEach(function(i){
-    const r = rg(i), t = { i: i, a: r[0], b: r[1], lane: 'box1' };
-    trozos.push(t); occ.box1.push(t);
-  });
-  const otros = ws.filter(function(i){ return !i.lane && !(i.kind === 'w' && esJoel(i)); }).sort(function(x, y){
-    const rx = rg(x), ry = rg(y); return rx[0] - ry[0] || ry[1] - rx[1];
-  });
-  otros.forEach(function(i){
-    const r = rg(i);
-    const poner_ = function(){
-      if(!choca(occ.box1, r[0], r[1])){ occ.box1.push({ a: r[0], b: r[1] }); i.lane = 'box1'; return true; }
-      if(!choca(occ.box2, r[0], r[1])){ occ.box2.push({ a: r[0], b: r[1] }); i.lane = 'box2'; return true; }
-      return false;
-    };
-    if(poner_()) return;
-    const js = trozos.filter(function(t){ return t.lane === 'box1' && t.a < r[1] && t.b > r[0]; });
-    if(js.length){
-      js.forEach(function(t){
-        const ca = Math.max(t.a, r[0]), cb = Math.min(t.b, r[1]), pa = t.a, pb = t.b;
-        occ.box1.splice(occ.box1.indexOf(t), 1);
-        t.a = ca; t.b = cb; t.lane = 'sin';
-        if(pa < ca){ const n = { i: t.i, a: pa, b: ca, lane: 'box1' }; trozos.push(n); occ.box1.push(n); }
-        if(cb < pb){ const n = { i: t.i, a: cb, b: pb, lane: 'box1' }; trozos.push(n); occ.box1.push(n); }
-      });
-      if(poner_()) return;
+  /* Joel y Mónica: BOX 1; Zamira y Joaquín: BOX 2. Si dos se superponen en el mismo box, el tramo superpuesto de uno pasa a SOPORTE ADMINISTRATIVO (siempre Joel; si no, el que llegó después) */
+  ['box1', 'box2'].forEach(function(L){
+    for(let vuelta = 0; vuelta < 50; vuelta++){
+      const ts = trozos.filter(function(t){ return t.lane === L; }).sort(function(x, y){ return x.a - y.a || y.b - x.b; });
+      let par = null;
+      for(let m = 0; m < ts.length && !par; m++) for(let n = m + 1; n < ts.length; n++){ if(ts[n].a < ts[m].b){ par = [ts[m], ts[n]]; break; } }
+      if(!par) break;
+      const perd = esJoel(par[0].i) ? par[0] : par[1], gan = perd === par[0] ? par[1] : par[0];
+      const ca = Math.max(perd.a, gan.a), cb = Math.min(perd.b, gan.b), pa = perd.a, pb = perd.b;
+      perd.a = ca; perd.b = cb; perd.lane = 'sin';
+      if(pa < ca) trozos.push({ i: perd.i, a: pa, b: ca, lane: L });
+      if(cb < pb) trozos.push({ i: perd.i, a: cb, b: pb, lane: L });
     }
-    i.lane = 'sin'; i.over = true;
   });
-  /* aplicar los tramos de Joel: el primero queda en el cuadro original; los demás son cuadros nuevos */
+  /* el resto de las personas (sin box fijo): primer lugar libre; si no hay, soporte */
+  const libre = function(L, a, b){ return !trozos.some(function(t){ return t.lane === L && t.a < b && t.b > a; }); };
+  ws.filter(function(i){ return !i.lane && !fijoDe(i); }).sort(function(x, y){ const rx = rg(x), ry = rg(y); return rx[0] - ry[0] || ry[1] - rx[1]; }).forEach(function(i){
+    const r = rg(i), L = libre('box1', r[0], r[1]) ? 'box1' : libre('box2', r[0], r[1]) ? 'box2' : 'sin';
+    if(L === 'sin'){ i.lane = 'sin'; i.over = true; return; }
+    i.lane = L; trozos.push({ i: null, a: r[0], b: r[1], lane: L });
+  });
+  /* aplicar los tramos: el primero queda en el cuadro original; los demás son cuadros nuevos */
   const orden = {};
-  trozos.forEach(function(t){ (orden[ws.indexOf(t.i)] = orden[ws.indexOf(t.i)] || []).push(t); });
+  trozos.filter(function(t){ return t.i; }).forEach(function(t){ const k = ws.indexOf(t.i); (orden[k] = orden[k] || []).push(t); });
   Object.keys(orden).forEach(function(k){
     const ps = orden[k].sort(function(x, y){ return x.a - y.a; }), i = ws[+k], r = rg(i);
     ps.forEach(function(t, n){
-      const dd = t.a === r[0] ? i.d0 : minT(t.a), hh = t.b === r[1] ? i.h0 : minT(t.b), ln = t.lane, ov = t.lane === 'sin';
-      if(n === 0){ i.d = dd; i.h = hh; i.lane = ln; if(ov) i.over = true; }
-      else { const c = Object.assign({}, i, { d: dd, h: hh, lane: ln, parte: true }); if(ov) c.over = true; else delete c.over; items.push(c); }
+      const dd = t.a === r[0] ? i.d0 : minT(t.a), hh = t.b === r[1] ? i.h0 : minT(t.b), ov = t.lane === 'sin';
+      if(n === 0){ i.d = dd; i.h = hh; i.lane = t.lane; if(ov) i.over = true; }
+      else { const c = Object.assign({}, i, { d: dd, h: hh, lane: t.lane, parte: true }); if(ov) c.over = true; else delete c.over; items.push(c); }
     });
   });
 }
@@ -1762,6 +1761,7 @@ function rotNota(x){
 }
 function renderRotSab(){
   const C_ = ST.C, hoy = ST.puente.hoy(), L = C_.rotLista(hoy, 8);
+  if(!C_.rotOrden.length) return null;
   const box = h('div', { class: 'cr-card cr-rotsab', id: 'cr-rotsab' }, h('h3', { t: 'Rotación de sábados' }));
   if(!L.length){ poner(box, h('div', { class: 'cr-hint', t: 'Sin rotación definida.' })); return box; }
   poner(box, h('div', { class: 'cr-hint', t: 'Cada persona hace 1 sábado por ciclo. Semana siguiente (lun a jue): Joaquín y Joel salen 1 h antes; Zamira sale a las 12 h y Joaquín cubre de 12 a 18 h; Mónica no compensa.' }));
@@ -1799,7 +1799,7 @@ function renderSem(){
     return Object.assign({ lab: nom, we: dia >= 5, jefa: jefaDe(dia) }, t === 'eco' ? ecoDia(dia) : diaItems(t, dia));
   });
   const o = h('div');
-  if(t === 'adm') poner(o, nota('Semana tipo junta todo lo cargado de lunes a viernes; los sábados rotan (1 persona por sábado, ver “Rotación de sábados”). Joaquín y Joel salen 1 h antes de lunes a jueves de la semana siguiente a su sábado; Zamira sale a las 12 h y Joaquín entra de 12 a 18 h. BOX 1 y BOX 2 se asignan según el horario. El horario real de cada día está en “Semanas del mes”.'));
+  if(t === 'adm') poner(o, nota('Semana tipo junta todo lo cargado de lunes a viernes. Boxes: Joel y Mónica en BOX 1; Zamira y Joaquín en BOX 2. Si Joel y Mónica coinciden, el tramo superpuesto de Joel pasa a SOPORTE ADMINISTRATIVO. El horario real de cada día está en “Semanas del mes”.'));
   if(t === 'tec') poner(o, nota('Semana tipo = lo que se repite siempre. Las guardias de 12 h (noches y fines de semana) se asignan por fecha cada mes: miralas en “Diagrama del mes”, “Semanas del mes” o “Mes”. Los sábados alternan entre Sábado 1 y Sábado 2.'));
   if(t === 'adm' && days.length === 7 && !days[6].items.length) days.pop();
   poner(o, timeGrid(days, t === 'eco' ? ecoOpts() : t === 'adm' ? admGrid(days) : null));
@@ -3375,9 +3375,9 @@ function construirPdfAdm(modo){
     const t = 'adm', days = DIAS.slice(0, 6).map(function(nom, dia){ return Object.assign({ lab: nom, we: dia >= 5 }, diaItems(t, dia)); });
     days.forEach(function(d){ asignarBoxes(d.items); });
     const p = pdfPagina(842, 595);
-    pdfGrilla(p, days, 'Semana tipo (lunes a viernes fijos; los sábados rotan)', null);
+    pdfGrilla(p, days, 'Semana tipo' + (ST.C.rotOrden.length ? ' (lunes a viernes fijos; los sábados rotan)' : ''), null);
     pdfPie(p, []);
-    pags.push(p, pdfPagRotacion(hoy));
+    pags.push(p); if(ST.C.rotOrden.length) pags.push(pdfPagRotacion(hoy));
     return { nombre: 'cronograma-administrativos-semana-tipo.pdf', bytes: pdfArmar(pags) };
   }
   if(modo === 'semana'){
@@ -3385,17 +3385,17 @@ function construirPdfAdm(modo){
     const lunes = S.wk, days = pdfDiasSemana(lunes), p = pdfPagina(842, 595);
     pdfGrilla(p, days, 'Semana del ' + fmtF(lunes) + ' al ' + fmtF(addD(lunes, 6)), null);
     pdfPie(p, []);
-    pags.push(p, pdfPagRotacion(lunes));
+    pags.push(p); if(ST.C.rotOrden.length) pags.push(pdfPagRotacion(lunes));
     return { nombre: 'cronograma-administrativos-semana-' + lunes + '.pdf', bytes: pdfArmar(pags) };
   }
   const ws = admWeeks();
   ws.forEach(function(lunes, i){
     const p = pdfPagina(842, 595);
-    pdfGrilla(p, pdfDiasSemana(lunes), 'Semana del ' + fmtF(lunes) + ' al ' + fmtF(addD(lunes, 6)) + ' · ' + MESES[S.m] + ' ' + S.y, 'Hoja ' + (i + 1) + ' de ' + (ws.length + 1));
+    pdfGrilla(p, pdfDiasSemana(lunes), 'Semana del ' + fmtF(lunes) + ' al ' + fmtF(addD(lunes, 6)) + ' · ' + MESES[S.m] + ' ' + S.y, 'Hoja ' + (i + 1) + ' de ' + (ws.length + (ST.C.rotOrden.length ? 1 : 0)));
     pdfPie(p, []);
     pags.push(p);
   });
-  pags.push(pdfPagRotacion(ws[0]));
+  if(ST.C.rotOrden.length) pags.push(pdfPagRotacion(ws[0]));
   return { nombre: 'cronograma-administrativos-' + S.y + '-' + pad(S.m + 1) + '.pdf', bytes: pdfArmar(pags) };
 }
 function descargarPdfAdm(modo){
