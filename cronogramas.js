@@ -32,13 +32,13 @@ const BOX_FIJO = [
  * sale = minutos que se retira antes de lunes a jueves de la semana siguiente a su sábado (0 = no compensa).
  * La rotación rige desde la fecha ancla (los sábados anteriores siguen según las franjas cargadas en la base).
  * Si la base tiene la clave 'rot_sab' en img_cron_config ({ ancla, orden: [{ ap, nom, d, h, sale }] }), reemplaza estos valores. */
-/* Orden: 24/10 Joaquín, 31/10 Zamira, 7/11 Mónica, 14/11 Joel, y se repite. d/h = horario del sábado. sale = minutos que se retira antes (lun a jue de la semana siguiente; 0 = no compensa).
+/* Orden: 24/10 Joaquín, 31/10 Zamira, 7/11 Joel, 14/11 Mónica, y se repite. d/h = horario del sábado. sale = minutos que se retira antes (lun a jue de la semana siguiente; 0 = no compensa).
  * suple = quien cubre esa salida: entra `antes` minutos antes de su horario habitual y se retira como máximo a la hora `h`. */
 const ROT_SAB_DEF = { ancla: '2026-10-24', orden: [
   { ap: 'Torres', nom: 'Joaquin', d: '09:00', h: '13:00', sale: 60 },
   { ap: 'Abraham', nom: 'Zamira', d: '09:00', h: '13:00', sale: 60, suple: { ap: 'Torres', nom: 'Joaquin', antes: 60, h: '18:00' } },
-  { ap: 'José', nom: 'Monica', d: '08:00', h: '14:00', sale: 0 },
-  { ap: 'Ávila', nom: 'Joel', d: '09:00', h: '13:00', sale: 60 }
+  { ap: 'Ávila', nom: 'Joel', d: '09:00', h: '13:00', sale: 60 },
+  { ap: 'José', nom: 'Monica', d: '08:00', h: '14:00', sale: 0 }
 ] };
 const SUBS = [
   { k: 'tecnicos', n: 'Técnicos', tab: 'tec' },
@@ -3464,26 +3464,25 @@ function planObs(lunes){
   const exc = R.filter(function(r){ return r.d !== std[0] || r.h !== std[1]; });
   const nums = ['', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho'];
   let s = 'La atención al público se cubre por rotación entre los ' + (nums[R.length] || R.length) + ' integrantes del equipo, de ' + planHs(std[0], std[1]) + ' hs.';
-  if(exc.length) s += ' ' + (exc.length === 1 ? 'La única excepción es ' : 'Las excepciones son ') + exc.map(function(r){ return nomAp(r.key) + ', que cumple su sábado de ' + planHs(r.d, r.h) + ' hs'; }).join('; ') + '.';
-  if(lunes){
-    const sat = addD(lunes, 5), r = C_.rotSab(sat);
-    s += ' Esta semana, sábado ' + fmtC(sat) + ': ' + (ST.M.FER[sat] ? 'feriado.' : r ? nomAp(r.key) + ' (' + planHs(r.d, r.h) + ' hs).' : 'sin rotación cargada.');
-  }
+  if(exc.length) s += ' ' + (exc.length === 1 ? 'La única excepción es ' : 'Las excepciones son ') + exc.map(function(r){ return nomAp(r.key) + ', que cumplirá su sábado de ' + planHs(r.d, r.h) + ' hs'; }).join('; ') + '.';
   o.push({ k: 'Sábados', t: s });
+  if(lunes){
+    const L = C_.rotLista(addD(lunes, -1), 5).filter(function(x){ return !x.fer; });
+    const pr = L.slice(0, 4);
+    if(pr.length){
+      let q = pr.map(function(x){ return fmtC(x.sat) + ': ' + nomAp(x.key); }).join('  |  ');
+      if(L[4]) q += '. A partir del ' + fmtC(L[4].sat) + ', la guardia de los sábados continúa rotando en este mismo orden.';
+      o.push({ k: 'Próximos sábados', t: q });
+    }
+  }
   const con = R.filter(function(r){ return r.sale > 0; }), sin = R.filter(function(r){ return !(r.sale > 0); });
   if(con.length){
     const ms = con.map(function(r){ return r.sale; }), igual = ms.every(function(m){ return m === ms[0]; });
     let c = 'Quien trabaja un sábado se retira ' + (igual ? planMin(ms[0]) : 'antes') + ' antes de su horario habitual de salida, de lunes a jueves de la semana siguiente.';
-    if(sin.length) c += ' ' + sin.map(function(r){ return nomAp(r.key); }).join(' y ') + ' no se compensa' + (sin.length > 1 ? 'n' : '') + ' (otro régimen laboral).';
-    if(lunes){
-      const p = C_.rotSab(addD(lunes, -2));
-      c += ' Esta semana: ' + (p && p.sale ? nomAp(p.key) + ' se retira ' + planMin(p.sale) + ' antes (sábado ' + fmtC(addD(lunes, -2)) + ').' : 'sin salidas anticipadas.');
-    }
     o.push({ k: 'Compensación', t: c });
   }
   R.filter(function(r){ return r.suple; }).forEach(function(r){
     let c = 'Cuando ' + nomAp(r.key) + ' se retira ' + planMin(r.sale) + ' antes por haber trabajado el sábado anterior, ' + nomAp(r.suple.key) + ' ingresa ' + planMin(r.suple.antes) + ' antes' + (r.suple.h ? ' y se retira a las ' + (+r.suple.h.slice(0, 2)) + ' hs' : '') + ' durante esos 4 días.';
-    if(lunes){ const p = C_.rotSab(addD(lunes, -2)); c += ' Esta semana ' + (p && p.key === r.key && !ST.M.FER[addD(lunes, -2)] ? 'aplica.' : 'no aplica.'); }
     o.push({ k: 'Cobertura', t: c });
   });
   return o;
