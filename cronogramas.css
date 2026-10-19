@@ -329,10 +329,6 @@ html[data-tema="claro"] .cr-lh .lh.box2{color:hsl(28 90% 30%)}
 .cr-rot tr.fer td{color:var(--cr-dim);font-style:italic}
 .cr-pdf{display:flex;flex-wrap:wrap;gap:6px}
 
-.cr-lane.ofi .cr-blk{writing-mode:vertical-rl;padding:4px 2px;line-height:1.2}
-.cr-lane.ofi .cr-blk b,.cr-lane.ofi .cr-blk small{display:inline;white-space:nowrap}
-.cr-lane.ofi .cr-blk small.nm{display:none}
-.cr-lane.ofi .cr-blk small::before{content:' · '}
 .cr-lane.box1 .cr-blk small,.cr-lane.box2 .cr-blk small{font-size:9px}
 .cr-lane.box1 .cr-blk small.nm,.cr-lane.box2 .cr-blk small.nm{white-space:normal;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
 
@@ -354,3 +350,15 @@ html[data-tema="claro"] .cr-lh .lh.box2{color:hsl(28 90% 30%)}
 .cr-rotsab{overflow:hidden}
 .cr-blk.drag{cursor:grab;touch-action:none;user-select:none}
 .cr-blk.dragging{cursor:grabbing;z-index:60;opacity:.85;box-shadow:0 8px 22px rgba(0,0,0,.5);outline:2px solid var(--cr-acc)}
+/* cuadros del cronograma administrativo: nombre y horario en vertical, ocupando todo el rectángulo */
+.cr-blk.v{container-type:size;padding:0;overflow:hidden}
+.cr-lane .cr-blk.v .vt{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-evenly;align-items:center;writing-mode:vertical-rl;transform:rotate(180deg);padding:3px 0 3px 2px;box-sizing:border-box;min-width:0;min-height:0}
+.cr-lane .cr-blk.v .vt>*{display:block;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-height:calc(100cqh - 6px);line-height:1.05;text-align:center}
+.cr-lane .cr-blk.v .vt b{font-size:clamp(7px,min(40cqw,calc(86cqh / (var(--n1) * .66))),19px)}
+.cr-lane .cr-blk.v .vt small.tm{font-size:clamp(6.5px,min(34cqw,calc(86cqh / (var(--n2) * .6))),15px);opacity:.92}
+.cr-lane .cr-blk.v .vt small.nm{display:none}
+@container (min-width:68px){
+  .cr-lane .cr-blk.v .vt b{font-size:clamp(7px,min(32cqw,calc(86cqh / (var(--n1) * .66))),19px)}
+  .cr-lane .cr-blk.v .vt small.tm{font-size:clamp(6.5px,min(27cqw,calc(86cqh / (var(--n2) * .6))),15px)}
+  .cr-lane .cr-blk.v .vt small.nm{display:block;font-size:clamp(6px,min(18cqw,10px),10px);opacity:.8}
+}

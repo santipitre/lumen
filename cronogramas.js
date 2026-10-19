@@ -1614,10 +1614,12 @@ function timeGrid(days, o){
       li.forEach(function(i){
         const gg = Lm[i.uid], w = 100 / gg.n, a = mins(i.d), b = mins(i.h) <= a ? 1440 : mins(i.h), x = itemInfo(i);
         const fmv = i.kind === 'w' && i.f && !i.f.rot && !i.f.sup && !i.f.g && !i.f.xt && enEdicion() && tabEditable(tabAct()) && esFranjaEditable(i.f.orig || i.f) ? (i.f.orig || i.f) : null;
-        const blk = h('div', { class: 'cr-blk ' + x.cls + (i.over ? ' over' : '') + (fmv ? ' drag' : '') + (i.kind === 'w' && S.hl === (i.f && i.f.id) ? ' sel' : ''), tabindex: '0', role: 'button',
+        const vt = !!o.corto;
+        const blk = h('div', { class: 'cr-blk ' + x.cls + (vt ? ' v' : '') + (i.over ? ' over' : '') + (fmv ? ' drag' : '') + (i.kind === 'w' && S.hl === (i.f && i.f.id) ? ' sel' : ''), tabindex: '0', role: 'button',
           s: { top: ((a - t0) * PX) + 'px', height: ((b - a) * PX) + 'px', left: (gg.c * w) + '%', width: 'calc(' + w + '% - 2px)', '--h': hue(i.k || i['for']) },
           title: x.lab + ' ' + i.d + '–' + i.h + (x.sub ? ' · ' + x.sub : '') + (i.over ? ' · supera los 2 lugares de atención' : ''), on: { click: function(ev){ if(blk.__movido){ blk.__movido = false; return; } x.click(ev); }, keydown: function(ev){ if(fmv && ev.altKey && moverFranjaTecla(ev, fmv)) return; if(ev.key === 'Enter') x.click(ev); } } },
-          h('b', { t: x.lab }), h('small', { t: o.corto ? tCorto(i.d, i.h) : i.d + '–' + i.h }), x.sub ? h('small', { class: 'nm' + (x.sub === 'Sin asignar' ? ' none' : ''), t: x.sub }) : null);
+          vt ? h('div', { class: 'vt', s: { '--n1': String(Math.max(2, String(x.lab).length)), '--n2': String(Math.max(2, tCorto(i.d, i.h).length)) } }, h('b', { t: x.lab }), h('small', { class: 'tm', t: tCorto(i.d, i.h) }), x.sub ? h('small', { class: 'nm' + (x.sub === 'Sin asignar' ? ' none' : ''), t: x.sub }) : null)
+            : [h('b', { t: x.lab }), h('small', { t: i.d + '–' + i.h }), x.sub ? h('small', { class: 'nm' + (x.sub === 'Sin asignar' ? ' none' : ''), t: x.sub }) : null]);
         if(fmv) blk.addEventListener('pointerdown', function(ev){ arrastrarFranja(ev, blk, fmv, PX, g); });
         poner(lane, blk);
       });
@@ -1690,31 +1692,58 @@ function asignarBoxes(items){
   const C_ = ST.C, PM = ST.M.PM;
   const nr = function(s){ return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(); };
   const esJoel = function(i){ const p = i.k && PM[i.k]; return !!p && nr(p.ap) === nr(SOPORTE_FIJO.ap) && nr(p.nom) === nr(SOPORTE_FIJO.nom); };
-  const rg = function(i){ const a = mins(i.d); return [a, mins(i.h) <= a ? 1440 : mins(i.h)]; };
-  const ws = items.filter(function(i){ return i.kind === 'w' || i.kind === 'rep'; }).sort(function(a, b){
-    return mins(a.d) - mins(b.d) || (mins(b.h) <= mins(b.d) ? 1440 : mins(b.h)) - (mins(a.h) <= mins(a.d) ? 1440 : mins(a.h));
+  /* idempotente: se deshace lo que una pasada anterior partió */
+  for(let n = items.length - 1; n >= 0; n--){ if(items[n].parte) items.splice(n, 1); }
+  const ws = items.filter(function(i){ return i.kind === 'w' || i.kind === 'rep'; });
+  ws.forEach(function(i){ if(i.d0 !== undefined){ i.d = i.d0; i.h = i.h0; } else { i.d0 = i.d; i.h0 = i.h; } delete i.lane; delete i.over; });
+  const rg = function(i){ const a = mins(i.d), b = mins(i.h) <= a ? 1440 : mins(i.h); return [a, b]; };
+  const choca = function(l, a, b){ return l.some(function(x){ return x.a < b && x.b > a; }); };
+  const occ = { box1: [], box2: [] };
+  const trozos = [];
+  ws.forEach(function(i){
+    if(i.k && C_.esOfi(i.k)){ i.lane = 'ofi'; return; }
+    if(i.rotTipo){ i.lane = 'box1'; return; }
   });
-  const sin = new Set();
-  for(let pasada = 0; pasada <= ws.length; pasada++){
-    const libre = [0, 0];
-    let falla = -1;
-    ws.forEach(function(i){ delete i.lane; delete i.over; });
-    for(let n = 0; n < ws.length && falla < 0; n++){
-      const i = ws[n];
-      if(i.k && C_.esOfi(i.k)){ i.lane = 'ofi'; continue; }
-      if(i.rotTipo){ i.lane = 'box1'; continue; }
-      if(sin.has(i)){ i.lane = 'sin'; i.over = true; continue; }
-      const r = rg(i), bx = libre.findIndex(function(e){ return e <= r[0]; });
-      if(bx < 0){ falla = n; break; }
-      i.lane = bx ? 'box2' : 'box1';
-      libre[bx] = r[1];
+  /* Joel va siempre en BOX 1; solo el tramo que se superpone con un 3.º pasa a SOPORTE ADMINISTRATIVO */
+  ws.filter(function(i){ return !i.lane && i.kind === 'w' && esJoel(i); }).forEach(function(i){
+    const r = rg(i), t = { i: i, a: r[0], b: r[1], lane: 'box1' };
+    trozos.push(t); occ.box1.push(t);
+  });
+  const otros = ws.filter(function(i){ return !i.lane && !(i.kind === 'w' && esJoel(i)); }).sort(function(x, y){
+    const rx = rg(x), ry = rg(y); return rx[0] - ry[0] || ry[1] - rx[1];
+  });
+  otros.forEach(function(i){
+    const r = rg(i);
+    const poner_ = function(){
+      if(!choca(occ.box1, r[0], r[1])){ occ.box1.push({ a: r[0], b: r[1] }); i.lane = 'box1'; return true; }
+      if(!choca(occ.box2, r[0], r[1])){ occ.box2.push({ a: r[0], b: r[1] }); i.lane = 'box2'; return true; }
+      return false;
+    };
+    if(poner_()) return;
+    const js = trozos.filter(function(t){ return t.lane === 'box1' && t.a < r[1] && t.b > r[0]; });
+    if(js.length){
+      js.forEach(function(t){
+        const ca = Math.max(t.a, r[0]), cb = Math.min(t.b, r[1]), pa = t.a, pb = t.b;
+        occ.box1.splice(occ.box1.indexOf(t), 1);
+        t.a = ca; t.b = cb; t.lane = 'sin';
+        if(pa < ca){ const n = { i: t.i, a: pa, b: ca, lane: 'box1' }; trozos.push(n); occ.box1.push(n); }
+        if(cb < pb){ const n = { i: t.i, a: cb, b: pb, lane: 'box1' }; trozos.push(n); occ.box1.push(n); }
+      });
+      if(poner_()) return;
     }
-    if(falla < 0) return;
-    const f = ws[falla], rf = rg(f);
-    /* quien pasa a SOPORTE ADMINISTRATIVO: Joel si está entre los superpuestos; si no, el que llegó último */
-    const j = ws.slice(0, falla + 1).find(function(x){ const r = rg(x); return esJoel(x) && !sin.has(x) && r[0] < rf[1] && r[1] > rf[0]; });
-    sin.add(j || f);
-  }
+    i.lane = 'sin'; i.over = true;
+  });
+  /* aplicar los tramos de Joel: el primero queda en el cuadro original; los demás son cuadros nuevos */
+  const orden = {};
+  trozos.forEach(function(t){ (orden[ws.indexOf(t.i)] = orden[ws.indexOf(t.i)] || []).push(t); });
+  Object.keys(orden).forEach(function(k){
+    const ps = orden[k].sort(function(x, y){ return x.a - y.a; }), i = ws[+k], r = rg(i);
+    ps.forEach(function(t, n){
+      const dd = t.a === r[0] ? i.d0 : minT(t.a), hh = t.b === r[1] ? i.h0 : minT(t.b), ln = t.lane, ov = t.lane === 'sin';
+      if(n === 0){ i.d = dd; i.h = hh; i.lane = ln; if(ov) i.over = true; }
+      else { const c = Object.assign({}, i, { d: dd, h: hh, lane: ln, parte: true }); if(ov) c.over = true; else delete c.over; items.push(c); }
+    });
+  });
 }
 const LANE_W = { box1: 1, box2: 1, sin: 1.6, ofi: 0.5 };
 /* columnas de un día: siempre BOX 1 y BOX 2; SIN BOX y la oficina propia solo si ese día las usa */
@@ -3189,6 +3218,10 @@ function pdfPagina(W, H){
       o = o || {};
       c.push('BT ' + col(o.color || [0.1, 0.1, 0.1]) + ' rg /' + (o.bold ? 'F2' : 'F1') + ' ' + sz + ' Tf 0 -1 1 0 ' + x.toFixed(2) + ' ' + (H - y).toFixed(2) + ' Tm (' + pdfEsc(pdfLat(s)) + ') Tj ET');
     },
+    textU: function(x, y, s, sz, o){
+      o = o || {};
+      c.push('BT ' + col(o.color || [0.1, 0.1, 0.1]) + ' rg /' + (o.bold ? 'F2' : 'F1') + ' ' + sz + ' Tf 0 1 -1 0 ' + x.toFixed(2) + ' ' + (H - y).toFixed(2) + ' Tm (' + pdfEsc(pdfLat(s)) + ') Tj ET');
+    },
     text: function(x, y, s, sz, o){
       o = o || {};
       const t = pdfLat(s), w = pdfAncho(t, sz, o.bold);
@@ -3286,18 +3319,17 @@ function pdfGrilla(p, days, titulo, sub){
         const rgb = i.rotTipo ? [0.9, 0.9, 0.92] : hsl2rgb(hu, 0.7, 0.86), lin = i.over ? [0.85, 0.1, 0.1] : hsl2rgb(hu, 0.6, 0.38);
         p.rect(bx, by, bwi, bh, { fill: rgb, line: lin, lw: i.over ? 1.6 : 0.7, dash: i.kind === 'rep' || i.rotTipo ? [2.5, 1.5] : null });
         p.rect(bx, by, 2.2, bh, { fill: lin });
-        if(l === 'ofi'){
-          p.textV(bx + bwi / 2 + 2.6, by + 4, pdfCortar(x.lab + ' · ' + tCorto(i.d, i.h) + ' h' + (x.sub ? ' · ' + x.sub : ''), 6.8, false, bh - 8), 6.8, { color: PDF_NEG });
-          return;
-        }
-        const lines = [[x.lab, true, 7.6], [tCorto(i.d, i.h), false, 6.8]];
-        if(x.sub) lines.push([x.sub, false, 6]);
-        if(i.over) lines.push(['Soporte', true, 6]);
-        let ty = by + 8.5;
-        lines.forEach(function(ln){
-          if(ty > by + bh - 1) return;
-          p.text(bx + 4.5, ty, pdfCortar(ln[0], ln[2], ln[1], bwi - 6), ln[2], { bold: ln[1], color: PDF_NEG });
-          ty += ln[2] + 1.6;
+        /* nombre y horario en vertical (de abajo hacia arriba), ocupando todo el cuadro */
+        const mh = bh - 5, lines = [[x.lab, true, 0.40], [tCorto(i.d, i.h), false, 0.32]];
+        if(x.sub && bwi >= 44 && l !== 'ofi') lines.push([x.sub, false, 0.2]);
+        const x0b = bx + 2.2, aw = bwi - 2.2;
+        const fs = lines.map(function(ln){ return Math.max(4.5, Math.min(aw * ln[2], mh / Math.max(1, pdfAncho(pdfLat(ln[0]), 1, ln[1])), ln[2] > 0.3 ? 12 : 9)); });
+        const suma = fs.reduce(function(s, v){ return s + v; }, 0), gap = Math.max(0.4, (aw - suma) / (lines.length + 1));
+        let lxl = x0b + gap;
+        lines.forEach(function(ln, n){
+          const sz = fs[n], txt = pdfCortar(ln[0], sz, ln[1], mh), w = pdfAncho(pdfLat(txt), sz, ln[1]);
+          p.textU(lxl + sz * 0.8, by + bh / 2 + w / 2, txt, sz, { bold: ln[1], color: PDF_NEG });
+          lxl += sz + gap;
         });
       });
       lx += lw;
