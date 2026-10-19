@@ -32,12 +32,14 @@ const BOX_FIJO = [
  * sale = minutos que se retira antes de lunes a jueves de la semana siguiente a su sábado (0 = no compensa).
  * La rotación rige desde la fecha ancla (los sábados anteriores siguen según las franjas cargadas en la base).
  * Si la base tiene la clave 'rot_sab' en img_cron_config ({ ancla, orden: [{ ap, nom, d, h, sale }] }), reemplaza estos valores. */
-/* DESACTIVADA a pedido: el cronograma se arma a mano. Para volver a la rotación automática, reemplazar `orden: []` por la lista de abajo:
- *   { ap: 'Torres', nom: 'Joaquin', d: '09:00', h: '13:00', sale: 60 },
- *   { ap: 'Abraham', nom: 'Zamira', d: '09:00', h: '13:00', saleA: '12:00', suple: { ap: 'Torres', nom: 'Joaquin', d: '12:00', h: '18:00' } },
- *   { ap: 'José', nom: 'Monica', d: '08:00', h: '14:00', sale: 0 },
- *   { ap: 'Ávila', nom: 'Joel', d: '09:00', h: '13:00', sale: 60 }  */
-const ROT_SAB_DEF = { ancla: '2026-10-24', orden: [] };
+/* Orden: 24/10 Joaquín, 31/10 Zamira, 7/11 Mónica, 14/11 Joel, y se repite. d/h = horario del sábado. sale = minutos que se retira antes (lun a jue de la semana siguiente; 0 = no compensa).
+ * suple = quien cubre esa salida: entra `antes` minutos antes de su horario habitual y se retira como máximo a la hora `h`. */
+const ROT_SAB_DEF = { ancla: '2026-10-24', orden: [
+  { ap: 'Torres', nom: 'Joaquin', d: '09:00', h: '13:00', sale: 60 },
+  { ap: 'Abraham', nom: 'Zamira', d: '09:00', h: '13:00', sale: 60, suple: { ap: 'Torres', nom: 'Joaquin', antes: 60, h: '18:00' } },
+  { ap: 'José', nom: 'Monica', d: '08:00', h: '14:00', sale: 0 },
+  { ap: 'Ávila', nom: 'Joel', d: '09:00', h: '13:00', sale: 60 }
+] };
 const SUBS = [
   { k: 'tecnicos', n: 'Técnicos', tab: 'tec' },
   { k: 'administrativos', n: 'Administrativos', tab: 'adm' },
@@ -50,7 +52,7 @@ const SUBS = [
 ];
 const VISTAS = {
   tecnicos: [['diag', 'Diagrama del mes'], ['horas', 'Horas por técnico'], ['sem', 'Semana tipo'], ['sems', 'Semanas del mes'], ['cuadro', 'Cuadro'], ['mes', 'Mes']],
-  administrativos: [['sem', 'Semana tipo'], ['sems', 'Semanas del mes'], ['horas', 'Horas por semana'], ['cuadro', 'Cuadro'], ['mes', 'Mes']],
+  administrativos: [['sem', 'Semana tipo'], ['sems', 'Semanas del mes'], ['plan', 'Planilla'], ['horas', 'Horas por semana'], ['cuadro', 'Cuadro'], ['mes', 'Mes']],
   radiografias: [['sem', 'Semana tipo'], ['sems', 'Semanas del mes'], ['cuadro', 'Cuadro'], ['mes', 'Mes'], ['anio', 'Año']],
   tc: [['tcg', 'Guardias de Tomografía']],
   eco: [['sem', 'Semana tipo']],
@@ -205,7 +207,7 @@ function calculos(M, hoy){
     const p = P.find(function(q){ return q.grp === 'adm' && nrm(q.ap) === nrm(o.ap) && nrm(q.nom) === nrm(o.nom); });
     if(!p) return null;
     const sp = o.suple && P.find(function(q){ return q.grp === 'adm' && nrm(q.ap) === nrm(o.suple.ap) && nrm(q.nom) === nrm(o.suple.nom); });
-    return { key: p.key, d: o.d, h: o.h, sale: +o.sale || 0, saleA: o.saleA || '', suple: sp ? { key: sp.key, d: o.suple.d, h: o.suple.h } : null };
+    return { key: p.key, d: o.d, h: o.h, sale: +o.sale || 0, saleA: o.saleA || '', suple: sp ? { key: sp.key, antes: +o.suple.antes || 0, h: o.suple.h || '', d: o.suple.d || '' } : null };
   }).filter(Boolean);
   const rotOf = function(k){ return rotOrden.some(function(x){ return x.key === k; }); };
   const rotAt = function(sat){
@@ -242,8 +244,13 @@ function calculos(M, hoy){
           return Object.assign({}, f, { h: minT(fin), corta: mins(f.h) - fin, orig: f });
         });
         if(r.suple && !FER[d]){
-          out = out.filter(function(f){ return f.key !== r.suple.key; });
-          out.push({ id: 'sup:' + d, tab: 'adm', key: r.suple.key, dia: wd, d: r.suple.d, h: r.suple.h, sec: '', asig: [], guardia: false, sem: 0, turno: '', pend: false, motivo: '', sup: r.key });
+          /* quien cubre: entra antes y se retira como máximo a la hora indicada (se modifica su franja; si ese día no tiene, no se inventa una) */
+          out = out.map(function(f){
+            if(f.key !== r.suple.key || f.pend || f.sup) return f;
+            const na = r.suple.antes ? mins(f.d) - r.suple.antes : mins(f.d), nb = r.suple.h && mins(r.suple.h) < mins(f.h) ? mins(r.suple.h) : mins(f.h);
+            if(nb - na < 60 || (na === mins(f.d) && nb === mins(f.h))) return f;
+            return Object.assign({}, f, { d: minT(na), h: minT(nb), sup: r.key, orig: f });
+          });
         }
         return out;
       }
@@ -299,7 +306,6 @@ function calculos(M, hoy){
     const fin = function(a, b){ return [mins(a), mins(b) <= mins(a) ? mins(b) + 1440 : mins(b)]; };
     F.filter(function(f){ return f.key === k && f.dia === wd && (!f.sem || f.sem === satTipoW(d)) && !(FER[d] && f.tab === 'tec') && !(wd === 5 && f.tab === 'adm' && rotOf(k) && rotAt(d)); }).forEach(function(f){ o.push(fin(f.d, f.h)); });
     if(wd === 5){ const rs = rotSab(d); if(rs && rs.key === k) o.push(fin(rs.d, rs.h)); }
-    if(wd <= 3 && !FER[d]){ const rp = rotSab(addD(d, -(wd + 2))); if(rp && rp.suple && rp.suple.key === k){ o.length = 0; o.push(fin(rp.suple.d, rp.suple.h)); } }
     G.filter(function(g){ return g.key === k && g.fecha === d; }).forEach(function(g){ o.push(fin(TURN[g.t][0], TURN[g.t][1])); });
     XT.filter(function(x){ return x.key === k && x.fecha === d; }).forEach(function(x){ o.push(fin(x.d, x.h)); });
     return o;
@@ -1755,16 +1761,16 @@ function admGrid(days){
   return { nombreTab: TN.adm, lanes: ['box1', 'box2'], lanesDe: lanesAdm, laneW: LANE_W, laneLab: { box1: 'BOX 1', box2: 'BOX 2', sin: 'SOPORTE ADMINISTRATIVO', ofi: 'Of.' }, px: 0.95, corto: true };
 }
 function rotNota(x){
-  if(x.fer || !(x.sale || x.saleA)) return '—';
+  if(x.fer || !x.sale) return '—';
   const f = 'Lun ' + fmtC(addD(x.sat, 2)) + ' a Jue ' + fmtC(addD(x.sat, 5));
-  return f + (x.saleA ? ' · sale ' + x.saleA + (x.suple ? ' · ' + apP(x.suple.key) + ' ' + tCorto(x.suple.d, x.suple.h) + ' h' : '') : ' · sale ' + (x.sale % 60 ? x.sale + ' min' : x.sale / 60 + ' h') + ' antes');
+  return f + ' · sale ' + (x.sale % 60 ? x.sale + ' min' : x.sale / 60 + ' h') + ' antes' + (x.suple ? ' · ' + apP(x.suple.key) + ' entra ' + (x.suple.antes % 60 ? x.suple.antes + ' min' : x.suple.antes / 60 + ' h') + ' antes' + (x.suple.h ? ' y sale ' + x.suple.h : '') : '');
 }
 function renderRotSab(){
   const C_ = ST.C, hoy = ST.puente.hoy(), L = C_.rotLista(hoy, 8);
   if(!C_.rotOrden.length) return null;
   const box = h('div', { class: 'cr-card cr-rotsab', id: 'cr-rotsab' }, h('h3', { t: 'Rotación de sábados' }));
   if(!L.length){ poner(box, h('div', { class: 'cr-hint', t: 'Sin rotación definida.' })); return box; }
-  poner(box, h('div', { class: 'cr-hint', t: 'Cada persona hace 1 sábado por ciclo. Semana siguiente (lun a jue): Joaquín y Joel salen 1 h antes; Zamira sale a las 12 h y Joaquín cubre de 12 a 18 h; Mónica no compensa.' }));
+  poner(box, h('div', { class: 'cr-hint', t: 'Cada persona hace 1 sábado por ciclo. Quien trabaja un sábado se retira antes de lunes a jueves de la semana siguiente; si es Zamira, Joaquín entra 1 h antes y sale a las 18 h. Mónica no compensa.' }));
   const ul = h('div', { class: 'cr-rotl' });
   L.forEach(function(x){
     poner(ul, h('div', { class: 'cr-roti' + (x.fer ? ' fer' : '') },
@@ -1799,7 +1805,7 @@ function renderSem(){
     return Object.assign({ lab: nom, we: dia >= 5, jefa: jefaDe(dia) }, t === 'eco' ? ecoDia(dia) : diaItems(t, dia));
   });
   const o = h('div');
-  if(t === 'adm') poner(o, nota('Semana tipo junta todo lo cargado de lunes a viernes. Boxes: Joel y Mónica en BOX 1; Zamira y Joaquín en BOX 2. Si Joel y Mónica coinciden, el tramo superpuesto de Joel pasa a SOPORTE ADMINISTRATIVO. El horario real de cada día está en “Semanas del mes”.'));
+  if(t === 'adm') poner(o, nota('Semana tipo junta todo lo cargado de lunes a viernes; los sábados rotan (1 persona por sábado, ver “Rotación de sábados”). Boxes: Joel y Mónica en BOX 1; Zamira y Joaquín en BOX 2; si Joel y Mónica coinciden, el tramo superpuesto de Joel pasa a SOPORTE ADMINISTRATIVO. El horario real de cada día (con la compensación de sábados) está en “Semanas del mes” y en “Planilla”.'));
   if(t === 'tec') poner(o, nota('Semana tipo = lo que se repite siempre. Las guardias de 12 h (noches y fines de semana) se asignan por fecha cada mes: miralas en “Diagrama del mes”, “Semanas del mes” o “Mes”. Los sábados alternan entre Sábado 1 y Sábado 2.'));
   if(t === 'adm' && days.length === 7 && !days[6].items.length) days.pop();
   poner(o, timeGrid(days, t === 'eco' ? ecoOpts() : t === 'adm' ? admGrid(days) : null));
@@ -3054,7 +3060,7 @@ function renderTools(){
   if(vs.length > 1) poner(tools, h('div', { class: 'cr-seg', role: 'group', 'aria-label': 'Vista' }, vs.map(function(x){
     return h('button', { type: 'button', class: 'cr-btn sm' + (x[0] === v ? ' on' : ''), 'aria-pressed': x[0] === v ? 'true' : 'false', 'data-vista': x[0], t: x[1], on: { click: function(){ setVista(x[0]); } } });
   })));
-  const conMes = ['diag', 'horas', 'sems', 'mes', 'pago', 'tcg', 'alertas'].indexOf(v) >= 0;
+  const conMes = ['diag', 'horas', 'sems', 'plan', 'mes', 'pago', 'tcg', 'alertas'].indexOf(v) >= 0;
   const conAnio = v === 'anio';
   if(conMes || conAnio){
     const mover = function(n){
@@ -3067,19 +3073,19 @@ function renderTools(){
       btn('▶', 'sm', function(){ mover(1); }, { 'aria-label': conAnio ? 'Año siguiente' : 'Mes siguiente' }),
       btn('Hoy', 'sm', function(){ const hy = ST.puente.hoy(); S.y = +hy.slice(0, 4); S.m = +hy.slice(5, 7) - 1; S.wk = null; pintar(); })));
   }
-  if(v === 'sems'){
+  if(v === 'sems' || v === 'plan'){
     ensureWk();
     poner(tools, selec(weeksOf(S.y, S.m).map(function(w){ return [w, 'Semana del ' + fmtC(w)]; }), S.wk, function(x){ S.wk = x; pintar(); }, 'cr-sel'));
   }
-  if(['sem', 'sems', 'cuadro'].indexOf(v) >= 0) poner(tools, chk('Sáb y dom', S.we, function(x){ S.we = x; pintar(); }));
+  if(['sem', 'sems', 'plan', 'cuadro'].indexOf(v) >= 0) poner(tools, chk('Sáb y dom', S.we, function(x){ S.we = x; pintar(); }));
   if(['conf', 'pago', 'tcg', 'alertas'].indexOf(v) < 0){
     const ps = personasFiltro();
     if(ps.length > 1) poner(tools, selec([['', 'Todas las personas']].concat(ps.map(function(p){ return [p.key, ST.C.nm(p)]; })), S.pf || '', function(x){ S.pf = x || null; pintar(); }, 'cr-sel'));
   }
   if(S.sub === 'administrativos'){
     poner(tools, h('div', { class: 'cr-pdf', role: 'group', 'aria-label': 'Descargar cronograma en PDF' },
-      v === 'sem' ? btn('⬇ PDF semana tipo', 'sm', function(){ descargarPdfAdm('tipo'); }, { id: 'cr-pdf-tipo' }) : btn('⬇ PDF de la semana', 'sm', function(){ descargarPdfAdm('semana'); }, { id: 'cr-pdf-sem' }),
-      btn('⬇ PDF del mes', 'sm', function(){ descargarPdfAdm('mes'); }, { id: 'cr-pdf-mes' })));
+      v === 'plan' ? btn('⬇ PDF planilla de la semana', 'sm', function(){ descargarPdfAdm('plan'); }, { id: 'cr-pdf-plan' }) : v === 'sem' ? btn('⬇ PDF semana tipo', 'sm', function(){ descargarPdfAdm('tipo'); }, { id: 'cr-pdf-tipo' }) : btn('⬇ PDF de la semana', 'sm', function(){ descargarPdfAdm('semana'); }, { id: 'cr-pdf-sem' }),
+      v === 'plan' ? btn('⬇ PDF planilla del mes', 'sm', function(){ descargarPdfAdm('planmes'); }, { id: 'cr-pdf-planmes' }) : btn('⬇ PDF del mes', 'sm', function(){ descargarPdfAdm('mes'); }, { id: 'cr-pdf-mes' })));
   }
   if(permisoEditar()){
     if(!S.edit) poner(tools, h('div', { class: 'cr-edtools' }, btn('✎ Editar', 'sm', function(){ S.edit = true; limpiarPop(); pintar(); }, { id: 'cr-editar', 'aria-label': 'Editar este cuadro', disabled: ST.guardando })));
@@ -3092,6 +3098,7 @@ function renderCuerpo(){
   try{
     if(v === 'sem') return renderSem();
     if(v === 'sems') return renderSems();
+    if(v === 'plan') return renderPlan();
     if(v === 'cuadro') return renderCuadro();
     if(v === 'mes') return renderMes();
     if(v === 'anio') return renderAnio();
@@ -3267,9 +3274,7 @@ function pdfCabecera(p, titulo, sub){
 function pdfPie(p, extra){
   const C_ = ST.C, mg = 28, W = p.W, H = p.H, L = [];
   L.push('BOX 1 y BOX 2 son los 2 lugares de atención (máximo 2 personas en simultáneo; la oficina propia no ocupa box). SOPORTE ADMINISTRATIVO = persona adicional cuando los 2 boxes ya están ocupados.');
-  const rot = C_.rotOrden.map(function(r){ const hs = (mins(r.h) - mins(r.d)) / 60; return apP(r.key) + ' ' + nmPNom(r.key) + ' ' + tCorto(r.d, r.h) + ' h (' + (hs % 1 ? hs.toFixed(1) : hs) + ' h)'; });
-  if(rot.length) L.push('Sábados (1 por persona, rotan): ' + rot.join(' · ') + '.');
-  if(rot.length) L.push('Semana siguiente al sábado, lun a jue: Joaquín y Joel salen 1 h antes; Zamira sale a las 12 h y Joaquín cubre de 12 a 18 h; Mónica no compensa.');
+  planObsLineas().forEach(function(s){ L.push(s); });
   (extra || []).forEach(function(x){ L.push(x); });
   const d = new Date(), pd = function(n){ return String(n).padStart(2, '0'); };
   L.push('Generado el ' + pd(d.getDate()) + '/' + pd(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + pd(d.getHours()) + ':' + pd(d.getMinutes()) + ' desde Lumen. Horarios sujetos a cambios; consultar el cronograma en línea.');
@@ -3371,6 +3376,8 @@ function pdfPagRotacion(desde){
 }
 function construirPdfAdm(modo){
   const C_ = ST.C, hoy = ST.puente.hoy(), pags = [];
+  if(modo === 'plan'){ ensureWk(); return { nombre: 'planilla-administrativos-semana-' + S.wk + '.pdf', bytes: pdfArmar([pdfPlanPag(S.wk)]) }; }
+  if(modo === 'planmes'){ return { nombre: 'planilla-administrativos-' + S.y + '-' + pad(S.m + 1) + '.pdf', bytes: pdfArmar(admWeeks().map(pdfPlanPag)) }; }
   if(modo === 'tipo'){
     const t = 'adm', days = DIAS.slice(0, 6).map(function(nom, dia){ return Object.assign({ lab: nom, we: dia >= 5 }, diaItems(t, dia)); });
     days.forEach(function(d){ asignarBoxes(d.items); });
@@ -3398,6 +3405,192 @@ function construirPdfAdm(modo){
   if(ST.C.rotOrden.length) pags.push(pdfPagRotacion(ws[0]));
   return { nombre: 'cronograma-administrativos-' + S.y + '-' + pad(S.m + 1) + '.pdf', bytes: pdfArmar(pags) };
 }
+/* == Planilla de administrativos: BOX 1 / BOX 2 / SOPORTE ADMINISTRATIVO por franja horaria (se arma sola con lo cargado, los sábados y la compensación) == */
+const PLAN_COL = { 'avila|joel': '#2F75B5', 'jose|monica': '#C55A11', 'abraham|zamira': '#548235', 'torres|joaquin': '#7030A0' };
+const PLAN_LANES = [['box1', 'BOX 1'], ['box2', 'BOX 2'], ['sin', 'SOPORTE ADMINISTRATIVO']];
+function planNr(s){ return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(); }
+function planColor(k){
+  const p = ST.M.PM[k], c = p && PLAN_COL[planNr(p.ap) + '|' + planNr(p.nom)];
+  return c || 'hsl(' + hue(k) + ',55%,38%)';
+}
+function planRgb(k){
+  const p = ST.M.PM[k], c = p && PLAN_COL[planNr(p.ap) + '|' + planNr(p.nom)];
+  if(c) return [parseInt(c.slice(1, 3), 16) / 255, parseInt(c.slice(3, 5), 16) / 255, parseInt(c.slice(5, 7), 16) / 255];
+  return hsl2rgb(hue(k), 0.55, 0.38);
+}
+function nomAp(k){ const p = ST.M.PM[k]; return p ? (p.nom ? p.nom + ' ' : '') + p.ap : '?'; }
+function planDias(lunes, conFinde){
+  const out = [];
+  for(let i = 0; i < 7; i++){
+    if(i >= 5 && !conFinde) continue;
+    const d = addD(lunes, i), dd = ST.C.dayData('adm', d, null);
+    asignarBoxes(dd.items);
+    const segs = dd.items.filter(function(x){ return (x.kind === 'w' || x.kind === 'rep') && x.lane !== 'ofi' && !x.rotTipo && x.k; });
+    if(i >= 5 && !segs.length) continue;
+    const dt = new Date(d + 'T12:00:00');
+    out.push({ fecha: d, lab: DIAS[i].slice(0, 3).toUpperCase() + ' ' + dt.getDate() + '/' + (dt.getMonth() + 1), wd: i, fer: !!ST.M.FER[d], segs: segs });
+  }
+  return out;
+}
+function planRango(dias){
+  let t0 = 480, t1 = 1230;
+  dias.forEach(function(d){ d.segs.forEach(function(s){
+    const a = mins(s.d), b = mins(s.h) <= a ? 1440 : mins(s.h);
+    t0 = Math.min(t0, Math.floor(a / 30) * 30); t1 = Math.max(t1, Math.ceil(b / 30) * 30);
+  }); });
+  return [t0, t1];
+}
+function planFin(s){ const a = mins(s.d); return mins(s.h) <= a ? 1440 : mins(s.h); }
+/* reparte los tramos de un carril en sub-filas si se pisan (solo pasa en SOPORTE ADMINISTRATIVO) */
+function planFilas(segs){
+  const fin = [], fila = [];
+  segs.forEach(function(s){
+    const a = mins(s.d);
+    let r = fin.findIndex(function(e){ return e <= a; });
+    if(r < 0){ r = fin.length; fin.push(0); }
+    fin[r] = planFin(s); fila.push(r);
+  });
+  return { fila: fila, n: Math.max(1, fin.length) };
+}
+function planHs(a, b){ const f = function(x){ return x.slice(-3) === ':00' ? String(+x.slice(0, 2)) : x.replace(/^0/, ''); }; return f(a) + ' a ' + f(b); }
+function planMin(m){ return m % 60 ? m + ' minutos' : (m / 60 === 1 ? '1 hora' : (m / 60) + ' horas'); }
+/* observaciones: texto fijo según la rotación configurada + lo que pasa en la semana (lunes) mostrada */
+function planObs(lunes){
+  const C_ = ST.C, R = C_.rotOrden, o = [];
+  if(!R.length) return o;
+  const cnt = {};
+  R.forEach(function(r){ const k = r.d + '|' + r.h; cnt[k] = (cnt[k] || 0) + 1; });
+  const std = Object.keys(cnt).sort(function(a, b){ return cnt[b] - cnt[a]; })[0].split('|');
+  const exc = R.filter(function(r){ return r.d !== std[0] || r.h !== std[1]; });
+  const nums = ['', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho'];
+  let s = 'La atención al público se cubre por rotación entre los ' + (nums[R.length] || R.length) + ' integrantes del equipo, de ' + planHs(std[0], std[1]) + ' hs.';
+  if(exc.length) s += ' ' + (exc.length === 1 ? 'La única excepción es ' : 'Las excepciones son ') + exc.map(function(r){ return nomAp(r.key) + ', que cumple su sábado de ' + planHs(r.d, r.h) + ' hs'; }).join('; ') + '.';
+  if(lunes){
+    const sat = addD(lunes, 5), r = C_.rotSab(sat);
+    s += ' Esta semana, sábado ' + fmtC(sat) + ': ' + (ST.M.FER[sat] ? 'feriado.' : r ? nomAp(r.key) + ' (' + planHs(r.d, r.h) + ' hs).' : 'sin rotación cargada.');
+  }
+  o.push({ k: 'Sábados', t: s });
+  const con = R.filter(function(r){ return r.sale > 0; }), sin = R.filter(function(r){ return !(r.sale > 0); });
+  if(con.length){
+    const ms = con.map(function(r){ return r.sale; }), igual = ms.every(function(m){ return m === ms[0]; });
+    let c = 'Quien trabaja un sábado se retira ' + (igual ? planMin(ms[0]) : 'antes') + ' antes de su horario habitual de salida, de lunes a jueves de la semana siguiente.';
+    if(sin.length) c += ' ' + sin.map(function(r){ return nomAp(r.key); }).join(' y ') + ' no se compensa' + (sin.length > 1 ? 'n' : '') + ' (otro régimen laboral).';
+    if(lunes){
+      const p = C_.rotSab(addD(lunes, -2));
+      c += ' Esta semana: ' + (p && p.sale ? nomAp(p.key) + ' se retira ' + planMin(p.sale) + ' antes (sábado ' + fmtC(addD(lunes, -2)) + ').' : 'sin salidas anticipadas.');
+    }
+    o.push({ k: 'Compensación', t: c });
+  }
+  R.filter(function(r){ return r.suple; }).forEach(function(r){
+    let c = 'Cuando ' + nomAp(r.key) + ' se retira ' + planMin(r.sale) + ' antes por haber trabajado el sábado anterior, ' + nomAp(r.suple.key) + ' ingresa ' + planMin(r.suple.antes) + ' antes' + (r.suple.h ? ' y se retira a las ' + (+r.suple.h.slice(0, 2)) + ' hs' : '') + ' durante esos 4 días.';
+    if(lunes){ const p = C_.rotSab(addD(lunes, -2)); c += ' Esta semana ' + (p && p.key === r.key && !ST.M.FER[addD(lunes, -2)] ? 'aplica.' : 'no aplica.'); }
+    o.push({ k: 'Cobertura', t: c });
+  });
+  return o;
+}
+function planObsLineas(){
+  const o = [];
+  planObs(null).forEach(function(x){ o.push(x.k + ': ' + x.t); });
+  return o.length ? ['Planilla: cada franja muestra quién está en BOX 1, BOX 2 y SOPORTE ADMINISTRATIVO. Ver OBSERVACIONES en la hoja de planilla semanal.'] : [];
+}
+function renderPlan(){
+  ensureWk();
+  const dias = planDias(S.wk, S.we), rg = planRango(dias), t0 = rg[0], t1 = rg[1], n = (t1 - t0) / 15, sl = (t1 - t0) / 30;
+  const wrap = h('div', { class: 'cr-plan' });
+  poner(wrap, nota('Planilla de la semana: se arma sola con los horarios cargados, los sábados rotativos y la compensación. Es de lectura; para cambiar un horario usá “Semana tipo” o “Semanas del mes” en modo edición.'));
+  if(!dias.some(function(d){ return d.segs.length; })) poner(wrap, nota('Sin horarios cargados en esta semana.'));
+  dias.forEach(function(d){
+    const tb = h('div', { class: 'pl-dia' + (d.wd >= 5 ? ' we' : '') + (d.fer ? ' fer' : '') });
+    const eje = h('div', { class: 'pl-eje', s: { '--n': n } });
+    for(let m = t0; m < t1; m += 30) poner(eje, h('span', { class: 'pl-h', s: { 'grid-column': (((m - t0) / 15) + 1) + ' / span 2' }, t: minT(m) }));
+    poner(tb, h('div', { class: 'pl-t', t: d.lab + (d.fer ? ' · Feriado' : '') }), eje);
+    PLAN_LANES.forEach(function(L){
+      const segs = d.segs.filter(function(s){ return s.lane === L[0]; }).sort(function(a, b){ return mins(a.d) - mins(b.d); });
+      const fl = planFilas(segs), cel = h('div', { class: 'pl-fila', s: { '--n': n, '--sl': sl } });
+      segs.forEach(function(s, i){
+        const a = mins(s.d), b = planFin(s), c0 = Math.round((a - t0) / 15) + 1, c1 = Math.max(c0 + 1, Math.round((b - t0) / 15) + 1);
+        const sub = s.kind === 'rep' && s['for'] ? 'cubre a ' + apP(s['for']) : '';
+        poner(cel, h('div', { class: 'pb' + (L[0] === 'sin' ? ' sop' : ''), title: nomAp(s.k) + ' · ' + s.d + '–' + s.h + (sub ? ' · ' + sub : '') + ' · ' + L[1],
+          s: { 'grid-column': c0 + ' / ' + c1, 'grid-row': String(fl.fila[i] + 1), background: planColor(s.k) } },
+          h('b', { t: nomAp(s.k) }), h('small', { t: s.d + '–' + s.h + (sub ? ' · ' + sub : '') })));
+      });
+      poner(tb, h('div', { class: 'pl-l ' + L[0], t: L[1] }), cel);
+    });
+    poner(wrap, tb);
+  });
+  const ob = planObs(S.wk);
+  if(ob.length){
+    const card = h('div', { class: 'pl-obs' }, h('div', { class: 'pl-ot', t: 'OBSERVACIONES' }));
+    ob.forEach(function(x){ poner(card, h('div', { class: 'pl-or' }, h('b', { t: x.k }), h('span', { t: x.t }))); });
+    poner(wrap, card);
+  }
+  return wrap;
+}
+/* PDF: una hoja por semana con el mismo formato */
+function pdfWrap(s, sz, bold, maxw){
+  const ws = pdfLat(s).split(' '), out = [];
+  let cur = '';
+  ws.forEach(function(w){
+    const t = cur ? cur + ' ' + w : w;
+    if(cur && pdfAncho(t, sz, bold) > maxw){ out.push(cur); cur = w; } else cur = t;
+  });
+  if(cur) out.push(cur);
+  return out;
+}
+function pdfPlanPag(lunes){
+  const p = pdfPagina(842, 595), W = 842, mg = 28, labW = 84, x0 = mg + labW;
+  const dias = planDias(lunes, true), rg = planRango(dias), t0 = rg[0], t1 = rg[1], ns = (t1 - t0) / 30, cw = (W - mg - x0) / ns;
+  const fin = dias.length ? dias[dias.length - 1].wd : 4;
+  pdfCabecera(p, 'Planilla semanal · semana del ' + fmtF(lunes) + ' al ' + fmtF(addD(lunes, fin < 5 ? 4 : fin)), null);
+  const NAVY = [0.122, 0.22, 0.392], PAS = { box1: [0.867, 0.922, 0.969], box2: [0.886, 0.937, 0.855], sin: [1, 0.949, 0.8] }, TXT = { box1: [0.12, 0.22, 0.39], box2: [0.22, 0.34, 0.14], sin: [0.5, 0.38, 0] };
+  let y = 66;
+  dias.forEach(function(d){
+    const hH = 13, rh = 16;
+    p.rect(mg, y, labW, hH, { fill: d.wd >= 5 ? [0.48, 0.35, 0.07] : NAVY });
+    p.text(mg + 5, y + 9, d.lab + (d.fer ? ' · feriado' : ''), 7.5, { bold: true, color: [1, 1, 1] });
+    for(let i = 0; i < ns; i++){
+      p.rect(x0 + i * cw, y, cw, hH, { fill: NAVY, line: [0.5, 0.6, 0.8], lw: 0.25 });
+      p.text(x0 + i * cw + cw / 2, y + 8.8, minT(t0 + i * 30), cw >= 24 ? 5.8 : 4.8, { align: 'center', bold: true, color: [1, 1, 1] });
+    }
+    y += hH;
+    PLAN_LANES.forEach(function(L){
+      const segs = d.segs.filter(function(s){ return s.lane === L[0]; }).sort(function(a, b){ return mins(a.d) - mins(b.d); }), fl = planFilas(segs), hh = rh * fl.n;
+      p.rect(mg, y, labW, hh, { fill: PAS[L[0]], line: PDF_LINEA, lw: 0.4 });
+      const lt = L[1].split(' ');
+      if(L[0] === 'sin'){ p.text(mg + 5, y + 6.5, 'SOPORTE', 6.3, { bold: true, color: TXT.sin }); p.text(mg + 5, y + 13, 'ADMINISTRATIVO', 6.3, { bold: true, color: TXT.sin }); }
+      else p.text(mg + 5, y + hh / 2 + 2.6, L[1], 7.5, { bold: true, color: TXT[L[0]] });
+      p.rect(x0, y, ns * cw, hh, { line: PDF_LINEA, lw: 0.4 });
+      for(let i = 1; i < ns; i++) p.line(x0 + i * cw, y, x0 + i * cw, y + hh, PDF_LINEA, 0.25);
+      segs.forEach(function(s, i){
+        const a = mins(s.d), b = planFin(s), bx = x0 + (a - t0) / 30 * cw + 0.8, bw = (b - a) / 30 * cw - 1.6, by = y + fl.fila[i] * rh + 1.2;
+        p.rect(bx, by, bw, rh - 2.4, { fill: planRgb(s.k) });
+        const sub = s.kind === 'rep' && s['for'] ? 'cubre a ' + apP(s['for']) : '';
+        p.text(bx + bw / 2, by + 6.3, pdfCortar(nomAp(s.k), 6.6, true, bw - 4), 6.6, { align: 'center', bold: true, color: [1, 1, 1] });
+        p.text(bx + bw / 2, by + 11.6, pdfCortar(s.d + '–' + s.h + (sub && bw > 90 ? ' · ' + sub : ''), 5.6, false, bw - 4), 5.6, { align: 'center', color: [1, 1, 1] });
+      });
+      y += hh;
+    });
+    y += 5;
+  });
+  const ob = planObs(lunes);
+  if(ob.length){
+    p.rect(mg, y, W - 2 * mg, 11, { fill: NAVY });
+    p.text(mg + 5, y + 8, 'OBSERVACIONES', 7.2, { bold: true, color: [1, 1, 1] });
+    y += 11;
+    ob.forEach(function(x){
+      const ls = pdfWrap(x.t, 6.6, false, W - 2 * mg - labW - 10), hh = Math.max(11, ls.length * 8 + 4);
+      p.rect(mg, y, labW, hh, { fill: [0.851, 0.882, 0.949], line: PDF_LINEA, lw: 0.3 });
+      p.text(mg + 5, y + 8, x.k, 7, { bold: true, color: PDF_NEG });
+      p.rect(mg + labW, y, W - 2 * mg - labW, hh, { fill: [0.969, 0.976, 0.988], line: PDF_LINEA, lw: 0.3 });
+      ls.forEach(function(l, i){ p.text(mg + labW + 5, y + 8 + i * 8, l, 6.6, { color: PDF_NEG }); });
+      y += hh;
+    });
+  }
+  const dn = new Date(), pd = function(n){ return String(n).padStart(2, '0'); };
+  p.text(mg, p.H - 14, 'Generado el ' + pd(dn.getDate()) + '/' + pd(dn.getMonth() + 1) + '/' + dn.getFullYear() + ' ' + pd(dn.getHours()) + ':' + pd(dn.getMinutes()) + ' desde Lumen. Horarios sujetos a cambios; consultar el cronograma en línea.', 6.5, { color: PDF_GRIS });
+  return p;
+}
+
 function descargarPdfAdm(modo){
   try{
     const r = construirPdfAdm(modo), url = URL.createObjectURL(new Blob([r.bytes], { type: 'application/pdf' }));
