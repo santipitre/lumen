@@ -117,6 +117,10 @@ html[data-tema="claro"] .cr-root,html[data-tema="claro"] .cr-pop,html[data-tema=
 .cr-cell.out{opacity:.35}.cr-cell.today{border-color:var(--cr-acc)}.cr-cell.we{background:var(--cr-input)}
 .cr-cell .n{font-size:11px;color:var(--cr-dim)}
 .cr-fer{display:block;font-style:normal;font-size:10px;color:var(--cr-bad)}
+.cr-cell.dia{position:relative;cursor:pointer}.cr-cell.dia:hover{border-color:var(--cr-mut)}
+.cr-dot{position:absolute;right:5px;top:5px;width:8px;height:8px;border-radius:50%;background:var(--cr-warn)}.cr-dot.ok{background:var(--cr-ok)}
+.cr-lt .cr-dot{position:static;display:inline-block;margin-left:8px;vertical-align:middle}
+.cr-dfr{align-items:flex-start}.cr-dfr .acts{display:inline-flex;gap:6px;flex-wrap:wrap}.cr-dfr .cr-form{flex:1 1 100%;min-width:0}.cr-ok1{color:var(--cr-ok);font-size:11px}
 .cr-chp{margin:2px 0;padding:1px 4px;border-radius:4px;font-size:10.5px;line-height:1.25;cursor:pointer;background:hsl(var(--h,200) 65% 50%/.2);border-left:3px solid hsl(var(--h,200) 65% 55%);overflow:hidden}
 .cr-chp b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cr-chp small{display:block;color:var(--cr-mut);font-size:9.5px}
 .cr-chp.jfc{--h:330}
@@ -289,6 +293,8 @@ html[data-tema="claro"] .cr-root,html[data-tema="claro"] .cr-pop,html[data-tema=
 .cr-pop input[type=checkbox]{width:15px;height:15px;min-height:0;margin:0}
 .cr-pop .cr-fcampos label{margin-top:0}
 .cr-pop .cr-chk1{display:inline-flex}
+.cr-pop .cr-r4l{display:flex;flex-direction:column;gap:2px;max-height:150px;overflow:auto;margin-top:2px;padding:4px 6px;border:1px solid var(--cr-line);border-radius:7px;background:var(--cr-input)}
+.cr-pop .cr-r4i{display:flex;align-items:center;gap:7px;margin:0;min-height:26px;overflow-wrap:anywhere;cursor:pointer}
 .cr-pop .cr-fr1 input{width:auto;flex:1 1 100px}
 .cr-rev{max-height:min(52vh,430px);overflow:auto;border:1px solid var(--cr-line);border-radius:10px;padding:2px 12px 8px;margin-top:8px;font-size:13px}
 .cr-rev-t{margin:0;color:var(--pyralis-text-muted,#94A3B8);font-size:13px}
