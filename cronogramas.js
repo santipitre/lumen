@@ -20,6 +20,8 @@ const TH_BASE = [150, 40, 8, 25, 220, 330, 200, 290, 0, 265, 60];
 const OFICINA = 'Oficina propia';
 const TARIFAS_DEF = { diurna: 0, nocturna: 0 };
 const SAT0_DEF = '2026-10-03';
+/* Si hay más de 2 personas superpuestas en los 2 boxes, quien queda como SOPORTE ADMINISTRATIVO es siempre esta persona. */
+const SOPORTE_FIJO = { ap: 'Ávila', nom: 'Joel' };
 /* Sábados de administrativos: cada persona hace 1 sábado por ciclo (el orden se repite desde la fecha ancla).
  * saleA = hora fija de salida lun–jue de la semana siguiente; suple = quien entra esos días en ese horario (reemplaza su horario habitual).
  * sale = minutos que se retira antes de lunes a jueves de la semana siguiente a su sábado (0 = no compensa).
@@ -1605,22 +1607,78 @@ function timeGrid(days, o){
   for(let x = t0; x <= t1; x += 60) poner(axis, h('span', { s: { top: ((x - t0) * PX) + 'px' }, t: hhmm(x) }));
   poner(g, axis);
   days.forEach(function(d){
-    const day = h('div', { class: 'cr-day' + (d.today ? ' today' : ''), s: { height: H + 'px' } });
+    const day = h('div', { class: 'cr-day' + (d.today ? ' today' : ''), s: { height: H + 'px' }, 'data-dia': String(days.indexOf(d)) });
     if(d.jefa) poner(day, h('div', { class: 'cr-jband', title: 'Jefa de residentes ' + d.jefa[0] + '–' + d.jefa[1], s: { top: ((mins(d.jefa[0]) - t0) * PX) + 'px', height: ((mins(d.jefa[1]) - mins(d.jefa[0])) * PX) + 'px' } }));
     lanesDe(d).forEach(function(l){
       const li = d.items.filter(function(i){ return laneDe(i) === l; }), Lm = layoutCol(li), lane = h('div', { class: 'cr-lane ' + l });
       li.forEach(function(i){
         const gg = Lm[i.uid], w = 100 / gg.n, a = mins(i.d), b = mins(i.h) <= a ? 1440 : mins(i.h), x = itemInfo(i);
-        poner(lane, h('div', { class: 'cr-blk ' + x.cls + (i.over ? ' over' : '') + (i.kind === 'w' && S.hl === (i.f && i.f.id) ? ' sel' : ''), tabindex: '0', role: 'button',
+        const fmv = i.kind === 'w' && i.f && !i.f.rot && !i.f.sup && !i.f.g && !i.f.xt && enEdicion() && tabEditable(tabAct()) && esFranjaEditable(i.f.orig || i.f) ? (i.f.orig || i.f) : null;
+        const blk = h('div', { class: 'cr-blk ' + x.cls + (i.over ? ' over' : '') + (fmv ? ' drag' : '') + (i.kind === 'w' && S.hl === (i.f && i.f.id) ? ' sel' : ''), tabindex: '0', role: 'button',
           s: { top: ((a - t0) * PX) + 'px', height: ((b - a) * PX) + 'px', left: (gg.c * w) + '%', width: 'calc(' + w + '% - 2px)', '--h': hue(i.k || i['for']) },
-          title: x.lab + ' ' + i.d + '–' + i.h + (x.sub ? ' · ' + x.sub : '') + (i.over ? ' · supera los 2 lugares de atención' : ''), on: { click: x.click, keydown: function(ev){ if(ev.key === 'Enter') x.click(ev); } } },
-          h('b', { t: x.lab }), h('small', { t: o.corto ? tCorto(i.d, i.h) : i.d + '–' + i.h }), x.sub ? h('small', { class: 'nm' + (x.sub === 'Sin asignar' ? ' none' : ''), t: x.sub }) : null));
+          title: x.lab + ' ' + i.d + '–' + i.h + (x.sub ? ' · ' + x.sub : '') + (i.over ? ' · supera los 2 lugares de atención' : ''), on: { click: function(ev){ if(blk.__movido){ blk.__movido = false; return; } x.click(ev); }, keydown: function(ev){ if(fmv && ev.altKey && moverFranjaTecla(ev, fmv)) return; if(ev.key === 'Enter') x.click(ev); } } },
+          h('b', { t: x.lab }), h('small', { t: o.corto ? tCorto(i.d, i.h) : i.d + '–' + i.h }), x.sub ? h('small', { class: 'nm' + (x.sub === 'Sin asignar' ? ' none' : ''), t: x.sub }) : null);
+        if(fmv) blk.addEventListener('pointerdown', function(ev){ arrastrarFranja(ev, blk, fmv, PX, g); });
+        poner(lane, blk);
       });
       poner(day, lane);
     });
     poner(g, day);
   });
-  return h('div', null, any ? null : nota('Sin agendas cargadas en ' + nombreTab + (S.pf ? ' para esta persona' : '') + '.'), g);
+  return h('div', null, any ? null : nota('Sin agendas cargadas en ' + nombreTab + (S.pf ? ' para esta persona' : '') + '.'),
+    enEdicion() && tabEditable(tabAct()) ? nota('Modo edición: arrastrá un cuadro para moverlo de hora o de día (de a 15 min), o tocalo para editarlo. Con el cuadro seleccionado: Alt + flechas. Cambia el horario fijo de esa persona (todas las semanas) y queda en el borrador hasta que lo guardes. Los sábados rotativos y los cambios automáticos (salida anticipada) no se arrastran.') : null, g);
+}
+/* == mover cuadros con el mouse / teclado (modo edición) == */
+function moverFranja(fo, dia, dMin){
+  const a = mins(fo.d), b = mins(fo.h);
+  if(b <= a) return false;
+  let na = a + dMin, nb = b + dMin;
+  if(na < 0){ nb -= na; na = 0; }
+  if(nb > 1440){ na -= nb - 1440; nb = 1440; }
+  if(na === a && dia === fo.dia) return false;
+  fo.d = minT(na); fo.h = nb === 1440 ? '23:59' : minT(nb); fo.dia = dia;
+  A.franjaCambio(fo);
+  ST.puente.aviso('Movido: ' + nmP(fo.key) + ' → ' + DIAS[dia] + ' ' + fo.d + '–' + fo.h + ' (sin guardar: revisalo en el borrador).');
+  pintar();
+  return true;
+}
+function moverFranjaTecla(ev, fo){
+  const k = ev.key, dm = k === 'ArrowUp' ? -15 : k === 'ArrowDown' ? 15 : 0, dd = k === 'ArrowLeft' ? -1 : k === 'ArrowRight' ? 1 : 0;
+  if(!dm && !dd) return false;
+  const nd = fo.dia + dd, tope = S.we ? 6 : 4;
+  ev.preventDefault();
+  moverFranja(fo, nd < 0 ? 0 : nd > tope ? tope : nd, dm);
+  return true;
+}
+function arrastrarFranja(ev, blk, fo, PX, grid){
+  if(ev.button !== undefined && ev.button !== 0) return;
+  const x0 = ev.clientX, y0 = ev.clientY;
+  let mov = false;
+  const dias = function(){ return Array.prototype.slice.call(grid.querySelectorAll('.cr-day[data-dia]')); };
+  const diaEn = function(x){
+    const ds = dias();
+    for(let n = 0; n < ds.length; n++){ const r = ds[n].getBoundingClientRect(); if(x >= r.left && x <= r.right) return +ds[n].getAttribute('data-dia'); }
+    return x < ds[0].getBoundingClientRect().left ? +ds[0].getAttribute('data-dia') : +ds[ds.length - 1].getAttribute('data-dia');
+  };
+  const paso = function(e){ return Math.round((e.clientY - y0) / PX / 15) * 15; };
+  const move = function(e){
+    if(!mov && Math.abs(e.clientX - x0) + Math.abs(e.clientY - y0) < 5) return;
+    if(!mov){ mov = true; blk.classList.add('dragging'); }
+    e.preventDefault();
+    blk.style.transform = 'translate(' + (e.clientX - x0) + 'px,' + (paso(e) * PX) + 'px)';
+    const a = Math.max(0, Math.min(mins(fo.d) + paso(e), 1440 - (mins(fo.h) - mins(fo.d))));
+    blk.title = DIAS[diaEn(e.clientX)] + ' ' + minT(a) + '–' + minT(a + mins(fo.h) - mins(fo.d));
+  };
+  const fin = function(e){
+    window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', fin); window.removeEventListener('pointercancel', fin);
+    if(!mov) return;
+    blk.classList.remove('dragging'); blk.style.transform = '';
+    blk.__movido = true;
+    setTimeout(function(){ blk.__movido = false; }, 0);
+    if(e.type === 'pointercancel') return;
+    if(!moverFranja(fo, diaEn(e.clientX), paso(e))) return;
+  };
+  window.addEventListener('pointermove', move, { passive: false }); window.addEventListener('pointerup', fin); window.addEventListener('pointercancel', fin);
 }
 /* == BOX 1 / BOX 2 (administrativos) == */
 function tCorto(a, b){
@@ -1629,20 +1687,36 @@ function tCorto(a, b){
 }
 /* Cada día, los 2 lugares de atención se llenan por horario (primero en llegar = BOX 1). Un 3.º superpuesto queda en la columna roja SOPORTE ADMINISTRATIVO. La oficina propia no ocupa box. */
 function asignarBoxes(items){
-  const libre = [0, 0], C_ = ST.C;
-  items.filter(function(i){ return i.kind === 'w' || i.kind === 'rep'; }).sort(function(a, b){
+  const C_ = ST.C, PM = ST.M.PM;
+  const nr = function(s){ return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(); };
+  const esJoel = function(i){ const p = i.k && PM[i.k]; return !!p && nr(p.ap) === nr(SOPORTE_FIJO.ap) && nr(p.nom) === nr(SOPORTE_FIJO.nom); };
+  const rg = function(i){ const a = mins(i.d); return [a, mins(i.h) <= a ? 1440 : mins(i.h)]; };
+  const ws = items.filter(function(i){ return i.kind === 'w' || i.kind === 'rep'; }).sort(function(a, b){
     return mins(a.d) - mins(b.d) || (mins(b.h) <= mins(b.d) ? 1440 : mins(b.h)) - (mins(a.h) <= mins(a.d) ? 1440 : mins(a.h));
-  }).forEach(function(i){
-    if(i.k && C_.esOfi(i.k)){ i.lane = 'ofi'; return; }
-    if(i.rotTipo){ i.lane = 'box1'; return; }
-    const a = mins(i.d), b = mins(i.h) <= a ? 1440 : mins(i.h);
-    const bx = libre.findIndex(function(e){ return e <= a; });
-    if(bx < 0){ i.lane = 'sin'; i.over = true; return; }
-    i.lane = bx ? 'box2' : 'box1';
-    libre[bx] = b;
   });
+  const sin = new Set();
+  for(let pasada = 0; pasada <= ws.length; pasada++){
+    const libre = [0, 0];
+    let falla = -1;
+    ws.forEach(function(i){ delete i.lane; delete i.over; });
+    for(let n = 0; n < ws.length && falla < 0; n++){
+      const i = ws[n];
+      if(i.k && C_.esOfi(i.k)){ i.lane = 'ofi'; continue; }
+      if(i.rotTipo){ i.lane = 'box1'; continue; }
+      if(sin.has(i)){ i.lane = 'sin'; i.over = true; continue; }
+      const r = rg(i), bx = libre.findIndex(function(e){ return e <= r[0]; });
+      if(bx < 0){ falla = n; break; }
+      i.lane = bx ? 'box2' : 'box1';
+      libre[bx] = r[1];
+    }
+    if(falla < 0) return;
+    const f = ws[falla], rf = rg(f);
+    /* quien pasa a SOPORTE ADMINISTRATIVO: Joel si está entre los superpuestos; si no, el que llegó último */
+    const j = ws.slice(0, falla + 1).find(function(x){ const r = rg(x); return esJoel(x) && !sin.has(x) && r[0] < rf[1] && r[1] > rf[0]; });
+    sin.add(j || f);
+  }
 }
-const LANE_W = { box1: 1, box2: 1, sin: 1.3, ofi: 0.5 };
+const LANE_W = { box1: 1, box2: 1, sin: 1.6, ofi: 0.5 };
 /* columnas de un día: siempre BOX 1 y BOX 2; SIN BOX y la oficina propia solo si ese día las usa */
 function lanesAdm(d){
   const tiene = function(l){ return d.items.some(function(i){ return i.lane === l; }); };
@@ -1661,13 +1735,14 @@ function renderRotSab(){
   const C_ = ST.C, hoy = ST.puente.hoy(), L = C_.rotLista(hoy, 8);
   const box = h('div', { class: 'cr-card cr-rotsab', id: 'cr-rotsab' }, h('h3', { t: 'Rotación de sábados' }));
   if(!L.length){ poner(box, h('div', { class: 'cr-hint', t: 'Sin rotación definida.' })); return box; }
-  poner(box, h('div', { class: 'cr-hint', s: { 'margin-bottom': '6px' }, t: 'Cada persona hace 1 sábado por ciclo. Joaquín y Joel salen 1 h antes de lunes a jueves de la semana siguiente. Zamira sale a las 12 h esos días y Joaquín cubre de 12 a 18 h. Mónica no compensa.' }));
-  const tb = h('table', { class: 'cr-rot' }, h('tr', null, h('th', { t: 'Sábado' }), h('th', { t: 'Quién' }), h('th', { t: 'Horario' }), h('th', { t: 'Semana siguiente (Lun–Jue)' })));
+  poner(box, h('div', { class: 'cr-hint', t: 'Cada persona hace 1 sábado por ciclo. Semana siguiente (lun a jue): Joaquín y Joel salen 1 h antes; Zamira sale a las 12 h y Joaquín cubre de 12 a 18 h; Mónica no compensa.' }));
+  const ul = h('div', { class: 'cr-rotl' });
   L.forEach(function(x){
-    poner(tb, h('tr', { class: x.fer ? 'fer' : '' }, h('td', { t: fmtC(x.sat) }), h('td', { t: nmP(x.key) }), h('td', { t: x.fer ? 'feriado' : tCorto(x.d, x.h) + ' h' }),
-      h('td', { t: rotNota(x) })));
+    poner(ul, h('div', { class: 'cr-roti' + (x.fer ? ' fer' : '') },
+      h('div', { class: 'r1' }, h('b', { t: fmtC(x.sat) }), h('span', { class: 'q', t: nmP(x.key) }), h('span', { class: 'hr', t: x.fer ? 'feriado' : tCorto(x.d, x.h) + ' h' })),
+      h('div', { class: 'r2', t: rotNota(x) })));
   });
-  poner(box, tb);
+  poner(box, ul);
   return box;
 }
 
