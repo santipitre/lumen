@@ -1545,6 +1545,11 @@ async function imgCargarAcceso() {
   } catch (e) { return null; }
 }
 
+// Menú Área de trabajo: sub-tarjetas ocultas (el código y los destinos siguen intactos).
+const IMG_SUBTARJETAS_OCULTAS = true;               // Médicos / Residentes / Técnicos / Administrativos de Imágenes
+const PERSONAL_OCULTO = true;                       // sub-tarjeta Personal dentro de Administrativo
+const ROLES_QUE_VEN_PERSONAL = ['licencias', 'solicitante']; // su único acceso a personal.html: no se les oculta
+
 async function renderModules() {
   const permisos = getPermisos();
   const modulos = { ...(permisos.modulos || {}) };
@@ -1570,6 +1575,12 @@ async function renderModules() {
     const IMG_HIJO = { medicos:'img_medicos', residentes:'img_residentes', tecnicos:'img_tecnicos', administrativos:'img_admin' };
     modulos.imagenes = imgAcc.nivel;
     for (const t of imgAcc.pestanas) modulos[IMG_HIJO[t]] = imgAcc.nivel;
+  }
+
+  // Personal oculto salvo para los roles que dependen de él; nunca deja al usuario sin módulos.
+  if (PERSONAL_OCULTO && !ROLES_QUE_VEN_PERSONAL.includes(currentUser.rol)
+      && Object.keys(modulos).some(k => k !== 'personal' && modulos[k])) {
+    delete modulos.personal;
   }
 
   // Atajo: si el usuario tiene acceso a UN SOLO m\u00f3dulo, lo mandamos directo ah\u00ed
@@ -1602,12 +1613,13 @@ async function renderModules() {
   }
 
   // Estructura: módulos principales con sus submódulos
+  // Orden: Administrativo, Dashboard Imágenes, Médico, Técnico.
   const GRUPOS = [
-    { padre: 'admin',   hijos: ['caja', 'conciliacion', 'validacion', 'harefield', 'operativo', 'personal'] },
-    { padre: 'medico',  hijos: [] },
-    { padre: 'tecnico', hijos: [] }
+    { padre: 'admin',    hijos: ['caja', 'conciliacion', 'validacion', 'harefield', 'operativo', 'personal'] },
+    { padre: 'imagenes', hijos: IMG_SUBTARJETAS_OCULTAS ? [] : ['img_medicos', 'img_residentes', 'img_tecnicos', 'img_admin'] },
+    { padre: 'medico',   hijos: [] },
+    { padre: 'tecnico',  hijos: [] }
   ];
-  GRUPOS.push({ padre: 'imagenes', hijos: ['img_medicos', 'img_residentes', 'img_tecnicos', 'img_admin'] }); // después de tecnico
 
   // El SVG de cada módulo trae el nombre adentro; acá sólo queremos el dibujo.
   const soloIcono = (m) => m.svg
