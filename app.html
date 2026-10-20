@@ -648,6 +648,83 @@
     .btn-back:hover { border-color: var(--cyan); color: var(--cyan); }
     .btn-back.visible { display: flex; }
 
+    /* --- VER SEGÚN ROL (solo admin): botón, barra de vista previa y cajón (patrón de cronogramas.css) --- */
+    .vr-boton {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px; padding: 8px 16px;
+      font-family: 'Inter', sans-serif;
+      font-size: 12px; letter-spacing: 2px; color: var(--muted);
+      cursor: pointer; transition: all .2s;
+      text-transform: uppercase;
+    }
+    .vr-boton:hover { border-color: var(--cyan); color: var(--cyan); }
+    #vr-btn { position: fixed; top: 20px; right: 20px; z-index: 100; display: none; }
+    #vr-btn.visible { display: inline-flex; }
+
+    .vr-barra {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 90;
+      display: none; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap;
+      min-height: 64px; padding: 10px 230px 10px 460px;
+      background: var(--pyralis-firefly-dim);
+      border-bottom: 1px solid var(--pyralis-firefly-ring);
+      backdrop-filter: blur(12px);
+      font-size: 13px; color: var(--pyralis-firefly-soft);
+    }
+    .vr-activo .vr-barra { display: flex; }
+    .vr-activo #screen-roles { padding-top: 84px; }
+    @media (max-width: 1100px) {
+      .vr-barra { top: 68px; padding: 10px 16px; }
+      .vr-activo #screen-roles { padding-top: 150px; }
+    }
+    @media (max-width: 640px) {
+      .vr-barra { top: 108px; }
+      .vr-activo #screen-roles { padding-top: 190px; }
+    }
+
+    .vr-scrim { position: fixed; inset: 0; z-index: 140; background: rgba(0,0,0,.45); }
+    .vr-drawer {
+      position: fixed; top: 0; right: 0; bottom: 0; z-index: 150;
+      width: min(440px, 100vw); overflow: auto; box-sizing: border-box;
+      background: var(--pyralis-bg-elevated);
+      border-left: 1px solid var(--pyralis-border);
+      box-shadow: -8px 0 24px rgba(0,0,0,.35);
+      font-size: 13px; color: var(--text);
+    }
+    .vr-drawer[hidden], .vr-scrim[hidden] { display: none; }
+    .vr-drawer * { box-sizing: border-box; }
+    .vr-cab {
+      position: sticky; top: 0; z-index: 1;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 16px 18px;
+      background: var(--pyralis-bg-elevated);
+      border-bottom: 1px solid var(--pyralis-border);
+    }
+    .vr-titulo { font-family: 'Rajdhani', sans-serif; font-size: 20px; font-weight: 700; letter-spacing: 3px; color: var(--text); }
+    .vr-nota { padding: 12px 18px 0; font-size: 12px; color: var(--muted); }
+    .vr-opcion { display: flex; align-items: center; gap: 8px; padding: 12px 18px; cursor: pointer; color: var(--muted); }
+    .vr-opcion input { width: 15px; height: 15px; margin: 0; }
+    .vr-lista { display: flex; flex-direction: column; gap: 8px; padding: 0 18px 24px; }
+    .vr-item {
+      display: block; width: 100%; text-align: left; cursor: pointer;
+      padding: 10px 12px; border-radius: 10px;
+      background: var(--pyralis-bg-input);
+      border: 1px solid var(--pyralis-border);
+      font: inherit; color: inherit; transition: all .2s;
+    }
+    .vr-item:hover { background: var(--pyralis-bg-hover); border-color: var(--cyan); }
+    .vr-item:focus-visible, .vr-boton:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+    .vr-nombre { font-weight: 600; color: var(--text); }
+    .vr-user { color: var(--muted); font-size: 12px; margin-left: 6px; }
+    .vr-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 6px; font-size: 12px; color: var(--muted); }
+    .vr-chip {
+      display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px;
+      border-radius: 999px; border: 1px solid currentColor; white-space: nowrap;
+    }
+    .vr-chip.aviso { color: var(--pyralis-warning); }
+    .vr-vacio { padding: 24px 0; text-align: center; color: var(--muted); }
+
     /* --- ANIMATIONS --- */
     @keyframes fadeUp {
       from { opacity: 0; transform: translateY(20px); }
@@ -823,6 +900,24 @@
 <button class="btn-back" id="btn-back" onclick="goBack()">
   <span>&#8592;</span> <span id="back-label">Volver</span>
 </button>
+
+<!-- Ver según rol (solo admin): botón, barra de vista previa y cajón -->
+<button class="vr-boton" id="vr-btn" type="button" onclick="vrAbrir()">Ver según rol</button>
+<div class="vr-barra" id="vr-barra" role="status">
+  <span id="vr-barra-txt"></span>
+  <button class="vr-boton" type="button" onclick="vrSalir()">Salir de la vista previa</button>
+</div>
+<div class="vr-scrim" id="vr-scrim" hidden aria-hidden="true" onclick="vrCerrar()"></div>
+<aside class="vr-drawer" id="vr-drawer" hidden role="dialog" aria-label="Ver según rol">
+  <div class="vr-cab">
+    <div class="vr-titulo">VER SEGÚN ROL</div>
+    <button class="vr-boton" id="vr-cerrar" type="button" onclick="vrCerrar()" title="Cerrar (Esc)">&#10005; Cerrar</button>
+  </div>
+  <div class="vr-nota">Elegí un usuario para ver su menú. Es solo lectura: tu sesión no cambia.</div>
+  <label class="vr-opcion"><input type="checkbox" id="vr-inact" onchange="vrPintar()"> Mostrar también inactivos</label>
+  <div class="vr-lista" id="vr-lista"></div>
+</aside>
+<div class="toast" id="toast"></div>
 
 <!-- SCREEN 1: INICIO -->
 <div class="screen active" id="screen-inicio">
@@ -1014,6 +1109,7 @@ let navHistory = ['screen-inicio'];
 let selectedSede = '';
 let selectedRol  = '';
 let currentUser  = null; // { id, username, nombre, rol, permisos }
+let vrSim        = null; // Ver según rol: { user, imgAcc } mientras hay vista previa (nunca toca currentUser)
 
 /* -- OVERRIDE DURO DE ROL: estos usuarios SOLO pueden solicitar pedidos
      (se fuerza rol='solicitante' sin importar lo que diga Supabase) -- */
@@ -1150,6 +1246,8 @@ function showScreen(id) {
       id === 'screen-roles'  ? 'Sedes'  : 'Volver';
     if (badge) badge.style.display = 'inline-flex';
   }
+  if (vrSim && id !== 'screen-roles') vrLimpiar();
+  vrActualizarBoton();
 }
 
 function goBack() {
@@ -1442,12 +1540,12 @@ const ROLE_DEFAULTS = {
   licencias:   { sedes: ['Sede Hospital Italiano'], modulos: { personal:'user' } }
 };
 
-function getPermisos() {
-  const p = currentUser.permisos;
+function getPermisos(user = currentUser) {
+  const p = user.permisos;
   // Si permisos viene con contenido real (tiene sedes o modulos), usarlo
   if (p && (p.sedes || p.modulos)) return p;
   // Sino, usar defaults según el rol
-  return ROLE_DEFAULTS[currentUser.rol] || ROLE_DEFAULTS.solicitante;
+  return ROLE_DEFAULTS[user.rol] || ROLE_DEFAULTS.solicitante;
 }
 
 function afterLogin() {
@@ -1550,8 +1648,10 @@ const IMG_SUBTARJETAS_OCULTAS = true;               // Médicos / Residentes / T
 const PERSONAL_OCULTO = true;                       // sub-tarjeta Personal dentro de Administrativo
 const ROLES_QUE_VEN_PERSONAL = ['licencias', 'solicitante']; // su único acceso a personal.html: no se les oculta
 
-async function renderModules() {
-  const permisos = getPermisos();
+// sim (opcional, solo "Ver según rol"): { user, imgAcc } -> dibuja el menú de ese usuario sin navegar ni tocar la sesión.
+async function renderModules(sim) {
+  const usr = sim ? sim.user : currentUser;
+  const permisos = getPermisos(usr);
   const modulos = { ...(permisos.modulos || {}) };
   const grid = document.getElementById('roles-grid');
 
@@ -1570,7 +1670,7 @@ async function renderModules() {
   }
   // Dashboard Imágenes H.Italiano: permiso propio (img_mi_acceso); se ignora lo que traiga usuarios.permisos.
   for (const k of ['imagenes', 'img_medicos', 'img_residentes', 'img_tecnicos', 'img_admin']) delete modulos[k];
-  const imgAcc = await imgCargarAcceso();
+  const imgAcc = sim ? sim.imgAcc : await imgCargarAcceso();
   if (imgAcc && imgAcc.pestanas.length) {
     const IMG_HIJO = { medicos:'img_medicos', residentes:'img_residentes', tecnicos:'img_tecnicos', administrativos:'img_admin' };
     modulos.imagenes = imgAcc.nivel;
@@ -1578,7 +1678,7 @@ async function renderModules() {
   }
 
   // Personal oculto salvo para los roles que dependen de él; nunca deja al usuario sin módulos.
-  if (PERSONAL_OCULTO && !ROLES_QUE_VEN_PERSONAL.includes(currentUser.rol)
+  if (PERSONAL_OCULTO && !ROLES_QUE_VEN_PERSONAL.includes(usr.rol)
       && Object.keys(modulos).some(k => k !== 'personal' && modulos[k])) {
     delete modulos.personal;
   }
@@ -1589,7 +1689,10 @@ async function renderModules() {
   const modulosConPermiso = ['admin', 'tecnico', 'medico', 'operativo', 'personal', 'caja', 'conciliacion', 'validacion', 'harefield']
     .filter(key => modulos[key]);
   if (modulos.imagenes) modulosConPermiso.push('imagenes');
-  if (modulosConPermiso.length === 1) {
+  // En vista previa no se navega: solo se marca la tarjeta que sería el destino directo.
+  let directo = null;
+  if (sim && modulosConPermiso.length === 1) directo = modulosConPermiso[0];
+  if (!sim && modulosConPermiso.length === 1) {
     const key = modulosConPermiso[0];
     const destinos = { admin:'admin.html', tecnico:'tecnico.html', medico:'medico.html', operativo:'operativo.html?modo=pedidos', personal:'personal.html', caja:'caja.html', conciliacion:'conciliacion-pami.html', validacion:'validacion-pami.html', harefield:'harefield.html' };
     Object.assign(destinos, { imagenes:'imagenes.html', img_medicos:'imagenes.html#medicos', img_residentes:'imagenes.html#residentes', img_tecnicos:'imagenes.html#tecnicos', img_admin:'imagenes.html#administrativos' });
@@ -1599,11 +1702,11 @@ async function renderModules() {
   }
 
   // Greeting
-  document.getElementById('user-greeting').textContent = currentUser.nombre;
+  document.getElementById('user-greeting').textContent = usr.nombre;
 
   // Check pending pedidos for notification dot
   let pendingCount = 0;
-  if (modulos.operativo === 'admin') {
+  if (!sim && modulos.operativo === 'admin') {
     try {
       const r = await fetch(SUPABASE_URL + '/rest/v1/v_pedidos?select=id&estado=eq.PENDIENTE', {
         headers: await getSBHeaders()
@@ -1634,11 +1737,13 @@ async function renderModules() {
     const ro = perm === 'view' ? '<span class="mod-ro">Solo lectura</span>' : '';
     const dot = (key === 'operativo' && pendingCount > 0)
       ? `<span class="notif-dot">${pendingCount}</span>` : '';
-    return `<div class="mod-fila ${m.clase}${esSub ? ' sub' : ''}" onclick="selectRol('${m.nombre}','${m.key}')">
+    const clic = sim ? 'vrNoNavega()' : `selectRol('${m.nombre}','${m.key}')`;
+    const entraDirecto = (key === directo) ? '<span class="mod-ro">Entra directo</span>' : '';
+    return `<div class="mod-fila ${m.clase}${esSub ? ' sub' : ''}" onclick="${clic}">
       ${dot}
       <div class="mod-icono">${soloIcono(m)}</div>
       <div class="mod-cuerpo">
-        <div class="mod-nombre">${m.nombre}${ro}</div>
+        <div class="mod-nombre">${m.nombre}${ro}${entraDirecto}</div>
         <div class="mod-desc">${m.desc}</div>
       </div>
       <div class="mod-flecha">&#10095;</div>
@@ -1670,6 +1775,120 @@ async function renderModules() {
   grid.innerHTML = bloques.length > 0 ? bloques.join('') :
     '<div style="text-align:center; color:var(--muted); padding:40px;"><p>No tenés módulos asignados para esta sede.</p><p style="font-size:11px; margin-top:8px;">Contactá al administrador.</p></div>';
 }
+
+/* -- VER SEGÚN ROL (solo admin) --
+   Dibuja el menú como lo vería otro usuario reutilizando renderModules(sim).
+   No cambia currentUser, localStorage ni la sesión, y en vista previa nada navega. */
+let vrUsuarios = [];     // filas de admin_listar_usuarios
+let vrAccesos = null;    // { auth_user_id: fila } de img_acceso_listar (null si no se pudo leer)
+const VR_TABS_IMG = ['medicos', 'residentes', 'tecnicos', 'administrativos'];
+const VR_NIVEL_IMG = { ver: 'Ver', ver_contactos: 'Ver + contactos', editar: 'Editar', admin: 'Admin' };
+const VR_ROL_COLOR = { admin: '#A78BFA', consultor: '#60A5FA', mixto: '#34D399', solicitante: '#FBBF24', licencias: '#FB7185' };
+const vrEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function vrEsAdmin() { return !!currentUser && currentUser.rol === 'admin'; }
+
+function vrActualizarBoton() {
+  const b = document.getElementById('vr-btn');
+  if (b) b.classList.toggle('visible', vrEsAdmin() && currentScreen === 'screen-roles');
+}
+
+function vrNoNavega() { showToast('En vista previa no se navega', 'info'); }
+
+function vrCerrar() {
+  const d = document.getElementById('vr-drawer');
+  if (d.hidden) return;
+  d.hidden = true;
+  document.getElementById('vr-scrim').hidden = true;
+  const b = document.getElementById('vr-btn');
+  if (b && b.classList.contains('visible')) b.focus();
+}
+
+async function vrAbrir() {
+  if (!vrEsAdmin()) return;
+  document.getElementById('vr-scrim').hidden = false;
+  document.getElementById('vr-drawer').hidden = false;
+  document.getElementById('vr-cerrar').focus();
+  const lista = document.getElementById('vr-lista');
+  lista.innerHTML = '<div class="vr-vacio">Cargando...</div>';
+  try {
+    const us = await sbRpc('admin_listar_usuarios', {});
+    vrUsuarios = Array.isArray(us) ? us : [];
+  } catch (e) {
+    lista.innerHTML = '<div class="vr-vacio">No se pudo cargar la lista de usuarios.</div>';
+    return;
+  }
+  vrAccesos = null;
+  try {
+    const r = await sbRpc('img_acceso_listar', {});
+    if (r && r.ok === true && Array.isArray(r.accesos)) {
+      vrAccesos = {};
+      r.accesos.forEach(a => { vrAccesos[a.auth_user_id] = a; });
+    }
+  } catch (e) { /* sin nivel de Imágenes: se muestra "—" */ }
+  vrPintar();
+}
+
+function vrNivelImg(u) {
+  if (!u.auth_user_id || vrAccesos === null) return '—';
+  const f = vrAccesos[u.auth_user_id];
+  if (!f || !VR_NIVEL_IMG[f.nivel]) return 'sin acceso';
+  const n = VR_TABS_IMG.filter(t => Array.isArray(f.pestanas) && f.pestanas.indexOf(t) >= 0).length;
+  return VR_NIVEL_IMG[f.nivel] + ' · ' + n + (n === 1 ? ' pestaña' : ' pestañas');
+}
+
+function vrPintar() {
+  const lista = document.getElementById('vr-lista');
+  const conInactivos = document.getElementById('vr-inact').checked;
+  const orden = (a, b) => String(a.nombre || a.username || '').localeCompare(String(b.nombre || b.username || ''), 'es');
+  const activos = vrUsuarios.filter(u => u.activo).sort(orden);
+  const inactivos = conInactivos ? vrUsuarios.filter(u => !u.activo).sort(orden) : [];
+  const todos = activos.concat(inactivos);
+  if (!todos.length) { lista.innerHTML = '<div class="vr-vacio">No hay usuarios para mostrar.</div>'; return; }
+  lista.innerHTML = todos.map(u => `<button type="button" class="vr-item" data-id="${vrEsc(u.id)}" onclick="vrElegir(this.dataset.id)">
+      <div><span class="vr-nombre">${vrEsc(u.nombre || u.username)}</span><span class="vr-user">${vrEsc(u.username)}</span></div>
+      <div class="vr-meta">
+        <span class="vr-chip" style="color:${VR_ROL_COLOR[u.rol] || '#94A3B8'}">${vrEsc(String(u.rol || '').toUpperCase())}</span>
+        <span>Imágenes: ${vrEsc(vrNivelImg(u))}</span>
+        ${u.auth_user_id ? '' : '<span class="vr-chip aviso">sin login</span>'}
+        ${u.activo ? '' : '<span class="vr-chip aviso">inactivo</span>'}
+      </div>
+    </button>`).join('');
+}
+
+async function vrElegir(id) {
+  if (!vrEsAdmin()) return;
+  const u = vrUsuarios.find(x => String(x.id) === String(id));
+  if (!u) return;
+  const user = enforceRoleOverride({ ...u });   // copia: el objeto original y currentUser no se tocan
+  let imgAcc = null;
+  const f = (user.auth_user_id && vrAccesos) ? vrAccesos[user.auth_user_id] : null;
+  if (f && VR_NIVEL_IMG[f.nivel]) {
+    const p = Array.isArray(f.pestanas) ? f.pestanas : [];
+    imgAcc = { nivel: f.nivel, pestanas: VR_TABS_IMG.filter(t => p.indexOf(t) >= 0) };
+  }
+  vrSim = { user, imgAcc };
+  document.getElementById('vr-barra-txt').textContent =
+    'VISTA PREVIA de ' + (user.nombre || user.username) + ' (' + user.rol + ') — solo lectura, tu sesión no cambia';
+  document.body.classList.add('vr-activo');
+  vrCerrar();
+  await renderModules(vrSim);
+}
+
+// Apaga el estado de vista previa sin redibujar (lo usa showScreen al salir de la pantalla de roles).
+function vrLimpiar() {
+  vrSim = null;
+  document.body.classList.remove('vr-activo');
+}
+
+async function vrSalir() {
+  vrLimpiar();
+  await renderModules();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') vrCerrar();
+});
 
 function selectRol(nombre, clase) {
   selectedRol = nombre;
