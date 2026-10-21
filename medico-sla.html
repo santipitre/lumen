@@ -63,8 +63,8 @@ input[type=number].err{border-color:var(--red);box-shadow:0 0 0 2px rgba(248,113
   <h1>UMBRALES DE SLA · INFORMES</h1>
   <p class="sub">Plazos de informe por modalidad y tipo de turno. Página de administración; se abre por URL directa (<code>medico-sla.html</code>).</p>
 
-  <div class="banner" id="aviso-7b"><b>El semáforo todavía no lee esta tabla.</b> Lo que guardes acá queda registrado en la base, pero el semáforo de Médico sigue usando los plazos
-    incluidos en el código hasta la etapa 7b. Cambiar un valor hoy <b>no modifica</b> ningún semáforo, ranking ni Excel.</div>
+  <div class="banner" id="aviso-7b"><b>El semáforo de Médico lee esta tabla.</b> Lo que guardes acá cambia los plazos (verde / amarillo) que usa el semáforo para esa modalidad y turno.
+    Si una fila queda vacía, rige el valor del código.</div>
 
   <noscript><div class="banner block"><b>Hace falta JavaScript</b> para usar esta página.</div></noscript>
 
@@ -110,9 +110,9 @@ input[type=number].err{border-color:var(--red);box-shadow:0 0 0 2px rgba(248,113
       <tbody id="grid-body"></tbody>
     </table>
     </div>
-    <p class="note"><b>Para volver al plazo del código</b>, vaciá los dos campos de la fila y guardá: se borra la fila y el semáforo usa el valor del código (cuando lea la tabla, en 7b).
-      Los valores en gris dentro de los campos vacíos son los del código. <b>Amarillo sin hora</b> (sólo Eco/Doppler AMB, opcional): días calendario que cuentan como amarillo cuando el
-      estudio no trae hora; hoy se carga pero el código usa su valor fijo.</p>
+    <p class="note"><b>Para volver al plazo del código</b>, vaciá los dos campos de la fila y guardá: se borra la fila y el semáforo usa el valor del código.
+      Los valores en gris dentro de los campos vacíos son los del código (AMB, INT y URG de cada modalidad). <b>Amarillo sin hora</b> (sólo Eco/Doppler AMB): días calendario que cuentan como amarillo cuando el
+      estudio no trae hora; es obligatorio cuando se tilda «verde el mismo día» y no se usa en ningún otro caso.</p>
 
     <div class="actions" id="acts">
       <button class="btn" id="save" type="button" disabled>Guardar cambios</button>
@@ -124,9 +124,9 @@ input[type=number].err{border-color:var(--red);box-shadow:0 0 0 2px rgba(248,113
     <ul class="note rules">
       <li>Los plazos son números enteros de horas, mayores que 0.</li>
       <li><b>Verde &lt; amarillo</b>, estrictamente. Si no, la celda se marca en rojo y no se puede guardar.</li>
-      <li>Verde y amarillo van juntos: los dos completos o los dos vacíos. Los dos vacíos = <b>se borra la fila</b> (vuelve al plazo del código, o queda «sin umbral» si el código no tiene).</li>
+      <li>Verde y amarillo van juntos: los dos completos o los dos vacíos. Los dos vacíos = <b>se borra la fila</b> (vuelve al plazo del código; sólo queda «sin umbral» una modalidad que el código no conoce).</li>
       <li><b>Verde el mismo día</b> sólo existe para Ecografía / Doppler. Al tildarlo, el campo de horas de verde se deshabilita.</li>
-      <li><b>Amarillo sin hora</b>: entero de días ≥ 1, opcional, sólo Eco/Doppler AMB y sólo si la fila tiene umbrales.</li>
+      <li><b>Amarillo sin hora</b>: entero de días ≥ 1, sólo Eco/Doppler AMB. Obligatorio si se tilda «verde el mismo día»; sin esa marca no se puede cargar.</li>
       <li>Antes de guardar siempre se muestra un resumen de lo que cambia (modalidad, turno, valor anterior → nuevo).</li>
       <li><b>Con SLA_APROBADO = true</b> el resumen agrega una advertencia y exige tildar una confirmación explícita para poder guardar.</li>
       <li>El permiso de administrador lo comprueba la base al guardar; esta página sólo oculta los controles a quien no lo tiene.</li>
@@ -180,11 +180,11 @@ input[type=number].err{border-color:var(--red);box-shadow:0 0 0 2px rgba(248,113
   const ES = { rol: null, db: new Map(), mods: [], payload: [], guardando: false };
 
   /* ---------- Código por defecto (sólo lectura) ---------- */
-  function defAmb(mod) {
-    try { return (SLA_DEFAULT[mod] && SLA_DEFAULT[mod].AMB) || null; } catch (e) { return null; }
+  function defTurno(mod, turno) {
+    try { return (SLA_DEFAULT[mod] && SLA_DEFAULT[mod][turno]) || null; } catch (e) { return null; }
   }
-  function textoDef(mod) {
-    const d = defAmb(mod);
+  function textoDef(mod, turno) {
+    const d = defTurno(mod, turno);
     if (!d) return null;
     return (d.verde === 'mismoDia' ? 'mismo día' : d.verde + ' h') + ' / ' + d.amarillo + ' h';
   }
@@ -216,7 +216,9 @@ input[type=number].err{border-color:var(--red);box-shadow:0 0 0 2px rgba(248,113
     if (mismo) {
       if (!pv.vacio) add('verde', 'Con «mismo día» el verde no lleva horas.');
       if (pa.vacio) add('amar', 'Completá el plazo amarillo.');
+      if (pd.vacio && esEcoAmb) add('dias', 'Con «mismo día» completá el amarillo sin hora (días): el código no trae un valor por defecto.');
     } else {
+      if (!pd.vacio && !pd.error && esEcoAmb) add('dias', 'Sin «verde el mismo día», el amarillo sin hora no se usa: vaciá el campo o tildá «mismo día».');
       if (!pv.vacio && pa.vacio) add('amar', 'Completá los dos plazos o dejá ambos vacíos.');
       else if (pv.vacio && !pa.vacio) add('verde', 'Completá los dos plazos o dejá ambos vacíos.');
       else if (pv.vacio && pa.vacio) add('amar', 'El amarillo sin hora necesita los plazos de la fila.');
@@ -247,7 +249,7 @@ input[type=number].err{border-color:var(--red);box-shadow:0 0 0 2px rgba(248,113
     return descrDb(p);
   }
   function sinFila(mod, turno) {
-    const d = turno === 'AMB' ? textoDef(mod) : null;
+    const d = textoDef(mod, turno);
     return d ? 'valor del código (' + d + ')' : 'sin umbral';
   }
   const fmtFecha = new Intl.DateTimeFormat('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
@@ -279,12 +281,12 @@ input[type=number].err{border-color:var(--red);box-shadow:0 0 0 2px rgba(248,113
       TURNOS.forEach(t => {
         const r = ES.db.get(clave(m.mod, t));
         const ecoAmb = m.mod === MOD_ECO && t === 'AMB';
-        const d = t === 'AMB' ? defAmb(m.mod) : null;
+        const d = defTurno(m.mod, t);
         const k = esc(clave(m.mod, t));
         const et = esc(m.mod + ' ' + t);
         let meta;
         if (r) meta = celdaMod(r);
-        else if (t === 'AMB' && textoDef(m.mod)) meta = '— usa el código: ' + esc(textoDef(m.mod));
+        else if (textoDef(m.mod, t)) meta = '— usa el código: ' + esc(textoDef(m.mod, t));
         else meta = '—';
         h += '<tr data-k="' + k + '" data-mod="' + esc(m.mod) + '" data-t="' + t + '"><td class="t">' + t + '</td>';
         if (!edita) {
@@ -294,7 +296,7 @@ input[type=number].err{border-color:var(--red);box-shadow:0 0 0 2px rgba(248,113
             h += '<td>' + (r.mismo_dia ? 'mismo día' : esc(r.verde_h) + ' h') + '</td><td>' + esc(r.amarillo_h) + ' h</td><td>' + (r.mismo_dia ? 'sí' : '') + '</td><td>' +
               (r.amarillo_dias_sin_hora != null ? esc(r.amarillo_dias_sin_hora) + ' día(s)' : '') + '</td>';
           } else {
-            const x = (t === 'AMB' && d) ? usa : sin;
+            const x = d ? usa : sin;
             h += '<td>' + x + '</td><td>' + x + '</td><td></td><td></td>';
           }
         } else {
@@ -303,7 +305,7 @@ input[type=number].err{border-color:var(--red);box-shadow:0 0 0 2px rgba(248,113
           h += '<td><input type="number" min="1" step="1" class="in-verde" aria-label="' + et + ' verde, horas" placeholder="' + esc(phV) + '"><span class="u">h</span></td>';
           h += '<td><input type="number" min="1" step="1" class="in-amar" aria-label="' + et + ' amarillo, horas" placeholder="' + esc(phA) + '"><span class="u">h</span><span class="msg-fila"></span></td>';
           h += '<td><input type="checkbox" class="in-mismo" aria-label="' + et + ' verde el mismo día"' + (ecoAmb ? '' : ' disabled title="Sólo Ecografía / Doppler"') + '></td>';
-          h += '<td>' + (ecoAmb ? '<input type="number" min="1" step="1" class="in-dias" aria-label="' + et + ' amarillo sin hora, días" placeholder="' + (d && d.amarilloDiasSinHora ? esc(d.amarilloDiasSinHora) : '—') + '"><span class="u">día(s)</span>' : '') + '</td>';
+          h += '<td>' + (ecoAmb ? '<input type="number" min="1" step="1" class="in-dias" aria-label="' + et + ' amarillo sin hora, días" placeholder="' + (d && d.amarilloDiasSinHora ? esc(d.amarilloDiasSinHora) : 'con mismo día') + '" title="Obligatorio si tildás «verde el mismo día»: el código no trae un valor por defecto."><span class="u">día(s)</span>' : '') + '</td>';
         }
         h += '<td class="meta hide-m">' + meta + '</td></tr>';
       });
@@ -373,7 +375,7 @@ input[type=number].err{border-color:var(--red);box-shadow:0 0 0 2px rgba(248,113
     $('m-filas').innerHTML = ES.cambios.map((c, i) => {
       const antes = descrDb(c.r) || sinFila(c.mod, c.t);
       const p = ES.payload[i];
-      const ahora = descrPayload(p) || ('se borra (' + (c.t === 'AMB' && textoDef(c.mod) ? 'vuelve al código: ' + textoDef(c.mod) : 'queda sin umbral') + ')');
+      const ahora = descrPayload(p) || ('se borra (' + (textoDef(c.mod, c.t) ? 'vuelve al código: ' + textoDef(c.mod, c.t) : 'queda sin umbral') + ')');
       return '<tr><td>' + esc(c.mod) + ' · ' + esc(c.t) + '</td><td>' + esc(antes) + '</td><td class="chg">' + esc(ahora) + '</td></tr>';
     }).join('');
     const ap = aprobado();
