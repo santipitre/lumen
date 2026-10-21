@@ -682,13 +682,39 @@
       req.onerror = () => reject(req.error);
     });
   }
+  /* Fase 8 (N-A1 fuera de medico.html): mismo criterio que puedeVerRankingMedicos() y recortarSinPermiso() de medico.js.
+     Sólo ven los nombres de médico (Médico Informante / Informante Sugerido) quienes tienen el módulo médico en 'edit' o 'admin'.
+     Falla cerrado: sin sesión, sesión vencida (8 h), solicitante forzado, sin permiso del módulo o con un valor desconocido = sin nombres. Guard de cliente: disuasivo, no una garantía. */
+  const SPCD_COLUMNAS_CON_PERMISO_MEDICO = ['Médico Informante', 'Informante Sugerido'];
+  const SPCD_AVISO_SIN_PERMISO_MEDICOS = '🔒 El ranking por médico requiere permiso de edición del módulo Médico.';
+  function spcdPuedeVerNombresMedicos() {
+    try {
+      const DEFAULTS = { admin:{admin:'edit',tecnico:'edit',medico:'edit',operativo:'admin'}, consultor:{admin:'view',tecnico:'view',medico:'view',operativo:'view'}, mixto:{medico:'edit',operativo:'admin'}, solicitante:{operativo:'pedidos'} };
+      const s = JSON.parse(localStorage.getItem('spcd_session'));
+      if (!s || !s.ts || Date.now() - s.ts >= 8*60*60*1000) return false;
+      const SOLICITANTES_FORZADOS = ['TRUMBO','VFORNI','ISKAMLEC','MWSANCHEZ','JAVILA','LBASTIAS'];
+      if (s.user.username && SOLICITANTES_FORZADOS.includes(String(s.user.username).toUpperCase())) return false;
+      const pm = (s.user.permisos && s.user.permisos.modulos) ? s.user.permisos.modulos : (DEFAULTS[s.user.rol] || {});
+      return pm.medico === 'edit' || pm.medico === 'admin';
+    } catch (e) { return false; }
+  }
+  /* Devuelve copias sin las dos columnas (no toca spcd_data_full ni las filas de origen); con permiso devuelve las mismas filas. */
+  function spcdRecortarNombresMedicos(rows) {
+    if (!Array.isArray(rows) || spcdPuedeVerNombresMedicos()) return rows;
+    return rows.map(r => {
+      const c = Object.assign({}, r);
+      SPCD_COLUMNAS_CON_PERMISO_MEDICO.forEach(k => { delete c[k]; });
+      return c;
+    });
+  }
+
   async function loadData() {
     try {
       const db = await openDB();
       return await new Promise((resolve, reject) => {
         const tx = db.transaction('data', 'readonly');
         const req = tx.objectStore('data').get('spcd_data_full');
-        req.onsuccess = () => resolve(req.result || null);
+        req.onsuccess = () => resolve(spcdRecortarNombresMedicos(req.result || null));
         req.onerror = () => reject(req.error);
       });
     } catch(e) { return null; }
@@ -1054,6 +1080,7 @@
       }
 
       case 'top_medicos': {
+        if (!spcdPuedeVerNombresMedicos()) return { text: badges + SPCD_AVISO_SIN_PERMISO_MEDICOS, exportable: false };
         const con = rea.filter(tieneInforme);
         const by = {};
         con.forEach(r => { const m = r['Médico Informante']; if (medicoValido(m)) by[m] = (by[m]||0) + 1; });
@@ -1065,6 +1092,7 @@
       }
 
       case 'top_pendientes': {
+        if (!spcdPuedeVerNombresMedicos()) return { text: badges + SPCD_AVISO_SIN_PERMISO_MEDICOS, exportable: false };
         const pen = rea.filter(sinInforme);
         const by = {};
         pen.forEach(r => { const m = r['Médico Informante']; if (medicoValido(m)) by[m] = (by[m]||0) + 1; });
@@ -1642,6 +1670,7 @@
         spec = { rows: deduplicarPorTurno(rea.filter(esErrorCobertura)), schema: COLS_ADMIN, reportTitle: 'INFORME ADMINISTRATIVO', infoTitle: 'Tipo Cobertura con error', filePrefix: 'SPCD_Admin_ErrCobertura', descripcion: 'tipo cobertura con error' };
         break;
       case 'top_medicos': {
+        if (!spcdPuedeVerNombresMedicos()) return SPCD_AVISO_SIN_PERMISO_MEDICOS;
         const con = rea.filter(tieneInforme);
         const by = {}; con.forEach(r => { const m = r['Médico Informante']; if (medicoValido(m)) by[m] = (by[m]||0) + 1; });
         const total = Object.values(by).reduce((s,v) => s+v, 0);
@@ -1650,6 +1679,7 @@
         break;
       }
       case 'top_pendientes': {
+        if (!spcdPuedeVerNombresMedicos()) return SPCD_AVISO_SIN_PERMISO_MEDICOS;
         const pen = rea.filter(sinInforme);
         const by = {}; pen.forEach(r => { const m = r['Médico Informante']; if (medicoValido(m)) by[m] = (by[m]||0) + 1; });
         const entries = Object.entries(by).sort((a,b) => b[1]-a[1]);
@@ -2588,7 +2618,7 @@ Reescribí la respuesta de forma natural y profesional en español, manteniendo 
         { label: 'Top médicos', q: 'top medicos' },
         { label: 'Top pendientes', q: 'top pendientes' },
         { label: '📥 Excel pendientes', q: 'dame el excel de pendientes' },
-      ];
+      ].filter(c => spcdPuedeVerNombresMedicos() || !/^top (medicos|pendientes)$/.test(c.q));
     } else if (PAGE === 'tecnico.html') {
       chips = [
         { label: 'Top equipos', q: 'top equipos' },

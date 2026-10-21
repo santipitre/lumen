@@ -905,7 +905,7 @@ function handleExcelUpload(ev, statusElId) {
       await dbSave('spcd_data_full', data);
       try { localStorage.setItem('spcd_upload_date', new Date().toLocaleString('es-AR',{hour12:false})); } catch(e){}
 
-      RAW = data;
+      RAW = spcdRecortarNombresMedicos(data);   // fase 8: lo guardado arriba va completo; en memoria, sin nombres si no hay permiso
       // Detectar contexto temporal del Excel
       detectarContextoTemporal();
 
@@ -1106,6 +1106,32 @@ function ingresoDe(r) {
 }
 
 /* ─────────── CARGA INICIAL ─────────── */
+/* Fase 8 (N-A1 fuera de medico.html): mismo criterio que puedeVerRankingMedicos() y recortarSinPermiso() de medico.js.
+   Sólo ven los nombres de médico (Médico Informante / Informante Sugerido) quienes tienen el módulo médico en 'edit' o 'admin'.
+   Falla cerrado: sin sesión, sesión vencida (8 h), solicitante forzado, sin permiso del módulo o con un valor desconocido = sin nombres. Guard de cliente: disuasivo, no una garantía. */
+const SPCD_COLUMNAS_CON_PERMISO_MEDICO = ['Médico Informante', 'Informante Sugerido'];
+const SPCD_AVISO_SIN_PERMISO_MEDICOS = '🔒 El ranking por médico requiere permiso de edición del módulo Médico.';
+function spcdPuedeVerNombresMedicos() {
+  try {
+    const DEFAULTS = { admin:{admin:'edit',tecnico:'edit',medico:'edit',operativo:'admin'}, consultor:{admin:'view',tecnico:'view',medico:'view',operativo:'view'}, mixto:{medico:'edit',operativo:'admin'}, solicitante:{operativo:'pedidos'} };
+    const s = JSON.parse(localStorage.getItem('spcd_session'));
+    if (!s || !s.ts || Date.now() - s.ts >= 8*60*60*1000) return false;
+    const SOLICITANTES_FORZADOS = ['TRUMBO','VFORNI','ISKAMLEC','MWSANCHEZ','JAVILA','LBASTIAS'];
+    if (s.user.username && SOLICITANTES_FORZADOS.includes(String(s.user.username).toUpperCase())) return false;
+    const pm = (s.user.permisos && s.user.permisos.modulos) ? s.user.permisos.modulos : (DEFAULTS[s.user.rol] || {});
+    return pm.medico === 'edit' || pm.medico === 'admin';
+  } catch (e) { return false; }
+}
+/* Devuelve copias sin las dos columnas (no toca spcd_data_full ni las filas de origen); con permiso devuelve las mismas filas. */
+function spcdRecortarNombresMedicos(rows) {
+  if (!Array.isArray(rows) || spcdPuedeVerNombresMedicos()) return rows;
+  return rows.map(r => {
+    const c = Object.assign({}, r);
+    SPCD_COLUMNAS_CON_PERMISO_MEDICO.forEach(k => { delete c[k]; });
+    return c;
+  });
+}
+
 async function loadAll() {
   try {
     const [d, n, s] = await Promise.all([
@@ -1113,7 +1139,7 @@ async function loadAll() {
       dbLoad('spcd_nomenclador').catch(() => null),
       Promise.resolve(localStorage.getItem('spcd_servicio_state'))
     ]);
-    RAW = Array.isArray(d) ? d : [];
+    RAW = spcdRecortarNombresMedicos(Array.isArray(d) ? d : []);   // fase 8: sin permiso, RAW no trae nombres de médico
     NOMENCL = Array.isArray(n) ? n : [];
     if (s) {
       try { SERVICIO = Object.assign(defaultServicioState(), JSON.parse(s)); } catch(e) {}
@@ -1606,7 +1632,9 @@ function renderBenchmark() {
     .sort((a,b) => a.avg - b.avg)
     .slice(0, 8);
   const rm = document.getElementById('ranking-medicos');
-  if (!ranks.length) {
+  if (!spcdPuedeVerNombresMedicos()) {
+    rm.innerHTML = `<div style="text-align:center;padding:20px;color:var(--muted);font-size:11px">${SPCD_AVISO_SIN_PERMISO_MEDICOS}</div>`;
+  } else if (!ranks.length) {
     rm.innerHTML = `<div style="text-align:center;padding:20px;color:var(--muted);font-size:11px">SIN DATOS</div>`;
   } else {
     const max = ranks[ranks.length-1].avg || 1;
