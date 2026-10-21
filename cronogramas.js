@@ -131,7 +131,7 @@ function armarModelo(raw, listas){
     (listas[tipo] || []).forEach(function(p){
       if(!p || !p.id) return;
       M.PM[p.id] = { key: p.id, id: p.id, tipo: p.tipo || tipo, grp: grpDe(p.tipo || tipo), ap: String(p.apellido || ''), nom: String(p.nombre || ''),
-        serv: Array.isArray(p.servicios) ? p.servicios.slice() : [], orden: +p.orden || 0, anio: (String((p.datos || {}).anio || '').match(/\d/) || [''])[0] };
+        serv: Array.isArray(p.servicios) ? p.servicios.slice() : [], orden: +p.orden || 0, reemp: !!(p.datos && p.datos.reemplazante === true), anio: (String((p.datos || {}).anio || '').match(/\d/) || [''])[0] };
     });
   });
   function persona(id, nombreLibre, grp){
@@ -337,6 +337,14 @@ function calculos(M, hoy){
     if(lo && lo.tipo !== 'Cambio de turno') w.push('tiene licencia ese día');
     return w;
   }
+  /* Una licencia exige reemplazante salvo que su titular sea, él mismo, reemplazante (datos.reemplazante). */
+  function sinReemp(l){ const p = PM[l.key]; return !l.reemps.length && !(p && p.reemp); }
+  /* Licencia del reemplazante que pisa alguno de los días que realmente cubre (no todo el rango de la licencia cubierta). */
+  function choqueReemp(l, r){
+    if(!r.key) return null;
+    const ds = repDays(l, r);
+    return L.find(function(x){ return x.key === r.key && x.id !== l.id && x.tipo !== 'Cambio de turno' && ds.some(function(d){ return x.desde <= d && d <= lend(x); }); }) || null;
+  }
   function repAll(){
     const out = [];
     L.filter(function(l){ return PM[l.key] && (PM[l.key].grp === 'tec' || PM[l.key].grp === 'adm'); }).forEach(function(l){
@@ -457,7 +465,7 @@ function calculos(M, hoy){
     return { n: n, bad: bad };
   }
   return { PM: PM, nm: nm, lend: lend, satTipo: satTipo, satTipoW: satTipoW, esGuard: esGuard, esOfi: esOfi, licOn: licOn, repOn: repOn, rname: rname, rshort: rshort,
-    repEst: repEst, people: people, grpDeTab: grpDeTab, dayData: dayData, ownShifts: ownShifts, repDays: repDays, popOverlap: popOverlap, repAll: repAll, repCheck: repCheck,
+    repEst: repEst, people: people, grpDeTab: grpDeTab, dayData: dayData, ownShifts: ownShifts, repDays: repDays, popOverlap: popOverlap, repAll: repAll, sinReemp: sinReemp, choqueReemp: choqueReemp, repCheck: repCheck,
     repConflicts: repConflicts, diagCells: diagCells, horasData: horasData, admIv: admIv, admConc: admConc, admPeak: admPeak, hoy: hoy,
     rotOf: rotOf, rotSab: rotSab, rotLista: rotLista, rotOrden: rotOrden };
 }
@@ -1431,7 +1439,7 @@ function itemsPC(){
   const o = {
     no: reps.filter(function(x){ return x.est === 'no'; }).sort(ord),
     pe: reps.filter(function(x){ return x.est !== 'no'; }).sort(ord),
-    sinR: M.L.filter(function(l){ return grpOk(l.key) && C_.lend(l) >= hoy && !l.reemps.length; }).sort(function(a, b){ return a.desde.localeCompare(b.desde); }),
+    sinR: M.L.filter(function(l){ return grpOk(l.key) && C_.lend(l) >= hoy && C_.sinReemp(l); }).sort(function(a, b){ return a.desde.localeCompare(b.desde); }),
     lp: M.L.filter(function(l){ return l.pend && grpOk(l.key); }).sort(function(a, b){ return a.desde.localeCompare(b.desde); }),
     fp: M.F.filter(function(f){ return f.pend && sc.tabs.indexOf(f.tab) >= 0; }).sort(function(a, b){ return a.tab.localeCompare(b.tab) || nmP(a.key).localeCompare(nmP(b.key), 'es') || a.dia - b.dia; }),
     gp: sc.g ? M.G.filter(function(g){ return g.pend; }).sort(function(a, b){ return a.fecha.localeCompare(b.fecha); }) : []
@@ -2727,13 +2735,13 @@ function alertasDe(scope){
   if(inc('tec') || inc('adm')){
     const mine = M.L.filter(function(l){ return grpScope(l.key); }), lim = addD(hoy, 60);
     mine.filter(function(l){ return !l.hasta; }).forEach(function(l){ w('Sin fecha de regreso: ', nmP(l.key) + ', ' + l.tipo + ' desde ' + fmtF(l.desde) + '.'); });
-    mine.filter(function(l){ return C_.lend(l) >= hoy && l.desde <= lim && !l.reemps.length; }).forEach(function(l){
+    mine.filter(function(l){ return C_.lend(l) >= hoy && l.desde <= lim && C_.sinReemp(l); }).forEach(function(l){
       w('Sin reemplazo: ', nmP(l.key) + ', ' + l.tipo + ' ' + fmtF(l.desde) + '–' + (l.hasta ? fmtF(l.hasta) : 'sin fecha de regreso') + '.', { sub: 'licencias', vista: 'conf' });
     });
     mine.forEach(function(l){
       l.reemps.forEach(function(r){
         if(!r.key) return;
-        const c = M.L.find(function(x){ return x.key === r.key && x.id !== l.id && x.tipo !== 'Cambio de turno' && x.desde <= C_.lend(l) && l.desde <= C_.lend(x); });
+        const c = C_.choqueReemp(l, r);
         if(c) w('Reemplazante de licencia: ', nmP(r.key) + ' cubre a ' + nmP(l.key) + ' pero tiene ' + c.tipo + ' ' + fmtF(c.desde) + '–' + (c.hasta ? fmtF(c.hasta) : 'sin fecha de regreso') + '.');
       });
     });
@@ -2823,7 +2831,7 @@ function kpisDe(){
   }
   const reales = ps, onL = reales.filter(function(p){ const q = C_.licOn(p.key, hoy); return q && q.tipo !== 'Cambio de turno'; });
   const lim = addD(hoy, 60), mine = M.L.filter(function(l){ return reales.some(function(p){ return p.key === l.key; }); });
-  const nor = mine.filter(function(l){ return C_.lend(l) >= hoy && l.desde <= lim && !l.reemps.length; });
+  const nor = mine.filter(function(l){ return C_.lend(l) >= hoy && l.desde <= lim && C_.sinReemp(l); });
   const k = [];
   if(t === 'adm'){ const q = C_.admPeak(S.y, S.m); k.push(['Máx. en simultáneo', q.n, 'de 2 lugares de atención', q.n > 2]); }
   else if(t === 'tec'){
