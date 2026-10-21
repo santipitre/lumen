@@ -2807,7 +2807,7 @@ function pendientesDe(){
   const sinInf = diasTc.filter(function(d){ return !tcDay(d).inf; }).length;
   const sinR4 = diasTc.filter(function(d){ const x = tcDay(d); return x.r4 && !x.r4l.length; }).length;
   if(sinInf || sinR4) o.push('Tomografía (' + MESES[S.m] + '): ' + (sinInf ? 'sin médico que informe en ' + sinInf + ' día' + (sinInf === 1 ? '' : 's') : '') + (sinInf && sinR4 ? ' y ' : '') + (sinR4 ? 'sin R4 en ' + sinR4 + ' fin' + (sinR4 === 1 ? '' : 'es') + ' de semana o feriado' + (sinR4 === 1 ? '' : 's') : '') + ' (a confirmar).');
-  o.push('Tomografía: guardias de Ismael y Hualpa sin cargar (a confirmar).');
+  o.push('Tomografía: guardias de Ismael De Carlini y Hualpa sin cargar (a confirmar).');
   o.push('Técnicos de Resonancia Magnética: sin cargar (a confirmar).');
   o.push('Administrativos: régimen semanal de cada persona sin cargar (a confirmar).');
   if(puedeEditar() && !ST.R.tarifas) o.push('Pago de técnicos: tarifas sin cargar (a confirmar).');
