@@ -34,13 +34,14 @@ function deepFreeze(o) {
   return Object.freeze(o);
 }
 
-// PROVISORIO (OQ1, A2): horas corridas, pendiente de aprobación. INT/URG sin valores: semaforo() devuelve 'sin umbral'
+// Fallback en horas corridas: los plazos aprobados por jefatura (OQ1, 2026-10-20), iguales a los de medico_sla.
+// Sin fila AMB en la tabla para TC, RM y Cámara gamma, rige el AMB de acá.
 const SLA_DEFAULT = deepFreeze({
-  'RAYOS X': { AMB: { verde: 24, amarillo: 48 } },
-  'ECOGRAFÍA / DOPPLER': { AMB: { verde: 'mismoDia', amarillo: 24, amarilloDiasSinHora: 1 } },
-  'TOMOGRAFÍA': { AMB: { verde: 48, amarillo: 72 } },
-  'RESONANCIA MAGNÉTICA': { AMB: { verde: 48, amarillo: 72 } },
-  'CÁMARA GAMMA': { AMB: { verde: 72, amarillo: 120 } },
+  'RAYOS X': { AMB: { verde: 48, amarillo: 72 }, INT: { verde: 24, amarillo: 48 }, URG: { verde: 12, amarillo: 24 } },
+  'ECOGRAFÍA / DOPPLER': { AMB: { verde: 48, amarillo: 72 }, INT: { verde: 24, amarillo: 48 }, URG: { verde: 12, amarillo: 24 } },
+  'TOMOGRAFÍA': { AMB: { verde: 48, amarillo: 72 }, INT: { verde: 24, amarillo: 48 }, URG: { verde: 14, amarillo: 24 } },
+  'RESONANCIA MAGNÉTICA': { AMB: { verde: 48, amarillo: 72 }, INT: { verde: 24, amarillo: 48 }, URG: { verde: 12, amarillo: 24 } },
+  'CÁMARA GAMMA': { AMB: { verde: 72, amarillo: 120 }, INT: { verde: 24, amarillo: 49 }, URG: { verde: 13, amarillo: 27 } },
 });
 
 /* Fase 7b (D7 = A): tabla vigente = SLA_DEFAULT + filas de medico_sla (una por modalidad y tipo de turno).
@@ -94,7 +95,7 @@ function aplicarSlaTabla(filas) {
 }
 
 // B1: única marca. false = umbrales PROVISORIOS (abre Resumen + aviso); true = aprobados (OQ1): abre Semáforo, sin aviso.
-let SLA_APROBADO = false;
+let SLA_APROBADO = true;
 
 // C4: n mínimo de informes con demora por médico y modalidad (período filtrado). También lo usan C7, C9 y C14.
 const N_MIN_INFORMES = 20;

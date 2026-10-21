@@ -149,10 +149,11 @@ function mostrarAvisoColumnas(faltantes, copiadoEn) {
 
 /* ═══════════════════════════════════
    UMBRALES DE SLA DESDE LA BASE (fase 7b, D7 = A)
-   Lee TODAS las filas de medico_sla (modalidad × tipo de turno) con la sesión de Auth; SLA_VIGENTE las pone sobre
-   SLA_DEFAULT (medico-metricas.js). Sin sesión de Auth (quien entra sólo con PIN: la policy es TO authenticated),
-   sin SDK, con error, con tope de tiempo, sin filas o con filas inválidas, rige SLA_DEFAULT y la página sigue igual.
-   Nunca rechaza: devuelve 'tabla' o 'codigo'. SLA_APROBADO NO se toca (depende de jefatura, OQ1).
+   Lee TODAS las filas de medico_sla (modalidad × tipo de turno); SLA_VIGENTE las pone sobre SLA_DEFAULT
+   (medico-metricas.js). sbQuery usa el token de la sesión de Auth si la hay y, si no (quien entra sólo con PIN), la anon
+   key pública: desde el 2026-10-20 la policy medico_sla_sel_anon deja leer la tabla a `anon`. Sin spcd-supabase.js,
+   con error, con tope de tiempo, sin filas o con filas inválidas, rige SLA_DEFAULT y la página sigue igual.
+   Nunca rechaza: devuelve 'tabla' o 'codigo'.
 ═══════════════════════════════════ */
 const SLA_COLUMNAS = 'modalidad,turno,verde_h,amarillo_h,mismo_dia,amarillo_dias_sin_hora';
 const SLA_LECTURA_TOPE_MS = 3000;
@@ -160,9 +161,7 @@ function cargarSlaVigente() {
   let timer = null;
   const tope = new Promise(res => { timer = setTimeout(() => res(null), SLA_LECTURA_TOPE_MS); });
   const lectura = (async () => {
-    if (typeof sbQuery !== 'function' || !window.sbAuth || !window.sbAuth.auth) return null;
-    const { data } = await window.sbAuth.auth.getSession();
-    if (!data || !data.session) return null;
+    if (typeof sbQuery !== 'function') return null;
     return sbQuery('medico_sla', 'select=' + SLA_COLUMNAS + '&order=modalidad.asc,turno.asc');
   })().catch(err => { console.warn('medico_sla: no se pudo leer, rigen los plazos del código:', err && err.message); return null; });
   return Promise.race([lectura, tope]).then(filas => {
@@ -860,13 +859,19 @@ const COLUMNAS_MEDICOS = [
   ['pct', '% en SLA', 'num'], ['volumen', 'Volumen (sin ponderar)', 'num'],
 ];
 
+// Posición de ranking de la fila i: "—" si el médico no tiene % en SLA (pctEnSla null); el resto numera de 1 sin saltos.
+function posicionRankingTxt(lista, i) {
+  if (lista[i].pctEnSla === null) return '—';
+  return lista.slice(0, i + 1).filter(e => e.pctEnSla !== null).length;
+}
+
 // C13: el nombre es un botón que abre el drill-down; médico y modalidad viajan en data-* (nunca en un onclick).
 function tablaMedicosHTML(lista, bloque, mod) {
   const marca = SLA_APROBADO ? '' : '*';
   const ths = COLUMNAS_MEDICOS.map(([k, t, c]) =>
     `<th class="${c}" data-sort="${k}">${esc(t + (k === 'pct' ? marca : ''))}</th>`).join('');
   const filas = lista.map((e, i) => `<tr>
-      <td class="num med-pos">${i + 1}</td>
+      <td class="num med-pos">${posicionRankingTxt(lista, i)}</td>
       <td class="med-nombre" data-v="${escAttr(e.medico)}" title="${escAttr(e.medico)}"><button type="button" class="med-drill" data-medico="${escAttr(e.medico)}" data-modalidad="${escAttr(mod)}">${esc(e.medico)}</button></td>
       <td class="num" data-v="${e.n}">${e.n}</td>
       <td class="num" data-v="${e.p90Horas}">${fmtDias(e.p90Horas)}</td>
@@ -1027,6 +1032,9 @@ function renderTabPrestaciones(data) {
 const NIVELES_CALOR = ['calor-0', 'calor-1', 'calor-2', 'calor-3', 'calor-4'];
 // Función, como AVISO_POCOS_DATOS: medico-metricas.js carga después de medico.js y N_MIN_INFORMES no existe todavía.
 const LEYENDA_CALOR = () => `El color compara días dentro de la misma modalidad, no entre modalidades. En gris: menos de ${N_MIN_INFORMES} estudios con demora en el período filtrado.`;
+const AVISO_SIN_DATOS_PERIODO = 'Sin datos en el período';
+// M3 (REVIEW-4.1): el Excel no lleva color; la leyenda habla de «—» y de la tabla n.
+const LEYENDA_CALOR_EXCEL = () => `Los números comparan días dentro de la misma modalidad, no entre modalidades. «—»: sin estudios con demora. Con menos de ${N_MIN_INFORMES} estudios (ver la tabla n) el dato es poco confiable.`;
 const DIAS_CALOR = [['1', 'Lun'], ['2', 'Mar'], ['3', 'Mié'], ['4', 'Jue'], ['5', 'Vie'], ['6', 'Sáb'], ['7', 'Dom']];
 
 // Máximo de P90 (horas) entre las celdas dadas; null si no hay ninguna.
@@ -2160,7 +2168,7 @@ async function exportMedicosExcel(share) {
     const cols = ['#'].concat(COLUMNAS_MEDICOS.map(([k, t]) => t + (k === 'pct' ? marca : '')));
     const totalCols = cols.length;
     const dias = h => h === null ? null : Number(fmtDias(h));
-    const filasRank = lista => lista.map((e, i) => [i + 1, e.medico, e.n, dias(e.p90Horas), dias(e.medianaHoras),
+    const filasRank = lista => lista.map((e, i) => [posicionRankingTxt(lista, i), e.medico, e.n, dias(e.p90Horas), dias(e.medianaHoras),
       e.pctEnSla === null ? null : Number(e.pctEnSla.toFixed(1)), e.volumen]).map(sanearFilaExport);
     const filasPocos = lista => lista.map(e => [e.medico, e.n]).map(sanearFilaExport);
     const nRegistros = mods.reduce((a, m) => a + ranking[m].staff.length + ranking[m].staffPocos.length
@@ -2309,7 +2317,8 @@ async function exportPrestacionesExcel(share) {
     const totalCols = COLUMNAS_PRESTACIONES_P90.length;
     const filasP90 = lista => lista.map(e => [e.prestacion, e.codigo, e.n, diasExport(e.p90Horas), diasExport(e.medianaHoras)]).map(sanearFilaExport);
     const filasVol = lista => lista.map(e => [e.prestacion, e.codigo, e.volumen]).map(sanearFilaExport);
-    const nRegistros = mods.reduce((a, m) => a + res[m].porP90.length + res[m].porVolumen.length, 0);
+    // M5(1) (REVIEW-4.1): prestaciones distintas por modalidad (una que está en los dos tops cuenta una vez).
+    const nRegistros = mods.reduce((a, m) => a + new Set(res[m].porP90.concat(res[m].porVolumen).map(e => e.prestacion)).size, 0);
 
     const subtitle = 'PRESTACIONES POR MODALIDAD';
     const { wb, ws } = SpcdExcel.createBook({ subtitle, sheetName:'Prestaciones' });
@@ -2364,7 +2373,8 @@ async function exportMapaCalorExcel(share) {
     });
     const lf = escribirLineaFiltros(ws, h.nextRow, totalCols, 'tab-demora');
     const w = escritorVista(ws, lf.nextRow, totalCols, [26, 10, 10, 10, 10, 10, 10, 10]);
-    w.texto(LEYENDA_CALOR());                            // la leyenda va como texto: el Excel no lleva color por nivel
+    w.texto(LEYENDA_CALOR_EXCEL());                      // la leyenda va como texto: el Excel no lleva color por nivel
+    if (nRegistros === 0) w.texto(AVISO_SIN_DATOS_PERIODO);   // M5(2) (REVIEW-4.1): sin modalidades o todo n = 0
     const fmtCelda = (cell, v, rd, idx, ci) => {
       if (ci > 0) SpcdExcel.Fmt.center(cell);
       if (ci > 0 && typeof v === 'number') cell.numFmt = '0.0';
