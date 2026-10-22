@@ -12,6 +12,8 @@ const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', '
 const MN = MESES.map(function(x){ return x.toLowerCase(); });
 const TURN = { M: ['07:00', '13:00', 'Mañana'], T: ['13:00', '19:00', 'Tarde'], N: ['19:00', '07:00', 'Noche'], D: ['07:00', '19:00', 'Guardia día'] };
 const DL = { M: 'Mañana', T: 'Tarde', N: 'Noche', D: 'Guardia día' };
+/* Sábados rotativos: 1 y 2 alternan semana por medio; 3 solo rige para Resonancia, que rota entre 3 técnicos (ciclo de 3 sábados desde sat0). */
+const SEM_OPS = [[0, 'Todos los sábados'], [1, 'Sábado 1'], [2, 'Sábado 2'], [3, 'Sábado 3 (Resonancia, rotación de 3)']];
 const SEC = { 'Tomografía': 'TC', 'Radiología': 'RX', 'Resonancia Magnética': 'RM' };
 const END = '9999-12-31';
 const PAL = [205, 265, 330, 28, 172, 48, 150, 300, 10, 230, 120, 190, 80, 350, 250];
@@ -126,7 +128,7 @@ function letterOf(d, hasta){
 function grpDe(tipo){ return tipo === 'medico' ? 'med' : tipo === 'tecnico' ? 'tec' : tipo === 'administrativo' ? 'adm' : 'res'; }
 
 function armarModelo(raw, listas){
-  const M = { PM: {}, P: [], F: [], G: [], XT: [], L: [], FER: {}, TC: { cal: {}, calV: {}, cambios: [], inf: {}, infV: {}, r4: [] }, cfg: { sat0: null, tarifas: null, jefa: null, servicios: null, rotSab: null, ver: {} } };
+  const M = { PM: {}, P: [], F: [], G: [], XT: [], L: [], FER: {}, TC: { cal: {}, calV: {}, cambios: [], inf: {}, infV: {}, r4: [] }, cfg: { sat0: null, tarifas: null, jefa: null, servicios: null, rotSab: null, tcSemana: null, ver: {} } };
   Object.keys(listas || {}).forEach(function(tipo){
     (listas[tipo] || []).forEach(function(p){
       if(!p || !p.id) return;
@@ -173,6 +175,7 @@ function armarModelo(raw, listas){
     else if(c.clave === 'jefa') M.cfg.jefa = c.valor;
     else if(c.clave === 'servicios') M.cfg.servicios = c.valor;
     else if(c.clave === 'rot_sab') M.cfg.rotSab = c.valor;
+    else if(c.clave === 'tc_semana') M.cfg.tcSemana = c.valor;
   });
   M.P = Object.keys(M.PM).map(function(k){ return M.PM[k]; }).sort(function(a, b){
     const g = ['tec', 'adm', 'med', 'res'];
@@ -188,8 +191,10 @@ function calculos(M, hoy){
   const nm = function(p){ return p.ap + (p.nom ? ' ' + p.nom : ''); };
   const lend = function(l){ return l.hasta || END; };
   const satPrev = function(d){ let x = d; while(wdOf(x) !== 5) x = addD(x, -1); return x; };
-  const satTipo = function(d){ const w = Math.round(diffD(SAT0, d) / 7); return (((w % 2) + 2) % 2) === 0 ? 2 : 1; };
-  const satTipoW = function(d){ return satTipo(satPrev(d)); };
+  /* ciclo de sábados: 2 (alternan 1 y 2; sat0 = Sábado 2) o 3 (Resonancia: sat0 = Sábado 1, luego 2, 3, 1…) */
+  const satTipo = function(d, n){ const w = Math.round(diffD(SAT0, d) / 7); return n === 3 ? ((((w % 3) + 3) % 3) + 1) : ((((w % 2) + 2) % 2) === 0 ? 2 : 1); };
+  const satTipoW = function(d, n){ return satTipo(satPrev(d), n); };
+  const ciclo = function(k){ const p = PM[k]; return p && p.serv && p.serv.indexOf('Resonancia Magnética') >= 0 ? 3 : 2; };
   /* dinámicos: las altas/bajas locales (optimistas) cambian G y F sin recalcular el modelo */
   const esGuard = function(k){ return G.some(function(g){ return g.key === k; }) || F.some(function(f){ return f.key === k && f.guardia; }); };
   const esOfi = function(k){ return F.some(function(f){ return f.key === k && f.tab === 'adm' && String(f.sec).toLowerCase() === OFICINA.toLowerCase(); }); };
@@ -269,7 +274,7 @@ function calculos(M, hoy){
 
   function dayData(t, d, pf){
     const wd = wdOf(d), items = [], strip = [], fer = FER[d];
-    const frs0 = F.filter(function(f){ return f.tab === t && f.dia === wd && (!f.sem || f.sem === satTipoW(d)) && !(fer && (t === 'tec' || t === 'adm')); });
+    const frs0 = F.filter(function(f){ return f.tab === t && f.dia === wd && (!f.sem || f.sem === satTipoW(d, ciclo(f.key))) && !(fer && (t === 'tec' || t === 'adm')); });
     const frs = t === 'adm' ? admAjuste(frs0, d, wd) : frs0;
     const gs = t === 'tec' ? G.filter(function(g){ return g.fecha === d; }).map(function(g){
       return { id: g.id, tab: 'tec', key: g.key, dia: wd, d: TURN[g.t][0], h: TURN[g.t][1], sec: '', asig: [], guardia: true, g: true, t: g.t, fecha: g.fecha, pend: g.pend };
@@ -313,7 +318,7 @@ function calculos(M, hoy){
     const wd = wdOf(d), o = [];
     if(!ig && licOn(k, d)) return o;
     const fin = function(a, b){ return [mins(a), mins(b) <= mins(a) ? mins(b) + 1440 : mins(b)]; };
-    F.filter(function(f){ return f.key === k && f.dia === wd && (!f.sem || f.sem === satTipoW(d)) && !(FER[d] && f.tab === 'tec') && !(wd === 5 && f.tab === 'adm' && rotOf(k) && rotAt(d)); }).forEach(function(f){ o.push(fin(f.d, f.h)); });
+    F.filter(function(f){ return f.key === k && f.dia === wd && (!f.sem || f.sem === satTipoW(d, ciclo(f.key))) && !(FER[d] && f.tab === 'tec') && !(wd === 5 && f.tab === 'adm' && rotOf(k) && rotAt(d)); }).forEach(function(f){ o.push(fin(f.d, f.h)); });
     if(wd === 5){ const rs = rotSab(d); if(rs && rs.key === k) o.push(fin(rs.d, rs.h)); }
     G.filter(function(g){ return g.key === k && g.fecha === d; }).forEach(function(g){ o.push(fin(TURN[g.t][0], TURN[g.t][1])); });
     XT.filter(function(x){ return x.key === k && x.fecha === d; }).forEach(function(x){ o.push(fin(x.d, x.h)); });
@@ -1266,12 +1271,12 @@ function camposFranja(f){
   r.dia.setAttribute('aria-label', 'Día');
   r.d = h('input', { type: 'time', value: f.d, 'aria-label': 'Desde' });
   r.h = h('input', { type: 'time', value: f.h, 'aria-label': 'Hasta' });
-  r.sem = selec([[0, 'Todos los sábados'], [1, 'Sábado 1'], [2, 'Sábado 2']], f.sem || 0, function(){});
+  r.sem = selec(SEM_OPS, f.sem || 0, function(){});
   r.sem.setAttribute('aria-label', 'Sábado');
   r.semw = campo('Sábado', r.sem);
   r.semw.hidden = f.dia !== 5;
   r.sec = adm ? h('input', { type: 'text', value: f.sec || '', maxlength: '60', placeholder: 'Sector', 'aria-label': 'Sector' }) : null;
-  r.turno = tec ? selec([['', 'Sin turno fijo'], ['M', 'Mañana'], ['T', 'Tarde']], f.turno || '', function(){}) : null;
+  r.turno = tec ? selec([['', 'Sin turno fijo'], ['M', 'Mañana'], ['T', 'Tarde'], ['N', 'Noche']], f.turno || '', function(){}) : null;
   if(r.turno) r.turno.setAttribute('aria-label', 'Turno');
   r.g = tec ? h('input', { type: 'checkbox', checked: !!f.guardia, 'aria-label': 'Guardia' }) : null;
   r.pend = h('input', { type: 'checkbox', checked: !!f.pend, 'aria-label': 'A confirmar' });
@@ -1356,13 +1361,13 @@ function formPersonaCuadro(){
   r.p = selec(op, '', function(v){ r.nom.hidden = v !== '__libre'; });
   r.p.setAttribute('aria-label', 'Persona');
   const dias = DIAS.map(function(n, i){ return h('label', { class: 'cr-chk1 cr-dsel' }, h('input', { type: 'checkbox', 'data-dia': i, 'aria-label': n, on: { change: function(){ r.semw.hidden = !dias[5].querySelector('input').checked; } } }), n.slice(0, 3)); });
-  r.sem = selec([[0, 'Todos los sábados'], [1, 'Sábado 1'], [2, 'Sábado 2']], 0, function(){});
+  r.sem = selec(SEM_OPS, 0, function(){});
   r.sem.setAttribute('aria-label', 'Sábado');
   r.semw = campo('Sábado', r.sem); r.semw.hidden = true;
   r.d = h('input', { type: 'time', value: t === 'adm' ? '08:00' : t === 'rx' ? '08:00' : '07:00', 'aria-label': 'Desde' });
   r.h = h('input', { type: 'time', value: t === 'adm' ? '16:00' : t === 'rx' ? '20:00' : '13:00', 'aria-label': 'Hasta' });
   r.sec = t === 'adm' ? h('input', { type: 'text', maxlength: '60', placeholder: 'Sector', 'aria-label': 'Sector' }) : null;
-  r.turno = t === 'tec' ? selec([['', 'Sin turno fijo'], ['M', 'Mañana'], ['T', 'Tarde']], '', function(){}) : null;
+  r.turno = t === 'tec' ? selec([['', 'Sin turno fijo'], ['M', 'Mañana'], ['T', 'Tarde'], ['N', 'Noche']], '', function(){}) : null;
   if(r.turno) r.turno.setAttribute('aria-label', 'Turno');
   r.pend = h('input', { type: 'checkbox', 'aria-label': 'A confirmar' });
   const marcar = function(a){ dias.forEach(function(l, i){ l.querySelector('input').checked = a.indexOf(i) >= 0; }); r.semw.hidden = a.indexOf(5) < 0; };
@@ -2093,7 +2098,7 @@ function diagHelp(){
       h('span', null, cc('M r pe', 'M'), 'Reemplazo por confirmar'), h('span', null, cc('M r no', 'M'), 'Dijo que no puede')),
     h('details', { class: 'cr-how' }, h('summary', { t: 'Cómo se lee y reglas del servicio' }),
       h('p', null, h('b', { t: 'Planta (mañana o tarde): ' }), 'lunes a viernes; cada técnico conserva su horario real y la letra M/T es solo el turno. Los sábados alternan entre ', h('b', { t: 'Sábado 1' }), ' y ', h('b', { t: 'Sábado 2' }),
-        ' a partir de una fecha ancla configurada (sat0).'),
+        ' a partir de una fecha ancla configurada (sat0); Resonancia rota entre 3 técnicos (', h('b', { t: 'Sábado 1, 2 y 3' }), ').'),
       h('p', null, h('b', { t: 'Guardias de 12 h: ' }), 'se cargan por fecha cada mes (noche 19–07, día 07–19). Domingos y feriados llevan guardia de día más noche.'),
       h('p', null, h('b', { t: 'Feriados: ' }), 'la columna se marca en rojo y el personal de planta tiene franco.'),
       h('p', null, h('b', { t: 'Reemplazos: ' }), 'aparecen en la fila de quien cubre, con borde punteado según el estado. Todo reemplazo sin confirmar figura como “a confirmar”. ',
@@ -2418,10 +2423,13 @@ function tcCambio(d, tipo){
 }
 function tcDay(d){
   const wd = wdOf(d), fer = ST.M.FER[d], we = wd >= 5, hc = ST.M.TC.cal[d] || '';
-  const u = tcCambio(d, TC_URG), r4 = we || !!fer, ik = ST.M.TC.inf[d] || '';
-  const r4l = ST.M.TC.r4.filter(function(r){ return r.fecha === d; }).map(function(r){ return r.key; });
-  /* inf: nombre de quien informa ('' = a confirmar); ik: su id. r4l: R4 cargados ese día (solo se usan en fines de semana y feriados) */
-  return { wd: wd, fer: fer, we: we, r4: r4, hc: hc, inf: ik ? nmP(ik) : '', ik: ik, r4l: r4l, urg: u ? u.nuevo : (r4 ? '' : hc), cu: u,
+  /* regla semanal (config tc_semana: { dias: { '0': id médico/residente, … '4': … }, r4: [ids] }): rige cuando el día no tiene una carga puntual */
+  const sm = ST.M.cfg.tcSemana || {}, vivo = function(k){ return !!k && !!ST.M.PM[k] && !ST.M.PM[k].oculta; };
+  const u = tcCambio(d, TC_URG), r4 = we || !!fer, ik = ST.M.TC.inf[d] || (sm.dias && vivo(sm.dias[String(wd)]) ? sm.dias[String(wd)] : '');
+  let r4l = ST.M.TC.r4.filter(function(r){ return r.fecha === d; }).map(function(r){ return r.key; });
+  if(!r4l.length && r4 && Array.isArray(sm.r4)) r4l = sm.r4.filter(vivo);
+  /* inf: nombre de quien informa ('' = a confirmar; sábados y domingos informan los R4); ik: su id. r4l: R4 del día (solo fines de semana y feriados) */
+  return { wd: wd, fer: fer, we: we, r4: r4, hc: hc, inf: ik ? nmP(ik) : (we && r4l.length ? r4l.map(nmR).join(', ') : ''), ik: ik, r4l: r4l, urg: u ? u.nuevo : (r4 ? '' : hc), cu: u,
     urgT: r4 ? 'Urgente todo el día' : 'Urgente 20–23:59' };
 }
 /* la urgencia del día tiene quien la cubra: el médico del Hospital Central (lunes a viernes) o, en fines de semana y feriados, R4 cargados o un cambio manual */
@@ -2667,7 +2675,7 @@ function renderTcg(){
   const fer = ds.filter(function(d){ return ST.M.FER[d]; }).length;
   const out = h('div');
   poner(out, h('div', { class: 'cr-hsec', s: { 'margin-top': '2px' }, t: 'Médicos del Hospital Italiano · guardia fija' }),
-    nota('Quién informa cada día y quiénes son los R4 de fines de semana y feriados se cargan tocando el día. Un día sin médico o sin R4 cargados figura “a confirmar” y no se asume ningún nombre.'));
+    nota('Quién informa cada día y quiénes son los R4 de fines de semana y feriados se cargan tocando el día. La regla semanal (quién informa cada día de la semana y los R4 de fines de semana y feriados) rige para todos los días sin una carga puntual; un día sin regla ni carga figura “a confirmar” y no se asume ningún nombre.'));
   poner(out, h('div', { class: 'cr-hsec', t: 'Hospital Central · cronograma mensual (urgencias 20:00–23:59, lunes a viernes)' }));
   const meses = Object.keys(tcMonths()).sort();
   poner(out, h('div', { s: { display: 'flex', 'flex-wrap': 'wrap', gap: '6px', 'align-items': 'center', 'margin-bottom': '6px' } },
@@ -2825,9 +2833,15 @@ function pendientesDe(){
   const sinInf = diasTc.filter(function(d){ return !tcDay(d).inf; }).length;
   const sinR4 = diasTc.filter(function(d){ const x = tcDay(d); return x.r4 && !x.r4l.length; }).length;
   if(sinInf || sinR4) o.push('Tomografía (' + MESES[S.m] + '): ' + (sinInf ? 'sin médico que informe en ' + sinInf + ' día' + (sinInf === 1 ? '' : 's') : '') + (sinInf && sinR4 ? ' y ' : '') + (sinR4 ? 'sin R4 en ' + sinR4 + ' fin' + (sinR4 === 1 ? '' : 'es') + ' de semana o feriado' + (sinR4 === 1 ? '' : 's') : '') + ' (a confirmar).');
-  o.push('Tomografía: guardias de Ismael De Carlini y Hualpa sin cargar (a confirmar).');
-  o.push('Técnicos de Resonancia Magnética: sin cargar (a confirmar).');
-  o.push('Administrativos: régimen semanal de cada persona sin cargar (a confirmar).');
+  /* regla semanal de Tomografía, horarios de Resonancia y de administrativos: el aviso se va solo cuando los datos están cargados */
+  const smP = M.cfg.tcSemana || {}, vivoP = function(k){ return !!k && !!M.PM[k] && !M.PM[k].oculta; };
+  const diasSin = [0, 1, 2, 3, 4].filter(function(wd){ return !(smP.dias && vivoP(smP.dias[String(wd)])); });
+  const r4Sin = !(Array.isArray(smP.r4) && smP.r4.some(vivoP));
+  if(diasSin.length || r4Sin) o.push('Tomografía: regla semanal sin cargar' + (diasSin.length ? ' (quién informa: ' + diasSin.map(function(wd){ return DIAS[wd]; }).join(', ') + ')' : '') + (r4Sin ? (diasSin.length ? ' y' : '') + ' R4 de fines de semana' : '') + ' (a confirmar).');
+  const rmSin = M.P.filter(function(p){ return p.grp === 'tec' && !p.oculta && p.serv.indexOf('Resonancia Magnética') >= 0 && !M.F.some(function(f){ return f.key === p.key && f.tab === 'tec'; }) && !M.G.some(function(g){ return g.key === p.key; }); });
+  if(rmSin.length) o.push('Técnicos de Resonancia Magnética sin horario cargado: ' + rmSin.map(function(p){ return nmP(p.key); }).join(', ') + ' (a confirmar).');
+  const admSin = M.P.filter(function(p){ return p.grp === 'adm' && !p.oculta && !M.F.some(function(f){ return f.key === p.key && f.tab === 'adm'; }); });
+  if(admSin.length) o.push('Administrativos sin régimen semanal cargado: ' + admSin.map(function(p){ return nmP(p.key); }).join(', ') + ' (a confirmar).');
   if(puedeEditar() && !ST.R.tarifas) o.push('Pago de técnicos: tarifas sin cargar (a confirmar).');
   return o;
 }
@@ -2887,7 +2901,7 @@ function renderPersonal(){
 const SERVICIOS_DEF = [
   { servicio: 'Tomografía (TC)', franjas: [{ dias: 'Todos los días', horario: '24 h' }] },
   { servicio: 'Radiografía (RX)', franjas: [{ dias: 'Todos los días', horario: '24 h, a demanda' }] },
-  { servicio: 'Resonancia (RM)', franjas: [{ dias: 'Lunes a viernes', horario: '08:00–24:00' }, { dias: 'Sábado', horario: '08:00–13:00' }, { dias: 'Domingo', horario: 'cerrada', pend: true }] }
+  { servicio: 'Resonancia (RM)', franjas: [{ dias: 'Lunes a viernes', horario: '08:00–02:00' }, { dias: 'Sábado', horario: '08:00–19:00' }, { dias: 'Domingo', horario: 'cerrada · guardia pasiva' }] }
 ];
 function renderServicios(){
   const v = ST.M.cfg.servicios, lista = Array.isArray(v) && v.length ? v : SERVICIOS_DEF;
@@ -3003,9 +3017,9 @@ function franjaRow(f, p){
       entrada('time', f.h, function(v, el){ if(!horaOk(f.d, v)){ el.value = f.h; return; } f.h = v; chg(); }, { 'aria-label': 'Hasta' }),
       btn('✕', 'sm dng', function(){ A.franjaBaja(f); pintar(); }, { title: 'Quitar franja', 'aria-label': 'Quitar franja' })),
     h('div', { class: 'cr-fr1' },
-      selec([[0, 'Todos los sábados'], [1, 'Sábado 1'], [2, 'Sábado 2']], f.sem, function(v){ f.sem = +v; chg(); }),
+      selec(SEM_OPS, f.sem, function(v){ f.sem = +v; chg(); }),
       adm ? entrada('text', f.sec, function(v){ f.sec = v.slice(0, 60); chg(); }, { placeholder: 'Sector', maxlength: '60', 'aria-label': 'Sector' }) : null,
-      tec ? selec([['', 'Sin turno fijo'], ['M', 'Mañana'], ['T', 'Tarde']], f.turno, function(v){ f.turno = v; chg(); }) : null,
+      tec ? selec([['', 'Sin turno fijo'], ['M', 'Mañana'], ['T', 'Tarde'], ['N', 'Noche']], f.turno, function(v){ f.turno = v; chg(); }) : null,
       tec ? chk('Guardia', f.guardia, function(v){ f.guardia = v; chg(); }) : null,
       chk('A confirmar', f.pend, function(v){ f.pend = v; chg(); })));
 }
@@ -3016,7 +3030,7 @@ function formFranja(p){
   refs.dia = selec(DIAS.map(function(x, i){ return [i, x]; }), 0, function(){});
   refs.d = h('input', { type: 'time', value: '08:00', 'aria-label': 'Desde' });
   refs.h = h('input', { type: 'time', value: '16:00', 'aria-label': 'Hasta' });
-  refs.sem = selec([[0, 'Todos los sábados'], [1, 'Sábado 1'], [2, 'Sábado 2']], 0, function(){});
+  refs.sem = selec(SEM_OPS, 0, function(){});
   refs.tab = selec(tabs.map(function(t){ return [t, TN[t]]; }), tab, function(v){ tab = v; });
   refs.pend = h('input', { type: 'checkbox' });
   return h('div', { class: 'cr-form', id: 'cr-form-franja' }, h('b', { t: 'Nueva franja semanal' }), tabs.length > 1 ? refs.tab : null, refs.dia, refs.d, refs.h, refs.sem, h('label', { class: 'cr-chk1' }, refs.pend, 'A confirmar'),
