@@ -442,15 +442,24 @@ function calculos(M, hoy){
       if(x.kind === 'rep' && x.r && x.r.est === 'no') return;   /* «no puede» no suma a quienes atienden a la vez */
       if(x.k && PM[x.k] && esOfi(x.k)) return;
       const a = mins(x.d), b = mins(x.h) <= a ? 1440 : mins(x.h);
-      o.push({ a: a, b: b, n: x.k ? PM[x.k].ap : (x.r && x.r.nombre) || '?' });
+      o.push({ a: a, b: b, n: x.k ? PM[x.k].ap : (x.r && x.r.nombre) || '?', k: x.k || null });
     });
     return o;
   }
+  /* Box fijo (BOX_FIJO) y soporte fijo (SOPORTE_FIJO) de una persona, igual que la grilla semanal. */
+  function boxFijoDe(k){ const p = k && PM[k]; if(!p) return null; const f = BOX_FIJO.find(function(x){ return nrm(x.ap) === nrm(p.ap) && nrm(x.nom) === nrm(p.nom); }); return f ? f.box : null; }
+  function esSoporteFijo(k){ const p = k && PM[k]; return !!p && nrm(p.ap) === nrm(SOPORTE_FIJO.ap) && nrm(p.nom) === nrm(SOPORTE_FIJO.nom); }
   function admConc(dd){
     const iv = admIv(dd);
     let mx = 0, who = [];
     iv.forEach(function(z){
-      const at = iv.filter(function(y){ return y.a <= z.a && z.a < y.b; });
+      let at = iv.filter(function(y){ return y.a <= z.a && z.a < y.b; });
+      /* Quien es soporte fijo (Joel) y coincide con alguien de su mismo box (Mónica) pasa a auxiliar administrativo: no ocupa lugar de atención */
+      at = at.filter(function(y){
+        if(!esSoporteFijo(y.k)) return true;
+        const bx = boxFijoDe(y.k);
+        return !bx || !at.some(function(w){ return w !== y && w.k && !esSoporteFijo(w.k) && boxFijoDe(w.k) === bx; });
+      });
       if(at.length > mx){ mx = at.length; who = at.map(function(y){ return y.n; }); }
     });
     return { n: mx, who: who };
