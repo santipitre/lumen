@@ -2928,7 +2928,8 @@ function renderAlertas(scope, solo){
   poner(box, ul);
   if(solo){
     const pend = pendientesDe();
-    poner(box, h('h3', { s: { 'margin-top': '14px' }, t: 'Datos a confirmar o sin cargar' }), h('ul', { class: 'cr-al', id: 'cr-pendientes' }, pend.map(function(x){ return h('li', { t: x }); })));
+    /* sin datos pendientes no se dibuja ni el título (los avisos se calculan, así que la lista puede quedar vacía) */
+    if(pend.length) poner(box, h('h3', { s: { 'margin-top': '14px' }, t: 'Datos a confirmar o sin cargar' }), h('ul', { class: 'cr-al', id: 'cr-pendientes' }, pend.map(function(x){ return h('li', { t: x }); })));
   }
   return box;
 }
