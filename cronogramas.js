@@ -341,7 +341,7 @@ function calculos(M, hoy){
   function sinReemp(l){ const p = PM[l.key]; return !l.reemps.length && !(p && p.reemp); }
   /* Licencia del reemplazante que pisa alguno de los días que realmente cubre (no todo el rango de la licencia cubierta). */
   function choqueReemp(l, r){
-    if(!r.key) return null;
+    if(!r.key || r.est === 'no') return null;      /* «no puede» no cubre: no hay choque que avisar */
     const ds = repDays(l, r);
     return L.find(function(x){ return x.key === r.key && x.id !== l.id && x.tipo !== 'Cambio de turno' && ds.some(function(d){ return x.desde <= d && d <= lend(x); }); }) || null;
   }
@@ -371,7 +371,7 @@ function calculos(M, hoy){
   function repConflicts(l){
     const out = [];
     l.reemps.forEach(function(r){
-      if(!r.key) return;
+      if(!r.key || r.est === 'no') return;            /* «no puede» no cubre: no hay «reemplazante ocupado» */
       const a = mins(r.d), b = mins(r.h) <= a ? mins(r.h) + 1440 : mins(r.h);
       let first = null, n = 0;
       const to = lend(l) > addD(hoy, 90) ? addD(hoy, 90) : lend(l);
@@ -439,6 +439,7 @@ function calculos(M, hoy){
     const o = [];
     dd.items.forEach(function(x){
       if(x.kind !== 'w' && x.kind !== 'rep') return;
+      if(x.kind === 'rep' && x.r && x.r.est === 'no') return;   /* «no puede» no suma a quienes atienden a la vez */
       if(x.k && PM[x.k] && esOfi(x.k)) return;
       const a = mins(x.d), b = mins(x.h) <= a ? 1440 : mins(x.h);
       o.push({ a: a, b: b, n: x.k ? PM[x.k].ap : (x.r && x.r.nombre) || '?' });
