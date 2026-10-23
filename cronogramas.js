@@ -413,9 +413,11 @@ function calculos(M, hoy){
       const o = { p: p, own: 0, rep: 0, gua: 0, ext: 0, lic: 0, D: 0, N: 0, pend: 0, cat: { own: [0, 0], rep: [0, 0], gua: [0, 0], ext: [0, 0] }, wk: wk.map(function(){ return 0; }), det: [], wkDias: wk };
       days.forEach(function(d){
         const its = (C[d] && C[d][p.key]) || [], wi = wk.findIndex(function(w){ return w.indexOf(d) >= 0; });
-        const hasRep = its.some(function(i){ return i.kind === 'rep'; }), cam = its.some(function(i){ return i.kind === 'lic' && i.l.tipo === 'Cambio de turno'; });
+        /* «no puede»: no cubrió, así que no cuenta horas ni se paga (ni cambia el cálculo de «cambio de turno») */
+        const hasRep = its.some(function(i){ return i.kind === 'rep' && repEst(i.r) !== 'no'; }), cam = its.some(function(i){ return i.kind === 'lic' && i.l.tipo === 'Cambio de turno'; });
         if(its.some(function(i){ return i.kind === 'lic'; }) && !cam) o.lic++;
         its.forEach(function(i){
+          if(i.kind === 'rep' && repEst(i.r) === 'no') return;
           let t = null, tx = '', pe = false;
           if(i.kind === 'w'){
             t = i.f && i.f.g ? 'gua' : i.f && i.f.xt ? 'ext' : 'own';
@@ -2311,7 +2313,7 @@ function renderHorasAdm(){
       rows.forEach(function(o){
         let hs = 0;
         dd.items.forEach(function(x){
-          if((x.kind === 'w' || x.kind === 'rep') && x.k === o.p.key){
+          if((x.kind === 'w' || x.kind === 'rep') && x.k === o.p.key && !(x.kind === 'rep' && C_.repEst(x.r) === 'no')){
             const hh_ = ((mins(x.h) - mins(x.d) + 1440) % 1440) / 60;
             hs += hh_;
             if(md.has(d) && ((x.f && x.f.pend) || (x.kind === 'rep' && (C_.repEst(x.r) !== 'ok' || x.l.pend)))) o.pend += hh_;
