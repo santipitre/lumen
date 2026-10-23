@@ -1656,6 +1656,13 @@ function timeGrid(days, o){
   o = o || {};
   const nombreTab = o.nombreTab || TN[tabAct()];
   if(esAngosto()) return listDays(days, nombreTab);
+  /* Franjas que cruzan la medianoche (p. ej. 20:00–02:00): de 00:00 a la hora de fin también se dibuja en el día siguiente.
+     Sólo visual (bloque «cont», no editable): no cambia horas, pagos ni alertas. Un día sin día siguiente en la grilla no lo muestra. */
+  days = days.map(function(d, ix){
+    const ant = ix > 0 ? days[ix - 1].items.filter(function(i){ const a = mins(i.d), b = mins(i.h); return b > 0 && b < a; }) : [];
+    if(!ant.length) return d;
+    return Object.assign({}, d, { items: d.items.concat(ant.map(function(i){ return Object.assign({}, i, { d: '00:00', cont: true, over: false }); })) });
+  });
   let t0 = 480, t1 = 1020;
   days.forEach(function(d){
     d.items.forEach(function(i, ix){
@@ -1673,7 +1680,7 @@ function timeGrid(days, o){
   if(o.lanesDe) gs['grid-template-columns'] = '42px ' + days.map(function(d){ return 'minmax(0,' + lanesDe(d).reduce(function(s, l){ return s + (o.laneW[l] || 1); }, 0) + 'fr)'; }).join(' ');
   const g = h('div', { class: 'cr-grid', s: gs }, h('div'));
   days.forEach(function(d){
-    const np = new Set(d.items.filter(function(i){ return i.kind !== 'rep'; }).map(function(i){ return i.k; })).size;
+    const np = new Set(d.items.filter(function(i){ return i.kind !== 'rep' && !i.cont; }).map(function(i){ return i.k; })).size;
     const col = h('div', null,
       h('div', { class: 'cr-dh' + (d.we ? ' we' : '') + (d.today ? ' today' : '') }, d.lab, h('small', { t: d.sub !== undefined ? d.sub : (np ? np + ' persona' + (np === 1 ? '' : 's') : '—') })));
     if(d.jefa) poner(col, h('div', { class: 'cr-jf', title: 'Jefa de residentes' }, h('b', { t: 'Jefa de residentes' }), ST.R.jefaNom + ' · ' + d.jefa[0] + '–' + d.jefa[1]));
@@ -1695,11 +1702,11 @@ function timeGrid(days, o){
       const li = d.items.filter(function(i){ return laneDe(i) === l; }), Lm = layoutCol(li), lane = h('div', { class: 'cr-lane ' + l });
       li.forEach(function(i){
         const gg = Lm[i.uid], w = 100 / gg.n, a = mins(i.d), b = mins(i.h) <= a ? 1440 : mins(i.h), x = itemInfo(i);
-        const fmv = i.kind === 'w' && i.f && !i.f.rot && !i.f.sup && !i.f.g && !i.f.xt && enEdicion() && tabEditable(tabAct()) && esFranjaEditable(i.f.orig || i.f) ? (i.f.orig || i.f) : null;
+        const fmv = i.kind === 'w' && !i.cont && i.f && !i.f.rot && !i.f.sup && !i.f.g && !i.f.xt && enEdicion() && tabEditable(tabAct()) && esFranjaEditable(i.f.orig || i.f) ? (i.f.orig || i.f) : null;
         const vt = !!o.corto;
-        const blk = h('div', { class: 'cr-blk ' + x.cls + (vt ? ' v' : '') + (i.over ? ' over' : '') + (fmv ? ' drag' : '') + (i.kind === 'w' && S.hl === (i.f && i.f.id) ? ' sel' : ''), tabindex: '0', role: 'button',
+        const blk = h('div', { class: 'cr-blk ' + x.cls + (vt ? ' v' : '') + (i.cont ? ' cont' : '') + (i.over ? ' over' : '') + (fmv ? ' drag' : '') + (i.kind === 'w' && S.hl === (i.f && i.f.id) ? ' sel' : ''), tabindex: '0', role: 'button',
           s: { top: ((a - t0) * PX) + 'px', height: ((b - a) * PX) + 'px', left: (gg.c * w) + '%', width: 'calc(' + w + '% - 2px)', '--h': hue(i.k || i['for']) },
-          title: x.lab + ' ' + i.d + '–' + i.h + (x.sub ? ' · ' + x.sub : '') + (i.over ? ' · supera los 2 lugares de atención' : ''), on: { click: function(ev){ if(blk.__movido){ blk.__movido = false; return; } x.click(ev); }, keydown: function(ev){ if(fmv && ev.altKey && moverFranjaTecla(ev, fmv)) return; if(ev.key === 'Enter') x.click(ev); } } },
+          title: x.lab + ' ' + i.d + '–' + i.h + (x.sub ? ' · ' + x.sub : '') + (i.cont ? ' · sigue de la noche anterior' : '') + (i.over ? ' · supera los 2 lugares de atención' : ''), on: { click: function(ev){ if(blk.__movido){ blk.__movido = false; return; } x.click(ev); }, keydown: function(ev){ if(fmv && ev.altKey && moverFranjaTecla(ev, fmv)) return; if(ev.key === 'Enter') x.click(ev); } } },
           vt ? h('div', { class: 'vt', s: { '--n1': String(Math.max(2, String(x.lab).length)), '--n2': String(Math.max(2, tCorto(i.d, i.h).length)) } }, h('b', { t: x.lab }), h('small', { class: 'tm', t: tCorto(i.d, i.h) }), x.sub ? h('small', { class: 'nm' + (x.sub === 'Sin asignar' ? ' none' : ''), t: x.sub }) : null)
             : [h('b', { t: x.lab }), h('small', { t: i.d + '–' + i.h }), x.sub ? h('small', { class: 'nm' + (x.sub === 'Sin asignar' ? ' none' : ''), t: x.sub }) : null]);
         if(fmv) blk.addEventListener('pointerdown', function(ev){ arrastrarFranja(ev, blk, fmv, PX, g); });

@@ -91,6 +91,7 @@ html[data-tema="claro"] .cr-root,html[data-tema="claro"] .cr-pop,html[data-tema=
 .cr-blk b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cr-blk small{display:block;color:var(--cr-mut);font-size:9.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cr-blk.sel{outline:2px solid var(--cr-acc)}
+.cr-blk.cont{border-top-style:dashed}
 .cr-blk.rep,.cr-li.rep,.cr-chp.rep{border-style:dashed}
 .cr-blk.lic,.cr-li.lic,.cr-chp.lic{background:repeating-linear-gradient(135deg,hsl(40 90% 50%/.18) 0 6px,transparent 6px 12px);border-color:var(--cr-warn)}
 .cr-blk.eco.c2{border-left-color:hsl(var(--h,200) 65% 70%)}
