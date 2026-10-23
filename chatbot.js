@@ -847,6 +847,14 @@
   }
 
   function matchMetricSpecial(text) {
+    /* Rankings por médico: van ANTES de «pendientes» / «con informe», que si no los capturan. */
+    if (/\b(top|ranking)\b.*\b(pendientes?|atrasos?)\b/.test(text) || /\b(medicos|quienes?)\b.*\b(pendientes?|atrasos?)\b/.test(text) ||
+        /\b(pendientes?|atrasos?)\s+por\s+medicos?\b/.test(text)) {
+      return 'top_pendientes';
+    }
+    if (/\b(top|ranking)\b.*\bmedicos\b/.test(text)) {
+      return 'top_medicos';
+    }
     if (/\bsin\s+info?rme?s?\b/.test(text) || /\bpendientes?\b/.test(text) ||
         /\bno\s+informad[oa]s?\b/.test(text) || /\bfaltan?\s+informar\b/.test(text) ||
         /\bsin\s+informar\b/.test(text) || /\bfaltan?\s+informes?\b/.test(text)) {
@@ -1097,7 +1105,7 @@
         const by = {};
         pen.forEach(r => { const m = r['Médico Informante']; if (medicoValido(m)) by[m] = (by[m]||0) + 1; });
         const top = Object.entries(by).sort((a,b) => b[1]-a[1]).slice(0,5);
-        if (!top.length) return { text: badges + '¡No hay pendientes! 🎉', exportable: false };
+        if (!top.length) return { text: badges + (pen.length ? `Hay ${fmt(pen.length)} estudios sin informe, pero ninguno tiene médico informante asignado: no se puede armar el ranking por médico.` : '¡No hay pendientes! 🎉'), exportable: false };
         return { text: badges + `<strong>Top médicos con más pendientes:</strong>\n` +
           top.map((t,i) => `${i+1}. ${t[0]} — <strong>${fmt(t[1])}</strong>`).join('\n'), exportable: true, metricId, periodId, filters };
       }
