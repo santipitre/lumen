@@ -15,8 +15,9 @@ const RPC_ADMIN = ['img_respaldo'];
 const NIVELES_EDICION =['editar','admin'];
 const TIPOS_CATALOGO = ['servicio','estudio','tipo_licencia','subespecialidad','equipo','sede_informa'];
 const TIPOS_PACIENTE_ED = ['A','I','A+I'];
-const CAMPOS_DIFF = ['apellido','nombre','matricula','celular','email','nota','anio','servicios','estudios','turnos','horarios','licencias'];
+const CAMPOS_DIFF = ['apellido','nombre','matricula','celular','email','nota','anio','reemplazante','servicios','estudios','turnos','horarios','licencias'];
 const AVISO_NOTA = 'no escribir teléfonos ni emails acá (la ve el nivel Ver)';
+const AVISO_REEMP = 'Sus licencias no exigen reemplazo en Cronogramas.';
 const NIVELES_VALIDOS = ['ver','ver_contactos','editar','admin'];
 const NIVELES_CONTACTOS = ['ver_contactos','editar','admin'];
 const NIVELES_SOLO_LECTURA = ['ver','ver_contactos'];
@@ -331,6 +332,11 @@ function sEd(x){
   return String(x).trim();
 }
 
+/* Marca «reemplazante»: solo vale datos.reemplazante === true (cronogramas.js la lee igual). */
+function esReemp(p){
+  return !!(p && p.datos && p.datos.reemplazante === true);
+}
+
 function nz(x){
   return x === undefined ? null : x;
 }
@@ -531,6 +537,8 @@ function estadoEd(campo, b){
   const out = Object.create(null);
   if(ESCALARES_ED.indexOf(campo) >= 0){
     out['*'] = sEd(b[campo]);
+  } else if(campo === 'reemplazante'){
+    out['*'] = esReemp(b) ? 'sí' : '';
   } else if(campo === 'nota' || campo === 'anio'){
     out['*'] = sEd((b.datos || {})[campo]);
   } else if(campo === 'servicios'){
@@ -561,6 +569,7 @@ function unionClaves(a, b){
 
 function valorOriginal(campo, b){
   if(ESCALARES_ED.indexOf(campo) >= 0) return sEd(b[campo]);
+  if(campo === 'reemplazante') return esReemp(b) ? 'sí' : '';
   if(campo === 'nota' || campo === 'anio') return sEd((b.datos || {})[campo]);
   return clon(b[campo] || []);
 }
@@ -659,6 +668,8 @@ function rebase(base, mio, actual){
     if(chocaEd(campo, base, mio, actual)) choques.push(campo);
     if(ESCALARES_ED.indexOf(campo) >= 0){
       res[campo] = sEd(mio[campo]);
+    } else if(campo === 'reemplazante'){
+      if(esReemp(mio)) res.datos.reemplazante = true; else delete res.datos.reemplazante;
     } else if(campo === 'nota' || campo === 'anio'){
       const v = sEd((mio.datos || {})[campo]);
       if(v || Object.prototype.hasOwnProperty.call(res.datos, campo)) res.datos[campo] = v;
@@ -715,7 +726,7 @@ function rebase(base, mio, actual){
 }
 
 function textoValor(campo, valor){
-  if(ESCALARES_ED.indexOf(campo) >= 0 || campo === 'nota' || campo === 'anio'){
+  if(ESCALARES_ED.indexOf(campo) >= 0 || campo === 'nota' || campo === 'anio' || campo === 'reemplazante'){
     const t = sEd(valor);
     return t ? t : '—';
   }
@@ -1673,6 +1684,7 @@ function seccionDatos(p){
   }
   const anio = (p.datos || {}).anio;
   if(p.tipo === 'residente' && anio) filas.push(['Año', String(anio)]);
+  if((p.tipo === 'tecnico' || p.tipo === 'administrativo') && esReemp(p)) filas.push(['Reemplazante', 'Sí']);
   return filas.length ? seccion('Datos', [listaDatos(filas)]) : null;
 }
 
@@ -2343,6 +2355,16 @@ function edSecDatos(){
     edCambio('nota');
   });
   hijos.push(edCampo('nota', 'Nota', idNota, ta, [h('span', { class: 'ed-aviso', texto: AVISO_NOTA.charAt(0).toUpperCase() + AVISO_NOTA.slice(1) })]));
+  if(tipo === 'tecnico' || tipo === 'administrativo'){
+    const idRe = edId();
+    const chk = h('input', { id: idRe, type: 'checkbox' });
+    chk.checked = esReemp(ed.borrador);
+    chk.addEventListener('change', function(){
+      if(chk.checked) ed.borrador.datos.reemplazante = true; else delete ed.borrador.datos.reemplazante;
+      edCambio('reemplazante');
+    });
+    hijos.push(edCampo('reemplazante', 'Es reemplazante', idRe, chk, [h('span', { class: 'ed-aviso', texto: AVISO_REEMP })]));
+  }
   return h('section', { class: 'ed-sec' }, hijos);
 }
 
@@ -2669,7 +2691,7 @@ function edAviso(texto){
 }
 
 function edEtiquetaCampo(campo){
-  const m = { apellido: 'Apellido', nombre: 'Nombre', matricula: 'Matrícula', celular: 'Celular', email: 'Email', nota: 'Nota', anio: 'Año',
+  const m = { apellido: 'Apellido', nombre: 'Nombre', matricula: 'Matrícula', celular: 'Celular', email: 'Email', nota: 'Nota', anio: 'Año', reemplazante: 'Reemplazante',
     servicios: 'Servicios', estudios: 'Estudios', licencias: 'Licencias', horarios: 'Horarios', turnos: 'Turnos Eco' };
   return Object.prototype.hasOwnProperty.call(m, campo) ? m[campo] : campo;
 }
