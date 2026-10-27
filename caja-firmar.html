@@ -74,11 +74,15 @@ const TOKEN=new URLSearchParams(location.search).get('token');
 const card=document.getElementById('card');
 
 async function rpc(fn,args){
-  const r=await fetch(SUPABASE_URL+'/rest/v1/rpc/'+fn,{method:'POST',
-    headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+SUPABASE_KEY,'Content-Type':'application/json'},
-    body:JSON.stringify(args)});
-  if(!r.ok) throw new Error('HTTP '+r.status);
-  return r.json();
+  /* Tope de 15 s: si Supabase no contesta se corta el pedido y los catch de cada pantalla devuelven el botón (antes quedaba en «Verificando…» para siempre). */
+  const ctl=new AbortController(), tope=setTimeout(function(){ctl.abort()},15000);
+  try{
+    const r=await fetch(SUPABASE_URL+'/rest/v1/rpc/'+fn,{method:'POST',signal:ctl.signal,
+      headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+SUPABASE_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify(args)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return await r.json();
+  } finally { clearTimeout(tope); }
 }
 const esc=t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
 const nf=new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:2});

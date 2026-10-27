@@ -33,7 +33,9 @@ const BOX_FIJO = [
  * saleA = hora fija de salida lun–jue de la semana siguiente; suple = quien entra esos días en ese horario (reemplaza su horario habitual).
  * sale = minutos que se retira antes de lunes a jueves de la semana siguiente a su sábado (0 = no compensa).
  * La rotación rige desde la fecha ancla (los sábados anteriores siguen según las franjas cargadas en la base).
- * Si la base tiene la clave 'rot_sab' en img_cron_config ({ ancla, orden: [{ ap, nom, d, h, sale }] }), reemplaza estos valores. */
+ * La rotación sale SIEMPRE de ROT_SAB_DEF (más abajo): para cambiarla se edita esa constante y se publica.
+ * La clave 'rot_sab' de img_cron_config hoy no se puede guardar (el CHECK de la tabla y la RPC img_cron_guardar sólo aceptan sat0, tarifas, jefa y tc_semana),
+ * así que la lectura de cfg.rotSab queda inerte hasta que se habilite. Formato previsto: { ancla, orden: [{ ap, nom, d, h, sale }] }. */
 /* Orden: 24/10 Joaquín, 31/10 Zamira, 7/11 Joel, 14/11 Mónica, y se repite. d/h = horario del sábado. sale = minutos que se retira antes (lun a jue de la semana siguiente; 0 = no compensa).
  * suple = quien cubre esa salida: entra `antes` minutos antes de su horario habitual y se retira como máximo a la hora `h`. */
 const ROT_SAB_DEF = { ancla: '2026-10-24', orden: [
@@ -2905,8 +2907,9 @@ function renderPersonal(){
   });
   return box;
 }
-/* Disponibilidad de servicio (solo informativa, no entra en horas ni $). Valor de config 'servicios':
- * [{ servicio, franjas: [{ dias, horario, pend }] }]; si la base no lo tiene se muestran estos valores por defecto. */
+/* Disponibilidad de servicio (solo informativa, no entra en horas ni $). Hoy se muestran SIEMPRE estos valores (SERVICIOS_DEF):
+ * la clave 'servicios' de img_cron_config no se puede guardar (ver la nota de ROT_SAB_DEF), así que para cambiarlos se edita esta constante.
+ * Formato previsto si algún día se habilita: [{ servicio, franjas: [{ dias, horario, pend }] }]. */
 const SERVICIOS_DEF = [
   { servicio: 'Tomografía (TC)', franjas: [{ dias: 'Todos los días', horario: '24 h' }] },
   { servicio: 'Radiografía (RX)', franjas: [{ dias: 'Todos los días', horario: '24 h, a demanda' }] },

@@ -402,13 +402,22 @@ function ocultarGate(){gate().classList.remove("on");document.body.classList.rem
 
 let MAIL_OTP="";
 
+/* Tope de espera: si Supabase no contesta, el pedido se corta con e.tope=true y el boton vuelve a su estado (antes quedaba en "Enviando..." / "Verificando..." para siempre). */
+function conTope(promesa,ms){
+  let t;
+  const tope=new Promise(function(_,rechazar){
+    t=setTimeout(function(){const e=new Error("sin respuesta");e.tope=true;rechazar(e)},ms);
+  });
+  return Promise.race([promesa,tope]).finally(function(){clearTimeout(t)});
+}
+
 async function enviarCodigo(){
   const mail=$("#gate-mail").value.trim().toLowerCase();
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)){mostrarGate("Ese correo no parece v\u00e1lido.","err");return}
   if(!window.sbAuth){mostrarGate("No carg\u00f3 el cliente de Supabase. Revis\u00e1 la conexi\u00f3n.","err");return}
   const btn=$("#gate-btn");btn.disabled=true;btn.textContent="Enviando\u2026";
   try{
-    const {error}=await window.sbAuth.auth.signInWithOtp({email:mail,options:{shouldCreateUser:false}});
+    const {error}=await conTope(window.sbAuth.auth.signInWithOtp({email:mail,options:{shouldCreateUser:false}}),20000);
     if(error)throw error;
     MAIL_OTP=mail;
     $("#gate-form").style.display="none";
@@ -417,7 +426,7 @@ async function enviarCodigo(){
     mostrarGate("Revis\u00e1 tu correo. El c\u00f3digo vence en una hora.","ok");
     setTimeout(function(){$("#gate-code").focus()},80);
   }catch(e){
-    mostrarGate("No se pudo enviar: "+(e.message||e),"err");
+    mostrarGate(e&&e.tope?"No hubo respuesta del servidor. Si el correo llega igual, us\u00e1 ese c\u00f3digo; si no, revis\u00e1 la conexi\u00f3n y prob\u00e1 de nuevo.":"No se pudo enviar: "+(e.message||e),"err");
     btn.disabled=false;btn.textContent="Enviarme el c\u00f3digo";
   }
 }
@@ -427,11 +436,11 @@ async function verificarCodigo(){
   if(code.length<6){mostrarGate("Escrib\u00ed el c\u00f3digo completo tal cual figura en el correo.","err");return}
   const btn=$("#gate-btn2");btn.disabled=true;btn.textContent="Verificando\u2026";
   try{
-    const {error}=await window.sbAuth.auth.verifyOtp({email:MAIL_OTP,token:code,type:"email"});
+    const {error}=await conTope(window.sbAuth.auth.verifyOtp({email:MAIL_OTP,token:code,type:"email"}),15000);
     if(error)throw error;
     location.reload();
   }catch(e){
-    mostrarGate("C\u00f3digo incorrecto o vencido. Revis\u00e1 el \u00faltimo correo que recibiste.","err");
+    mostrarGate(e&&e.tope?"No hubo respuesta del servidor. Revis\u00e1 la conexi\u00f3n y prob\u00e1 de nuevo.":"C\u00f3digo incorrecto o vencido. Revis\u00e1 el \u00faltimo correo que recibiste.","err");
     btn.disabled=false;btn.textContent="Entrar";
     $("#gate-code").select();
   }
