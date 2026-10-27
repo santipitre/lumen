@@ -1386,6 +1386,12 @@ async function doLoginOperativo(e) {
   const errEl = document.getElementById('login-error');
   errEl.style.display = 'none';
   btn.disabled = true; btn.textContent = 'Verificando...';
+  /* Si el servidor no contesta en 15 s, no dejamos el botón colgado en «Verificando...»: avisamos y se puede reintentar. */
+  const _topeLogin = setTimeout(function () {
+    errEl.textContent = 'No se pudo conectar con el servidor. Revisá tu conexión y probá de nuevo.';
+    errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Ingresar';
+  }, 15000);
 
   try {
     const username = document.getElementById('login-user').value.trim().toUpperCase();
@@ -1462,6 +1468,7 @@ async function doLoginOperativo(e) {
     errEl.textContent = _traducirErrorSupabase(err.message);
     errEl.style.display = 'block';
   } finally {
+    clearTimeout(_topeLogin);
     btn.disabled = false; btn.textContent = 'Ingresar';
   }
 }
