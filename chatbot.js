@@ -538,6 +538,17 @@
   }
   function sinInforme(r) { return !tieneInforme(r); }
 
+  /* Servicio -> grupo del Semáforo (mismos 6 que medico.js). Servicio vacío = «Sin servicio»; uno no reconocido = OTROS. No usa nombres de médico. */
+  const SERVICIO_GRUPOS = {
+    'RAYOS X': 'RAYOS X', 'ECOGRAFIA': 'ECOGRAFÍA / DOPPLER', 'ECOGRAFIA DOPPLER': 'ECOGRAFÍA / DOPPLER',
+    'TOMOGRAFIA': 'TOMOGRAFÍA', 'RESONANCIA MAGNETICA': 'RESONANCIA MAGNÉTICA', 'CAMARA GAMMA': 'CÁMARA GAMMA'
+  };
+  function servicioDe(r) {
+    const s = String((r && r['Servicio']) || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
+    if (!s) return 'Sin servicio';
+    return Object.prototype.hasOwnProperty.call(SERVICIO_GRUPOS, s) ? SERVICIO_GRUPOS[s] : 'OTROS';
+  }
+
   const MEDICOS_EXCLUIDOS = new Set(['ADMINVM', 'DALONSO']);
   function medicoValido(m) {
     return m && !MEDICOS_EXCLUIDOS.has(String(m).trim().toUpperCase());
@@ -805,7 +816,8 @@
     { id: 'con_informe',  keys: ['cuantos con informe','con informe','estudios con informe','informes cargados','informes hechos'] },
     { id: 'sin_informe',  keys: ['cuantos sin informe','sin informe','estudios sin informe','informes pendientes','pendientes','no informados','sin informar','faltan informar'] },
     { id: 'top_medicos',      keys: ['top medicos','ranking medicos','quien informa mas','mejores medicos','medicos con mas informes','mas informes'] },
-    { id: 'top_pendientes',   keys: ['top pendientes','quien tiene mas pendientes','medico con mas pendientes','ranking pendientes','medicos con mas atrasos'] },
+    { id: 'top_pendientes',   keys: ['quien tiene mas pendientes','medico con mas pendientes','medicos con mas pendientes','pendientes por medico','medicos con mas atrasos'] },
+    { id: 'pendientes_servicio', keys: ['top pendientes','ranking pendientes','ranking de pendientes','pendientes por servicio','pendientes por modalidad','servicios con mas pendientes'] },
     { id: 'tiempo_prom',  keys: ['tiempo promedio','tiempo prom','promedio informe','dias promedio','cuanto tarda','tiempo de informe'] },
     { id: 'top_equipos',     keys: ['top equipos','equipos mas usados','cuantos por equipo','ranking equipos','estudios por equipo','que equipo hace mas'] },
     { id: 'equipos_activos', keys: ['cuantos equipos','equipos activos','equipos distintos'] },
@@ -847,10 +859,14 @@
   }
 
   function matchMetricSpecial(text) {
-    /* Rankings por médico: van ANTES de «pendientes» / «con informe», que si no los capturan. */
-    if (/\b(top|ranking)\b.*\b(pendientes?|atrasos?)\b/.test(text) || /\b(medicos|quienes?)\b.*\b(pendientes?|atrasos?)\b/.test(text) ||
-        /\b(pendientes?|atrasos?)\s+por\s+medicos?\b/.test(text)) {
+    /* Rankings: van ANTES de «pendientes» / «con informe», que si no los capturan. Los que nombran médicos, primero. */
+    if (/\b(medicos?|quienes?)\b.*\b(pendientes?|atrasos?)\b/.test(text) || /\b(pendientes?|atrasos?)\s+por\s+medicos?\b/.test(text)) {
       return 'top_pendientes';
+    }
+    /* «Top pendientes» a secas = pendientes por servicio (no usa nombres de médico: los pendientes no tienen informante). */
+    if (/\b(top|ranking)\b.*\b(pendientes?|atrasos?)\b/.test(text) || /\b(pendientes?|atrasos?)\s+por\s+(servicios?|modalidad(es)?|areas?)\b/.test(text) ||
+        /\b(servicios?|modalidad(es)?)\b.*\b(pendientes?|atrasos?)\b/.test(text)) {
+      return 'pendientes_servicio';
     }
     if (/\b(top|ranking)\b.*\bmedicos\b/.test(text)) {
       return 'top_medicos';
@@ -1105,9 +1121,19 @@
         const by = {};
         pen.forEach(r => { const m = r['Médico Informante']; if (medicoValido(m)) by[m] = (by[m]||0) + 1; });
         const top = Object.entries(by).sort((a,b) => b[1]-a[1]).slice(0,5);
-        if (!top.length) return { text: badges + (pen.length ? `Hay ${fmt(pen.length)} estudios sin informe, pero ninguno tiene médico informante asignado: no se puede armar el ranking por médico.` : '¡No hay pendientes! 🎉'), exportable: false };
+        if (!top.length) return { text: badges + (pen.length ? `Hay ${fmt(pen.length)} estudios sin informe, pero ninguno tiene médico informante asignado: no se puede armar el ranking por médico. Probá «top pendientes» para verlos por servicio.` : '¡No hay pendientes! 🎉'), exportable: false };
         return { text: badges + `<strong>Top médicos con más pendientes:</strong>\n` +
           top.map((t,i) => `${i+1}. ${t[0]} — <strong>${fmt(t[1])}</strong>`).join('\n'), exportable: true, metricId, periodId, filters };
+      }
+
+      case 'pendientes_servicio': {
+        const pen = rea.filter(sinInforme);
+        if (!pen.length) return { text: badges + '¡No hay pendientes! 🎉', exportable: false };
+        const by = Object.create(null);
+        pen.forEach(r => { const s = servicioDe(r); by[s] = (by[s]||0) + 1; });
+        const lista = Object.entries(by).sort((a,b) => b[1]-a[1]);
+        return { text: badges + `<strong>Pendientes por servicio</strong> (${fmt(pen.length)} sin informe):\n` +
+          lista.map((t,i) => `${i+1}. ${t[0]} — <strong>${fmt(t[1])}</strong> (${pct(t[1], pen.length)})`).join('\n'), exportable: true, metricId, periodId, filters };
       }
 
       case 'tiempo_prom': {
@@ -1693,6 +1719,13 @@
         const entries = Object.entries(by).sort((a,b) => b[1]-a[1]);
         const total = entries.reduce((s,e) => s+e[1], 0);
         spec = { rows: entries.map(([m,n],i) => ({ '#': i+1, 'Médico': m, 'Pendientes': n, 'Porcentaje': total ? ((n/total)*100).toFixed(1)+'%' : '—' })), schema: { keys: ['#','Médico','Pendientes','Porcentaje'], short: ['#','Médico Informante','Pendientes','%'], widths: [4,36,12,12] }, reportTitle: 'INFORME MÉDICO — PENDIENTES', infoTitle: 'Top médicos con pendientes', filePrefix: 'SPCD_Medico_TopPendientes', descripcion: 'médicos con pendientes', cellColorFn: (col) => col === 'Pendientes' ? AMBER : null };
+        break;
+      }
+      case 'pendientes_servicio': {
+        const pen = rea.filter(sinInforme);
+        const by = Object.create(null); pen.forEach(r => { const s = servicioDe(r); by[s] = (by[s]||0) + 1; });
+        const entries = Object.entries(by).sort((a,b) => b[1]-a[1]);
+        spec = { rows: entries.map(([s,n],i) => ({ '#': i+1, 'Servicio': s, 'Pendientes': n, 'Porcentaje': pen.length ? ((n/pen.length)*100).toFixed(1)+'%' : '—' })), schema: { keys: ['#','Servicio','Pendientes','Porcentaje'], short: ['#','Servicio','Pendientes','%'], widths: [4,28,12,12] }, reportTitle: 'INFORME MÉDICO — PENDIENTES POR SERVICIO', infoTitle: 'Pendientes por servicio', filePrefix: 'SPCD_Medico_PendientesServicio', descripcion: 'pendientes por servicio', cellColorFn: (col) => col === 'Pendientes' ? AMBER : null };
         break;
       }
       case 'top_equipos': {
@@ -2626,7 +2659,7 @@ Reescribí la respuesta de forma natural y profesional en español, manteniendo 
         { label: 'Top médicos', q: 'top medicos' },
         { label: 'Top pendientes', q: 'top pendientes' },
         { label: '📥 Excel pendientes', q: 'dame el excel de pendientes' },
-      ].filter(c => spcdPuedeVerNombresMedicos() || !/^top (medicos|pendientes)$/.test(c.q));
+      ].filter(c => spcdPuedeVerNombresMedicos() || !/^top medicos$/.test(c.q));
     } else if (PAGE === 'tecnico.html') {
       chips = [
         { label: 'Top equipos', q: 'top equipos' },
