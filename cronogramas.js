@@ -1654,17 +1654,23 @@ function listDays(days, nombreTab){
   });
   return out;
 }
+/* Franja que cruza la medianoche (p. ej. 20:00–02:00). */
+function cruzaMedianoche(i){ const a = mins(i.d), b = mins(i.h); return b > 0 && b < a; }
+/* Las franjas que cruzan la medianoche se repiten de 00:00 a su hora de fin en el día siguiente (bloque «cont»).
+   Sólo visual: no cambia horas, pagos ni alertas. `previo` = items del día anterior al primero de `days` (p. ej. el domingo antes del lunes);
+   sin él, el primer día no muestra continuación. Se aplica UNA sola vez por lista de días. */
+function conMedianoche(days, previo){
+  return days.map(function(d, ix){
+    const ant = (ix > 0 ? days[ix - 1].items : (previo || [])).filter(function(i){ return !i.cont && cruzaMedianoche(i); });
+    if(!ant.length) return d;
+    return Object.assign({}, d, { items: d.items.concat(ant.map(function(i){ return Object.assign({}, i, { d: '00:00', cont: true, over: false }); })) });
+  });
+}
 function timeGrid(days, o){
   o = o || {};
   const nombreTab = o.nombreTab || TN[tabAct()];
   if(esAngosto()) return listDays(days, nombreTab);
-  /* Franjas que cruzan la medianoche (p. ej. 20:00–02:00): de 00:00 a la hora de fin también se dibuja en el día siguiente.
-     Sólo visual (bloque «cont», no editable): no cambia horas, pagos ni alertas. Un día sin día siguiente en la grilla no lo muestra. */
-  days = days.map(function(d, ix){
-    const ant = ix > 0 ? days[ix - 1].items.filter(function(i){ const a = mins(i.d), b = mins(i.h); return b > 0 && b < a; }) : [];
-    if(!ant.length) return d;
-    return Object.assign({}, d, { items: d.items.concat(ant.map(function(i){ return Object.assign({}, i, { d: '00:00', cont: true, over: false }); })) });
-  });
+  days = conMedianoche(days, o.previo);
   let t0 = 480, t1 = 1020;
   days.forEach(function(d){
     d.items.forEach(function(i, ix){
@@ -1887,8 +1893,8 @@ function renderSem(){
   const o = h('div');
   if(t === 'adm') poner(o, nota('Semana tipo junta todo lo cargado de lunes a viernes; los sábados rotan (1 persona por sábado, ver “Rotación de sábados”). Boxes: Joel y Mónica en BOX 1; Zamira y Joaquín en BOX 2; si Joel y Mónica coinciden, el tramo superpuesto de Joel pasa a SOPORTE ADMINISTRATIVO. El horario real de cada día (con la compensación de sábados) está en “Semanas del mes” y en “Planilla”.'));
   if(t === 'tec') poner(o, nota('Semana tipo = lo que se repite siempre. Las guardias de 12 h (noches y fines de semana) se asignan por fecha cada mes: miralas en “Diagrama del mes”, “Semanas del mes” o “Mes”. Los sábados alternan entre Sábado 1 y Sábado 2.'));
-  if(t === 'adm' && days.length === 7 && !days[6].items.length) days.pop();
-  poner(o, timeGrid(days, t === 'eco' ? ecoOpts() : t === 'adm' ? admGrid(days) : null));
+  if(t === 'adm' && days.length === 7 && !days[6].items.length && !days[5].items.some(cruzaMedianoche)) days.pop();
+  poner(o, timeGrid(days, Object.assign(t === 'eco' ? ecoOpts() : t === 'adm' ? admGrid(days) : {}, { previo: days.length === 7 ? days[6].items : null })));
   return o;
 }
 function renderSems(){
@@ -1898,8 +1904,10 @@ function renderSems(){
     const d = addD(S.wk, i), dt = new Date(d + 'T12:00:00'), dd = ST.C.dayData(t, d, S.pf);
     days.push(Object.assign({ lab: DIAS[i].slice(0, 3) + ' ' + dt.getDate() + '/' + (dt.getMonth() + 1), we: i >= 5 || (!!ST.M.FER[d] && t === 'tec'), today: d === hoy }, ST.M.FER[d] ? { sub: 'Feriado' } : {}, dd));
   }
-  if(t === 'adm' && days.length === 7 && !days[6].items.length) days.pop();
-  return timeGrid(days, t === 'adm' ? admGrid(days) : null);
+  if(t === 'adm' && days.length === 7 && !days[6].items.length && !days[5].items.some(cruzaMedianoche)) days.pop();
+  const previo = ST.C.dayData(t, addD(S.wk, -1), S.pf).items;
+  if(t === 'adm') asignarBoxes(previo);
+  return timeGrid(days, Object.assign(t === 'adm' ? admGrid(days) : {}, { previo: previo }));
 }
 function ensureWk(){
   const ws = weeksOf(S.y, S.m);
@@ -3527,7 +3535,7 @@ function pdfGrilla(p, days, titulo, sub){
     acum += cw;
     p.rect(dx, yH, cw, hH, { fill: d.we ? [0.99, 0.94, 0.82] : [0.93, 0.94, 0.96], line: PDF_LINEA, lw: 0.4 });
     p.text(dx + cw / 2, yH + 10, d.lab, 9, { align: 'center', bold: true, color: PDF_NEG });
-    const np = new Set(d.items.filter(function(i){ return i.kind !== 'rep'; }).map(function(i){ return i.k; })).size;
+    const np = new Set(d.items.filter(function(i){ return i.kind !== 'rep' && !i.cont; }).map(function(i){ return i.k; })).size;
     p.text(dx + cw / 2, yH + 20, d.sub !== undefined ? d.sub : (np ? np + (np === 1 ? ' persona' : ' personas') : 'sin personal'), 6.5, { align: 'center', color: PDF_GRIS });
     let lx = dx;
     usadas.forEach(function(l){
@@ -3546,7 +3554,7 @@ function pdfGrilla(p, days, titulo, sub){
         const g = Lm[i.uid], bw = lw / g.n, a = mins(i.d), b = mins(i.h) <= a ? 1440 : mins(i.h), x = itemInfo(i), hu = hue(i.k || i['for']);
         const bx = lx + g.c * bw + 1, by = Y(a) + 0.5, bh = (b - a) * PXp - 1, bwi = bw - 2;
         const rgb = i.rotTipo ? [0.9, 0.9, 0.92] : hsl2rgb(hu, 0.7, 0.86), lin = i.over ? [0.85, 0.1, 0.1] : hsl2rgb(hu, 0.6, 0.38);
-        p.rect(bx, by, bwi, bh, { fill: rgb, line: lin, lw: i.over ? 1.6 : 0.7, dash: i.kind === 'rep' || i.rotTipo ? [2.5, 1.5] : null });
+        p.rect(bx, by, bwi, bh, { fill: rgb, line: lin, lw: i.over ? 1.6 : 0.7, dash: i.kind === 'rep' || i.rotTipo || i.cont ? [2.5, 1.5] : null });
         p.rect(bx, by, 2.2, bh, { fill: lin });
         /* nombre y horario en vertical (de abajo hacia arriba), ocupando todo el cuadro */
         const mh = bh - 5, lines = [[x.lab, true, 0.40], [tCorto(i.d, i.h), false, 0.32]];
@@ -3568,14 +3576,16 @@ function pdfGrilla(p, days, titulo, sub){
   return any;
 }
 function pdfDiasSemana(lunes){
-  const t = 'adm', hoy = ST.puente.hoy(), out = [];
+  const t = 'adm', hoy = ST.puente.hoy(), out = [], prev = ST.C.dayData(t, addD(lunes, -1), null);
+  asignarBoxes(prev.items);
   for(let i = 0; i < 7; i++){
     const d = addD(lunes, i), dt = new Date(d + 'T12:00:00'), dd = ST.C.dayData(t, d, null);
     asignarBoxes(dd.items);
-    if(i === 6 && !dd.items.length) continue;
     out.push(Object.assign({ lab: DIAS[i] + ' ' + dt.getDate() + '/' + (dt.getMonth() + 1), we: i >= 5 || !!ST.M.FER[d], today: d === hoy }, ST.M.FER[d] ? { sub: 'Feriado' } : {}, dd));
   }
-  return out;
+  const dias = conMedianoche(out, prev.items);
+  if(!dias[6].items.length) dias.pop();
+  return dias;
 }
 function pdfPagRotacion(desde){
   const C_ = ST.C, p = pdfPagina(842, 595), mg = 28, L = C_.rotLista(desde, 12);
@@ -3606,7 +3616,7 @@ function construirPdfAdm(modo){
     const t = 'adm', days = DIAS.slice(0, 6).map(function(nom, dia){ return Object.assign({ lab: nom, we: dia >= 5 }, diaItems(t, dia)); });
     days.forEach(function(d){ asignarBoxes(d.items); });
     const p = pdfPagina(842, 595);
-    pdfGrilla(p, days, 'Semana tipo' + (ST.C.rotOrden.length ? ' (lunes a viernes fijos; los sábados rotan)' : ''), null);
+    pdfGrilla(p, conMedianoche(days, null), 'Semana tipo' + (ST.C.rotOrden.length ? ' (lunes a viernes fijos; los sábados rotan)' : ''), null);
     pdfPie(p, []);
     pags.push(p); if(ST.C.rotOrden.length) pags.push(pdfPagRotacion(hoy));
     return { nombre: 'cronograma-administrativos-semana-tipo.pdf', bytes: pdfArmar(pags) };
@@ -3643,13 +3653,18 @@ function planRgb(k){
   return hsl2rgb(hue(k), 0.55, 0.38);
 }
 function nomAp(k){ const p = ST.M.PM[k]; return p ? (p.nom ? p.nom + ' ' : '') + p.ap : '?'; }
+function planSegs(items){ return items.filter(function(x){ return (x.kind === 'w' || x.kind === 'rep') && x.lane !== 'ofi' && !x.rotTipo && x.k; }); }
 function planDias(lunes, conFinde){
-  const out = [];
+  const out = [], pv = ST.C.dayData('adm', addD(lunes, -1), null);
+  asignarBoxes(pv.items);
+  let ant = planSegs(pv.items);
   for(let i = 0; i < 7; i++){
     if(i >= 5 && !conFinde) continue;
     const d = addD(lunes, i), dd = ST.C.dayData('adm', d, null);
     asignarBoxes(dd.items);
-    const segs = dd.items.filter(function(x){ return (x.kind === 'w' || x.kind === 'rep') && x.lane !== 'ofi' && !x.rotTipo && x.k; });
+    /* continuación de la noche anterior (00:00 hasta la hora de fin), sólo visual */
+    const propios = planSegs(dd.items), cont = ant.filter(cruzaMedianoche).map(function(s){ return Object.assign({}, s, { d: '00:00', cont: true }); }), segs = propios.concat(cont);
+    ant = propios;
     if(i >= 5 && !segs.length) continue;
     const dt = new Date(d + 'T12:00:00');
     out.push({ fecha: d, lab: DIAS[i].slice(0, 3).toUpperCase() + ' ' + dt.getDate() + '/' + (dt.getMonth() + 1), wd: i, fer: !!ST.M.FER[d], segs: segs });
