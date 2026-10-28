@@ -713,40 +713,37 @@ async function enterApp() {
   }
 }
 
-// Suscribe al admin a eventos INSERT de la tabla licencias.
-// Cuando alguien crea una solicitud, le aparece una notificaci\u00f3n del sistema
-// y se refresca la bandeja autom\u00e1ticamente.
+// Aviso al admin cuando llega una solicitud nueva.
+// La tabla licencias esta cerrada (solo se accede por RPC), asi que no hay Realtime directo:
+// mientras la pesta\u00f1a est\u00e1 visible se consulta la bandeja cada 60 s y se avisa de las solicitudes que no se conoc\u00edan.
+const LICENCIAS_POLL_MS = 60000;
+let _licenciasPollTimer = null;
 async function initRealtimeAdminLicencias() {
-  if (typeof subscribeToTable !== 'function') return;
-
-  // Pedir permiso en background, independiente de la suscripci\u00f3n Realtime.
+  // Pedir permiso en background.
   requestNotifPermissionConOnboarding('pedido de licencia').catch(() => {});
 
-  subscribeToTable({
-    channel: 'licencias-rt-' + currentUser.id,
-    table: 'licencias',
-    event: 'INSERT',
-    onEvent: async (payload) => {
-      const nueva = payload.new || {};
-      // Resolver nombre del solicitante (no viene en el payload crudo)
-      let quien = 'un usuario';
-      try {
-        const us = _usuariosAll.find(u => u.id === nueva.solicitante_id);
-        if (us) quien = us.nombre;
-      } catch(e) {}
-
-      const tipoLabel = TIPO_LABELS[nueva.tipo] || nueva.tipo || '-';
-      const fecha = nueva.fecha_desde ? fmtDate(nueva.fecha_desde) : '';
-      // showSpcdNotification es no-op si no hay permiso
-      showSpcdNotification(
-        '\u{1F4C5} Nueva solicitud de licencia',
-        `${quien} \u2014 ${tipoLabel}${fecha ? ' \u00b7 ' + fecha : ''}`,
-        { url: window.location.pathname, tag: 'licencia-' + nueva.id }
-      );
-      // La bandeja se refresca SIEMPRE
-      await loadLicencias();
-    }
-  });
+  const conocidas = new Set((_bandejaCache || []).map(l => l.id));
+  if (_licenciasPollTimer) clearInterval(_licenciasPollTimer);
+  _licenciasPollTimer = setInterval(async () => {
+    if (document.hidden) return;
+    try {
+      const filas = await sbRpc('licencias_listar', { p_todas: true, p_estados: ['PENDIENTE'] });
+      const nuevas = filas.filter(l => !conocidas.has(l.id));
+      filas.forEach(l => conocidas.add(l.id));
+      for (const nueva of nuevas) {
+        const tipoLabel = TIPO_LABELS[nueva.tipo] || nueva.tipo || '-';
+        const fecha = nueva.fecha_desde ? fmtDate(nueva.fecha_desde) : '';
+        // showSpcdNotification es no-op si no hay permiso
+        showSpcdNotification(
+          '\u{1F4C5} Nueva solicitud de licencia',
+          `${nueva.solicitante_nombre || 'un usuario'} \u2014 ${tipoLabel}${fecha ? ' \u00b7 ' + fecha : ''}`,
+          { url: window.location.pathname, tag: 'licencia-' + nueva.id }
+        );
+      }
+      // La bandeja se refresca SIEMPRE que haya algo nuevo
+      if (nuevas.length) await loadLicencias();
+    } catch (e) { console.warn('licencias (aviso) error:', e); }
+  }, LICENCIAS_POLL_MS);
 }
 
 function applyPermissions() {
@@ -805,11 +802,9 @@ async function loadLicencias() {
   // Admin: ve TODAS las solicitudes como historial. Otros: solo las propias.
   try {
     if (rol === 'admin') {
-      _licenciasCache = await sbQuery('v_licencias',
-        'select=*&order=fecha_creacion.desc');
+      _licenciasCache = await sbRpc('licencias_listar', { p_todas: true });
     } else {
-      _licenciasCache = await sbQuery('v_licencias',
-        `select=*&solicitante_id=eq.${currentUser.id}&order=fecha_creacion.desc`);
+      _licenciasCache = await sbRpc('licencias_listar', { p_todas: false });
     }
     aplicarFiltrosLicencias();
   } catch(e) {
@@ -821,8 +816,7 @@ async function loadLicencias() {
   // Bandeja (solo admin): todas las PENDIENTES
   if (rol === 'admin') {
     try {
-      _bandejaCache = await sbQuery('v_licencias',
-        `select=*&estado=eq.PENDIENTE&order=fecha_creacion.desc`);
+      _bandejaCache = await sbRpc('licencias_listar', { p_todas: true, p_estados: ['PENDIENTE'] });
       renderBandeja(_bandejaCache, 'bandeja-list');
       updateBandejaBadge(_bandejaCache.length);
     } catch(e) {
@@ -1375,37 +1369,21 @@ async function submitLicencia() {
   }
 
   try {
-    const data = {
-      solicitante_id: currentUser.id,
-      tipo,
-      fecha_desde: fechaDesde,
-      fecha_hasta: fechaHasta,
-      hora_desde:  horaDesde,
-      hora_hasta:  horaHasta,
-      motivo:      motivo,
-      observacion: obs || null,
-      companero_id: companeroId,
-      estado:      'PENDIENTE'
-    };
-    if (_adjuntoActual) {
-      data.adjunto_base64 = _adjuntoActual.base64;
-      data.adjunto_nombre = _adjuntoActual.nombre;
-      data.adjunto_tipo   = _adjuntoActual.tipo;
-    }
-    let row;
-    try {
-      [row] = await sbInsert('licencias', data);
-    } catch(e) {
-      // Si falla por columnas de adjunto faltantes, reintentar sin adjunto y avisar
-      if (_adjuntoActual && /adjunto_|column/i.test(String(e.message))) {
-        delete data.adjunto_base64; delete data.adjunto_nombre; delete data.adjunto_tipo;
-        [row] = await sbInsert('licencias', data);
-        showToast('Solicitud enviada. El archivo no se guard\u00f3: actualiz\u00e1 la tabla en Supabase.', 'warning');
-      } else {
-        throw e;
-      }
-    }
-    showToast('Solicitud #' + row.id + ' enviada', 'success');
+    // El solicitante y el estado los fija el servidor (quien llama; PENDIENTE): no se mandan.
+    const idNuevo = await sbRpc('licencias_crear', {
+      p_tipo:          tipo,
+      p_fecha_desde:   fechaDesde,
+      p_fecha_hasta:   fechaHasta,
+      p_hora_desde:    horaDesde,
+      p_hora_hasta:    horaHasta,
+      p_motivo:        motivo,
+      p_observacion:   obs || null,
+      p_companero_id:  companeroId,
+      p_adjunto_base64: _adjuntoActual ? _adjuntoActual.base64 : null,
+      p_adjunto_nombre: _adjuntoActual ? _adjuntoActual.nombre : null,
+      p_adjunto_tipo:   _adjuntoActual ? _adjuntoActual.tipo : null
+    });
+    showToast('Solicitud #' + idNuevo + ' enviada', 'success');
     quitarArchivo();
     closeLicenciaModal();
     await loadLicencias();
@@ -1417,7 +1395,7 @@ async function submitLicencia() {
 /* ── Detalle ─────────────────────────────────────────── */
 async function showLicDetail(id) {
   try {
-    const [lic] = await sbQuery('v_licencias', `select=*&id=eq.${id}`);
+    const [lic] = await sbRpc('licencias_listar', { p_todas: currentUser.rol === 'admin', p_id: Number(id) });
     if (!lic) { showToast('Solicitud no encontrada', 'error'); return; }
 
     document.getElementById('lic-detail-title').textContent = `SOLICITUD #${lic.id}`;
@@ -1467,7 +1445,7 @@ function closeLicDetail() {
 async function verAdjunto(licId) {
   try {
     showToast('Cargando adjunto...', 'info');
-    const rows = await sbQuery('licencias', `select=adjunto_base64,adjunto_nombre,adjunto_tipo&id=eq.${licId}`);
+    const rows = await sbRpc('licencias_adjunto', { p_id: Number(licId) });
     if (!rows || !rows[0] || !rows[0].adjunto_base64) {
       await spcdAlert('No se encontr\u00f3 el archivo.', { type:'error' });
       return;
@@ -1502,11 +1480,7 @@ async function aprobarLicencia(id) {
     { title:'Aprobar licencia', okText:'S\u00ed, aprobar', type:'confirm' });
   if (!ok) return;
   try {
-    await sbUpdate('licencias', id, {
-      estado: 'APROBADO',
-      aprobado_por: currentUser.id,
-      fecha_aprobacion: new Date().toISOString()
-    });
+    await sbRpc('licencias_resolver', { p_id: Number(id), p_aprobar: true });
     showToast('Solicitud #' + id + ' aprobada', 'success');
     closeLicDetail();
     await loadLicencias();
@@ -1520,12 +1494,7 @@ async function rechazarLicencia(id) {
     { title:'Rechazar solicitud #' + id, okText:'Rechazar', placeholder:'Ej: ya hay otra persona de licencia ese d\u00eda' });
   if (motivo === null) return;
   try {
-    await sbUpdate('licencias', id, {
-      estado: 'RECHAZADO',
-      aprobado_por: currentUser.id,
-      fecha_aprobacion: new Date().toISOString(),
-      motivo_rechazo: (motivo || '').trim() || null
-    });
+    await sbRpc('licencias_resolver', { p_id: Number(id), p_aprobar: false, p_motivo_rechazo: (motivo || '').trim() || null });
     showToast('Solicitud #' + id + ' rechazada', 'success');
     closeLicDetail();
     await loadLicencias();
@@ -1539,7 +1508,7 @@ async function cancelarLicencia(id) {
     { title:'Cancelar solicitud', okText:'S\u00ed, cancelar', cancelText:'Volver', type:'alert' });
   if (!ok) return;
   try {
-    await sbUpdate('licencias', id, { estado: 'CANCELADO' });
+    await sbRpc('licencias_cancelar', { p_id: Number(id) });
     showToast('Solicitud #' + id + ' cancelada', 'success');
     closeLicDetail();
     await loadLicencias();
@@ -1563,11 +1532,13 @@ async function renderCalendario() {
     // - resto: solo las propias (aprobadas + pendientes)
     const first = new Date(year, month, 1).toISOString().slice(0,10);
     const last  = new Date(year, month + 1, 0).toISOString().slice(0,10);
-    let q = `select=*&estado=in.(APROBADO,PENDIENTE)&or=(fecha_desde.lte.${last},fecha_hasta.gte.${first})&order=fecha_desde.asc`;
-    if (rol !== 'admin') {
-      q += `&solicitante_id=eq.${currentUser.id}`;
-    }
-    const licencias = await sbQuery('v_licencias', q);
+    const licencias = await sbRpc('licencias_listar', {
+      p_todas: rol === 'admin',
+      p_estados: ['APROBADO', 'PENDIENTE'],
+      p_solapa_desde: first,
+      p_solapa_hasta: last,
+      p_orden: 'desde'
+    });
 
     // Armar grid del mes: arranca lunes
     const firstDow = (new Date(year, month, 1).getDay() + 6) % 7; // 0=lun
@@ -1629,8 +1600,12 @@ async function exportLicenciasMes() {
     const month = _calDate.getMonth();
     const first = new Date(year, month, 1).toISOString().slice(0,10);
     const last  = new Date(year, month + 1, 0).toISOString().slice(0,10);
-    const licencias = await sbQuery('v_licencias',
-      `select=*&fecha_desde=gte.${first}&fecha_desde=lte.${last}&order=fecha_desde.asc`);
+    const licencias = await sbRpc('licencias_listar', {
+      p_todas: currentUser.rol === 'admin',
+      p_desde_min: first,
+      p_desde_max: last,
+      p_orden: 'desde'
+    });
 
     if (!licencias.length) { await spcdAlert('No hay solicitudes en el mes seleccionado.', { type:'alert' }); return; }
 
