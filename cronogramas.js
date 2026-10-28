@@ -1669,8 +1669,8 @@ function conMedianoche(days, previo){
 function timeGrid(days, o){
   o = o || {};
   const nombreTab = o.nombreTab || TN[tabAct()];
-  if(esAngosto()) return listDays(days, nombreTab);
   days = conMedianoche(days, o.previo);
+  if(esAngosto()) return listDays(days, nombreTab);
   let t0 = 480, t1 = 1020;
   days.forEach(function(d){
     d.items.forEach(function(i, ix){
