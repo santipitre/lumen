@@ -613,8 +613,9 @@
 <!-- ==================== JAVASCRIPT ==================== -->
 <script src="spcd-utils.js?v=7273575b"></script>
 <script src="spcd-dialog.js?v=ee2826f0"></script>
-<script src="spcd-supabase.js?v=4420ca43"></script>
+<!-- El SDK de Supabase va ANTES de spcd-supabase.js: si no, window.sbAuth no se crea y las consultas salen como anónimas (401) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="spcd-supabase.js?v=4420ca43"></script>
 <script src="spcd-realtime.js?v=11bdcf02"></script>
 <script>
 /* ===========================================================
