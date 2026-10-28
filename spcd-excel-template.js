@@ -156,7 +156,7 @@
   function getCurrentSede() {
     try { return localStorage.getItem('spcd_sede') || 'General'; } catch(e) { return 'General'; }
   }
-  function nowIsoDate() { return new Date().toISOString().slice(0,10); }
+  function nowIsoDate() { const d = new Date(), p = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); } /* fecha LOCAL (no UTC): de 21 a 24 h en Mendoza toISOString() daba la de mañana */
   function nowAr() { return new Date().toLocaleString('es-AR'); }
   function dateAr() { return new Date().toLocaleDateString('es-AR'); }
 
