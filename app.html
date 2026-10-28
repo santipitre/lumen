@@ -648,6 +648,20 @@
     .btn-back:hover { border-color: var(--cyan); color: var(--cyan); }
     .btn-back.visible { display: flex; }
 
+    /* --- CERRAR SESIÓN: abajo a la izquierda, solo en «Área de trabajo» (no choca con «Ver según rol» ni con el chat) --- */
+    .btn-logout {
+      position: fixed; bottom: 20px; left: 20px; z-index: 100;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px; padding: 8px 16px;
+      font-family: 'Inter', sans-serif;
+      font-size: 12px; letter-spacing: 2px; color: var(--muted);
+      cursor: pointer; transition: all .2s;
+      text-transform: uppercase; display: none; align-items: center; gap: 8px;
+    }
+    .btn-logout:hover { border-color: rgba(239, 68, 68, .7); color: #ef4444; }
+    .btn-logout.visible { display: flex; }
+
     /* --- VER SEGÚN ROL (solo admin): botón, barra de vista previa y cajón (patrón de cronogramas.css) --- */
     .vr-boton {
       display: inline-flex; align-items: center; gap: 8px;
@@ -900,6 +914,9 @@
 <button class="btn-back" id="btn-back" onclick="goBack()">
   <span>&#8592;</span> <span id="back-label">Volver</span>
 </button>
+
+<!-- Cerrar sesión (Área de trabajo) -->
+<button class="btn-logout" id="btn-logout" type="button" onclick="doLogout()">Cerrar sesión</button>
 
 <!-- Ver según rol (solo admin): botón, barra de vista previa y cajón -->
 <button class="vr-boton" id="vr-btn" type="button" onclick="vrAbrir()">Ver según rol</button>
@@ -1246,6 +1263,8 @@ function showScreen(id) {
       id === 'screen-roles'  ? 'Sedes'  : 'Volver';
     if (badge) badge.style.display = 'inline-flex';
   }
+  const lo = document.getElementById('btn-logout');
+  if (lo) lo.classList.toggle('visible', id === 'screen-roles');
   if (vrSim && id !== 'screen-roles') vrLimpiar();
   vrActualizarBoton();
 }
@@ -1277,7 +1296,7 @@ function goToLogin() {
   setTimeout(() => document.getElementById('login-user').focus(), 300);
 }
 
-function doLogout() {
+async function doLogout() {
   localStorage.removeItem(SESSION_KEY);
   localStorage.removeItem('spcd_operativo_session');
   currentUser = null;
@@ -1286,6 +1305,10 @@ function doLogout() {
   document.getElementById('login-user').value = '';
   document.getElementById('login-pin').value = '';
   document.getElementById('login-error').style.display = 'none';
+  // También cierra la sesión de Supabase Auth, solo en este navegador (scope 'local': no saca al usuario de sus otros dispositivos)
+  try {
+    if (window.sbAuth && window.sbAuth.auth) await window.sbAuth.auth.signOut({ scope: 'local' });
+  } catch (e) { /* sin sesión auth, OK */ }
 }
 
 
