@@ -43,6 +43,24 @@
     <div class="sede-chip">SEDE HOSPITAL ITALIANO</div>
     <button id="tema-btn" type="button" aria-pressed="false" class="btn-back-top tema-btn">◐</button>
     <a class="btn-back-top" href="app.html">← Atrás</a>
+    <button class="btn-back-top" id="btn-cerrar-sesion" type="button" onclick="spcdCerrarSesion()" style="cursor:pointer;font-family:inherit">Cerrar sesión</button>
+    <style>
+/* Celular: la barra superior ya desbordaba (el botón «Atrás» quedaba fuera de la pantalla); se ocultan las etiquetas para que «Cerrar sesión» se vea. */
+@media (max-width: 640px) { .topbar .topbar-crumbs, .topbar .sede-chip, .topbar .user-chip, .topbar .topbar-sep { display: none !important; } }
+@media (max-width: 640px) { .topbar { padding: 0 10px; gap: 8px; } .topbar-right { gap: 6px; } .topbar .btn-back-top { padding: 6px 8px; letter-spacing: .5px; } }
+</style>
+<script>
+/* Cerrar sesión: borra la sesión local y la de Supabase Auth (solo este navegador; tope de 3 s) y vuelve a app.html. */
+async function spcdCerrarSesion() {
+  try { localStorage.removeItem('spcd_session'); localStorage.removeItem('spcd_operativo_session'); } catch (e) {}
+  try {
+    if (window.sbAuth && window.sbAuth.auth) {
+      await Promise.race([window.sbAuth.auth.signOut({ scope: 'local' }), new Promise(function (r) { setTimeout(r, 3000); })]);
+    }
+  } catch (e) { /* sin sesión auth, OK */ }
+  window.location.href = 'app.html';
+}
+</script>
   </div>
 </header>
 

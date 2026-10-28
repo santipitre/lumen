@@ -406,7 +406,12 @@
     <div class="user-chip" id="user-chip"></div>
     <button class="btn-top" id="btn-notif-diag" onclick="spcdMostrarDiagnostico()" title="Diagn\u00f3stico de notificaciones" style="display:none;">&#x1F514;</button>
     <button class="btn-top" id="btn-volver" onclick="spcdVolverAtras()">&larr; Atr&aacute;s</button>
-    <button class="btn-top danger" onclick="doLogout()" id="btn-logout" style="display:none">Salir</button>
+    <button class="btn-top danger" onclick="doLogout()" id="btn-logout" style="display:none">Cerrar sesión</button>
+    <style>
+/* Celular: la barra superior ya desbordaba (el botón «Atrás» quedaba fuera de la pantalla); se ocultan las etiquetas para que «Cerrar sesión» se vea. */
+@media (max-width: 640px) { .topbar .topbar-crumbs, .topbar .sede-chip, .topbar .user-chip, .topbar .topbar-sep { display: none !important; } }
+@media (max-width: 640px) { .topbar { padding: 0 10px; } .topbar-left, .logo-link { gap: 8px; } .topbar-right { gap: 6px; } .topbar .btn-top { padding: 6px 8px; letter-spacing: .5px; } }
+</style>
   </div>
 </header>
 
@@ -674,8 +679,14 @@ async function doLogin(e) {
   }
 }
 
-function doLogout() {
-  localStorage.removeItem(SESSION_KEY);
+async function doLogout() {
+  // Cierra la sesión local y la de Supabase Auth (solo este navegador; tope de 3 s) y vuelve a app.html.
+  try { localStorage.removeItem(SESSION_KEY); localStorage.removeItem('spcd_operativo_session'); } catch (e) {}
+  try {
+    if (window.sbAuth && window.sbAuth.auth) {
+      await Promise.race([window.sbAuth.auth.signOut({ scope: 'local' }), new Promise(function (r) { setTimeout(r, 3000); })]);
+    }
+  } catch (e) { /* sin sesión auth, OK */ }
   window.location.href = 'app.html';
 }
 
