@@ -1490,18 +1490,22 @@ async function doLogin(e) {
     if (!pin) throw new Error('Ingresá tu PIN.');
     if (!/^\d{4,6}$/.test(pin)) throw new Error('El PIN debe ser de 4 a 6 dígitos.');
 
-    // 3) Usuario migrado con PIN seteado → signInWithPassword
-    let emailLogin = null;
+    // 3) Usuario con cuenta de Auth: login_con_pin valida el PIN en el servidor (con bloqueo escalonado)
+    //    y recién entonces entrega la clave de Auth. SIN_AUTH / respuesta rara => sigue el camino legacy (verificar_pin).
+    let lg = null;
     try {
-      emailLogin = await sbRpc('email_para_login', { p_username: username });
+      lg = await sbRpc('login_con_pin', { p_username: username, p_pin: pin });
     } catch (rpcErr) {
-      console.warn('[login] email_para_login no disponible:', rpcErr);
+      console.warn('[login] login_con_pin no disponible:', rpcErr);
+    }
+    if (lg && lg.ok === false && lg.motivo === 'PIN_INCORRECTO') {
+      throw new Error('Usuario o PIN incorrecto.');
     }
 
-    if (emailLogin && window.sbAuth) {
+    if (lg && lg.ok === true && lg.email && lg.clave && window.sbAuth) {
       const { data, error } = await window.sbAuth.auth.signInWithPassword({
-        email: emailLogin,
-        password: pin
+        email: lg.email,
+        password: lg.clave
       });
       if (error || !data || !data.user) throw new Error('Usuario o PIN incorrecto.');
 
@@ -1683,12 +1687,8 @@ async function doChangePin(e) {
   try {
     if (_pinModalMode === 'first') {
       // ─── PRIMERA VEZ POST-OTP (Fase 2.E) ───
-      // 1) Setear el PIN como password de Supabase Auth (para signInWithPassword futuro)
-      if (!window.sbAuth) throw new Error('Supabase Auth no inicializado.');
-      const { error: pwErr } = await window.sbAuth.auth.updateUser({ password: nw });
-      if (pwErr) throw new Error('No pudimos guardar el PIN en tu sesión: ' + pwErr.message);
-
-      // 2) Actualizar usuarios.pin + marcar pin_set_at = now()
+      // Actualizar usuarios.pin + marcar pin_set_at = now(). La contraseña de Auth la deja el servidor en una clave propia:
+      // el PIN nunca es la contraseña de Auth.
       await sbRpc('setear_pin_inicial', { p_pin: nw });
 
       currentUser.pin_set_at = new Date().toISOString();
@@ -1702,19 +1702,6 @@ async function doChangePin(e) {
       if (nw === cur) { throw new Error('El nuevo PIN debe ser diferente al actual.'); }
       const ok = await sbRpc('cambiar_pin', { p_usuario_id: currentUser.id, p_pin_actual: cur, p_pin_nuevo: nw });
       if (!ok) throw new Error('PIN actual incorrecto.');
-
-      // Si el usuario está auth-linked, también actualizar password en auth.users
-      // así futuros logins funcionan con signInWithPassword(email, nuevoPin).
-      try {
-        if (window.sbAuth) {
-          const { data: { session } } = await window.sbAuth.auth.getSession();
-          if (session && session.user) {
-            await window.sbAuth.auth.updateUser({ password: nw });
-          }
-        }
-      } catch (syncErr) {
-        console.warn('[cambiar_pin] No se pudo sincronizar password en auth.users:', syncErr);
-      }
 
       currentUser.debe_cambiar_pin = false;
       saveSession(currentUser);

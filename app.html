@@ -1385,8 +1385,9 @@ function _traducirErrorSupabase(msg) {
 /* -- LOGIN TRIPLE (Fase 2.E · 2026-05-19) --
    Orden de evaluación:
      1) email_para_otp(username) → si devuelve email, PRIMERA VEZ → magic link.
-     2) email_para_login(username) → si devuelve email, login con PIN via
-        Supabase signInWithPassword (mantiene sesión auth activa para RLS).
+     2) login_con_pin(username, pin) → el servidor valida el PIN (con bloqueo) y, si es
+        correcto, entrega email + clave de Auth; signInWithPassword(email, clave)
+        mantiene sesión auth activa para RLS. El PIN nunca es la contraseña de Auth.
      3) verificar_pin(username, pin) → fallback legacy para usuarios sin
         auth_user_id (sin Supabase Auth). */
 
@@ -1440,19 +1441,23 @@ async function doLoginOperativo(e) {
     if (!pin) throw new Error('Ingresá tu PIN.');
     if (!/^\d{4,6}$/.test(pin)) throw new Error('El PIN debe ser de 4 a 6 dígitos.');
 
-    // 3) ¿Tiene email vinculado? (usuario migrado que ya seteó PIN propio)
-    let emailLogin = null;
+    // 3) ¿Tiene cuenta de Supabase Auth? login_con_pin valida el PIN en el servidor (con bloqueo escalonado)
+    //    y recién entonces entrega la clave de Auth. SIN_AUTH / respuesta rara => sigue el camino legacy (verificar_pin).
+    let lg = null;
     try {
-      emailLogin = await _sbRpcAnon('email_para_login', { p_username: username });
+      lg = await _sbRpcAnon('login_con_pin', { p_username: username, p_pin: pin });
     } catch (rpcErr) {
-      console.warn('[login] email_para_login no disponible:', rpcErr);
+      console.warn('[login] login_con_pin no disponible:', rpcErr);
+    }
+    if (lg && lg.ok === false && lg.motivo === 'PIN_INCORRECTO') {
+      throw new Error('Usuario o PIN incorrecto.');
     }
 
-    if (emailLogin && window.sbAuth) {
-      // 3a) PIN como password via Supabase Auth (mantiene sesión + RLS)
+    if (lg && lg.ok === true && lg.email && lg.clave && window.sbAuth) {
+      // 3a) Clave de Auth entregada por el servidor (mantiene sesión + RLS)
       const { data, error } = await window.sbAuth.auth.signInWithPassword({
-        email: emailLogin,
-        password: pin
+        email: lg.email,
+        password: lg.clave
       });
       if (error || !data || !data.user) {
         throw new Error('Usuario o PIN incorrecto.');
