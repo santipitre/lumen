@@ -168,7 +168,7 @@
 
   /* actividad real del usuario (no cuenta mover el mouse: un roce no mantiene viva una sesión abandonada) */
   ['pointerdown', 'keydown', 'touchstart', 'wheel'].forEach(function (ev) {
-    window.addEventListener(ev, function () { if (leer()) { ping(false); if (barra && barra.classList.contains('sb-aviso')) sincronizar(); } }, { passive: true, capture: true });
+    window.addEventListener(ev, function () { if (leer()) { var av = !!(barra && barra.classList.contains('sb-aviso')); ping(av); if (av) sincronizar(); } }, { passive: true, capture: true });
   });
   window.addEventListener('scroll', function () { if (leer()) ping(false); }, { passive: true, capture: true });
 
