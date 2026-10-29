@@ -1705,6 +1705,9 @@ function spcdRestoreTabFromHash() {
   if (saved) {
     currentUser = saved;
     enterApp();
+  } else {
+    /* sin sesion: el unico login es app.html (crea la sesion de Supabase que piden las consultas) */
+    location.replace('app.html');
   }
 })();
 </script>
