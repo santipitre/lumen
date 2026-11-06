@@ -5,8 +5,9 @@ if(!window.__img_user) return;
 /* == constantes == */
 const TABS = ['medicos','residentes','tecnicos','administrativos'];
 const SUBS = ['staff','eco','rm'];
-const TITULOS = { medicos:'Médicos', residentes:'Residentes', tecnicos:'Técnicos', administrativos:'Administrativos', cronogramas:'Cronogramas' };
+const TITULOS = { medicos:'Médicos', residentes:'Residentes', tecnicos:'Técnicos', administrativos:'Administrativos', cronogramas:'Cronogramas', docencia:'Docencia' };
 const TAB_CRON = 'cronogramas';
+const TAB_DOC = 'docencia';   /* 06/11/2026: sección nueva, «Próximamente» */
 const BASE = 'Dashboard Imágenes H.Italiano';
 const TIPO_DE = { medicos:'medico', residentes:'residente', tecnicos:'tecnico', administrativos:'administrativo' };
 const RPC_LECTURA = ['img_mi_acceso','img_catalogos','img_listar','img_ficha','img_cronograma','img_cron_leer'];
@@ -90,7 +91,8 @@ function parseHash(h){
 function resolverHash(hash, pestanas){
   if(!pestanas || !pestanas.length) return null;
   const p = parseHash(hash);
-  const tab = pestanas.indexOf(p.tab) >= 0 && (TABS.indexOf(p.tab) >= 0 || p.tab === TAB_CRON) ? p.tab : pestanas[0];
+  const tab = pestanas.indexOf(p.tab) >= 0 && (TABS.indexOf(p.tab) >= 0 || p.tab === TAB_CRON || p.tab === TAB_DOC) ? p.tab : pestanas[0];
+  if(tab === TAB_DOC) return { tab: tab, sub: null };
   if(tab === TAB_CRON) return { tab: tab, sub: (tab === p.tab && /^[a-z]{2,20}$/.test(p.sub || '')) ? p.sub : null };
   if(tab !== 'medicos') return { tab: tab, sub: null };
   return { tab: tab, sub: (tab === p.tab && SUBS.indexOf(p.sub) >= 0) ? p.sub : 'staff' };
@@ -3077,7 +3079,8 @@ function pintarInformantes(el){
 
 /* Cronogramas (cronogramas.js): pestaña propia, siempre visible para quien tiene alguna pestaña asignada; los permisos por dato los aplica la base. */
 function pestanasVisibles(){
-  return E.pestanas.length && window.LumenCronogramas ? E.pestanas.concat([TAB_CRON]) : E.pestanas;
+  const base = E.pestanas.length && window.LumenCronogramas ? E.pestanas.concat([TAB_CRON]) : E.pestanas;
+  return E.pestanas.length ? base.concat([TAB_DOC]) : base;
 }
 
 const PUENTE_CRON = {
@@ -3096,6 +3099,10 @@ function pintarVista(tab, sub){
   if(!el) return;
   if(tab === TAB_CRON){
     window.LumenCronogramas.mostrar(el, sub, PUENTE_CRON);
+    return;
+  }
+  if(tab === TAB_DOC){
+    estado(el, 'DOCENCIA', 'Próximamente');
     return;
   }
   const clave = tab === 'medicos' && sub === 'eco' ? 'cronograma' : tab;
@@ -3137,13 +3144,27 @@ function alCambiarHash(){
   render();
 }
 
+/* 06/11/2026: nivel de arriba Staff · Cronogramas · Docencia; Staff abre la fila Médico · Residente · Técnico · Administrativo */
+function pintarGrupos(r){
+  const g = document.getElementById('g-staff'), fila = document.getElementById('nav-staff'), arriba = document.getElementById('nav-grupo');
+  if(!g || !fila) return;
+  const staff = TABS.filter(function(k){ return pestanasVisibles().indexOf(k) >= 0; });
+  const enStaff = staff.indexOf(r.tab) >= 0;
+  if(enStaff) E.ultimoStaff = r.tab;
+  g.hidden = !staff.length;
+  g.setAttribute('href', '#' + (E.ultimoStaff && staff.indexOf(E.ultimoStaff) >= 0 ? E.ultimoStaff : (staff[0] || 'medicos')));
+  g.setAttribute('aria-selected', enStaff ? 'true' : 'false');
+  fila.hidden = !enStaff;
+  if(arriba) arriba.hidden = false;
+}
+
 function render(){
   expCerrar(false);
   const r = resolverHash(location.hash, pestanasVisibles());
   if(r === null) return;
   if(hashDe(r) !== location.hash) history.replaceState(null, '', hashDe(r));
   E.hashActual = location.hash;
-  TABS.concat([TAB_CRON]).forEach(function(k){
+  TABS.concat([TAB_CRON, TAB_DOC]).forEach(function(k){
     const t = document.getElementById('t-' + k);
     const p = document.getElementById('tab-' + k);
     const asignada = pestanasVisibles().indexOf(k) >= 0;
@@ -3153,6 +3174,7 @@ function render(){
     t.tabIndex = activa ? 0 : -1;
     p.hidden = !activa;
   });
+  pintarGrupos(r);
   pintarContadores();
   SUBS.forEach(function(k){
     const a = document.querySelector('.subtabs a[href="#medicos/' + k + '"]');
@@ -3168,7 +3190,8 @@ function render(){
 /* == arranque == */
 function ocultarTodo(){
   document.querySelector('[role="tablist"]').hidden = true;
-  TABS.concat([TAB_CRON]).forEach(function(k){ document.getElementById('tab-' + k).hidden = true; });
+  TABS.concat([TAB_CRON, TAB_DOC]).forEach(function(k){ document.getElementById('tab-' + k).hidden = true; });
+  ['nav-grupo', 'nav-staff'].forEach(function(id){ const n = document.getElementById(id); if(n) n.hidden = true; });
 }
 
 function avisar(titulo, texto, esError){
