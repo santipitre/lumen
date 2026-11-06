@@ -48,10 +48,11 @@ const SUBS = [
   { k: 'tecnicos', n: 'Técnicos', tab: 'tec' },
   { k: 'administrativos', n: 'Administrativos', tab: 'adm' },
   { k: 'radiografias', n: 'Radiografías', tab: 'rx' },
-  { k: 'tc', n: 'Tomografía (guardias)', tab: 'tc' },
+  { k: 'tc', n: 'Tomografías', tab: 'tc' },
   { k: 'eco', n: 'Eco/Doppler', tab: 'eco' },
-  { k: 'licencias', n: 'Licencias y reemplazos', tab: 'lic' },
-  { k: 'pago', n: 'Pago de técnicos', tab: 'tec', soloEdicion: true },
+  { k: 'rm', n: 'Resonancias', tab: 'todo' },   /* 06/11/2026: Próximamente */
+  { k: 'pago', n: 'Pago de técnicos', tab: 'tec', soloEdicion: true, padre: 'tecnicos' },
+  { k: 'licencias', n: 'Licencias y reemplazos', tab: 'lic', hijoDeTodos: true },   /* aparece dentro de cada sección */
   { k: 'alertas', n: 'Alertas', tab: 'todo' }
 ];
 const VISTAS = {
@@ -60,6 +61,7 @@ const VISTAS = {
   radiografias: [['sem', 'Semana tipo'], ['sems', 'Semanas del mes'], ['cuadro', 'Cuadro'], ['mes', 'Mes'], ['anio', 'Año']],
   tc: [['tcg', 'Guardias de Tomografía']],
   eco: [['sem', 'Semana tipo']],
+  rm: [['prox', 'Resonancias']],
   licencias: [['conf', 'Confirmar reemplazos'], ['lista', 'Licencias'], ['anio', 'Año']],
   pago: [['pago', 'Horas y valor']],
   alertas: [['alertas', 'Alertas']]
@@ -3277,10 +3279,23 @@ function renderKpis(){
     return h('div', { class: 'cr-kpi' + (x[3] ? ' bad' : '') }, h('small', { t: x[0] }), h('b', { t: x[1] }), h('em', { t: x[2] }));
   }));
 }
+/* 06/11/2026: Pago de técnicos (padre Técnicos) y Licencias y reemplazos (dentro de todas) no van en la fila principal:
+   aparecen en una segunda fila dentro de la sección, que queda marcada */
 function renderNav(){
-  return h('nav', { class: 'cr-subs', 'aria-label': 'Vistas de Cronogramas' }, subsVisibles().map(function(s){
-    return h('a', { href: '#cronogramas/' + s.k, 'data-sub': s.k, 'aria-current': s.k === S.sub ? 'page' : null, t: s.n });
+  const act = subActual();
+  let padreAct = act.padre || act.k;
+  if(act.hijoDeTodos) padreAct = S.licPadre && SUBS.some(function(s){ return s.k === S.licPadre && !s.padre && !s.hijoDeTodos; }) ? S.licPadre : 'tecnicos';
+  else if(!act.padre) S.licPadre = act.k;
+  const nav = h('nav', { class: 'cr-subs', 'aria-label': 'Vistas de Cronogramas' }, subsVisibles().filter(function(s){ return !s.padre && !s.hijoDeTodos; }).map(function(s){
+    return h('a', { href: '#cronogramas/' + s.k, 'data-sub': s.k, 'aria-current': s.k === padreAct ? 'page' : null, t: s.n });
   }));
+  const hijos = subsVisibles().filter(function(s){ return s.padre === padreAct || (s.hijoDeTodos && padreAct !== 'alertas'); });
+  if(!hijos.length) return nav;
+  const padre = SUBS.find(function(s){ return s.k === padreAct; });
+  const fila = h('nav', { class: 'cr-subs cr-subs-hijo', 'aria-label': 'Vistas de ' + padre.n }, [padre].concat(hijos).map(function(s){
+    return h('a', { href: '#cronogramas/' + s.k, 'data-sub': s.k, 'aria-current': s.k === S.sub ? 'page' : null, t: s.k === padreAct ? 'Cronograma' : s.n });
+  }));
+  return h('div', { class: 'cr-navs' }, nav, fila);
 }
 function personasFiltro(){
   const t = tabAct();
@@ -3341,6 +3356,7 @@ function renderCuerpo(){
     if(v === 'tcg') return renderTcg();
     if(v === 'pago') return renderPago();
     if(v === 'alertas') return renderAlertas('todo', true);
+    if(v === 'prox') return bloqueEstado('RESONANCIAS', 'Próximamente', false, false);
   }catch(e){
     ST.R.errVista = String(e && e.message || e);
     return bloqueEstado('NO SE PUDO DIBUJAR ESTA VISTA', 'Probá otra vista o recargá la página.', true, false);

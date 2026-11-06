@@ -391,3 +391,5 @@ html[data-tema="claro"] .cr-lh .lh.box2{color:hsl(28 90% 30%)}
 .cr-plan .pl-or{display:flex;gap:8px;font-size:12px;padding:2px 0;color:#2b2b2b}
 .cr-plan .pl-or b{min-width:96px;color:#1f3a5f}
 @media (max-width:700px){.cr-plan .pl-dia{grid-template-columns:70px 1fr}.cr-plan .pl-h{font-size:8px}}
+/* 06/11/2026: segunda fila (Técnicos → Cronograma · Pago de técnicos) */
+.cr-subs-hijo{margin:-6px 0 12px}.cr-subs-hijo a{font-size:12px;padding:4px 11px}

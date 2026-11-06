@@ -4,7 +4,15 @@ if(!window.__img_user) return;
 
 /* == constantes == */
 const TABS = ['medicos','residentes','tecnicos','administrativos'];
-const SUBS = ['staff','eco','rm'];
+const SUBS = ['staff','eco','rm','inftc','infrx','infeco'];
+/* 06/11/2026: Informantes por modalidad dentro de Staff médico (RM usa armarInformantes, el resto armarInformantesServicio) */
+const SUBS_INF = ['rm','inftc','infrx','infeco'];
+const INF_SERVICIO = {
+  rm:     { nombre: 'Resonancia' },
+  inftc:  { nombre: 'Tomografía', re: /tomograf/ },
+  infrx:  { nombre: 'Radiología', re: /radiolog|radiograf|rayos/ },
+  infeco: { nombre: 'Ecografía y Doppler', re: /ecograf|doppler/ }
+};
 const TITULOS = { medicos:'Médicos', residentes:'Residentes', tecnicos:'Técnicos', administrativos:'Administrativos', cronogramas:'Cronogramas', docencia:'Docencia' };
 const TAB_CRON = 'cronogramas';
 const TAB_DOC = 'docencia';   /* 06/11/2026: sección nueva, «Próximamente» */
@@ -317,6 +325,27 @@ function armarInformantes(medicos, catalogoSubesp){
   });
   const sin = ordenar(elegidos.filter(function(m){ return !subesp(m).length; })).map(function(m){ return m.id; });
   if(sin.length) resultado.push({ titulo: 'Sin subespecialidad', nota: null, ids: sin });
+  return resultado;
+}
+
+/* Informantes TC / RX / Eco: médicos con ese servicio, en columnas por subespecialidad (orden del catálogo; solo columnas con alguien). */
+function armarInformantesServicio(medicos, catalogoSubesp, re){
+  function subesp(p){ return ((p.datos || {}).subespecialidades || []).slice(); }
+  const elegidos = medicos.filter(function(m){
+    return (m.servicios || []).some(function(s){ return re.test(sinTildes(s)); });
+  });
+  const orden = (catalogoSubesp || []).map(function(c){ return c.valor; });
+  const usadas = {};
+  elegidos.forEach(function(m){ subesp(m).forEach(function(s){ usadas[s] = true; }); });
+  const titulos = orden.filter(function(s){ return usadas[s]; }).concat(
+    Object.keys(usadas).filter(function(s){ return orden.indexOf(s) < 0; }).sort(function(a, b){ return a.localeCompare(b, 'es', { sensitivity: 'base' }); }));
+  const notas = {};
+  (catalogoSubesp || []).forEach(function(c){ notas[c.valor] = c.nota === undefined ? null : c.nota; });
+  const resultado = titulos.map(function(ti){
+    return { titulo: ti, nota: notas[ti] === undefined ? null : notas[ti], ids: ordenar(elegidos.filter(function(m){ return subesp(m).indexOf(ti) >= 0; })).map(function(m){ return m.id; }) };
+  });
+  const sin = ordenar(elegidos.filter(function(m){ return !subesp(m).length; })).map(function(m){ return m.id; });
+  if(sin.length || !resultado.length) resultado.push({ titulo: 'Sin subespecialidad', nota: null, ids: sin });
   return resultado;
 }
 
@@ -3042,17 +3071,19 @@ function pintarCronograma(el){
   }
 }
 
-function pintarInformantes(el){
+function pintarInformantes(el, sub){
+  sub = sub || 'rm';
   vaciar(el);
   const medicos = E.personas.medicos || [];
   const cat = E.catalogos || {};
-  const cols = armarInformantes(medicos, cat.subespecialidad || []);
+  const cols = sub === 'rm' ? armarInformantes(medicos, cat.subespecialidad || [])
+    : armarInformantesServicio(medicos, cat.subespecialidad || [], INF_SERVICIO[sub].re);
   const porId = Object.create(null);
   medicos.forEach(function(m){ porId[m.id] = m; });
   const unicos = Object.create(null);
   cols.forEach(function(c){ c.ids.forEach(function(id){ unicos[id] = true; }); });
   const n = Object.keys(unicos).length;
-  el.append(h('p', { class: 'resumen', texto: n + (n === 1 ? ' informante' : ' informantes') + ' de Resonancia' }));
+  el.append(h('p', { class: 'resumen', texto: n + (n === 1 ? ' informante' : ' informantes') + ' de ' + INF_SERVICIO[sub].nombre }));
   el.append(h('div', { class: 'cols' }, cols.map(function(c){
     const hijos = [h('h3', {}, [c.titulo.toUpperCase(), h('span', { texto: String(c.ids.length) })])];
     if(c.nota) hijos.push(h('p', { class: 'col-nota', texto: c.nota }));
@@ -3116,8 +3147,8 @@ function pintarVista(tab, sub){
     pintarCronograma(el);
     return;
   }
-  if(tab === 'medicos' && sub === 'rm'){
-    pintarInformantes(el);
+  if(tab === 'medicos' && SUBS_INF.indexOf(sub) >= 0){
+    pintarInformantes(el, sub);
     return;
   }
   if(!listado){
@@ -3183,6 +3214,14 @@ function render(){
     if(activa) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     d.hidden = !activa;
   });
+  /* Staff médico queda marcado también cuando se mira un Informantes; la fila de Informantes solo dentro de Staff médico */
+  (function(){
+    const enStaffMed = r.tab === 'medicos' && (r.sub === 'staff' || SUBS_INF.indexOf(r.sub) >= 0);
+    const a = document.querySelector('.subtabs a[href="#medicos/staff"]');
+    if(a){ if(enStaffMed) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); }
+    const fila = document.getElementById('nav-inf');
+    if(fila) fila.hidden = !enStaffMed;
+  })();
   pintarVista(r.tab, r.sub);
   document.title = TITULOS[r.tab] + ' · ' + BASE;
 }

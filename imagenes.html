@@ -26,8 +26,9 @@
 <link rel="stylesheet" href="spcd-theme.css?v=d6e58273"/>
 <link rel="stylesheet" href="spcd-components.css?v=f7b2f276"/>
 <link rel="stylesheet" href="imagenes.css?v=7a869829"/>
-<link rel="stylesheet" href="cronogramas.css?v=72ff4807"/>
+<link rel="stylesheet" href="cronogramas.css?v=bb705777"/>
 <style id="img-estructura-v1">#nav-grupo{margin-bottom:10px}.staff-row{margin:0 0 16px}.staff-row a{display:inline-flex;align-items:center;gap:8px;text-decoration:none}.staff-row a .n{font-size:10px;padding:1px 7px;border-radius:10px;background:var(--pyralis-bg-hover,rgba(255,255,255,.06))}.staff-row a[aria-selected="true"]{color:var(--pyralis-text);border-color:var(--img-acc);box-shadow:0 0 0 1px var(--img-acc-dim) inset}.staff-row a[aria-selected="true"] .n{background:var(--img-acc-dim);color:var(--img-acc)}</style>
+<style id="img-estructura-v2">.inf-row{margin-top:-12px}.inf-row a{font-size:12px;padding:5px 12px}</style>
 </head>
 <body>
 <header class="topbar">
@@ -89,14 +90,22 @@ async function spcdCerrarSesion() {
   <div id="aviso" class="vacio" hidden role="status"></div>
 
   <section role="tabpanel" id="tab-medicos" aria-labelledby="t-medicos" hidden>
-    <nav class="subtabs" aria-label="Vistas de Médicos">
+    <nav class="subtabs" aria-label="Vistas de Médico">
       <a href="#medicos/staff">Staff médico</a>
       <a href="#medicos/eco" hidden>Cronograma Ecografía/Doppler</a>
+    </nav>
+    <nav class="subtabs inf-row" id="nav-inf" aria-label="Informantes">
       <a href="#medicos/rm">Informantes RM</a>
+      <a href="#medicos/inftc">Informantes TC</a>
+      <a href="#medicos/infrx">Informantes RX</a>
+      <a href="#medicos/infeco">Informantes Eco/Doppler</a>
     </nav>
     <div id="sub-staff" hidden><div class="vista" id="v-staff"></div></div>
     <div id="sub-eco" hidden><div class="vista" id="v-eco"></div></div>
     <div id="sub-rm" hidden><div class="vista" id="v-rm"></div></div>
+    <div id="sub-inftc" hidden><div class="vista" id="v-inftc"></div></div>
+    <div id="sub-infrx" hidden><div class="vista" id="v-infrx"></div></div>
+    <div id="sub-infeco" hidden><div class="vista" id="v-infeco"></div></div>
   </section>
   <section role="tabpanel" id="tab-residentes" aria-labelledby="t-residentes" hidden>
     <div class="vista" id="v-residentes"></div>
@@ -117,8 +126,8 @@ async function spcdCerrarSesion() {
 <script src="spcd-bg.js?v=646bb8f5"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="spcd-supabase.js?v=4420ca43"></script>
-<script src="cronogramas.js?v=beafa562"></script>
-<script src="imagenes.js?v=66411e8b"></script>
+<script src="cronogramas.js?v=7cca0f27"></script>
+<script src="imagenes.js?v=fcd1e3b6"></script>
 <script src="spcd-sesion-barra.js?v=5025c14c"></script>
 </body>
 </html>
