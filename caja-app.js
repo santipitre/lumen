@@ -431,6 +431,14 @@ async function enviarCodigo(){
   }
 }
 
+async function entrarConGoogle(){
+  const btn=$("#gate-google");btn.disabled=true;
+  try{
+    if(!window.SpcdGoogle)throw new Error("No carg\u00f3 el m\u00f3dulo de Google. Recarg\u00e1 la p\u00e1gina.");
+    await SpcdGoogle.entrar("caja.html");
+  }catch(e){mostrarGate(e.message||String(e),"err");btn.disabled=false}
+}
+
 async function verificarCodigo(){
   const code=$("#gate-code").value.replace(/\D/g,"");
   if(code.length<6){mostrarGate("Escrib\u00ed el c\u00f3digo completo tal cual figura en el correo.","err");return}
@@ -556,6 +564,7 @@ async function arrancar(){
   reloj();setInterval(reloj,30000);
   pintarEscudo();
   $("#gate-btn").addEventListener("click",enviarCodigo);
+  if($("#gate-google")) $("#gate-google").addEventListener("click",entrarConGoogle);
   $("#gate-mail").addEventListener("keydown",e=>{if(e.key==="Enter")enviarCodigo()});
   $("#gate-btn2").addEventListener("click",verificarCodigo);
   $("#gate-otro").addEventListener("click",volverAlMail);
@@ -571,7 +580,7 @@ async function arrancar(){
     const {data}=await window.sbAuth.auth.getSession();
     sesion=data&&data.session;
   }catch(e){}
-  if(!sesion){mostrarGate();return}
+  if(!sesion){const eg=window.SpcdGoogle&&SpcdGoogle.errorDeRetorno();mostrarGate(eg||undefined,eg?"err":undefined);return}
 
   AUTHUID=sesion.user.id;
   try{
