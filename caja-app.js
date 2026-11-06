@@ -431,6 +431,14 @@ async function enviarCodigo(){
   }
 }
 
+async function entrarConMicrosoft(){
+  const btn=$("#gate-microsoft");btn.disabled=true;
+  try{
+    if(!window.SpcdGoogle)throw new Error("No carg\u00f3 el m\u00f3dulo de ingreso. Recarg\u00e1 la p\u00e1gina.");
+    await SpcdGoogle.entrar("caja.html","azure");
+  }catch(e){mostrarGate(e.message||String(e),"err");btn.disabled=false}
+}
+
 async function entrarConGoogle(){
   const btn=$("#gate-google");btn.disabled=true;
   try{
@@ -565,6 +573,7 @@ async function arrancar(){
   pintarEscudo();
   $("#gate-btn").addEventListener("click",enviarCodigo);
   if($("#gate-google")) $("#gate-google").addEventListener("click",entrarConGoogle);
+  if($("#gate-microsoft")) $("#gate-microsoft").addEventListener("click",entrarConMicrosoft);
   $("#gate-mail").addEventListener("keydown",e=>{if(e.key==="Enter")enviarCodigo()});
   $("#gate-btn2").addEventListener("click",verificarCodigo);
   $("#gate-otro").addEventListener("click",volverAlMail);
