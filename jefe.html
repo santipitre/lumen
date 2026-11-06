@@ -9,7 +9,7 @@
   if (!s || !s.user || (Date.now()-s.ts) >= TIMEOUT) {
     localStorage.removeItem(KEY);
     localStorage.removeItem('spcd_operativo_session');
-    location.replace('index.html?screen=login');
+    location.replace('app.html?screen=login');
   }
 })();
 </script>

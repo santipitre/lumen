@@ -78,13 +78,16 @@ function fmtDateTime(d) {
    por default). Así nunca queda "colgado" un botón sin efecto.
 */
 function spcdVolverAtras(fallbackUrl) {
+  /* vuelve a la página anterior solo si se llegó desde Lumen; si no, al destino fijo (nunca a la portada) */
+  var destino = String(fallbackUrl || 'app.html?screen=roles').replace(/^index\.html(\?screen=)?/, function (m, q) { return q ? 'app.html?screen=' : 'app.html?screen=roles'; });
   try {
-    if (window.history.length > 1) {
+    var ref = document.referrer || '';
+    if (ref && ref.indexOf(window.location.origin) === 0 && window.history.length > 1) {
       window.history.back();
       return;
     }
   } catch(e) { /* silencioso */ }
-  window.location.href = fallbackUrl || 'index.html';
+  window.location.href = destino;
 }
 
 /* ── Toast de notificación (requiere <div id="toast"> en HTML) */

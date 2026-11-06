@@ -9,7 +9,7 @@
   if (!s || !s.user || (Date.now()-s.ts) >= TIMEOUT) {
     localStorage.removeItem(KEY);
     localStorage.removeItem('spcd_operativo_session');
-    location.replace('index.html?screen=login');
+    location.replace('app.html?screen=login');
   }
 })();
 </script>
@@ -603,12 +603,12 @@ body.locked .roster-hint { opacity: .6; }
   </div>
   <nav class="lumen-crumbs">
     <a href="app.html" title="Volver al inicio">Inicio</a><span class="sep">›</span>
-    <a href="index.html?screen=roles" title="Selección de módulo">Sede</a><span class="sep">›</span>
+    <a href="app.html?screen=roles" title="Selección de módulo">Sede</a><span class="sep">›</span>
     <a href="tecnico.html" title="Módulo Técnico">Técnico</a><span class="sep">›</span>
     <span class="crumb-active">Cronograma</span>
   </nav>
   <div class="toolbar">
-    <a class="btn btn-ghost back-tecnico" href="tecnico.html" style="text-decoration:none;" title="Volver al Módulo Técnico">← Técnico</a>
+    <a class="btn btn-ghost back-tecnico" href="tecnico.html" style="text-decoration:none;" title="Volver al Módulo Técnico" onclick="if(document.referrer.indexOf(location.origin)===0&&history.length>1){history.back();return false}">← Técnico</a>
     <button class="btn btn-primary" id="btn-print" title="Genera el documento profesional · elegí 'Guardar como PDF' en el diálogo de impresión">⎙ Exportar PDF</button>
     <button class="btn btn-ghost" id="btn-export" title="Descarga un respaldo de datos en formato JSON (sin diseño)">↧ Respaldo (JSON)</button>
     <button class="btn btn-ghost" id="btn-import" title="Carga un respaldo JSON">↥ Importar</button>

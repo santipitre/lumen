@@ -11,10 +11,10 @@
   }catch(e){ document.documentElement.dataset.tema='oscuro'; }
   try{
     var s=JSON.parse(localStorage.getItem(KEY));
-    if(!s||!s.user||!(Date.now()-s.ts<TO)){ location.replace('index.html'); return; }
+    if(!s||!s.user||!(Date.now()-s.ts<TO)){ location.replace('app.html?screen=login'); return; }
     if(!s.user.auth_user_id){ location.replace('app.html'); return; }
     window.__img_user=s.user;
-  }catch(e){ location.replace('index.html'); }
+  }catch(e){ location.replace('app.html?screen=login'); }
 })();
 </script>
 <meta charset="UTF-8"/>
@@ -34,7 +34,7 @@
   <div class="topbar-sep"></div>
   <nav class="topbar-crumbs" aria-label="Ubicación">
     <a href="app.html" title="Volver al inicio">Inicio</a><span>›</span>
-    <a href="index.html?screen=roles" title="Volver a selección de módulo">Sede</a><span>›</span>
+    <a href="app.html?screen=roles" title="Volver a selección de módulo">Sede</a><span>›</span>
     <span class="crumb-active">IMÁGENES H.ITALIANO</span>
   </nav>
   <div class="topbar-right">
@@ -42,7 +42,7 @@
     <span id="ses-chip" class="chip"></span>
     <div class="sede-chip">SEDE HOSPITAL ITALIANO</div>
     <button id="tema-btn" type="button" aria-pressed="false" class="btn-back-top tema-btn">◐</button>
-    <a class="btn-back-top" href="app.html">← Atrás</a>
+    <a class="btn-back-top" href="app.html?screen=roles" onclick="if(document.referrer.indexOf(location.origin)===0&&history.length>1){history.back();return false}">← Atrás</a>
     <button class="btn-back-top" id="btn-cerrar-sesion" type="button" onclick="spcdCerrarSesion()" style="cursor:pointer;font-family:inherit">Cerrar sesión</button>
     <style>
 /* Celular: la barra superior ya desbordaba (el botón «Atrás» quedaba fuera de la pantalla); se ocultan las etiquetas para que «Cerrar sesión» se vea. */

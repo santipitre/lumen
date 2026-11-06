@@ -9,7 +9,7 @@
   if (!s || !s.user || (Date.now()-s.ts) >= TIMEOUT) {
     localStorage.removeItem(KEY);
     localStorage.removeItem('spcd_operativo_session');
-    location.replace('index.html?screen=login');
+    location.replace('app.html?screen=login');
   }
 })();
 </script>
@@ -37,12 +37,12 @@
   <div class="topbar-sep"></div>
   <div class="topbar-crumbs">
     <a href="app.html" title="Volver al inicio">Inicio</a><span>›</span>
-    <a href="index.html?screen=roles" id="bc-sede" title="Volver a selección de módulo">Sede</a><span>›</span>
+    <a href="app.html?screen=roles" id="bc-sede" title="Volver a selección de módulo">Sede</a><span>›</span>
     <span class="crumb-active">MÉDICO</span>
   </div>
   <div class="topbar-right">
     <div class="sede-chip" id="top-sede">—</div>
-    <button class="btn-back-top" onclick="spcdVolverAtras('index.html?screen=roles')" style="cursor:pointer; font-family:inherit;">← Atrás</button>
+    <button class="btn-back-top" onclick="spcdVolverAtras('app.html?screen=roles')" style="cursor:pointer; font-family:inherit;">← Atrás</button>
     <button class="btn-back-top" id="btn-cerrar-sesion" type="button" onclick="spcdCerrarSesion()" style="cursor:pointer; font-family:inherit;">Cerrar sesión</button>
     <style>
 /* Celular: la barra superior ya desbordaba (el botón «Atrás» quedaba fuera de la pantalla); se ocultan las etiquetas para que «Cerrar sesión» se vea. */
@@ -467,4 +467,21 @@ async function spcdCerrarSesion() {
 <script src="spcd-excel-template.js?v=541e71a8"></script>
 <script src="chatbot.js?v=0957f87d"></script>
 <script src="spcd-sesion-barra.js?v=5025c14c"></script>
+<script src="spcd-historial.js?v=33e9cfbd"></script>
+<script>
+/* historial de pestañas (06/11/2026): la flecha atrás vuelve a la pestaña anterior */
+(function () {
+  if (!window.SpcdHistorial || typeof switchTab !== 'function') return;
+  var orig = switchTab;
+  var ids = Array.prototype.map.call(document.querySelectorAll('.tab-btn[onclick*="switchTab"]'), function (b) {
+    var m = /switchTab\('([^']+)'/.exec(b.getAttribute('onclick')); return m ? m[1] : null; }).filter(Boolean);
+  function boton(id) { return document.querySelector('.tab-btn[onclick*="\'' + id + '\'"]'); }
+  window.switchTab = switchTab = function (id, btn) { try { return orig.apply(this, arguments); } finally { SpcdHistorial.cambio(id); } };
+  SpcdHistorial.pestanas({
+    validas: ids,
+    actual: function () { var a = document.querySelector('.tab-pane.active'); return a ? a.id : null; },
+    aplicar: function (id) { var b = boton(id); if (b && document.getElementById(id)) orig(id, b); }
+  });
+})();
+</script>
 </body>

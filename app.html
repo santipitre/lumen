@@ -885,6 +885,7 @@
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
   </style>
 <style id="lumen-solo-ms">body:not(.lumen-emergencia) #login-form .form-group,body:not(.lumen-emergencia) #btn-login-submit,body:not(.lumen-emergencia) #google-sep,body:not(.lumen-emergencia) #otp-info{display:none!important}#login-form #btn-login-microsoft{margin-top:4px}.lumen-ms-hint{font-size:12px;color:#94A3B8;text-align:center;margin:10px 0 0;line-height:1.5}body.lumen-emergencia .lumen-ms-hint{display:none}.lumen-emerg-tag{display:none;font-size:11px;letter-spacing:1px;color:#FBBF24;text-align:center;margin:0 0 10px}body.lumen-emergencia .lumen-emerg-tag{display:block}</style>
+<style id="lumen-login-logo">.login-logo .ll-lumen{display:flex;flex-direction:column;align-items:center;margin:0 auto 18px}.login-logo .ll-lumen svg{width:112px;height:112px;display:block}.login-logo .ll-word{font-family:Inter,sans-serif;font-weight:500;font-size:34px;letter-spacing:.32em;color:#F1F5F9;margin:6px 0 0 .32em;line-height:1}.login-logo .ll-word span{color:#F59E0B}.login-logo .ll-by{font-size:11px;letter-spacing:.3em;color:#94A3B8;margin:6px 0 0 .3em}@media (max-width:420px){.login-logo .ll-lumen svg{width:88px;height:88px}.login-logo .ll-word{font-size:28px}}</style>
 </head>
 <body>
 
@@ -1065,7 +1066,62 @@
 <div class="screen" id="screen-login">
   <div class="login-box">
     <div class="login-logo">
-      <div class="ll-icon">SP</div>
+      <div class="ll-lumen"><svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img">
+        <defs>
+          <linearGradient id="ringGradLg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#3B82F6"/>
+            <stop offset="50%" stop-color="#22DBAE"/>
+            <stop offset="100%" stop-color="#3B82F6"/>
+          </linearGradient>
+          <linearGradient id="innerGradLg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#1E3A8A"/>
+            <stop offset="100%" stop-color="#0F172A"/>
+          </linearGradient>
+          <linearGradient id="spGradLg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#B8D4F0"/>
+            <stop offset="100%" stop-color="#3B82F6"/>
+          </linearGradient>
+          <filter id="glowLg"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <filter id="glowBigLg"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <!-- Outer glow ring -->
+        <circle cx="60" cy="60" r="54" fill="none" stroke="url(#ringGradLg)" stroke-width="1.5" opacity="0.3" filter="url(#glowBigLg)"/>
+        <!-- Main ring -->
+        <circle cx="60" cy="60" r="48" fill="none" stroke="url(#ringGradLg)" stroke-width="2.5" filter="url(#glowLg)"/>
+        <!-- Inner ring -->
+        <circle cx="60" cy="60" r="42" fill="none" stroke="#3B82F6" stroke-width="0.8" opacity="0.35"/>
+        <!-- Dark fill -->
+        <circle cx="60" cy="60" r="41" fill="url(#innerGradLg)" opacity="0.95"/>
+        <!-- Tech arc segments on outer ring -->
+        <path d="M60 8 A52 52 0 0 1 100 30" fill="none" stroke="#22DBAE" stroke-width="2" stroke-linecap="round" opacity="0.7" filter="url(#glowLg)"/>
+        <path d="M108 52 A52 52 0 0 1 104 80" fill="none" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+        <path d="M20 30 A52 52 0 0 1 60 8" fill="none" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+        <!-- Decorative tech dots on ring -->
+        <circle cx="60" cy="8" r="2.5" fill="#22DBAE" filter="url(#glowLg)"/>
+        <circle cx="100" cy="30" r="2" fill="#3B82F6" filter="url(#glowLg)"/>
+        <circle cx="108" cy="55" r="1.5" fill="#22DBAE" opacity="0.8"/>
+        <circle cx="104" cy="80" r="1.5" fill="#3B82F6" opacity="0.6"/>
+        <circle cx="20" cy="30" r="1.8" fill="#3B82F6" opacity="0.6"/>
+        <circle cx="16" cy="80" r="1.5" fill="#22DBAE" opacity="0.5"/>
+        <!-- Tech lines radiating -->
+        <line x1="100" y1="30" x2="112" y2="24" stroke="#22DBAE" stroke-width="0.8" opacity="0.5"/>
+        <line x1="108" y1="55" x2="116" y2="52" stroke="#3B82F6" stroke-width="0.6" opacity="0.4"/>
+        <line x1="60" y1="8" x2="60" y2="2" stroke="#22DBAE" stroke-width="0.8" opacity="0.5"/>
+        <line x1="20" y1="30" x2="12" y2="24" stroke="#3B82F6" stroke-width="0.6" opacity="0.4"/>
+        <!-- Small particle dots -->
+        <circle cx="113" cy="23" r="1" fill="#22DBAE" opacity="0.6"/>
+        <circle cx="117" cy="51" r="0.8" fill="#3B82F6" opacity="0.4"/>
+        <circle cx="10" cy="22" r="0.8" fill="#3B82F6" opacity="0.4"/>
+        <!-- Lumen "L" + firefly luciérnaga -->
+        <text x="58" y="76" text-anchor="middle"
+              font-family="Inter, sans-serif" font-weight="500" font-size="48"
+              letter-spacing="-0.04em"
+              fill="#F1F5F9" filter="url(#glowLg)">L</text>
+        <!-- Punto firefly (ámbar) en la esquina superior derecha de la L -->
+        <circle cx="78" cy="44" r="6" fill="none" stroke="#F59E0B" stroke-width="0.8" opacity="0.4"/>
+        <circle cx="78" cy="44" r="3.5" fill="#F59E0B" filter="url(#glowLg)"/>
+        <circle cx="78" cy="44" r="1.6" fill="#FEF3C7"/>
+      </svg><div class="ll-word">L<span>U</span>MEN</div><div class="ll-by">BY PYRALIS</div></div>
       <h2>INGRESO AL SISTEMA</h2>
       <p>Sistema de Control Interno</p>
     </div>
@@ -1738,7 +1794,7 @@ async function renderModules(sim) {
     const destinos = { admin:'admin.html', tecnico:'tecnico.html', medico:'medico.html', operativo:'operativo.html?modo=pedidos', personal:'personal.html', caja:'caja.html', conciliacion:'conciliacion-pami.html', validacion:'validacion-pami.html', harefield:'harefield.html' };
     Object.assign(destinos, { imagenes:'imagenes.html', img_medicos:'imagenes.html#medicos', img_residentes:'imagenes.html#residentes', img_tecnicos:'imagenes.html#tecnicos', img_admin:'imagenes.html#administrativos' });
     localStorage.setItem('spcd_rol', key);
-    window.location.replace(destinos[key] || 'index.html');
+    window.location.replace(destinos[key] || 'app.html');
     return;
   }
 
@@ -1936,7 +1992,7 @@ function selectRol(nombre, clase) {
   localStorage.setItem('spcd_rol', nombre);
   const destinos = { admin:'admin.html', tecnico:'tecnico.html', medico:'medico.html', operativo:'operativo.html', personal:'personal.html', caja:'caja.html', conciliacion:'conciliacion-pami.html', validacion:'validacion-pami.html', harefield:'harefield.html' };
   Object.assign(destinos, { imagenes:'imagenes.html', img_medicos:'imagenes.html#medicos', img_residentes:'imagenes.html#residentes', img_tecnicos:'imagenes.html#tecnicos', img_admin:'imagenes.html#administrativos' });
-  window.location.href = destinos[clase] || 'index.html';
+  window.location.href = destinos[clase] || 'app.html';
 }
 
 /* -- EXCEL UPLOAD -- */
@@ -2206,6 +2262,61 @@ dbLoad('spcd_data_full').then(data => {
 </script>
 <script src="chatbot.js?v=ai-2026-04-20-g"></script>
 <script src="spcd-sesion-barra.js?v=5025c14c"></script>
+<script>
+/* -- HISTORIAL DE PANTALLAS (06/11/2026) --
+   inicio → login → sedes → área de trabajo quedan como pasos del navegador.
+   Al entrar a un módulo queda anotado «área de trabajo»: la flecha atrás vuelve ahí. */
+(function () {
+  function urlDe(id) { return location.pathname + (id && id !== 'screen-inicio' ? '?screen=' + id.replace('screen-', '') : ''); }
+  function anotar(modo, id) {
+    try { history[modo]({ spcdScreen: id }, '', urlDe(id)); } catch (e) {}
+  }
+  var _navigate = navigate;
+  navigate = function (id) {
+    _navigate.apply(this, arguments);
+    if (!(history.state && history.state.spcdScreen === id)) anotar('pushState', id);
+  };
+  var _afterLogin = afterLogin;
+  afterLogin = function () {
+    var r = _afterLogin.apply(this, arguments);
+    if (currentScreen === 'screen-sedes' || currentScreen === 'screen-roles') anotar('replaceState', currentScreen);
+    return r;
+  };
+  var _selectRol = selectRol;
+  selectRol = function () {
+    anotar('replaceState', 'screen-roles');
+    return _selectRol.apply(this, arguments);
+  };
+  var _doLogout = doLogout;
+  doLogout = function () {
+    anotar('replaceState', 'screen-inicio');
+    return _doLogout.apply(this, arguments);
+  };
+  var _goBack = goBack;
+  goBack = function () {
+    var st = history.state;
+    if (currentScreen !== 'screen-sedes' && st && st.spcdScreen && history.length > 1) { history.back(); return; }
+    return _goBack.apply(this, arguments);
+  };
+  window.addEventListener('popstate', function (e) {
+    var id = (e.state && e.state.spcdScreen) || 'screen-inicio';
+    var conSesion = !!getSession();
+    if ((id === 'screen-sedes' || id === 'screen-roles') && !conSesion) id = 'screen-inicio';
+    if (id === 'screen-login' && conSesion) id = 'screen-inicio';
+    if (id === 'screen-roles' && !selectedSede) { afterLogin(); return; }
+    var k = navHistory.lastIndexOf(id);
+    navHistory = k >= 0 ? navHistory.slice(0, k + 1) : ['screen-inicio', id].filter(function (x, i, a) { return a.indexOf(x) === i; });
+    showScreen(id);
+  });
+  /* ?screen=sedes al recargar o al volver desde un módulo */
+  try {
+    var p = new URLSearchParams(location.search).get('screen');
+    if (p === 'sedes' && getSession()) { currentUser = enforceRoleOverride(getSession()); afterLogin(); }
+    /* no tocar la URL si trae la respuesta de Microsoft (#access_token / #error): la lee Supabase */
+    if (!/access_token=|error_description=|[?&#]code=/.test(location.href) && (!history.state || !history.state.spcdScreen)) anotar('replaceState', currentScreen);
+  } catch (e) {}
+})();
+</script>
 <script>
 /* -- INGRESO CON GOOGLE (spcd-google.js) --
    La cuenta de Google tiene que estar VINCULADA a un usuario de Lumen

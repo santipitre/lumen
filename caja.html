@@ -181,6 +181,27 @@ async function sbRpc(fn,args){const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/$
 <script src="caja-revisar.js?v=c2f2ab54"></script>
 <script src="caja-app.js?v=e9bd420a"></script>
 <script src="caja-sesion-barra.js?v=5d058f4f"></script>
+<script src="spcd-historial.js?v=33e9cfbd"></script>
+<script>
+/* historial de pestañas (06/11/2026): la flecha atrás vuelve a la pestaña anterior */
+(function () {
+  var nav = document.getElementById('tabs');
+  if (!window.SpcdHistorial || !nav) return;
+  function botones() { return Array.prototype.slice.call(nav.querySelectorAll('button[data-v]')); }
+  nav.addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-v]'); if (!b) return;
+    setTimeout(function () { SpcdHistorial.registrar(b.dataset.v); }, 0);
+  });
+  SpcdHistorial.pestanas({
+    validas: botones().map(function (b) { return b.dataset.v; }),
+    actual: function () { try { return typeof vista !== 'undefined' ? vista : null; } catch (e) { return null; } },
+    aplicar: function (v) {
+      var b = nav.querySelector('button[data-v="' + v + '"]');
+      if (b && b.offsetParent !== null) b.click();
+    }
+  });
+})();
+</script>
 <script>
 arrancar();
 </script>

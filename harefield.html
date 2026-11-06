@@ -184,7 +184,7 @@
   <span class="tb-crumb">· Harefield</span>
   <div class="tb-right">
     <span class="ses-chip" id="ses">sin sesión</span>
-    <a class="tb-back" href="admin.html">← Admin</a>
+    <a class="tb-back" href="app.html?screen=roles" onclick="if(document.referrer.indexOf(location.origin)===0&&history.length>1){history.back();return false}">← Atrás</a>
   </div>
 </div>
 
@@ -757,5 +757,19 @@ const HF=(function(){
 })();
 </script>
 <script src="spcd-sesion-barra.js?v=5025c14c"></script>
+<script src="spcd-historial.js?v=33e9cfbd"></script>
+<script>
+/* historial de pestañas (06/11/2026): Harefield / Finamed */
+(function () {
+  if (!window.SpcdHistorial || typeof HF === 'undefined' || !HF || typeof HF.setTab !== 'function') return;
+  var orig = HF.setTab;
+  HF.setTab = function (t) { try { return orig.apply(this, arguments); } finally { SpcdHistorial.cambio(t === 'F' ? 'finamed' : 'harefield'); } };
+  SpcdHistorial.pestanas({
+    validas: ['harefield', 'finamed'],
+    actual: function () { var f = document.getElementById('tab-F'); return f && f.classList.contains('active') ? 'finamed' : 'harefield'; },
+    aplicar: function (v) { orig(v === 'finamed' ? 'F' : 'H'); }
+  });
+})();
+</script>
 </body>
 </html>

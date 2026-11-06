@@ -9,7 +9,7 @@
   if (!s || !s.user || (Date.now()-s.ts) >= TIMEOUT) {
     localStorage.removeItem(KEY);
     localStorage.removeItem('spcd_operativo_session');
-    location.replace('index.html?screen=login');
+    location.replace('app.html?screen=login');
   }
 })();
 </script>
@@ -353,12 +353,12 @@
   <div class="topbar-sep"></div>
   <div class="topbar-crumbs">
     <a href="app.html" title="Volver al inicio">Inicio</a><span>›</span>
-    <a href="index.html?screen=roles" id="bc-sede" title="Volver a selección de módulo">Sede</a><span>›</span>
+    <a href="app.html?screen=roles" id="bc-sede" title="Volver a selección de módulo">Sede</a><span>›</span>
     <span class="crumb-active">TÉCNICO</span>
   </div>
   <div class="topbar-right">
     <div class="sede-chip" id="top-sede">—</div>
-    <button class="btn-back-top" onclick="spcdVolverAtras('index.html?screen=roles')" style="cursor:pointer; font-family:inherit;">← Atrás</button>
+    <button class="btn-back-top" onclick="spcdVolverAtras('app.html?screen=roles')" style="cursor:pointer; font-family:inherit;">← Atrás</button>
   </div>
 </div>
 
