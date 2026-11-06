@@ -17,7 +17,7 @@
   if (!s || !s.user || (Date.now()-s.ts) >= TIMEOUT) {
     localStorage.removeItem(KEY);
     localStorage.removeItem('spcd_operativo_session');
-    location.replace('index.html?screen=login');
+    location.replace('app.html?screen=login');
   }
 })();
 </script>
@@ -5416,7 +5416,9 @@ function aplicarModoAccesoPostLogin() {
     currentUser = saved;
     enterApp();
   } else {
-    // Sin sesión: mostrar login interno como fallback
+    // Sin sesión: el único ingreso es app.html (Microsoft). Se respeta el callback de Auth (#access_token / #error).
+    if (!/access_token|error=/.test(location.hash)) { location.replace('app.html'); return; }
+    // (antes: login interno como fallback)
     // (normalmente el usuario llega autenticado desde index.html)
   }
 })();

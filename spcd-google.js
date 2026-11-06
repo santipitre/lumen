@@ -162,7 +162,7 @@
       if (l === null) return;                                     /* sin sesión de Auth */
       barra.setAttribute('data-vinc', '1');
       var salir = barra.querySelector('.sb-salir');
-      ['azure', 'google'].forEach(function (p) {
+      ['azure'].forEach(function (p) {
         if (l.indexOf(p) >= 0) return;
         var b = document.createElement('button');
         b.type = 'button';

@@ -468,7 +468,7 @@ function volverAlMail(){
   $("#gate-form").style.display="flex";
   $("#gate-code").value="";
   $("#gate-btn").disabled=false;$("#gate-btn").textContent="Enviarme el c\u00f3digo";
-  $("#gate-msg").textContent="Ingres\u00e1 tu correo institucional. Te enviamos un c\u00f3digo num\u00e9rico para entrar.";
+  $("#gate-msg").textContent="Entr\u00e1 con tu cuenta institucional de Microsoft (@fuesmen.edu.ar).";
   mostrarGate(" ","");
 }
 
