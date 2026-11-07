@@ -993,7 +993,7 @@
       case 'ayuda':
         return `Puedo responder:\n\n<strong>📊 Consultas dinámicas</strong>\n• "cuántas resonancias en abril"\n• "TC de cerebro este mes"\n• "ecografías de SPITRELLA"\n\n<strong>📈 Métricas y rankings</strong>\n• Sin informe · Con informe · Ausentes\n• Top médicos · Top equipos · Top prestaciones\n• Errores: derivantes · coseguros · trámites\n\n<strong>⏱ Filtros de período</strong>\nAgregá: hoy · ayer · esta semana · mes pasado · enero a diciembre\n<em>Ej: "sin informe en marzo"</em>\n\n<strong>👤 Filtros por operador</strong>\nNombrá al operador: SPITRELLA · JAVILA · JMONICA · ZABRAHAM · ITORRES\n\n<strong>📥 Exportar a Excel</strong>\nDecime "dame el excel de..." y te lo genero al instante.\n\n<strong>🧠 Aprendo de tus consultas</strong>\nLas preguntas frecuentes aparecen como sugerencias.`;
       case 'que_es':
-        return `<strong>Lumen by Pyralis</strong> es la plataforma de control interno del Hospital Italiano de Mendoza.\n\n4 módulos:\n• <strong>Médico</strong> — Informes pendientes y tiempos\n• <strong>Técnico</strong> — Estudios realizados y equipos\n• <strong>Administrativo</strong> — Derivantes, coberturas y afiliados\n• <strong>Operativo</strong> — Stock, insumos y pedidos`;
+        return `<strong>Lumen by SPITRELLA</strong> es la plataforma de control interno del Hospital Italiano de Mendoza.\n\n4 módulos:\n• <strong>Médico</strong> — Informes pendientes y tiempos\n• <strong>Técnico</strong> — Estudios realizados y equipos\n• <strong>Administrativo</strong> — Derivantes, coberturas y afiliados\n• <strong>Operativo</strong> — Stock, insumos y pedidos`;
       case 'cargar_excel':
         return `1. Andá a ${link('index.html','Inicio')} → <strong>Iniciar</strong>\n2. Elegí la sede\n3. En la zona <em>"Cargar archivo Excel"</em>, arrastrá o hacé click\n4. Listo: ya podés entrar a cualquier módulo`;
       case 'recargar':
@@ -1834,7 +1834,7 @@
 
     /* ===== SCHEMA — data dictionary ===== */
     const SCHEMA_DESC = `
-Lumen by Pyralis — módulo de operaciones clínicas del Hospital Italiano de Mendoza (ex SPCD).
+Lumen by SPITRELLA — módulo de operaciones clínicas del Hospital Italiano de Mendoza (ex SPCD).
 
 ENTIDAD: Turnos de estudios médicos.
 COLUMNAS DE INTERÉS (no enviamos datos reales, sólo el esquema):

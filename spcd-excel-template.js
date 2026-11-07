@@ -2,7 +2,7 @@
    SPCD-EXCEL-TEMPLATE  ·  Plantilla ejecutiva común (Bloomberg / Fintech)
    ───────────────────────────────────────────────────────────────────
    Paleta:   Negro Pyralis  +  Firefly dorado (#F59E0B)  ·  acento cian secundario
-   Estilo:   Ejecutivo / formal / institucional / data-terminal · Marca: Lumen by Pyralis
+   Estilo:   Ejecutivo / formal / institucional / data-terminal · Marca: Lumen by SPITRELLA
 
    Uso (cualquier módulo):
      await SpcdExcel.ready();
@@ -13,7 +13,7 @@
      SpcdExcel.buildFooter(ws, { startRow:r, totalCols, meta:{...} });
      await SpcdExcel.exportAndShare(wb, fileName, shareOpts);
 
-   Autor: Lumen by Pyralis — 2026
+   Autor: Lumen by SPITRELLA — 2026
 ═══════════════════════════════════════════════════════════════════ */
 (function (root) {
   'use strict';
@@ -133,7 +133,7 @@
     // "by Pyralis"
     ctx.font = '600 12px Calibri, Arial';
     ctx.fillStyle = '#94A3B8';
-    ctx.fillText('by Pyralis', tx, 76);
+    ctx.fillText('by SPITRELLA', tx, 76);
 
     // Tagline
     ctx.font = '600 9px Calibri, Arial';
@@ -173,11 +173,11 @@
   function createBook(opts = {}) {
     if (!root.ExcelJS) throw new Error('ExcelJS no está cargado. Llamá a SpcdExcel.ready() primero.');
     const wb = new root.ExcelJS.Workbook();
-    wb.creator = opts.author || 'Lumen by Pyralis';
-    wb.lastModifiedBy = opts.author || 'Lumen by Pyralis';
+    wb.creator = opts.author || 'Lumen by SPITRELLA';
+    wb.lastModifiedBy = opts.author || 'Lumen by SPITRELLA';
     wb.created = new Date();
     wb.title = opts.subtitle || 'SPCD Report';
-    wb.company = 'Hospital Italiano · Lumen by Pyralis';
+    wb.company = 'Hospital Italiano · Lumen by SPITRELLA';
     // Reporte ID único del libro: identifica el archivo y evita duplicados.
     // Se reutiliza en header, footer y nombre de archivo (todo el mismo ID).
     wb._lumenRef = makeReportHash();
@@ -193,7 +193,7 @@
         margins: { left:0.4, right:0.4, top:0.4, bottom:0.5, header:0.2, footer:0.2 }
       },
       headerFooter: {
-        oddFooter: '&L&8&"Calibri"&K94A3B8LUMEN by Pyralis&R&8&"Calibri"&KF59E0BPágina &P de &N'
+        oddFooter: '&L&8&"Calibri"&K94A3B8LUMEN by SPITRELLA&R&8&"Calibri"&KF59E0BPágina &P de &N'
       }
     });
     // Print area se ajusta cuando se sabe el rango — opcional
@@ -503,7 +503,7 @@
     const hash = opts.hash || (ws.workbook && ws.workbook._lumenRef) || makeReportHash();
     const usuario = (opts.meta && opts.meta.usuario) || getCurrentUser();
     const partes = [
-      `LUMEN by Pyralis · ENTERPRISE INTELLIGENCE`,
+      `LUMEN by SPITRELLA · ENTERPRISE INTELLIGENCE`,
       `Generado: ${nowAr()}`,
       usuario ? `Usuario: ${usuario}` : null,
       `Reporte ID: ${hash}`,

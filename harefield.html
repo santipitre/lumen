@@ -18,7 +18,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="lumen-ver" content="harefield-1.2.0"/>
-<title>Harefield · Lumen by Pyralis</title>
+<title>Harefield · Lumen by SPITRELLA</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml"/>
 <link rel="stylesheet" href="spcd-theme.css"/>
 <link rel="stylesheet" href="spcd-components.css"/>
@@ -704,7 +704,7 @@ const HF=(function(){
     }
     // Fondo claro, tipografía Arial, una sola fila de título. Sin logo ni pie.
     const INK='FF111827', GREY='FF6B7280', HEAD='FFE5E9F0', ZEBRA='FFF6F8FB', LINE='FFD1D5DB', TOTAL='FFEEF2F7';
-    const wb=new ExcelJS.Workbook(); wb.creator='Lumen by Pyralis'; wb.created=new Date();
+    const wb=new ExcelJS.Workbook(); wb.creator='Lumen by SPITRELLA'; wb.created=new Date();
     for(const [nm,tab] of sheets){
       const isF=tab==='F'; const heads=isF?HEADS_F:HEADS; const rows=R.lineas.filter(l=>l.tab===tab); const T=R[tab]; const nc=heads.length;
       const ws=wb.addWorksheet(nm,{views:[{showGridLines:false}], pageSetup:{orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0}});

@@ -17,7 +17,7 @@
 if (location.search.indexOf('embed=1') >= 0) document.documentElement.classList.add('embed');</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cronograma · Lumen by Pyralis</title>
+<title>Cronograma · Lumen by SPITRELLA</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -596,7 +596,7 @@ body.locked .roster-hint { opacity: .6; }
     <div class="wordmark-block">
       <span class="wordmark">L<span class="firefly-o">u</span>men</span>
       <span class="byline">
-        <span class="by">by</span><span class="pyralis">Pyralis</span>
+        <span class="by">by</span><span class="pyralis">SPITRELLA</span>
         <span class="dot">·</span><span class="desc">Cronograma de técnicos RMN</span>
       </span>
     </div>
@@ -1276,7 +1276,7 @@ body.locked .roster-hint { opacity: .6; }
   // ── Init ──────────────────────────────────────────────
   function initFromState(){
     document.getElementById('title').value = state.title || 'Cronograma semanal — Técnicos RMN';
-    document.title = (state.title || 'Cronograma') + ' — Lumen by Pyralis';
+    document.title = (state.title || 'Cronograma') + ' — Lumen by SPITRELLA';
     if (!state.holidays) state.holidays = {};
     if (!state.removedHolidays) state.removedHolidays = [];
     if (typeof state.notes !== 'string') state.notes = '';
@@ -1308,14 +1308,14 @@ body.locked .roster-hint { opacity: .6; }
     }
     document.getElementById('mod-title').value = state.modTitle || 'Cronograma de módulos — Semana';
     const hoy = new Date().toLocaleDateString('es-AR', { day:'numeric', month:'long', year:'numeric' });
-    document.getElementById('print-meta').innerHTML = `Generado el <b>${hoy}</b><br>Lumen · by Pyralis`;
+    document.getElementById('print-meta').innerHTML = `Generado el <b>${hoy}</b><br>Lumen · by SPITRELLA`;
     renderRoster(); renderDatalist(); renderHead(); renderBody(); renderHolidays(); renderModules();
     setTab(state.activeTab || 'turnos');
   }
 
   function bindGlobal(){
     document.getElementById('title').addEventListener('input', e => {
-      state.title = e.target.value; document.title = (state.title||'Cronograma')+' — Lumen by Pyralis'; save();
+      state.title = e.target.value; document.title = (state.title||'Cronograma')+' — Lumen by SPITRELLA'; save();
     });
     document.getElementById('notes').addEventListener('input', e => {
       state.notes = e.target.value; save();
