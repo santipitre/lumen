@@ -831,6 +831,25 @@
       width: 0; transition: width .3s;
     }
 
+    /* --- Video de presentación en el login (2026-11-10) --- */
+    #screen-login { overflow-y: auto; justify-content: safe center; }
+    .login-layout { display: flex; align-items: center; justify-content: center; gap: 40px; width: 100%; max-width: 1180px; }
+    .login-layout .login-box { flex: none; }
+    .login-intro { flex: 1 1 640px; min-width: 0; max-width: 720px; animation: fadeUp .5s ease; }
+    .login-intro-eyebrow { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 3px; color: #38BDF8; text-transform: uppercase; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+    .login-intro-eyebrow b { width: 8px; height: 8px; border-radius: 50%; background: #F59E0B; box-shadow: 0 0 12px 2px rgba(245,158,11,.6); }
+    .login-intro-frame { position: relative; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); background: #05080C; box-shadow: 0 30px 80px rgba(0,0,0,.5); aspect-ratio: 16 / 9; }
+    .login-intro-frame video { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .login-intro-sound { position: absolute; left: 14px; bottom: 14px; display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 999px; border: 1px solid rgba(255,255,255,.25); background: rgba(5,8,12,.72); color: #F1F5F9; font: 600 13px 'Inter', sans-serif; cursor: pointer; backdrop-filter: blur(6px); transition: background .2s, border-color .2s; }
+    .login-intro-sound:hover { background: rgba(5,8,12,.9); border-color: #38BDF8; }
+    .login-intro-sound:focus-visible { outline: 2px solid #38BDF8; outline-offset: 2px; }
+    .login-intro-text { margin-top: 14px; font-size: 14px; line-height: 1.55; color: var(--muted); }
+    .login-intro-text strong { color: #F1F5F9; font-weight: 600; }
+    @media (max-width: 1080px) {
+      #screen-login { justify-content: flex-start; padding-top: 120px; }
+      .login-layout { flex-direction: column; gap: 24px; padding: 0 0 24px; }
+      .login-intro { flex: none; width: 100%; max-width: 560px; order: 2; }
+    }
     /* --- SCREEN 4: LOGIN OPERATIVO --- */
     #screen-login {
       gap: 28px;
@@ -1064,6 +1083,18 @@
 
 <!-- SCREEN 4: LOGIN OPERATIVO -->
 <div class="screen" id="screen-login">
+  <div class="login-layout">
+  <section class="login-intro" aria-label="Qué es Lumen">
+    <div class="login-intro-eyebrow"><b></b>Conocé Lumen en 30 segundos</div>
+    <div class="login-intro-frame">
+      <video id="lumen-intro" src="lumen-intro.mp4" poster="lumen-intro.jpg" muted loop playsinline preload="metadata" aria-label="Video de presentación de Lumen"></video>
+      <button type="button" class="login-intro-sound" id="lumen-intro-sound" onclick="lumenIntroSonido()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
+        <span>Ver con sonido</span>
+      </button>
+    </div>
+    <p class="login-intro-text"><strong>Lumen</strong> es el sistema de control interno de Diagnóstico por Imágenes: detecta errores de carga, concilia turnos con las obras sociales y muestra el servicio en tiempo real. Ingresás con tu cuenta institucional de FUESMEN.</p>
+  </section>
   <div class="login-box">
     <div class="login-logo">
       <div class="ll-lumen"><svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img">
@@ -1165,8 +1196,29 @@
 
     <div class="login-back-link" onclick="goBack()" id="login-back-link">&#8592; Volver al Inicio</div>
   </div>
+  </div>
 </div>
 
+<script>
+/* Video de presentación del login: se reproduce sin sonido sólo mientras se ve la pantalla de ingreso */
+(function(){
+  var v=document.getElementById('lumen-intro'), scr=document.getElementById('screen-login');
+  if(!v||!scr) return;
+  var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function sync(){
+    var on=scr.classList.contains('active');
+    if(on && !reduce){ var p=v.play(); if(p&&p.catch) p.catch(function(){}); }
+    else if(!on){ v.pause(); }
+  }
+  new MutationObserver(sync).observe(scr,{attributes:true,attributeFilter:['class']});
+  sync();
+  window.lumenIntroSonido=function(){
+    var b=document.getElementById('lumen-intro-sound');
+    if(v.muted){ v.muted=false; v.loop=false; v.currentTime=0; v.controls=true; var p=v.play(); if(p&&p.catch) p.catch(function(){}); if(b) b.style.display='none'; }
+  };
+  v.addEventListener('ended',function(){ v.muted=true; v.loop=true; v.controls=false; var b=document.getElementById('lumen-intro-sound'); if(b) b.style.display=''; v.play().catch(function(){}); });
+})();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="spcd-utils.js?v=2026-05-19-v1"></script>
 <!-- Supabase SDK ANTES de spcd-supabase.js para inicializar sbAuth (Fase 2.C Etapa 3) -->
