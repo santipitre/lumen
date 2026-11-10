@@ -188,11 +188,12 @@
       body.style.setProperty('background', 'transparent', 'important');
       return lum(lum(col) < 0 ? '#0A0F14' : col) > 0.55;
     }
-    const syn = Synapse(c, { light: syncBg() });
+    const claro0 = syncBg(); const syn = Synapse(c, { light: claro0 });
+    c.style.opacity = claro0 ? '1' : '.55';   // más tenue detrás de pantallas con tarjetas translúcidas
     let last = 0, chk = 0;
     (function loop(ms) {
       if (document.visibilityState === 'visible' && ms - last > 32) { syn.frame(ms); last = ms; }
-      if (ms - chk > 1500) { chk = ms; syn.setLight(syncBg()); }
+      if (ms - chk > 1500) { chk = ms; const cl = syncBg(); syn.setLight(cl); c.style.opacity = cl ? '1' : '.55'; }
       requestAnimationFrame(loop);
     })(0);
   }

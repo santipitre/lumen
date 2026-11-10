@@ -3419,7 +3419,7 @@ function pintarYa(){
   if(!permisoEditar()) poner(wrap, h('div', { class: 'cr-ro', t: 'Solo lectura' }));
   if(ST.error) poner(wrap, bloqueEstado('NO SE PUDO ACTUALIZAR', MSG.LECTURA, true, true));
   poner(wrap, renderKpis(), renderNav(), renderPorConfirmar(), renderTools(), renderEdicion());
-  const sub = S.sub, ancho = sub === 'administrativos', conLado = !ancho && ['tecnicos', 'radiografias', 'eco', 'tc'].indexOf(sub) >= 0;
+  const sub = S.sub, diagAncho = sub === 'tecnicos' && vistaAct() === 'diag', ancho = sub === 'administrativos' || diagAncho, conLado = !ancho && ['tecnicos', 'radiografias', 'eco', 'tc'].indexOf(sub) >= 0;
   const main = h('div', { class: 'cr-main', id: 'cr-main' }, h('div', { class: 'cr-card', id: 'cr-vista' }, renderCuerpo()));
   const lay = h('div', { class: 'cr-lay' + (conLado ? ' lado' : '') }, main);
   if(conLado){
@@ -3429,7 +3429,8 @@ function pintarYa(){
     poner(lay, side);
   } else if(ancho){
     /* administrativos: la grilla ocupa todo el ancho y los paneles van debajo (más lugar para BOX 1 / BOX 2) */
-    poner(lay, h('div', { class: 'cr-side wide' }, renderRotSab(), renderAlertas('adm', false), renderServicios(), renderPersonal()));
+    if(diagAncho) poner(lay, h('div', { class: 'cr-side wide' }, renderAlertas(subActual().tab, false), renderServicios(), renderPersonal()));
+    else poner(lay, h('div', { class: 'cr-side wide' }, renderRotSab(), renderAlertas('adm', false), renderServicios(), renderPersonal()));
   }
   poner(wrap, lay);
   poner(root, wrap);

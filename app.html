@@ -906,7 +906,7 @@
 <style id="lumen-solo-ms">body:not(.lumen-emergencia) #login-form .form-group,body:not(.lumen-emergencia) #btn-login-submit,body:not(.lumen-emergencia) #google-sep,body:not(.lumen-emergencia) #otp-info{display:none!important}#login-form #btn-login-microsoft{margin-top:4px}.lumen-ms-hint{font-size:12px;color:#94A3B8;text-align:center;margin:10px 0 0;line-height:1.5}body.lumen-emergencia .lumen-ms-hint{display:none}.lumen-emerg-tag{display:none;font-size:11px;letter-spacing:1px;color:#FBBF24;text-align:center;margin:0 0 10px}body.lumen-emergencia .lumen-emerg-tag{display:block}</style>
 <style id="lumen-login-logo">.login-logo .ll-lumen{display:flex;flex-direction:column;align-items:center;margin:0 auto 18px}.login-logo .ll-lumen svg{width:112px;height:112px;display:block}.login-logo .ll-word{font-family:Inter,sans-serif;font-weight:500;font-size:34px;letter-spacing:.32em;color:#F1F5F9;margin:6px 0 0 .32em;line-height:1}.login-logo .ll-word span{color:#F59E0B}.login-logo .ll-by{font-size:11px;letter-spacing:.3em;color:#94A3B8;margin:6px 0 0 .3em}@media (max-width:420px){.login-logo .ll-lumen svg{width:88px;height:88px}.login-logo .ll-word{font-size:28px}}</style>
 <style id="lumen-login-movil">@media (max-width:1080px){.login-intro{order:0}}@media (max-width:600px){#screen-login{padding:140px 16px 24px}.login-layout{gap:16px;padding-bottom:16px}.login-intro-eyebrow{font-size:11px;letter-spacing:2px;margin-bottom:8px}.login-intro-frame{border-radius:12px}.login-intro-sound{left:10px;bottom:10px;padding:7px 11px;font-size:12px}.login-intro-text{display:none}.login-box{padding:22px 20px 18px;border-radius:14px}.login-logo{margin-bottom:16px}.login-logo .ll-lumen{flex-direction:row;justify-content:center;gap:12px;margin-bottom:12px}.login-logo .ll-lumen svg{width:56px;height:56px}.login-logo .ll-word{font-size:24px;margin:0 0 0 .32em}.login-logo .ll-by{display:none}.login-logo h2{font-size:17px;letter-spacing:3px}.login-logo p{font-size:10px}.login-back-link{margin-top:12px}}@media (max-width:600px) and (orientation:landscape){#screen-login{padding-top:130px}.login-intro{max-width:420px}}</style>
-<script src="lumen-neuro.js?v=20261110b"></script>
+<script src="lumen-neuro.js?v=20261110c"></script>
 </head>
 <body>
 
@@ -1375,14 +1375,14 @@ function showScreen(id) {
   const badge = document.getElementById('lumen-badge');
   if (id === 'screen-inicio' || id === 'screen-login') {
     btn.classList.remove('visible');
-    if (badge) badge.style.display = id === 'screen-login' ? 'inline-flex' : 'none';
+    if (badge) { badge.style.display = id === 'screen-login' ? 'inline-flex' : 'none'; badge.style.left = '20px'; }
   } else {
     btn.classList.add('visible');
     document.getElementById('back-label').textContent =
       id === 'screen-login'  ? 'Inicio' :
       id === 'screen-sedes'  ? 'Cerrar sesión' :
       id === 'screen-roles'  ? 'Sedes'  : 'Volver';
-    if (badge) badge.style.display = 'inline-flex';
+    if (badge) { badge.style.display = 'inline-flex'; badge.style.left = ''; }
   }
   const lo = document.getElementById('btn-logout');
   if (lo) lo.classList.toggle('visible', id === 'screen-roles');
