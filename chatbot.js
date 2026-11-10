@@ -28,29 +28,77 @@
 
   /* ---------- ESTILOS ---------- */
   const css = `
+    /* Lanzador: cerebro neuronal flotante + globo de diálogo (2026-11-10) */
     #spcd-cb-btn {
-      position: fixed; bottom: 20px; right: 20px; z-index: 9998;
-      width: 56px; height: 56px; border-radius: 50%;
-      background: linear-gradient(135deg, #22DBAE, #3B82F6);
-      border: none; cursor: pointer;
-      display: none; align-items: center; justify-content: center;
-      box-shadow: 0 8px 30px rgba(34,219,174,.4);
-      transition: transform .25s, box-shadow .25s;
-      color: #0F172A;
+      position: fixed; bottom: 22px; right: 22px; z-index: 9998;
+      width: 64px; height: 64px; padding: 0; border: none; background: transparent; cursor: pointer;
+      display: none; color: #0F172A;
+      animation: cbFloat 4.2s ease-in-out infinite;
     }
-    #spcd-cb-btn.visible { display: flex; }
-    #spcd-cb-btn:hover { transform: translateY(-3px) scale(1.05); box-shadow: 0 12px 40px rgba(34,219,174,.55); }
-    #spcd-cb-btn svg { width: 26px; height: 26px; }
+    #spcd-cb-btn.visible { display: block; }
+    #spcd-cb-btn .cb-orb {
+      position: absolute; inset: 0; border-radius: 50%; overflow: hidden; background: #04080C;
+      border: 1px solid rgba(45,212,191,.38);
+      box-shadow: 0 0 0 3px rgba(45,212,191,.06), 0 14px 32px rgba(0,0,0,.55), inset 0 0 18px rgba(45,212,191,.10);
+      transition: border-color .2s, box-shadow .2s;
+    }
+    #spcd-cb-btn .cb-orb video { width: 100%; height: 100%; object-fit: cover; display: block; transform: scale(1.06); }
+    #spcd-cb-btn:hover .cb-orb { border-color: rgba(94,234,212,.75); box-shadow: 0 0 0 4px rgba(45,212,191,.12), 0 16px 36px rgba(0,0,0,.6), inset 0 0 22px rgba(45,212,191,.16); }
+    #spcd-cb-btn:focus-visible { outline: 2px solid #5EEAD4; outline-offset: 4px; border-radius: 50%; }
+    #spcd-cb-btn::before {
+      content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 1px solid rgba(45,212,191,.4);
+      animation: cbPulse 3.2s ease-out infinite; pointer-events: none;
+    }
+    #spcd-cb-btn::after {
+      content: ""; position: absolute; left: 50%; bottom: -14px; width: 46px; height: 9px; margin-left: -23px; border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(45,212,191,.28), rgba(0,0,0,0) 70%); animation: cbShadow 4.2s ease-in-out infinite; pointer-events: none;
+    }
+    #spcd-cb-btn .cb-chip {
+      position: absolute; left: -10px; top: -8px; height: 22px; padding: 0 7px; border-radius: 11px 11px 11px 3px;
+      display: flex; align-items: center; gap: 3px; background: rgba(8,18,26,.95); border: 1px solid rgba(45,212,191,.45);
+      box-shadow: 0 4px 12px rgba(0,0,0,.45); transition: opacity .3s;
+    }
+    #spcd-cb-btn .cb-chip i, #spcd-cb-hint .cb-hint-dots i { width: 4px; height: 4px; border-radius: 50%; background: #5EEAD4; display: block; animation: cbDot 1.2s ease-in-out infinite; }
+    #spcd-cb-btn .cb-chip i:nth-child(2), #spcd-cb-hint .cb-hint-dots i:nth-child(2) { animation-delay: .15s; }
+    #spcd-cb-btn .cb-chip i:nth-child(3), #spcd-cb-hint .cb-hint-dots i:nth-child(3) { animation-delay: .3s; }
+    #spcd-cb-btn.hint-on .cb-chip, #spcd-cb-btn.win-open .cb-chip { opacity: 0; }
     #spcd-cb-btn .cb-dot {
-      position: absolute; top: 8px; right: 10px;
-      width: 10px; height: 10px; border-radius: 50%;
+      position: absolute; top: 2px; right: 2px; z-index: 2;
+      width: 12px; height: 12px; border-radius: 50%;
       background: #EF4444; border: 2px solid #0F172A;
       display: none;
     }
     #spcd-cb-btn.has-unread .cb-dot { display: block; }
+    #spcd-cb-hint {
+      position: fixed; right: 100px; bottom: 34px; z-index: 9998; width: 236px; padding: 12px 14px;
+      border-radius: 14px 14px 4px 14px; cursor: pointer; display: none;
+      background: linear-gradient(180deg, rgba(12,26,36,.96), rgba(7,15,22,.96)); border: 1px solid rgba(45,212,191,.38);
+      box-shadow: 0 16px 40px rgba(0,0,0,.5); color: #E2E8F0; font-family: 'Inter', system-ui, sans-serif;
+      transform-origin: 100% 100%;
+    }
+    #spcd-cb-hint.show { display: block; animation: cbHintIn .45s cubic-bezier(.2,.8,.2,1) both; }
+    #spcd-cb-hint.hide { display: block; animation: cbHintOut .3s ease-in both; }
+    #spcd-cb-hint::after { content: ""; position: absolute; right: -6px; bottom: 14px; width: 10px; height: 10px; transform: rotate(45deg);
+      background: #08121A; border-right: 1px solid rgba(45,212,191,.38); border-top: 1px solid rgba(45,212,191,.38); }
+    #spcd-cb-hint .cb-hint-head { display: flex; align-items: center; gap: 8px; font: 600 10.5px 'IBM Plex Mono', ui-monospace, monospace; letter-spacing: .16em; color: #5EEAD4; text-transform: uppercase; }
+    #spcd-cb-hint .cb-hint-head b { width: 7px; height: 7px; border-radius: 50%; background: #2DD4BF; box-shadow: 0 0 8px #2DD4BF; }
+    #spcd-cb-hint .cb-hint-text { margin-top: 7px; font-size: 14px; line-height: 1.4; min-height: 20px; color: #F1F5F9; }
+    #spcd-cb-hint .cb-hint-text .cur { display: inline-block; width: 2px; height: 15px; margin-left: 2px; vertical-align: -2px; background: #F59E0B; animation: cbBlink 1s steps(2) infinite; }
+    #spcd-cb-hint .cb-hint-dots { display: flex; gap: 4px; margin-top: 9px; height: 6px; }
+    #spcd-cb-hint .cb-hint-dots i { width: 6px; height: 6px; }
+    #spcd-cb-hint .cb-hint-cta { margin-top: 8px; font-size: 12px; color: #94A3B8; }
+    #spcd-cb-hint .cb-hint-cta span { color: #FBBF24; }
+    @keyframes cbFloat { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-7px) rotate(1deg); } }
+    @keyframes cbShadow { 0%,100% { transform: translateY(0) scale(1); opacity: .65; } 50% { transform: translateY(7px) scale(.75); opacity: .35; } }
+    @keyframes cbPulse { 0% { transform: scale(1); opacity: .6; } 100% { transform: scale(1.35); opacity: 0; } }
+    @keyframes cbDot { 0%,100% { opacity: .35; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-2px); } }
+    @keyframes cbHintIn { from { opacity: 0; transform: translate(14px,6px) scale(.92); } to { opacity: 1; transform: none; } }
+    @keyframes cbHintOut { to { opacity: 0; transform: translate(8px,4px) scale(.92); } }
+    @keyframes cbBlink { to { visibility: hidden; } }
+    @media (prefers-reduced-motion: reduce) { #spcd-cb-btn, #spcd-cb-btn::before, #spcd-cb-btn::after { animation: none; } }
 
     #spcd-cb-win {
-      position: fixed; bottom: 88px; right: 20px; z-index: 9999;
+      position: fixed; bottom: 100px; right: 20px; z-index: 9999;
       width: 400px; max-width: calc(100vw - 40px);
       height: 600px; max-height: calc(100vh - 120px);
       background: #0F172A;
@@ -280,7 +328,9 @@
         bottom: 80px; right: 10px; left: 10px;
         width: auto; height: calc(100vh - 100px);
       }
-      #spcd-cb-btn { bottom: 16px; right: 16px; }
+      #spcd-cb-btn { bottom: 16px; right: 16px; width: 58px; height: 58px; }
+      #spcd-cb-hint { right: 86px; bottom: 26px; width: 200px; }
+      #spcd-cb-hint .cb-hint-text { font-size: 13px; }
     }
 
     /* ═══ AI MODULE (admin) ═══ */
@@ -399,12 +449,17 @@
 
   /* ---------- HTML ---------- */
   const html = `
-    <button id="spcd-cb-btn" title="Asistente Lumen" aria-label="Abrir asistente">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-      </svg>
+    <button id="spcd-cb-btn" title="Asistente Lumen" aria-label="Abrir asistente Lumen">
+      <span class="cb-orb"><video src="lumen-cerebro.mp4?v=20261110" poster="lumen-cerebro.jpg?v=20261110" muted loop autoplay playsinline aria-hidden="true"></video></span>
+      <span class="cb-chip" aria-hidden="true"><i></i><i></i><i></i></span>
       <span class="cb-dot"></span>
     </button>
+    <div id="spcd-cb-hint" aria-hidden="true">
+      <div class="cb-hint-head"><b></b>Asistente Lumen</div>
+      <div class="cb-hint-text"></div>
+      <div class="cb-hint-dots"><i></i><i></i><i></i></div>
+      <div class="cb-hint-cta">Escribime una consulta <span>&rarr;</span></div>
+    </div>
     <div id="spcd-cb-win" role="dialog" aria-label="Asistente Lumen">
       <div class="cb-header">
         <div class="cb-header-left">
@@ -2762,6 +2817,8 @@ Reescribí la respuesta de forma natural y profesional en español, manteniendo 
   function toggle(force) {
     const open = typeof force === 'boolean' ? force : !win.classList.contains('open');
     win.classList.toggle('open', open);
+    btn.classList.toggle('win-open', open);
+    if (open) hideHint(true);
     btn.classList.remove('has-unread');
     if (open) {
       setTimeout(() => inputEl.focus(), 100);
@@ -2838,6 +2895,47 @@ Reescribí la respuesta de forma natural y profesional en español, manteniendo 
     inputEl.style.height = Math.min(inputEl.scrollHeight, 100) + 'px';
   });
   btn.addEventListener('click', () => toggle());
+
+  /* Globo de diálogo del lanzador: saluda una vez por sesión y reaparece al pasar el mouse */
+  const hintEl = document.getElementById('spcd-cb-hint');
+  const HINT_MSG = '¿En qué te ayudo hoy?';
+  let hintTimers = [];
+  function clearHint() { hintTimers.forEach(clearTimeout); hintTimers = []; }
+  function hideHint(now) {
+    clearHint();
+    if (!hintEl.classList.contains('show')) return;
+    btn.classList.remove('hint-on');
+    if (now) { hintEl.className = ''; return; }
+    hintEl.className = 'hide';
+    hintTimers.push(setTimeout(() => { hintEl.className = ''; }, 320));
+  }
+  function showHint(typing, ms) {
+    if (win.classList.contains('open') || !btn.classList.contains('visible')) return;
+    clearHint();
+    const txt = hintEl.querySelector('.cb-hint-text'), dots = hintEl.querySelector('.cb-hint-dots'), cta = hintEl.querySelector('.cb-hint-cta');
+    hintEl.className = 'show'; btn.classList.add('hint-on');
+    if (typing) {
+      txt.style.display = 'none'; dots.style.display = 'flex'; cta.style.opacity = '0';
+      hintTimers.push(setTimeout(() => {
+        dots.style.display = 'none'; txt.style.display = 'block';
+        let i = 0;
+        const step = () => { i++; txt.innerHTML = HINT_MSG.slice(0, i) + '<span class="cur"></span>'; if (i < HINT_MSG.length) hintTimers.push(setTimeout(step, 45)); else cta.style.opacity = '1'; };
+        step();
+      }, 1100));
+    } else {
+      dots.style.display = 'none'; txt.style.display = 'block'; txt.innerHTML = HINT_MSG + '<span class="cur"></span>'; cta.style.opacity = '1';
+    }
+    hintTimers.push(setTimeout(() => hideHint(false), ms));
+  }
+  hintEl.addEventListener('click', () => toggle(true));
+  btn.addEventListener('mouseenter', () => { if (!hintEl.classList.contains('show')) showHint(false, 5000); });
+  let hintSaludo = false;
+  function saludoInicial() {
+    if (hintSaludo || !btn.classList.contains('visible')) return;
+    hintSaludo = true;
+    let visto = false; try { visto = sessionStorage.getItem('lumen_cb_saludo') === '1'; sessionStorage.setItem('lumen_cb_saludo', '1'); } catch (e) {}
+    if (!visto) setTimeout(() => showHint(true, 9500), 1200);
+  }
   closeBtn.addEventListener('click', () => toggle(false));
   sendBtn.addEventListener('click', send);
   inputEl.addEventListener('keydown', e => {
@@ -2859,6 +2957,7 @@ Reescribí la respuesta de forma natural y profesional en español, manteniendo 
   function updateBtnVisibility() {
     const ok = hasActiveSession();
     btn.classList.toggle('visible', ok);
+    if (ok) saludoInicial(); else hideHint(true);
     // Si la sesión caducó con el chat abierto, cerrarlo
     if (!ok && win.classList.contains('open')) toggle(false);
   }
