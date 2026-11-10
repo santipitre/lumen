@@ -1204,10 +1204,9 @@
 (function(){
   var v=document.getElementById('lumen-intro'), scr=document.getElementById('screen-login');
   if(!v||!scr) return;
-  var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   function sync(){
     var on=scr.classList.contains('active');
-    if(on && !reduce){ var p=v.play(); if(p&&p.catch) p.catch(function(){}); }
+    if(on){ var p=v.play(); if(p&&p.catch) p.catch(function(){}); }
     else if(!on){ v.pause(); }
   }
   new MutationObserver(sync).observe(scr,{attributes:true,attributeFilter:['class']});
