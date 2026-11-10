@@ -266,6 +266,8 @@
       padding: 0 16px 8px; display: flex; gap: 6px; flex-wrap: wrap;
       flex-shrink: 0;
     }
+    .cb-kb-acc { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; white-space:normal; }
+    .cb-kb-acc .cb-chip { text-decoration:none; }
     .cb-chip {
       padding: 6px 12px; border-radius: 14px;
       background: rgba(34,219,174,.08);
@@ -1046,7 +1048,7 @@
       case 'gracias':   return '¡De nada! Cualquier cosa que necesites, me preguntás.';
       case 'despedida': return '¡Hasta luego! 👋 Acá estoy cuando me necesites.';
       case 'ayuda':
-        return `Puedo responder:\n\n<strong>📊 Consultas dinámicas</strong>\n• "cuántas resonancias en abril"\n• "TC de cerebro este mes"\n• "ecografías de SPITRELLA"\n\n<strong>📈 Métricas y rankings</strong>\n• Sin informe · Con informe · Ausentes\n• Top médicos · Top equipos · Top prestaciones\n• Errores: derivantes · coseguros · trámites\n\n<strong>⏱ Filtros de período</strong>\nAgregá: hoy · ayer · esta semana · mes pasado · enero a diciembre\n<em>Ej: "sin informe en marzo"</em>\n\n<strong>👤 Filtros por operador</strong>\nNombrá al operador: SPITRELLA · JAVILA · JMONICA · ZABRAHAM · ITORRES\n\n<strong>📥 Exportar a Excel</strong>\nDecime "dame el excel de..." y te lo genero al instante.\n\n<strong>🧠 Aprendo de tus consultas</strong>\nLas preguntas frecuentes aparecen como sugerencias.`;
+        return `Puedo responder:\n\n<strong>📚 Procesos</strong>\nPreguntame cómo se hace algo: <em>"¿cómo se calcula el efectivo en caja?"</em>\nVer todo en <a href="conocimiento.html">Base de procesos</a>\n\n<strong>📊 Consultas dinámicas</strong>\n• "cuántas resonancias en abril"\n• "TC de cerebro este mes"\n• "ecografías de SPITRELLA"\n\n<strong>📈 Métricas y rankings</strong>\n• Sin informe · Con informe · Ausentes\n• Top médicos · Top equipos · Top prestaciones\n• Errores: derivantes · coseguros · trámites\n\n<strong>⏱ Filtros de período</strong>\nAgregá: hoy · ayer · esta semana · mes pasado · enero a diciembre\n<em>Ej: "sin informe en marzo"</em>\n\n<strong>👤 Filtros por operador</strong>\nNombrá al operador: SPITRELLA · JAVILA · JMONICA · ZABRAHAM · ITORRES\n\n<strong>📥 Exportar a Excel</strong>\nDecime "dame el excel de..." y te lo genero al instante.\n\n<strong>🧠 Aprendo de tus consultas</strong>\nLas preguntas frecuentes aparecen como sugerencias.`;
       case 'que_es':
         return `<strong>Lumen by SPITRELLA</strong> es la plataforma de control interno del Hospital Italiano de Mendoza.\n\n4 módulos:\n• <strong>Médico</strong> — Informes pendientes y tiempos\n• <strong>Técnico</strong> — Estudios realizados y equipos\n• <strong>Administrativo</strong> — Derivantes, coberturas y afiliados\n• <strong>Operativo</strong> — Stock, insumos y pedidos`;
       case 'cargar_excel':
@@ -2585,9 +2587,119 @@ Reescribí la respuesta de forma natural y profesional en español, manteniendo 
   // Store last response for download
   let _lastResult = null;
 
+  /* ===============================================================
+     BASE DE CONOCIMIENTO DE PROCESOS (2026-11-10)
+     Preguntas de "cómo se hace" → Edge Function kb-preguntar (Supabase),
+     que busca en el contenido APROBADO y redacta con Gemini.
+     Sin datos de pacientes. La clave de Gemini vive en el servidor.
+     ============================================================ */
+  const KB_SB_URL = 'https://erjdncsnomwymjiaslpx.supabase.co';
+  const KB_SB_KEY = 'sb_publishable_5qeVvqQO26a70lAj8dMXhw_fL_Cdu-2';
+  const KB_STORE  = 'spcd_supabase_auth';
+
+  async function kbToken() {
+    try {
+      if (window.sbAuth && window.sbAuth.auth) {
+        const { data } = await window.sbAuth.auth.getSession();
+        if (data && data.session && data.session.access_token) return data.session.access_token;
+      }
+    } catch (e) {}
+    let s = null;
+    try { s = JSON.parse(localStorage.getItem(KB_STORE) || 'null'); } catch (e) {}
+    if (!s || !s.access_token) return null;
+    const vence = (s.expires_at || 0) * 1000;
+    if (vence - Date.now() > 60 * 1000) return s.access_token;
+    if (!s.refresh_token) return null;
+    try {
+      const r = await fetch(KB_SB_URL + '/auth/v1/token?grant_type=refresh_token', {
+        method: 'POST',
+        headers: { 'apikey': KB_SB_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: s.refresh_token })
+      });
+      if (!r.ok) return null;
+      const n = await r.json();
+      if (!n.access_token) return null;
+      if (!n.expires_at && n.expires_in) n.expires_at = Math.floor(Date.now() / 1000) + n.expires_in;
+      try { localStorage.setItem(KB_STORE, JSON.stringify(Object.assign({}, s, n))); } catch (e) {}
+      return n.access_token;
+    } catch (e) { return null; }
+  }
+
+  const KB_ABRE = /^(como|que hago|que hay que|que tengo que|que pasa si|que pasa cuando|por que|porque|donde|quien|quienes|cuando se|cual es el procedimiento|cual es el circuito|que significa|se puede|hay que|es obligatorio|procedimiento|proceso|instructivo)\b/;
+  function kbEsPregunta(tNorm) {
+    if (!tNorm) return false;
+    if (/^(proceso|procesos|procedimiento)\s*:/.test(tNorm)) return true;
+    return KB_ABRE.test(tNorm);
+  }
+
+  function kbFormatear(txt) {
+    let h = escapeHtml(String(txt || '').trim());
+    h = h.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+    h = h.replace(/^\s*[\*\-]\s+/gm, '• ');
+    h = h.replace(/\n{3,}/g, '\n\n');
+    return h;
+  }
+
+  async function kbResponder(text) {
+    const pregunta = String(text || '').replace(/^\s*(procesos?|procedimiento)\s*:\s*/i, '');
+    const tok = await kbToken();
+    if (!tok) return null; // sin sesión de Supabase: el motor clásico sigue como siempre
+    let d = null;
+    try {
+      const r = await fetch(KB_SB_URL + '/functions/v1/kb-preguntar', {
+        method: 'POST',
+        headers: { 'apikey': KB_SB_KEY, 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pregunta, pagina: PAGE })
+      });
+      if (r.status === 429) return { text: '⏳ Llegaste al tope de consultas de procesos por esta hora. Probá más tarde.', exportable: false };
+      if (r.status === 401) return null;
+      d = await r.json();
+    } catch (e) { return null; }
+    if (!d || !d.ok) return null;
+
+    const q = encodeURIComponent(pregunta.slice(0, 200));
+    let h = '📚 ' + kbFormatear(d.respuesta);
+    if (d.fuentes && d.fuentes.length) {
+      h += '\n\n<em>Fuente: ' + d.fuentes.map(f =>
+        `<a href="conocimiento.html#e${Number(f.id)}">${escapeHtml(f.titulo)}</a>`).join(' · ') + '</em>';
+    }
+    if (d.aviso === 'RATE_LIMIT') h += '\n<em>(La IA llegó a su límite por un rato: te muestro el texto tal cual está cargado.)</em>';
+    const cid = Number(d.consulta_id) || 0;
+    if (d.encontrado) {
+      h += `\n<span class="cb-kb-acc">${cid ? `<button class="cb-chip" data-kb-voto="1" data-kb-id="${cid}">👍 Sirvió</button><button class="cb-chip" data-kb-voto="0" data-kb-id="${cid}">👎 No sirvió</button>` : ''}<a class="cb-chip" href="conocimiento.html?proponer=1&q=${q}">✏️ Corregir</a></span>`;
+    } else {
+      h += `\n<span class="cb-kb-acc"><a class="cb-chip" href="conocimiento.html?proponer=1&q=${q}">➕ Proponer cómo se hace</a></span>`;
+    }
+    return { text: h, exportable: false };
+  }
+
+  msgsEl.addEventListener('click', async (ev) => {
+    const b = ev.target.closest && ev.target.closest('[data-kb-voto]');
+    if (!b) return;
+    const cont = b.parentElement;
+    const util = b.getAttribute('data-kb-voto') === '1';
+    const id = Number(b.getAttribute('data-kb-id'));
+    cont.querySelectorAll('[data-kb-voto]').forEach(x => x.disabled = true);
+    try {
+      const tok = await kbToken();
+      if (tok) await fetch(KB_SB_URL + '/rest/v1/rpc/kb_calificar', {
+        method: 'POST',
+        headers: { 'apikey': KB_SB_KEY, 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_id: id, p_util: util })
+      });
+    } catch (e) {}
+    b.textContent = util ? '👍 ¡Gracias!' : '👎 Anotado';
+  });
+
   async function handleQuery(text) {
     const q = parseQuery(text);
     if (q.empty) return { text: `Escribí una pregunta 🙂`, exportable: false };
+
+    // ═══ PROCESOS: preguntas de "cómo se hace" → base de conocimiento ═══
+    if (kbEsPregunta(normalize(text)) && !isExportIntent(normalize(text))) {
+      const kb = await kbResponder(text);
+      if (kb) return kb;
+    }
 
     // ═══ AI-FIRST (solo admin, si hay API key y no es un saludo/FAQ obvio) ═══
     // Log de skip: si alguna condición falla, queda registrado en el audit para diagnóstico
@@ -2688,6 +2800,7 @@ Reescribí la respuesta de forma natural y profesional en español, manteniendo 
     }
 
     // FALLBACK — suggest based on what they typed
+    { const kb = await kbResponder(text); if (kb && kb.text && kb.text.indexOf('Todavía no tengo cargado') === -1) return kb; }
     return { text: `No estoy seguro de haberte entendido 🤔\nProbá con algo como:\n• "cuántas resonancias en abril"\n• "sin informe este mes"\n• "errores de SPITRELLA"\n• "dame el excel de sin informe"\n• "ayuda"`, exportable: false };
   }
 
@@ -2737,6 +2850,7 @@ Reescribí la respuesta de forma natural y profesional en español, manteniendo 
         { label: 'Ayuda', q: 'ayuda' },
       ];
     }
+    chips.push({ label: '📚 Procesos', q: 'cómo uso el asistente para procesos' });
     quickEl.innerHTML = '';
     chips.forEach(c => {
       const b = document.createElement('button');

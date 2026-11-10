@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<script>
+/* Lumen Auth Gate · Base de procesos: cualquier usuario con sesión y cuenta Auth */
+(function(){
+  var KEY='spcd_session', TO=8*60*60*1000;
+  try{
+    var s=JSON.parse(localStorage.getItem(KEY));
+    if(!s||!s.user||!(Date.now()-s.ts<TO)){ location.replace('app.html?screen=login'); return; }
+    if(!s.user.auth_user_id){ location.replace('app.html'); return; }
+    window.__kb_user=s.user;
+  }catch(e){ location.replace('app.html?screen=login'); }
+})();
+</script>
+<meta charset="UTF-8"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://erjdncsnomwymjiaslpx.supabase.co; media-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="lumen-ver" content="conocimiento-1.0.0"/>
+<title>Base de procesos · Lumen by SPITRELLA</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml"/>
+<link rel="stylesheet" href="spcd-theme.css"/>
+<link rel="stylesheet" href="spcd-components.css"/>
+<style>
+  :root{
+    --kb-acc:#22DBAE; --kb-acc-dim:rgba(34,219,174,.12); --kb-acc-ring:rgba(34,219,174,.35);
+    --kb-card:var(--pyralis-bg-elevated,#111827); --kb-line:var(--pyralis-border,rgba(148,163,184,.16));
+    --kb-text:var(--pyralis-text,#F1F5F9); --kb-muted:var(--pyralis-text-muted,#94A3B8);
+    --kb-warn:var(--pyralis-warning,#FBBF24); --kb-danger:var(--pyralis-danger,#F87171); --kb-ok:var(--pyralis-success,#10B981);
+  }
+  body{background:var(--pyralis-bg,#0A0F14);color:var(--kb-text);font-size:14px;line-height:1.55;margin:0}
+  .topbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px;height:56px;padding:0 22px;background:rgba(10,15,20,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--kb-line)}
+  .topbar-logo{display:inline-flex;align-items:center;gap:8px;text-decoration:none;color:var(--kb-text)}
+  .topbar-crumbs{display:flex;align-items:center;gap:8px}
+  .topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+  .main{max-width:1100px;margin:0 auto;padding:22px 16px 90px}
+  h1{font-family:'Rajdhani',sans-serif;font-size:26px;letter-spacing:1px;margin:4px 0 2px}
+  .sub{color:var(--kb-muted);margin:0 0 18px}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--kb-line);margin-bottom:18px}
+  .tab{background:none;border:none;color:var(--kb-muted);padding:10px 14px;font:inherit;font-weight:600;cursor:pointer;border-bottom:2px solid transparent}
+  .tab[aria-selected="true"]{color:var(--kb-acc);border-bottom-color:var(--kb-acc)}
+  .tab .n{display:inline-block;min-width:18px;padding:0 6px;margin-left:6px;border-radius:10px;background:var(--kb-acc-dim);color:var(--kb-acc);font-size:11px}
+  .panel[hidden]{display:none}
+  .barra{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+  input,select,textarea{background:var(--pyralis-bg-input,#0F172A);color:var(--kb-text);border:1px solid var(--kb-line);border-radius:8px;padding:9px 11px;font:inherit}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--kb-acc);box-shadow:0 0 0 3px var(--kb-acc-dim)}
+  .barra input{flex:1 1 260px}
+  .cat{margin:22px 0 8px;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--kb-acc);font-weight:700}
+  .card{background:var(--kb-card);border:1px solid var(--kb-line);border-radius:10px;margin-bottom:8px}
+  .card>summary{list-style:none;cursor:pointer;padding:12px 14px;font-weight:600;display:flex;gap:10px;align-items:center}
+  .card>summary::-webkit-details-marker{display:none}
+  .card>summary::before{content:'▸';color:var(--kb-muted);transition:transform .15s}
+  .card[open]>summary::before{transform:rotate(90deg)}
+  .card .cuerpo{padding:0 14px 14px 32px;white-space:pre-wrap}
+  .card .pie{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:0 14px 12px 32px;color:var(--kb-muted);font-size:12px}
+  .card.destacada{border-color:var(--kb-acc);box-shadow:0 0 0 3px var(--kb-acc-dim)}
+  .btn{background:var(--kb-acc);color:#04201A;border:none;border-radius:8px;padding:9px 16px;font:inherit;font-weight:700;cursor:pointer}
+  .btn.sec{background:transparent;color:var(--kb-text);border:1px solid var(--kb-line)}
+  .btn.peligro{background:transparent;color:var(--kb-danger);border:1px solid var(--kb-danger)}
+  .btn.chico{padding:5px 10px;font-size:12px}
+  .btn:disabled{opacity:.5;cursor:default}
+  .form{display:grid;gap:12px;max-width:760px}
+  .form label{display:grid;gap:6px;font-weight:600;font-size:13px}
+  .form textarea{min-height:220px;resize:vertical;line-height:1.5}
+  .aviso{border:1px solid var(--kb-warn);background:rgba(251,191,36,.08);color:var(--kb-text);border-radius:8px;padding:10px 12px;font-size:13px}
+  .reemplaza{border-left:3px solid var(--kb-acc);padding:8px 12px;background:var(--kb-acc-dim);border-radius:6px;font-size:13px}
+  .vacio{color:var(--kb-muted);padding:30px 0;text-align:center}
+  .orig{color:var(--kb-muted);white-space:pre-wrap;border-left:3px solid var(--kb-line);padding-left:10px;margin:6px 0 10px;font-size:13px}
+  .pend{background:var(--kb-card);border:1px solid var(--kb-line);border-radius:10px;padding:14px;margin-bottom:12px;display:grid;gap:10px}
+  .pend .meta{color:var(--kb-muted);font-size:12px}
+  .pend textarea{min-height:140px}
+  .fila{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .hueco{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;background:var(--kb-card);border:1px solid var(--kb-line);border-radius:10px;padding:12px 14px;margin-bottom:8px}
+  .hueco .q{font-weight:600}
+  .hueco .m{color:var(--kb-muted);font-size:12px;margin-top:2px}
+  .tag{font-size:11px;padding:2px 8px;border-radius:10px;border:1px solid var(--kb-line);color:var(--kb-muted)}
+  .tag.no{color:var(--kb-danger);border-color:var(--kb-danger)}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#0F172A;border:1px solid var(--kb-acc);color:var(--kb-text);padding:10px 16px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:99;max-width:calc(100% - 32px)}
+  .toast.on{opacity:1}
+  @media (max-width:640px){
+    .topbar .topbar-crumbs,.topbar .topbar-sep{display:none!important}
+    .topbar{padding:0 10px;gap:8px}
+    .card .cuerpo,.card .pie{padding-left:14px}
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a href="app.html" class="topbar-logo" title="Lumen"><svg width="28" height="28" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" aria-label="Lumen"><rect x="3" y="3" width="54" height="54" rx="13" fill="#0A0F14" stroke="#1F2937" stroke-width="0.8"/><path d="M16 14 L16 46 L44 46" fill="none" stroke="#F1F5F9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="22" r="4" fill="#F59E0B"/><circle cx="38" cy="22" r="1.8" fill="#FEF3C7"/></svg><span>Lumen</span></a>
+  <div class="topbar-sep"></div>
+  <nav class="topbar-crumbs" aria-label="Ubicación">
+    <a href="app.html">Inicio</a><span>›</span><span class="crumb-active">BASE DE PROCESOS</span>
+  </nav>
+  <div class="topbar-right">
+    <a class="btn-back-top" href="app.html?screen=roles" onclick="if(document.referrer.indexOf(location.origin)===0&&history.length>1){history.back();return false}">← Atrás</a>
+  </div>
+</header>
+
+<main class="main">
+  <h1>Base de procesos</h1>
+  <p class="sub">Lo que sabe el Asistente Lumen. Solo contenido aprobado; sin datos de pacientes.</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" data-tab="explorar" aria-selected="true">Explorar <span class="n" id="n-pub">0</span></button>
+    <button class="tab" role="tab" data-tab="proponer" aria-selected="false">Proponer</button>
+    <button class="tab" role="tab" data-tab="pendientes" aria-selected="false" hidden>Pendientes <span class="n" id="n-pend">0</span></button>
+    <button class="tab" role="tab" data-tab="huecos" aria-selected="false" hidden>Sin respuesta <span class="n" id="n-huecos">0</span></button>
+  </div>
+
+  <section class="panel" id="p-explorar">
+    <div class="barra">
+      <input type="search" id="buscar" placeholder="Buscar en los procesos…" autocomplete="off"/>
+      <select id="filtro-cat"><option value="">Todas las categorías</option></select>
+    </div>
+    <div id="lista"></div>
+  </section>
+
+  <section class="panel" id="p-proponer" hidden>
+    <form class="form" id="form-prop">
+      <div class="aviso">No escribas datos de pacientes (nombres, DNI, nro. de afiliado). Describí el proceso en general.</div>
+      <div class="reemplaza" id="reemplaza" hidden></div>
+      <label>Título <input id="f-titulo" maxlength="200" required placeholder="Ej.: Cómo registrar un depósito"/></label>
+      <label>Categoría <input id="f-cat" list="cats" maxlength="60" placeholder="Ej.: Rendición de Caja"/></label>
+      <datalist id="cats"></datalist>
+      <label>Cómo se hace <textarea id="f-cont" maxlength="8000" required placeholder="Pasos, reglas, excepciones. Una idea por renglón."></textarea></label>
+      <label class="fila" id="f-pub-wrap" hidden style="font-weight:500"><input type="checkbox" id="f-pub"/> Publicar directamente (sos administrador)</label>
+      <div class="fila"><button class="btn" type="submit" id="f-enviar">Enviar propuesta</button><button class="btn sec" type="button" id="f-limpiar">Limpiar</button></div>
+    </form>
+  </section>
+
+  <section class="panel" id="p-pendientes" hidden><div id="pend"></div></section>
+  <section class="panel" id="p-huecos" hidden>
+    <p class="sub">Preguntas de los últimos 30 días que el asistente no supo responder o que marcaron como "no sirvió".</p>
+    <div id="huecos"></div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  const URL_SB = 'https://erjdncsnomwymjiaslpx.supabase.co';
+  const KEY_SB = 'sb_publishable_5qeVvqQO26a70lAj8dMXhw_fL_Cdu-2';
+  const STORE  = 'spcd_supabase_auth';
+  const user   = window.__kb_user || {};
+  const esAdmin = user.rol === 'admin';
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  let entradas = [];
+  let reemplazaId = null;
+
+  function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'),3200); }
+
+  async function token(){
+    let s=null; try{ s=JSON.parse(localStorage.getItem(STORE)||'null'); }catch(e){}
+    if(!s||!s.access_token) return null;
+    if(((s.expires_at||0)*1000)-Date.now() > 60000) return s.access_token;
+    if(!s.refresh_token) return null;
+    try{
+      const r=await fetch(URL_SB+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{'apikey':KEY_SB,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:s.refresh_token})});
+      if(!r.ok) return null;
+      const n=await r.json(); if(!n.access_token) return null;
+      if(!n.expires_at&&n.expires_in) n.expires_at=Math.floor(Date.now()/1000)+n.expires_in;
+      try{ localStorage.setItem(STORE, JSON.stringify(Object.assign({},s,n))); }catch(e){}
+      return n.access_token;
+    }catch(e){ return null; }
+  }
+
+  async function rpc(fn, args){
+    const t=await token();
+    if(!t) throw new Error('SIN_SESION');
+    const r=await fetch(URL_SB+'/rest/v1/rpc/'+fn,{method:'POST',headers:{'apikey':KEY_SB,'Authorization':'Bearer '+t,'Content-Type':'application/json'},body:JSON.stringify(args||{})});
+    if(!r.ok){ const tx=await r.text(); throw new Error(tx.slice(0,200)); }
+    return r.json();
+  }
+
+  /* ---------- Pestañas ---------- */
+  function abrir(tab){
+    document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected', String(b.dataset.tab===tab)));
+    document.querySelectorAll('.panel').forEach(p=>p.hidden = p.id !== 'p-'+tab);
+  }
+  document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>abrir(b.dataset.tab)));
+  if(esAdmin){
+    document.querySelector('[data-tab="pendientes"]').hidden=false;
+    document.querySelector('[data-tab="huecos"]').hidden=false;
+    $('f-pub-wrap').hidden=false;
+  }
+
+  /* ---------- Explorar ---------- */
+  async function cargar(){
+    try{ entradas = await rpc('kb_listar', {p_categoria:null}) || []; }
+    catch(e){ $('lista').innerHTML='<div class="vacio">No se pudo leer la base. Volvé a ingresar a Lumen y probá de nuevo.</div>'; return; }
+    $('n-pub').textContent = entradas.length;
+    const cats=[...new Set(entradas.map(e=>e.categoria))].sort();
+    $('filtro-cat').innerHTML='<option value="">Todas las categorías</option>'+cats.map(c=>`<option>${esc(c)}</option>`).join('');
+    $('cats').innerHTML=cats.map(c=>`<option value="${esc(c)}">`).join('');
+    pintar();
+    const m=location.hash.match(/^#e(\d+)$/);
+    if(m){ const el=$('e'+m[1]); if(el){ el.open=true; el.classList.add('destacada'); el.scrollIntoView({behavior:'smooth',block:'center'}); } }
+  }
+  function pintar(){
+    const q=norm($('buscar').value).split(/\s+/).filter(Boolean);
+    const cat=$('filtro-cat').value;
+    const lista=entradas.filter(e=>(!cat||e.categoria===cat)&&q.every(w=>norm(e.titulo+' '+e.categoria+' '+e.contenido).includes(w)));
+    if(!lista.length){
+      $('lista').innerHTML = entradas.length
+        ? '<div class="vacio">No hay nada que coincida. ¿Querés <a href="#" data-ir="proponer">proponerlo</a>?</div>'
+        : '<div class="vacio">Todavía no hay procesos publicados.'+(esAdmin?' Revisá la pestaña Pendientes.':'')+'</div>';
+      return;
+    }
+    let h='', ult=null;
+    lista.forEach(e=>{
+      if(e.categoria!==ult){ h+=`<div class="cat">${esc(e.categoria)}</div>`; ult=e.categoria; }
+      const f=new Date(e.updated_at).toLocaleDateString('es-AR');
+      h+=`<details class="card" id="e${e.id}"><summary>${esc(e.titulo)}</summary><div class="cuerpo">${esc(e.contenido)}</div>
+        <div class="pie">Actualizado ${f}<span style="flex:1"></span><button class="btn sec chico" data-corregir="${e.id}">✏️ Proponer corrección</button>${esAdmin?`<button class="btn peligro chico" data-archivar="${e.id}">Archivar</button>`:''}</div></details>`;
+    });
+    $('lista').innerHTML=h;
+  }
+  $('buscar').addEventListener('input',pintar);
+  $('filtro-cat').addEventListener('change',pintar);
+  document.addEventListener('click', async ev=>{
+    const ir=ev.target.closest('[data-ir]'); if(ir){ ev.preventDefault(); abrir(ir.dataset.ir); return; }
+    const c=ev.target.closest('[data-corregir]');
+    if(c){ const e=entradas.find(x=>x.id==c.dataset.corregir); if(e) prepararCorreccion(e); return; }
+    const a=ev.target.closest('[data-archivar]');
+    if(a){
+      if(!confirm('¿Archivar este proceso? El asistente deja de usarlo.')) return;
+      try{ await rpc('kb_archivar',{p_id:Number(a.dataset.archivar)}); toast('Archivado'); cargar(); }catch(e){ toast('No se pudo archivar'); }
+    }
+  });
+
+  /* ---------- Proponer ---------- */
+  function prepararCorreccion(e){
+    reemplazaId=e.id;
+    $('reemplaza').hidden=false;
+    $('reemplaza').innerHTML=`Corrección de <b>${esc(e.titulo)}</b>. Cuando se apruebe, reemplaza al texto actual. <a href="#" id="cancelar-corr">Cancelar</a>`;
+    $('f-titulo').value=e.titulo; $('f-cat').value=e.categoria; $('f-cont').value=e.contenido;
+    abrir('proponer'); $('f-cont').focus();
+  }
+  function limpiarForm(){
+    reemplazaId=null; $('reemplaza').hidden=true; $('form-prop').reset();
+  }
+  $('reemplaza').addEventListener('click',ev=>{ if(ev.target.id==='cancelar-corr'){ ev.preventDefault(); limpiarForm(); } });
+  $('f-limpiar').addEventListener('click',limpiarForm);
+  $('form-prop').addEventListener('submit', async ev=>{
+    ev.preventDefault();
+    const titulo=$('f-titulo').value.trim(), cont=$('f-cont').value.trim(), cat=$('f-cat').value.trim()||'General';
+    if(titulo.length<3||cont.length<10){ toast('Completá el título y el contenido'); return; }
+    if(/\b\d{1,2}\.?\d{3}\.?\d{3}\b/.test(cont+' '+titulo) && !confirm('Parece que hay un DNI o un número de afiliado. ¿Seguro que no son datos de un paciente?')) return;
+    $('f-enviar').disabled=true;
+    try{
+      const r=await rpc('kb_proponer',{p_titulo:titulo,p_contenido:cont,p_categoria:cat,p_reemplaza_id:reemplazaId,p_publicar:esAdmin&&$('f-pub').checked});
+      if(!r||!r.ok){ toast('No se pudo enviar: '+((r&&r.error)||'error')); }
+      else{
+        toast(r.estado==='publicada'?'Publicado':'¡Gracias! Queda pendiente de aprobación');
+        limpiarForm(); if(r.estado==='publicada') cargar(); if(esAdmin) cargarPendientes();
+      }
+    }catch(e){ toast('No se pudo enviar. Volvé a ingresar a Lumen.'); }
+    $('f-enviar').disabled=false;
+  });
+
+  /* ---------- Pendientes (admin) ---------- */
+  async function cargarPendientes(){
+    if(!esAdmin) return;
+    let p=[]; try{ p=await rpc('kb_pendientes',{})||[]; }catch(e){ $('pend').innerHTML='<div class="vacio">No se pudieron leer las pendientes.</div>'; return; }
+    $('n-pend').textContent=p.length;
+    if(!p.length){ $('pend').innerHTML='<div class="vacio">No hay propuestas pendientes.</div>'; return; }
+    $('pend').innerHTML=p.map(x=>`<div class="pend" data-id="${x.id}">
+      <div class="meta">Propuesta de ${esc(x.autor||'—')} · ${new Date(x.created_at).toLocaleString('es-AR')}${x.reemplaza_id?' · <b>corrige un proceso publicado</b>':''}</div>
+      ${x.reemplaza_id?`<div><div class="meta">Texto actual:</div><div class="orig">${esc(x.original_contenido)}</div></div>`:''}
+      <input class="p-tit" value="${esc(x.titulo)}" maxlength="200"/>
+      <input class="p-cat" value="${esc(x.categoria)}" maxlength="60" list="cats"/>
+      <textarea class="p-cont" maxlength="8000">${esc(x.contenido)}</textarea>
+      <div class="fila"><button class="btn chico" data-aprobar>✓ Aprobar</button><button class="btn peligro chico" data-rechazar>Rechazar</button><span class="meta">Podés editar el texto antes de aprobar.</span></div>
+    </div>`).join('');
+  }
+  $('pend').addEventListener('click', async ev=>{
+    const card=ev.target.closest('.pend'); if(!card) return;
+    const id=Number(card.dataset.id);
+    if(ev.target.closest('[data-aprobar]')){
+      try{
+        const r=await rpc('kb_revisar',{p_id:id,p_aprobar:true,p_motivo:null,p_titulo:card.querySelector('.p-tit').value,p_contenido:card.querySelector('.p-cont').value,p_categoria:card.querySelector('.p-cat').value});
+        toast(r&&r.ok?'Aprobado y publicado':'No se pudo aprobar'); cargarPendientes(); cargar();
+      }catch(e){ toast('No se pudo aprobar'); }
+    } else if(ev.target.closest('[data-rechazar]')){
+      const motivo=prompt('Motivo del rechazo (opcional):')||null;
+      try{ const r=await rpc('kb_revisar',{p_id:id,p_aprobar:false,p_motivo:motivo}); toast(r&&r.ok?'Rechazada':'No se pudo rechazar'); cargarPendientes(); }catch(e){ toast('No se pudo rechazar'); }
+    }
+  });
+
+  /* ---------- Sin respuesta (admin) ---------- */
+  async function cargarHuecos(){
+    if(!esAdmin) return;
+    let h=[]; try{ h=await rpc('kb_huecos',{p_dias:30})||[]; }catch(e){ return; }
+    $('n-huecos').textContent=h.length;
+    $('huecos').innerHTML = h.length ? h.map(x=>`<div class="hueco"><div><div class="q">${esc(x.pregunta)}</div>
+      <div class="m">${esc(x.autor||'—')} · ${new Date(x.created_at).toLocaleString('es-AR')} · <span class="tag ${x.encontrado?'':'no'}">${x.encontrado?'👎 no sirvió':'sin contenido'}</span></div></div>
+      <button class="btn sec chico" data-responder="${esc(x.pregunta)}">Cargar respuesta</button></div>`).join('')
+      : '<div class="vacio">Nada por ahora.</div>';
+  }
+  $('huecos').addEventListener('click',ev=>{
+    const b=ev.target.closest('[data-responder]'); if(!b) return;
+    limpiarForm(); $('f-titulo').value=b.dataset.responder.replace(/[¿?]/g,'').trim().slice(0,200); abrir('proponer'); $('f-cont').focus();
+  });
+
+  /* ---------- Arranque ---------- */
+  const qs=new URLSearchParams(location.search);
+  if(qs.get('proponer')){
+    abrir('proponer');
+    const q=(qs.get('q')||'').replace(/[¿?]/g,'').trim();
+    if(q) $('f-titulo').value=q.charAt(0).toUpperCase()+q.slice(1);
+  }
+  cargar(); cargarPendientes(); cargarHuecos();
+})();
+</script>
+<script src="lumen-neuro.js?v=20261110c" data-auto></script>
+<script src="chatbot.js?v=20261110-kb"></script>
+</body>
+</html>
