@@ -16,8 +16,10 @@
   const GLOW = sprite([[0, 'rgba(255,248,225,1)'], [.18, 'rgba(251,191,36,.85)'], [.5, 'rgba(245,158,11,.22)'], [1, 'rgba(0,0,0,0)']]);
   const HALO = sprite([[0, 'rgba(103,232,249,.55)'], [.4, 'rgba(34,211,238,.14)'], [1, 'rgba(0,0,0,0)']]);
 
-  function Synapse(canvas) {
+  function Synapse(canvas, opts) {
+    opts = opts || {};
     const ctx = canvas.getContext('2d');
+    let LIGHT = !!opts.light;   // variante para páginas de fondo claro
     let W, H, DPR, N = [], chains = [];
     const CYCLE = 1.9;   // segundos entre una neurona y la siguiente en la cadena
 
@@ -90,8 +92,9 @@
       const t = ms / 1000;
       rot = Math.sin(t * .05) * .35; tilt = .1 + Math.sin(t * .037) * .05;
       ctx.clearRect(0, 0, W, H);
-      const bg = ctx.createRadialGradient(W * .5, H * .5, 0, W * .5, H * .5, Math.max(W, H) * .8);
-      bg.addColorStop(0, 'rgba(12,44,70,.32)'); bg.addColorStop(1, 'rgba(5,8,12,0)'); ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+      if (!LIGHT) { const bg = ctx.createRadialGradient(W * .5, H * .5, 0, W * .5, H * .5, Math.max(W, H) * .8);
+      bg.addColorStop(0, 'rgba(12,44,70,.32)'); bg.addColorStop(1, 'rgba(5,8,12,0)'); ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H); }
+      const K = LIGHT ? .55 : 1;   // intensidad general
 
       // estado de actividad
       const act = new Float32Array(N.length);       // brillo del soma
@@ -116,30 +119,31 @@
         for (const br of n.branches) {
           const a = [n.p[0] + br.a[0], n.p[1] + br.a[1], n.p[2] + br.a[2]], c = [n.p[0] + br.c[0], n.p[1] + br.c[1], n.p[2] + br.c[2]], b = [n.p[0] + br.b[0], n.p[1] + br.b[1], n.p[2] + br.b[2]];
           curve(a, c, b);
-          ctx.strokeStyle = `rgba(${on > .1 ? '153,246,228' : '45,212,191'},${(.22 + .35 * on) * da})`;
+          ctx.strokeStyle = LIGHT ? `rgba(13,148,136,${(.20 + .30 * on) * da * K})` : `rgba(${on > .1 ? '153,246,228' : '45,212,191'},${(.22 + .35 * on) * da})`;
           ctx.lineWidth = Math.max(.5, br.w * S[3] * .006 * (1 + on * .4)); ctx.stroke();
-          if (br.tip) { const T = P(b); ctx.fillStyle = `rgba(94,234,212,${.35 * da})`; ctx.beginPath(); ctx.arc(T[0], T[1], Math.max(.8, S[3] * .0035), 0, 6.283); ctx.fill(); }
+          if (br.tip) { const T = P(b); ctx.fillStyle = LIGHT ? `rgba(13,148,136,${.3 * da * K})` : `rgba(94,234,212,${.35 * da})`; ctx.beginPath(); ctx.arc(T[0], T[1], Math.max(.8, S[3] * .0035), 0, 6.283); ctx.fill(); }
         }
         // axón con vainas de mielina (segmentos)
         const ax = n.axon;
-        curve(ax.a, ax.c, ax.b); ctx.strokeStyle = `rgba(56,189,248,${.20 * da})`; ctx.lineWidth = Math.max(.6, S[3] * .004); ctx.stroke();
+        curve(ax.a, ax.c, ax.b); ctx.strokeStyle = LIGHT ? `rgba(14,116,144,${.16 * da * K})` : `rgba(56,189,248,${.20 * da})`; ctx.lineWidth = Math.max(.6, S[3] * .004); ctx.stroke();
         ctx.setLineDash([Math.max(3, S[3] * .03), Math.max(2, S[3] * .012)]);
-        curve(ax.a, ax.c, ax.b); ctx.strokeStyle = `rgba(125,211,252,${.28 * da})`; ctx.lineWidth = Math.max(1.4, S[3] * .011); ctx.stroke();
+        curve(ax.a, ax.c, ax.b); ctx.strokeStyle = LIGHT ? `rgba(14,116,144,${.22 * da * K})` : `rgba(125,211,252,${.28 * da})`; ctx.lineWidth = Math.max(1.4, S[3] * .011); ctx.stroke();
         ctx.setLineDash([]);
         // botón sináptico
         const Bt = P(ax.b), bs = Math.max(2.2, S[3] * .018);
-        ctx.fillStyle = `rgba(125,211,252,${.55 * da})`; ctx.beginPath(); ctx.arc(Bt[0], Bt[1], bs, 0, 6.283); ctx.fill();
+        ctx.fillStyle = LIGHT ? `rgba(14,116,144,${.4 * da * K})` : `rgba(125,211,252,${.55 * da})`; ctx.beginPath(); ctx.arc(Bt[0], Bt[1], bs, 0, 6.283); ctx.fill();
         // soma con núcleo
         const sr = Math.max(4, n.soma * S[3]);
-        ctx.globalAlpha = (.35 + .65 * on) * da; ctx.drawImage(HALO, S[0] - sr * 4, S[1] - sr * 4, sr * 8, sr * 8); ctx.globalAlpha = 1;
+        ctx.globalAlpha = (.35 + .65 * on) * da * (LIGHT ? .25 : 1); ctx.drawImage(HALO, S[0] - sr * 4, S[1] - sr * 4, sr * 8, sr * 8); ctx.globalAlpha = 1;
         const gs = ctx.createRadialGradient(S[0] - sr * .3, S[1] - sr * .35, sr * .1, S[0], S[1], sr);
-        gs.addColorStop(0, `rgba(204,251,241,${.85 * da})`); gs.addColorStop(.6, `rgba(20,184,166,${.75 * da})`); gs.addColorStop(1, `rgba(13,82,95,${.6 * da})`);
+        if (LIGHT) { gs.addColorStop(0, `rgba(94,234,212,${.6 * da * K})`); gs.addColorStop(.6, `rgba(13,148,136,${.55 * da * K})`); gs.addColorStop(1, `rgba(15,118,110,${.45 * da * K})`); }
+        else { gs.addColorStop(0, `rgba(204,251,241,${.85 * da})`); gs.addColorStop(.6, `rgba(20,184,166,${.75 * da})`); gs.addColorStop(1, `rgba(13,82,95,${.6 * da})`); }
         ctx.fillStyle = gs; ctx.beginPath(); ctx.arc(S[0], S[1], sr, 0, 6.283); ctx.fill();
-        ctx.fillStyle = `rgba(8,47,73,${.7 * da})`; ctx.beginPath(); ctx.arc(S[0] + sr * .12, S[1] + sr * .1, sr * .42, 0, 6.283); ctx.fill();
-        if (on > .03) { const g = sr * 6 * (.6 + on); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = on * da; ctx.drawImage(GLOW, S[0] - g / 2, S[1] - g / 2, g, g); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; }
+        ctx.fillStyle = LIGHT ? `rgba(15,60,70,${.35 * da * K})` : `rgba(8,47,73,${.7 * da})`; ctx.beginPath(); ctx.arc(S[0] + sr * .12, S[1] + sr * .1, sr * .42, 0, 6.283); ctx.fill();
+        if (on > .03) { const g = sr * 6 * (.6 + on); ctx.globalCompositeOperation = LIGHT ? 'source-over' : 'lighter'; ctx.globalAlpha = on * da * (LIGHT ? .7 : 1); ctx.drawImage(GLOW, S[0] - g / 2, S[1] - g / 2, g, g); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; }
       }
       // impulsos y neurotransmisores (encima de todo)
-      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalCompositeOperation = LIGHT ? 'source-over' : 'lighter';
       for (const [k, u] of axonP) {
         const ax = N[k].axon;
         for (let tr = 0; tr < 5; tr++) {
@@ -156,7 +160,7 @@
           const off = (v * .618) % 1, uu = Math.min(1, Math.max(0, u * 1.3 - off * .3));
           const jit = [(((v * 37) % 7) - 3) * .006, (((v * 53) % 7) - 3) * .006, 0];
           const q = P([A[0] + (B[0] - A[0]) * uu + jit[0] * (1 - uu) * 2, A[1] + (B[1] - A[1]) * uu + jit[1] * (1 - uu) * 2, A[2] + (B[2] - A[2]) * uu]);
-          ctx.globalAlpha = Math.sin(Math.PI * uu) * dA(q[2]); ctx.fillStyle = '#FDE68A';
+          ctx.globalAlpha = Math.sin(Math.PI * uu) * dA(q[2]); ctx.fillStyle = LIGHT ? '#D97706' : '#FDE68A';
           ctx.beginPath(); ctx.arc(q[0], q[1], Math.max(1, q[3] * .0035), 0, 6.283); ctx.fill();
         }
       }
@@ -164,7 +168,36 @@
     }
     build();
     window.addEventListener('resize', build);
-    return { frame };
+    return { frame, setLight: (v) => { LIGHT = !!v; } };
   }
-  window.LumenNeuro = { Synapse };
+  /* Fondo automático: crea el canvas detrás del contenido y elige variante clara/oscura según el fondo de la página */
+  function lum(c) { const m = String(c).match(/\d+(\.\d+)?/g); if (!m || m.length < 3) return 0; if (m.length > 3 && +m[3] === 0) return -1; return (0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]) / 255; }
+  function autoFondo() {
+    if (document.getElementById('lumen-neuro-bg') || document.getElementById('bg-canvas') || document.getElementById('spcd-bg-canvas')) return;
+    const c = document.createElement('canvas'); c.id = 'lumen-neuro-bg'; c.setAttribute('aria-hidden', 'true');
+    c.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:-1;pointer-events:none';
+    document.body.insertBefore(c, document.body.firstChild);
+    const html = document.documentElement, body = document.body;
+    function syncBg() {   // pasa el fondo del body al html para que el canvas quede entre ambos
+      body.style.removeProperty('background'); body.style.removeProperty('background-color');
+      const cs = getComputedStyle(body);
+      let col = cs.backgroundColor, img = cs.backgroundImage;
+      if (lum(col) < 0 && (img === 'none' || !img)) { col = getComputedStyle(html).backgroundColor; }
+      html.style.backgroundColor = lum(col) < 0 ? '#0A0F14' : col;
+      if (img && img !== 'none') { html.style.backgroundImage = img; html.style.backgroundAttachment = 'fixed'; }
+      body.style.setProperty('background', 'transparent', 'important');
+      return lum(lum(col) < 0 ? '#0A0F14' : col) > 0.55;
+    }
+    const syn = Synapse(c, { light: syncBg() });
+    let last = 0, chk = 0;
+    (function loop(ms) {
+      if (document.visibilityState === 'visible' && ms - last > 32) { syn.frame(ms); last = ms; }
+      if (ms - chk > 1500) { chk = ms; syn.setLight(syncBg()); }
+      requestAnimationFrame(loop);
+    })(0);
+  }
+  window.LumenNeuro = { Synapse, autoFondo };
+  if (document.currentScript && document.currentScript.dataset.auto !== undefined) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', autoFondo); else autoFondo();
+  }
 })();

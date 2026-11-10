@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════════════════════════════════════
-   SPCD BG — Fondo animado compartido (canvas partículas + grid + conexiones)
+   SPCD BG — Fondo animado compartido (neuronas con sinapsis, vía lumen-neuro.js)
    Replica el look de index.html en todos los módulos.
    Idempotente: si ya está cargado en la página, no reinicia.
    ════════════════════════════════════════════════════════════════════════════ */
@@ -16,6 +16,7 @@
     #spcd-bg-canvas {
       position: fixed;
       inset: 0;
+      width: 100vw; height: 100vh;
       z-index: 0;
       pointer-events: none;
     }
@@ -65,93 +66,22 @@
     }
     liftBodyChildren();
 
-    const ctx = canvas.getContext('2d');
-    let W, H, particles = [], nodes = [];
-
-    function resize() {
-      W = canvas.width  = window.innerWidth;
-      H = canvas.height = window.innerHeight;
+    /* Fondo de neuronas con sinapsis (lumen-neuro.js, 10/11/2026) */
+    function arrancar() {
+      const syn = window.LumenNeuro.Synapse(canvas);
+      let last = 0;
+      (function loop(ms) {
+        if (document.visibilityState === 'visible' && ms - last > 32) { syn.frame(ms); last = ms; }
+        requestAnimationFrame(loop);
+      })(0);
     }
-    function randomBetween(a, b) { return a + Math.random() * (b - a); }
-
-    function initParticles() {
-      particles = [];
-      const count = Math.floor((W * H) / 18000);
-      for (let i = 0; i < count; i++) {
-        particles.push({
-          x: Math.random() * W,
-          y: Math.random() * H,
-          r: randomBetween(.5, 2),
-          vx: randomBetween(-.15, .15),
-          vy: randomBetween(-.15, .15),
-          alpha: randomBetween(.2, .6),
-          color: Math.random() > .5 ? '#22DBAE' : '#3B82F6'
-        });
-      }
-      nodes = particles.slice(0, 12);
+    if (window.LumenNeuro) arrancar();
+    else {
+      const sc = document.createElement('script');
+      sc.src = 'lumen-neuro.js?v=20261110b';
+      sc.onload = arrancar;
+      document.head.appendChild(sc);
     }
-
-    function draw() {
-      ctx.clearRect(0, 0, W, H);
-
-      // Gradient radial suave
-      const grad = ctx.createRadialGradient(W*.5, H*.5, 0, W*.5, H*.5, W*.7);
-      grad.addColorStop(0, 'rgba(30,58,138,.15)');
-      grad.addColorStop(1, 'rgba(10,15,20,0)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, W, H);
-
-      // Grid lines
-      ctx.strokeStyle = 'rgba(30,58,138,.25)';
-      ctx.lineWidth = .5;
-      const gSize = 60;
-      for (let x = 0; x < W; x += gSize) {
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-      }
-      for (let y = 0; y < H; y += gSize) {
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
-      }
-
-      // Conexiones entre nodos cercanos
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
-          const dx = nodes[i].x - nodes[j].x;
-          const dy = nodes[i].y - nodes[j].y;
-          const dist = Math.sqrt(dx*dx + dy*dy);
-          if (dist < 200) {
-            ctx.beginPath();
-            ctx.strokeStyle = 'rgba(34,219,174,' + (.12 * (1 - dist/200)) + ')';
-            ctx.lineWidth = .8;
-            ctx.moveTo(nodes[i].x, nodes[i].y);
-            ctx.lineTo(nodes[j].x, nodes[j].y);
-            ctx.stroke();
-          }
-        }
-      }
-
-      // Partículas
-      particles.forEach(p => {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.globalAlpha = p.alpha;
-        ctx.fillStyle   = p.color;
-        ctx.fill();
-        ctx.globalAlpha = 1;
-
-        p.x += p.vx; p.y += p.vy;
-        if (p.x < 0) p.x = W;
-        if (p.x > W) p.x = 0;
-        if (p.y < 0) p.y = H;
-        if (p.y > H) p.y = 0;
-      });
-
-      requestAnimationFrame(draw);
-    }
-
-    resize();
-    initParticles();
-    draw();
-    window.addEventListener('resize', () => { resize(); initParticles(); });
   }
 
   // Arrancar cuando DOM esté listo

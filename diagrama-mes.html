@@ -1,0 +1,1110 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Cronograma mensual del personal técnico · FUESMEN · Servicio de Imágenes del Hospital Italiano</title>
+<style>
+:root{--bg:#0a0f1d;--card:#0e1525;--card2:#121b2e;--line:#1f2b44;--txt:#e7ecf6;--mut:#8b98b3;--lime:#a3e635;--amber:#f5a524;--red:#e5484d;--green:#2dd4a0}
+*{box-sizing:border-box}
+html{color-scheme:dark;background:transparent}
+body{margin:0;background:transparent;color:var(--txt);font:14px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#app{max-width:1440px;margin:0 auto;padding:16px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pill{background:var(--lime);color:#10200a;border:1px solid var(--lime);border-radius:999px;padding:7px 14px;font-weight:700}
+.btn{background:var(--card);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:7px 12px;cursor:pointer;font:inherit}
+.btn:hover{border-color:#4a6aa5}
+.btn.pri{background:var(--lime);color:#10200a;border-color:var(--lime);font-weight:700}
+.btn.sm{padding:3px 8px;font-size:12px}
+.btn.danger:hover{border-color:var(--red);color:#f0a0a3}
+.mut{color:var(--mut)}
+.sp{flex:1}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:12px}
+.card h4{margin:0 0 8px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#c4cee3}
+input,textarea,select{background:#0a1120;border:1px solid var(--line);color:var(--txt);border-radius:6px;padding:6px 8px;font:inherit}
+input[type=date]{color-scheme:dark}
+textarea{width:100%;min-height:70px;resize:vertical}
+details.how{background:#101a30;border:1px dashed #33507f;border-radius:10px;padding:8px 12px;margin-top:12px;color:#b9c8e6;font-size:13px}
+details.how summary{cursor:pointer;color:#fff}
+details.how ol{margin:8px 0 2px;padding-left:20px}
+details.how li{margin:3px 0}
+/* leyenda / pincel */
+.legend{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-top:10px}
+.lg{display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:4px 9px 4px 5px;cursor:pointer;font:inherit;font-size:13px}
+.lg:hover{border-color:#4a6aa5}
+.lg.on{border-color:var(--lime);box-shadow:0 0 0 1px var(--lime) inset}
+.lgt{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin-right:2px}
+/* chips de turno */
+.ch{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:4px;border:1.5px solid;font-size:11px;font-weight:700;vertical-align:middle}
+.kM{background:#1e4a73;border-color:#4a8fd0;color:#cfe6ff}
+.kT{background:#5a3a1e;border-color:#b8793a;color:#ffe0c2}
+.kN{background:#3a2466;border-color:#7a55d0;color:#e2d4ff}
+.kD{background:#5c5420;border-color:#b5a030;color:#fff3b0}
+.kF{background:transparent;border-color:transparent;color:#66728f;font-weight:600}
+.kL{background:#3a2d0a;border-color:var(--amber);color:#ffd27a;font-style:italic}
+.kX{background:transparent;border:1.5px dashed #4a5878;color:#8b98b3}
+.m-ok{box-shadow:0 0 0 2px #7ab8ff}
+.m-pend{border-style:dashed;border-color:var(--amber);background:rgba(245,165,36,.10);color:#ffd27a}
+.m-no{border-style:dashed;border-color:var(--red);background:rgba(229,72,77,.12);color:#f0a0a3;text-decoration:line-through}
+/* grilla */
+.gridwrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--card);margin-top:12px}
+table.grid{border-collapse:separate;border-spacing:0;min-width:100%;user-select:none;-webkit-user-select:none}
+.grid th,.grid td{padding:0}
+.grid .nm{position:sticky;left:0;z-index:2;background:var(--card);min-width:262px;max-width:262px;text-align:left;padding:2px 8px;border-right:1px solid var(--line)}
+.grid th.lbl{font-size:10px;letter-spacing:.14em;color:var(--mut);font-weight:600}
+.dh{width:28px;min-width:28px;font-size:10px;color:var(--mut);text-align:center;padding:4px 0;cursor:pointer;font-weight:600}
+.dh span{display:block}.dh b{display:block;color:#c4cee3;font-size:11px}
+.dh.we{background:#121b2e}
+.dh.fer{background:#3a1822}.dh.fer b{color:#ff8f94}
+.dh.hoy b{color:var(--lime)}
+td.c{width:28px;min-width:28px;height:30px;text-align:center;cursor:pointer;border-bottom:1px solid #141d31}
+td.c.we{background:#0b1222}
+td.c.fer{background:#26121a}
+td.c:hover{background:#1a2742}
+tr.gh th{position:sticky;left:0;text-align:left;font-size:13px;color:#fff;padding:12px 8px 4px;border-bottom:1px solid var(--line);background:var(--card)}
+tr.ad td{padding:4px 8px;border-bottom:0}
+tr.ad td:first-child{position:sticky;left:0;background:var(--card);z-index:2}
+.nmw{display:flex;align-items:center;gap:2px}
+.nmi{background:transparent;border:1px solid transparent;color:var(--txt);padding:4px;width:100%;font-weight:600;font-size:13px}
+.nmi:hover,.nmi:focus{border-color:var(--line);background:#0a1120}
+.x{background:none;border:1px solid var(--line);color:#c4cee3;cursor:pointer;font:inherit;font-size:11px;padding:2px 7px;border-radius:6px;white-space:nowrap}
+.x:hover{border-color:var(--red);color:#f0a0a3}
+tfoot th.nm{font-size:11px;color:var(--mut);font-weight:600}
+tfoot td{font-size:11px;text-align:center;color:#8da0c4;border-top:1px solid #141d31;height:22px}
+tfoot td.zero{color:#7a4a50}
+tfoot tr:first-child td,tfoot tr:first-child th{border-top:2px solid var(--line)}
+/* licencias */
+.lic{background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:8px;display:grid;grid-template-columns:repeat(7,1fr) auto;gap:8px;align-items:end}
+.lic.conf{border-color:#2f7d5b}
+.lbtns{display:flex;gap:6px}
+.btn.conf:hover{border-color:var(--green)}
+.btn.conf.on{background:#12382b;border-color:var(--green);color:#8ff0cc;font-weight:700}
+.lstate{grid-column:1/-1;font-size:12px;color:var(--amber)}
+.lic.conf .lstate{color:var(--green)}
+.lres{grid-column:1/-1;font-size:12px;color:#9fd3b6;line-height:1.5}
+.lres:empty{display:none}
+.lres.warn{color:#ffd27a}
+.lic label{display:grid;gap:3px;font-size:11px;color:var(--mut)}
+.lic input{width:100%}
+@media(max-width:900px){.lic{grid-template-columns:1fr 1fr}}
+.pool a{color:var(--lime);cursor:pointer;margin-right:10px;text-decoration:underline;white-space:nowrap}
+#stat{font-size:12px;color:var(--mut)}
+.title{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
+.ov{position:fixed;inset:0;background:rgba(5,9,18,.72);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px}
+.dlg{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;max-width:440px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+.dlg p{margin:0 0 16px;font-size:14px;line-height:1.5}
+.dlg .acts{display:flex;gap:8px;justify-content:flex-end}
+.x.wa{margin-right:3px}
+.x.wa:hover{border-color:#25d366;color:#7fe3a5}
+.dlg{max-height:92vh;overflow:auto}
+.dlg textarea{min-height:230px;font-size:13px;line-height:1.5}
+.wrow{display:grid;grid-template-columns:1fr 170px auto auto;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
+.wrow:last-child{border-bottom:0}
+.wrow .sent{color:var(--green);font-size:12px}
+a.btn{text-decoration:none;display:inline-block}
+a.btn.wapp{background:#25d366;border-color:#25d366;color:#06240f;font-weight:700}
+@media(max-width:700px){.wrow{grid-template-columns:1fr 1fr}}
+.hd{margin-bottom:12px}
+.inst{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--lime);font-weight:700}
+.hd h1{margin:3px 0 0;font-size:21px;font-weight:700;letter-spacing:.01em}
+.only-print{display:none}
+.refs{font-size:10px;line-height:1.6;margin-top:10px}
+.refs b{margin-right:2px}
+.sigrow{display:flex;gap:40px;margin-top:34px}
+.sigrow div{flex:1;text-align:center;font-size:11px}
+.sigrow .line{display:block;border-top:1px solid #000;margin-bottom:3px}.regt{width:100%;border-collapse:collapse;font-size:12px}
+.regt th{text-align:left;color:var(--mut);font-weight:600;padding:6px;border-bottom:1px solid var(--line);font-size:11px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.regt td{padding:6px;border-bottom:1px solid #141d31;vertical-align:top}
+.regt td.n{text-align:center;white-space:nowrap}
+.rchip{display:inline-block;background:var(--card2);border:1px solid var(--line);border-radius:999px;padding:3px 10px;margin:0 6px 6px 0;font-size:12px}.hrow{display:grid;grid-template-columns:1fr 1.5fr;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line)}
+.hrow:last-child{border-bottom:0}
+.hgt{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#c4cee3;margin:12px 0 2px}.regt th.g{text-align:center;border-left:1px solid var(--line)}
+.regt td.b{border-left:1px solid #141d31}
+.regt input.num{width:58px;text-align:center;padding:4px}
+.neg{color:#ff8f94;font-weight:700}
+.pos{color:#8ff0cc;font-weight:700}.btn[disabled]{opacity:.38;cursor:not-allowed}
+.btn[disabled]:hover{border-color:var(--line)}
+.mundo{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.mundo .mcap{flex:1;margin:0;text-align:left}
+.mundo .btn{padding:6px 12px;min-height:38px;font-size:16px}
+/* selector de vista */
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.vt{display:flex;align-items:center;gap:6px}
+/* vista celular */
+#app.mobile{max-width:560px;padding:10px 10px 200px}
+#app.mobile input,#app.mobile select,#app.mobile textarea{font-size:16px}
+#app.mobile .lic{grid-template-columns:1fr}
+#app.mobile .hd h1{font-size:18px}
+.mtop{display:flex;gap:6px}
+.mtop select{flex:1;min-width:0;padding:10px 8px}
+.mtop .btn{padding:10px 14px}
+.mlist{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.mrow{display:grid;grid-template-columns:54px 1fr auto;gap:10px;align-items:center;min-height:58px;padding:6px 12px 6px 6px;border-bottom:1px solid #141d31;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+.mrow:last-child{border-bottom:0}
+.mrow:active{background:#1a2742}
+.mrow.we{background:#0b1222}
+.mrow.fer{background:#26121a}
+.mrow.hoy .md b{color:var(--lime)}
+.md{text-align:center;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+.md b{display:block;font-size:20px;letter-spacing:0;color:var(--txt)}
+.mrow.fer .md b{color:#ff8f94}
+.ml{font-size:14px;line-height:1.3}
+.hb{display:inline-block;margin-top:3px;font-size:11px;color:#6f7fa3;text-decoration:underline;padding:3px 0}
+.hb.on{color:#ff8f94}
+.mrow .ch{width:40px;height:40px;font-size:17px;border-radius:9px}
+.mbar{position:fixed;left:0;right:0;bottom:0;z-index:50;background:rgba(10,17,32,.96);border-top:1px solid var(--line);padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px));backdrop-filter:blur(6px)}
+.mbar .in{max-width:540px;margin:0 auto}
+.mcap{font-size:12px;color:var(--mut);margin-bottom:6px;text-align:center}
+.mcap b{color:var(--txt)}
+.mrowb{display:flex;gap:6px;margin-top:6px}
+.mrowb .lg{flex:1;justify-content:center;min-height:46px;padding:4px 2px;font-size:12px}
+.mrowb .lg .ch{width:30px;height:30px;font-size:14px}
+.mmenu{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.mmenu .btn{padding:12px 8px}
+.mcg{display:grid;grid-template-columns:1.6fr repeat(4,1fr);font-size:12px;text-align:center;margin-top:8px}
+.mcg span,.mcg b{padding:5px 2px;border-bottom:1px solid #141d31}
+.mcg .zero{color:#7a4a50}
+.mcg .we{background:#0b1222}
+.mcg .fer{background:#26121a}
+@media print{
+  @page{size:A4 landscape;margin:8mm}
+  body{background:#fff;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #app{padding:0;max-width:none}
+  .noprint,.btn,.x,tr.ad,details.how,.legend,.ov,.mbar,.vt{display:none!important}
+  .inst{color:#000}
+  .only-print{display:block}
+  .card,.gridwrap{background:#fff;border-color:#bbb}
+  .grid .nm,tr.gh th{background:#fff;position:static}
+  .grid th,.grid td,tfoot td{color:#000}
+  .dh b,.dh span{color:#000}.dh.fer b{color:#c00}
+  .nmi{color:#000;border:0}
+  td.c.we,.dh.we{background:#eee}td.c.fer,.dh.fer{background:#fdd}
+  input,textarea,select{background:#fff;color:#000;border-color:#ccc}
+  .lres,.lstate,.lic.conf .lstate{color:#000}
+  .gridwrap{overflow:visible}
+  td.c,.dh{width:22px;min-width:22px}
+  td.c{height:24px}
+  .ch{width:19px;height:19px;font-size:10px}
+  .lic{background:#fff;border-color:#bbb;break-inside:avoid}
+  .lic label{color:#444}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script id="seed" type="application/json">{"docId":"diagrama-mes-imagenes-v1","ts":0,"year":2026,"month":11,"holidays":{"2026-10-12":1,"2026-11-23":1,"2026-12-08":1,"2026-12-25":1,"2027-01-01":1},"groups":[{"id":"man","name":"Turno mañana"},{"id":"tar","name":"Turno tarde"},{"id":"gua","name":"Guardias de 12 h"},{"id":"sup","name":"Personal suplente y cobertura del mes"}],"people":[{"id":"p1","name":"Forni V.","g":"man"},{"id":"p2","name":"Dalla Caneva M.","g":"man"},{"id":"p3","name":"Skamlec I.","g":"man"},{"id":"p4","name":"Benitez M.","g":"tar"},{"id":"p5","name":"Orozco M.","g":"tar"},{"id":"p6","name":"Cornejo F.","g":"tar"},{"id":"p7","name":"Battistella F.","g":"gua"},{"id":"p8","name":"Mursi C.","g":"gua"},{"id":"p9","name":"Granados E.","g":"gua"},{"id":"p10","name":"Ríos N.","g":"sup"},{"id":"p11","name":"Aminahuel H.","g":"sup"},{"id":"p12","name":"Lonigro C.","g":"sup"}],"pool":["Rumbo Tobias","Walker Arian","Romero Romina","Jofré Yanina","Lucas Federica"],"cells":{},"leaves":{},"meta":{"by":"","note":""}}</script>
+
+<script>
+(function(){
+'use strict';
+var MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+var DOWL=['D','L','M','MI','J','V','S'];
+var DOWN=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+var CODES=[['M','Mañana 07–13'],['T','Tarde 13–19'],['N','Guardia nocturna 19–07'],['D','Guardia diurna 07–19'],['F','Franco'],['L','Licencia']];
+var MARKS=[['','Habitual'],['ok','Reemplazo confirmado'],['pend','Reemplazo a confirmar'],['no','Reemplazo no disponible']];
+var NOW=new Date();
+
+function pad(n){return (n<10?'0':'')+n}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function hhmm(){var d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())}
+
+var S=load();
+var REM={ok:false,edit:false,ver:null,timer:null,enviando:false,otra:false,data:null};
+var B={c:'M',m:''};
+var MSEL='';
+var VIEW=(function(){try{var v=localStorage.getItem('diagrama:view'); if(v==='pc'||v==='mobile') return v}catch(e){} return (window.innerWidth<700)?'mobile':'pc'})();
+var DS3=['dom','lun','mar','mié','jue','vie','sáb'];
+var U=[], R=[], pend=null, lastSnap=snapJSON();
+
+function load(){
+  var seed=JSON.parse(document.getElementById('seed').textContent);
+  try{
+    var raw=localStorage.getItem('diagrama:'+seed.docId);
+    if(raw){var l=JSON.parse(raw); if(l&&l.ts>(seed.ts||0)){l.groups=seed.groups; return l;}}
+  }catch(e){}
+  return seed;
+}
+function stat(t){var e=document.getElementById('stat'); if(e) e.textContent=t}
+var st;
+function snapJSON(){return JSON.stringify(S,function(k,v){if(this===S&&(k==='ts'||k==='focus'||k==='year'||k==='month')) return undefined; return v})}
+function updUndoUI(){
+  document.querySelectorAll('[data-act=undo]').forEach(function(b){b.disabled=!U.length; b.title=U.length?'Deshacer el último cambio (Ctrl+Z) · '+U.length+' disponible'+(U.length===1?'':'s'):'No hay cambios para deshacer'});
+  document.querySelectorAll('[data-act=redo]').forEach(function(b){b.disabled=!R.length; b.title=R.length?'Rehacer el cambio deshecho (Ctrl+Y)':'No hay cambios para rehacer'});
+}
+function flush(){
+  if(!pend) return; clearTimeout(st); var pm=pend; pend=null;
+  var j=snapJSON();
+  if(j!==lastSnap){U.push({before:lastSnap,y:pm.y,m:pm.m}); if(U.length>60) U.shift(); R=[]; lastSnap=j; updUndoUI()}
+  S.ts=Date.now();
+  try{localStorage.setItem('diagrama:'+S.docId,JSON.stringify(S))}catch(e){}
+  remotoEncolar();
+}
+function persist(){
+  if(REM.ok && !REM.edit){ soloLectura(); return; }
+  pend={y:S.year,m:S.month}; clearTimeout(st); st=setTimeout(flush,250);
+}
+function restoreSnap(json,y,m){
+  var o=JSON.parse(json); o.year=y; o.month=m; o.ts=Date.now(); S=o; lastSnap=json;
+  try{localStorage.setItem('diagrama:'+S.docId,JSON.stringify(S))}catch(e){}
+  render(); updUndoUI(); remotoEncolar();
+}
+function doUndo(){
+  flush(); if(!U.length){stat('No hay cambios para deshacer.'); return}
+  var e=U.pop(); R.push({after:snapJSON(),y:e.y,m:e.m}); restoreSnap(e.before,e.y,e.m);
+  stat('Se deshizo el último cambio. Quedan '+U.length+' para deshacer'+(R.length?' y '+R.length+' para rehacer':'')+'.');
+}
+function doRedo(){
+  flush(); if(!R.length){stat('No hay cambios para rehacer.'); return}
+  var r=R.pop(); U.push({before:snapJSON(),y:r.y,m:r.m}); restoreSnap(r.after,r.y,r.m);
+  stat('Se rehizo el cambio.');
+}
+function mk(){return S.year+'-'+pad(S.month)}
+function dim(){return new Date(S.year,S.month,0).getDate()}
+function hkey(d){return S.year+'-'+pad(S.month)+'-'+pad(d)}
+function isHol(d){return !!S.holidays[hkey(d)]}
+function cellOf(pid,d){var m=S.cells[mk()];return (m&&m[pid]&&m[pid][d])||null}
+function setCell(pid,d,v){
+  var k=mk(); S.cells[k]=S.cells[k]||{}; var r=S.cells[k][pid]=S.cells[k][pid]||{};
+  if(v) r[d]=v; else delete r[d];
+}
+function dayCls(d){
+  var w=new Date(S.year,S.month-1,d).getDay(), c=[];
+  if(w===0||w===6)c.push('we'); if(isHol(d))c.push('fer');
+  if(NOW.getFullYear()===S.year&&NOW.getMonth()+1===S.month&&NOW.getDate()===d)c.push('hoy');
+  return c.join(' ');
+}
+function cellInner(c){
+  if(!c) return '';
+  var tip=''; CODES.forEach(function(x){if(x[0]===c.c)tip=x[1]}); MARKS.forEach(function(x){if(x[0]&&x[0]===c.m)tip+=' · '+x[1]});
+  return '<span class="ch k'+c.c+(c.m?' m-'+c.m:'')+'" title="'+esc(tip)+'">'+c.c+'</span>';
+}
+function rowHTML(p){
+  var n=dim(), h='<tr data-pid="'+p.id+'"><th class="nm"><div class="nmw"><input class="nmi" data-act="name" value="'+esc(p.name)+'" aria-label="Nombre"><button class="x wa noprint" data-act="wa" title="Enviar cronograma por WhatsApp">Enviar</button><button class="x" data-act="delp" title="Quitar este técnico del cronograma">Quitar</button></div></th>';
+  for(var d=1;d<=n;d++) h+='<td class="c '+dayCls(d)+'" data-d="'+d+'">'+cellInner(cellOf(p.id,d))+'</td>';
+  return h+'</tr>';
+}
+function covRows(){
+  var n=dim(), out='', rows=[['M','Cobertura mañana'],['T','Cobertura tarde'],['N','Cobertura guardia nocturna'],['D','Cobertura guardia diurna']], people=S.people, row=S.cells[mk()]||{};
+  rows.forEach(function(r){
+    out+='<tr><th class="nm">'+r[1]+'</th>';
+    for(var d=1;d<=n;d++){
+      var k=0; people.forEach(function(p){var c=row[p.id]&&row[p.id][d]; if(c&&c.c===r[0]&&c.m!=='no')k++});
+      out+='<td class="'+dayCls(d)+(k?'':' zero')+'">'+(k||'·')+'</td>';
+    }
+    out+='</tr>';
+  });
+  return out;
+}
+function gridHTML(){
+  var n=dim(), h='<div class="gridwrap"><table class="grid" id="grid"><thead><tr><th class="nm lbl">'+MESES[S.month-1].toUpperCase()+' '+S.year+'</th>';
+  for(var d=1;d<=n;d++){var w=new Date(S.year,S.month-1,d).getDay(); h+='<th class="dh '+dayCls(d)+'" data-act="hol" data-d="'+d+'" title="'+DOWN[w]+' '+d+(isHol(d)?' · feriado (clic para quitar)':' · clic para marcar feriado')+'"><span>'+DOWL[w]+'</span><b>'+d+'</b></th>'}
+  h+='</tr></thead><tbody>';
+  S.groups.forEach(function(g){
+    h+='<tr class="gh"><th colspan="'+(n+1)+'">'+esc(g.name)+'</th></tr>';
+    S.people.filter(function(p){return p.g===g.id}).forEach(function(p){h+=rowHTML(p)});
+    h+='<tr class="ad"><td colspan="'+(n+1)+'"><button class="btn sm" data-act="addp" data-g="'+g.id+'">+ Agregar técnico</button>'+(g.id==='gua'?' <button class="btn sm pri" data-act="guard" style="margin-left:6px">Completar guardias del mes</button>':'')+((g.id==='man'||g.id==='tar')?' <button class="btn sm pri" data-act="habit" style="margin-left:6px">Completar turnos habituales</button>':'')+'</td></tr>';
+  });
+  return h+'</tbody><tfoot id="cov">'+covRows()+'</tfoot></table></div>';
+}
+function legendHTML(){
+  var h='<div class="legend noprint"><span class="lgt">Asignación</span>';
+  CODES.forEach(function(c){h+='<button class="lg'+(B.c===c[0]?' on':'')+'" data-act="brush" data-c="'+c[0]+'"><span class="ch k'+c[0]+'">'+c[0]+'</span>'+c[1]+'</button>'});
+  h+='<button class="lg'+(B.c===''?' on':'')+'" data-act="brush" data-c=""><span class="ch kX">⌫</span>Quitar asignación</button></div>';
+  h+='<div class="legend noprint"><span class="lgt">Condición</span>';
+  MARKS.forEach(function(m){h+='<button class="lg'+(B.m===m[0]?' on':'')+'" data-act="mark" data-m="'+m[0]+'"><span class="ch kM'+(m[0]?' m-'+m[0]:'')+'">M</span>'+m[1]+'</button>'});
+  return h+'</div>';
+}
+var TIPOS=['Vacaciones (licencia anual ordinaria)','Licencia profiláctica','Enfermedad / certificado médico','Atención de familiar enfermo','Examen o estudio','Maternidad','Paternidad','Duelo (fallecimiento de familiar)','Matrimonio','Franco compensatorio','Licencia sin goce de haberes','Otra (detallar en observaciones)'];
+function saldoNote(l){
+  var who=findPerson(l.who), kd=leaveKind(l);
+  if(!who||kd==='otra'||!l.desde||!l.hasta) return {t:'',x:false};
+  var cu=cupoOf(who)[kd]; if(cu==null) return {t:'',x:false};
+  var tk=balanceFor(who)[kd], rest=cu-tk;
+  return {t:' Saldo de '+(kd==='vac'?'vacaciones':'licencia profiláctica')+': '+tk+' de '+cu+' días tomados · '+(rest>=0?'restan '+rest+'.':'excede en '+(-rest)+' día'+(rest===-1?'':'s')+'.'), x:rest<0};
+}
+function leaveResText(l){return (l.res||'').replace(/ Saldo de (vacaciones|licencia profiláctica)[^.]*\./,'')+saldoNote(l).t}
+function leaveResWarn(l){return !!(l.warnRes||/^(No se|La fecha|Complete)/.test(l.res||'')||saldoNote(l).x)}
+function refreshLeaveNotes(){
+  document.querySelectorAll('.lic').forEach(function(lic){
+    var l=findLeave(lic.dataset.lid); if(!l) return; var r=lic.querySelector('.lres'); if(!r) return;
+    r.textContent=leaveResText(l); r.classList.toggle('warn',leaveResWarn(l));
+  });
+}
+function leavesForMonth(){
+  /* licencias que abarcan el mes mostrado (sin importar en qué mes se cargaron) + las cargadas en este mes */
+  var first=S.year+'-'+pad(S.month)+'-01', last=S.year+'-'+pad(S.month)+'-'+pad(dim()), k=mk(), out=[];
+  allLeaves().forEach(function(x){
+    var l=x.l, inRange=false;
+    if(l.desde){var h=l.hasta||l.desde; inRange=(l.desde<=last&&h>=first)}
+    if(inRange||x.k===k) out.push(x);
+  });
+  return out;
+}
+function findLeave(id){var r=null; Object.keys(S.leaves).forEach(function(k){(S.leaves[k]||[]).forEach(function(l){if(l.id===id) r=l})}); return r}
+function removeLeave(id){Object.keys(S.leaves).forEach(function(k){S.leaves[k]=(S.leaves[k]||[]).filter(function(l){return l.id!==id})})}
+function todayISO(){var t=new Date(); return t.getFullYear()+'-'+pad(t.getMonth()+1)+'-'+pad(t.getDate())}
+function leaveStateText(l){return l.conf?'Estado: confirmada'+(l.confAt?' el '+fmtD(l.confAt):''):'Estado: pendiente de confirmación'}
+function updLeaveUI(lic,l){
+  lic.classList.toggle('conf',!!l.conf);
+  var b=lic.querySelector('[data-act=confleave]'); if(b){b.classList.toggle('on',!!l.conf); b.textContent=l.conf?'Confirmada ✓':'Confirmar'; b.title=l.conf?'Confirmada · clic para volver a pendiente':'Marcar esta licencia como confirmada'}
+  var s=lic.querySelector('.lstate'); if(s) s.textContent=leaveStateText(l);
+}
+function leavesHTML(){
+  var L=leavesForMonth(), h='<div class="card"><h4>Licencias del mes y personal que cubre</h4>';
+  function f(lbl,k,v,t,list){return '<label>'+lbl+'<input type="'+t+'" data-f="'+k+'" value="'+esc(v||'')+'"'+(list?' list="'+list+'"':'')+'></label>'}
+  function sel(lbl,k,v,opts,first){
+    var o=(first?'<option value="">'+first+'</option>':'');
+    if(v&&opts.every(function(x){return (Array.isArray(x)?x[0]:x)!==v})) o+='<option value="'+esc(v)+'" selected>'+esc(v)+'</option>';
+    opts.forEach(function(x){var val=Array.isArray(x)?x[0]:x, tx=Array.isArray(x)?x[1]:x; o+='<option value="'+esc(val)+'"'+(val===v?' selected':'')+'>'+esc(tx)+'</option>'});
+    return '<label>'+lbl+'<select data-f="'+k+'">'+o+'</select></label>';
+  }
+  L.forEach(function(x){
+    var l=x.l, origen=(x.k!==mk()?'<div class="mut" style="grid-column:1/-1;font-size:11px">Cargada en '+MESES[+x.k.slice(5)-1].toLowerCase()+' de '+x.k.slice(0,4)+' · abarca desde el '+fmtD(l.desde)+(l.hasta?' hasta el '+fmtD(l.hasta):'')+'</div>':'');
+    h+='<div class="lic'+(l.conf?' conf':'')+'" data-lid="'+l.id+'">'+
+    f('Técnico','who',l.who,'text','plist')+sel('Tipo de licencia','tipo',l.tipo,TIPOS,'Seleccionar…')+
+    f('Desde','desde',l.desde,'date')+f('Hasta','hasta',l.hasta,'date')+
+    f('Reemplazante','rep',l.rep,'text','rlist')+sel('Estado del reemplazo','est',l.est||'ok',[['ok','Confirmado'],['pend','A confirmar']])+
+    f('Observaciones','hor',l.hor,'text')+
+    '<div class="lbtns noprint"><button class="btn sm conf'+(l.conf?' on':'')+'" data-act="confleave" title="'+(l.conf?'Confirmada · clic para volver a pendiente':'Marcar esta licencia como confirmada')+'">'+(l.conf?'Confirmada ✓':'Confirmar')+'</button><button class="btn sm danger" data-act="delleave" title="Quitar licencia (se revierte el cronograma)">Quitar</button></div>'+
+    '<div class="lstate">'+leaveStateText(l)+'</div>'+
+    origen+'<div class="lres'+(leaveResWarn(l)?' warn':'')+'">'+esc(leaveResText(l))+'</div></div>';
+  });
+  if(!L.length) h+='<div class="mut noprint">No hay licencias registradas para este mes.</div>';
+  h+='<div class="mut noprint" style="margin-top:8px;font-size:12px">Al completar técnico, fechas y reemplazante, el cronograma se actualiza automáticamente: el técnico queda con «L» y el reemplazante toma sus turnos.</div>';
+  return h+'<div style="margin-top:8px" class="noprint"><button class="btn sm" data-act="addleave">+ Registrar licencia</button></div></div>';
+}
+function plistHTML(wp){return S.people.map(function(p){return p.name}).concat(wp?S.pool:[]).map(function(n){return '<option value="'+esc(n)+'">'}).join('')}
+function poolHTML(){
+  if(!S.pool.length) return '';
+  return '<div class="pool noprint" style="margin-top:10px"><span class="mut">Personal sin asignaciones este mes (clic para incorporarlo como suplente): </span>'+
+    S.pool.map(function(n,i){return '<a data-act="pool" data-i="'+i+'">'+esc(n)+'</a>'}).join(' ')+'</div>';
+}
+function headerHTML(){
+  return '<div class="hd"><div class="hdr"><div><div class="inst">FUESMEN · Servicio de Imágenes del Hospital Italiano</div><h1>Cronograma mensual del personal técnico</h1></div>'+viewToggleHTML()+'</div></div>'+
+  '<div class="bar"><button class="btn noprint" data-act="prev" title="Mes anterior">◀</button><b style="min-width:150px;text-align:center;font-size:16px">'+MESES[S.month-1]+' '+S.year+'</b><button class="btn noprint" data-act="next" title="Mes siguiente">▶</button><button class="btn noprint" data-act="today">Mes actual</button>'+
+  '<button class="btn noprint" data-act="undo"'+(U.length?'':' disabled')+' style="margin-left:10px">↶ Deshacer</button><button class="btn noprint" data-act="redo"'+(R.length?'':' disabled')+'>↷ Rehacer</button>'+
+  '<span class="sp"></span>'+
+  '<button class="btn pri noprint" data-act="save">Guardar copia</button>'+
+  '<button class="btn noprint" data-act="csv">Exportar a Excel</button>'+
+  '<button class="btn noprint" data-act="print">Imprimir / PDF</button>'+
+  '<button class="btn noprint" data-act="walist">Enviar por WhatsApp</button>'+
+  '<button class="btn noprint" data-act="reglic">Registro de licencias <span class="regn">('+regCount()+')</span></button>'+
+  '<button class="btn noprint" data-act="ballic">Saldo de licencias</button>'+
+  '<button class="btn danger noprint" data-act="clear">Limpiar cronograma del mes</button></div>'+
+  '<div class="bar" style="margin-top:10px"><label class="mut">Elaborado por&nbsp;<input id="by" value="'+esc(S.meta.by)+'" placeholder="Nombre y apellido" style="width:240px"></label><span id="stat" class="noprint"></span></div>'+
+  '<details class="how"><summary>Instrucciones de uso</summary><ol>'+
+  '<li>Seleccione una <b>asignación</b> (M, T, N, D, F o L) y haga clic, o arrastre con el mouse, sobre los días correspondientes a cada técnico.</li>'+
+  '<li>Un nuevo clic sobre una casilla con la misma asignación la quita. «Quitar asignación» limpia cualquier casilla.</li>'+
+  '<li>Para registrar reemplazos, seleccione la <b>condición</b> (confirmado, a confirmar o no disponible) y luego asigne. Un reemplazo «no disponible» no se computa en la cobertura diaria.</li>'+
+  '<li>Un clic sobre el número del día marca o quita un <b>feriado</b>. Es posible renombrar, agregar o quitar técnicos.</li>'+
+  '<li>Al finalizar: «Guardar copia» para enviar el archivo, «Exportar a Excel» o «Imprimir / PDF».</li></ol></details>'+
+  legendHTML();
+}
+function printFootHTML(){
+  var a=CODES.map(function(c){return '<b>'+c[0]+'</b> '+c[1]}).join(' &nbsp;·&nbsp; ');
+  var b=MARKS.filter(function(m){return m[0]}).map(function(m){return '<span class="ch kM m-'+m[0]+'" style="width:15px;height:15px;font-size:9px">M</span> '+m[1]}).join(' &nbsp;·&nbsp; ');
+  return '<div class="only-print"><div class="refs"><div><b>Asignaciones:</b> '+a+'</div><div><b>Condiciones:</b> '+b+'</div></div>'+
+  '<div class="sigrow"><div><span class="line"></span>Elaborado por: <span id="pby">'+esc(S.meta.by)+'</span></div><div><span class="line"></span>Jefa de Servicio · Firma y aclaración</div><div><span class="line"></span>Fecha</div></div></div>';
+}
+function footerHTML(){
+  return '<div class="card"><h4>Observaciones</h4><textarea id="note" placeholder="Novedades del mes, cambios de último momento y asignaciones pendientes de confirmar.">'+esc(S.meta.note)+'</textarea></div>'+
+  printFootHTML()+'<datalist id="plist">'+plistHTML()+'</datalist><datalist id="rlist">'+plistHTML(true)+'</datalist>';
+}
+function viewToggleHTML(){
+  return '<div class="vt noprint"><span class="lgt">Vista</span><button class="lg'+(VIEW==='pc'?' on':'')+'" data-act="view" data-v="pc">PC</button><button class="lg'+(VIEW==='mobile'?' on':'')+'" data-act="view" data-v="mobile">Celular</button></div>';
+}
+function orderedPeople(){var o=[]; S.groups.forEach(function(g){S.people.filter(function(p){return p.g===g.id}).forEach(function(p){o.push(p)})}); return o}
+function curPerson(){var o=orderedPeople(), p=o.filter(function(x){return x.id===MSEL})[0]; if(!p&&o.length){p=o[0]; MSEL=p.id} return p||null}
+function mlabel(c){
+  if(!c) return '<span class="mut">Sin asignación</span>';
+  var t='', m=''; CODES.forEach(function(x){if(x[0]===c.c)t=x[1]}); MARKS.forEach(function(x){if(x[0]&&x[0]===c.m)m=x[1]});
+  return esc(t)+(m?'<div class="mut" style="font-size:11px">'+esc(m)+'</div>':'');
+}
+function mrowHTML(p,d){
+  var w=new Date(S.year,S.month-1,d).getDay(), c=cellOf(p.id,d);
+  return '<div class="mrow '+dayCls(d)+'" data-d="'+d+'"><div class="md">'+DS3[w]+'<b>'+d+'</b></div><div class="ml">'+mlabel(c)+
+    '<div><span class="hb'+(isHol(d)?' on':'')+'" data-act="hol" data-d="'+d+'">'+(isHol(d)?'Feriado · quitar':'Marcar feriado')+'</span></div></div><div class="mc">'+cellInner(c)+'</div></div>';
+}
+function mlistHTML(){
+  var p=curPerson(); if(!p) return '<div class="mut" style="padding:14px">No hay técnicos en el cronograma. Agregue uno con «+ Agregar técnico».</div>';
+  var h='', n=dim(); for(var d=1; d<=n; d++) h+=mrowHTML(p,d); return h;
+}
+function mcountText(){var p=curPerson(); if(!p) return ''; var c=waCount(p); return esc(p.name)+' · '+c+(c===1?' asignación':' asignaciones')+' en '+MESES[S.month-1].toLowerCase()}
+function mcovInner(){
+  var n=dim(), row=S.cells[mk()]||{}, h='<div class="mcg"><b>Día</b><b>M</b><b>T</b><b>N</b><b>D</b>';
+  for(var d=1; d<=n; d++){
+    var cls=dayCls(d), w=new Date(S.year,S.month-1,d).getDay();
+    h+='<span class="'+cls+'">'+DS3[w]+' '+d+'</span>';
+    ['M','T','N','D'].forEach(function(code){
+      var k=0; S.people.forEach(function(p){var c=row[p.id]&&row[p.id][d]; if(c&&c.c===code&&c.m!=='no') k++});
+      h+='<span class="'+cls+(k?'':' zero')+'">'+(k||'·')+'</span>';
+    });
+  }
+  return h+'</div><div class="mut" style="font-size:11px;margin-top:6px">M mañana · T tarde · N guardia nocturna · D guardia diurna</div>';
+}
+function mcapText(){
+  var nm='', mn=''; CODES.forEach(function(x){if(x[0]===B.c)nm=x[1]}); MARKS.forEach(function(x){if(x[0]&&x[0]===B.m)mn=x[1]});
+  return 'Al tocar un día: '+(B.c===''?'<b>quitar la asignación</b>':'asignar <b>'+esc(nm)+'</b>')+(mn?' · '+esc(mn):'');
+}
+function mbarHTML(){
+  var sh={'':'Habitual','ok':'Confirmado','pend':'A confirmar','no':'No disp.'};
+  return '<div class="mbar noprint"><div class="in"><div class="mundo"><div class="mcap" id="mcap">'+mcapText()+'</div><button class="btn" data-act="undo" aria-label="Deshacer"'+(U.length?'':' disabled')+'>↶</button><button class="btn" data-act="redo" aria-label="Rehacer"'+(R.length?'':' disabled')+'>↷</button></div><div class="mrowb">'+
+    CODES.map(function(c){return '<button class="lg'+(B.c===c[0]?' on':'')+'" data-act="brush" data-c="'+c[0]+'" title="'+esc(c[1])+'"><span class="ch k'+c[0]+'">'+c[0]+'</span></button>'}).join('')+
+    '<button class="lg'+(B.c===''?' on':'')+'" data-act="brush" data-c="" title="Quitar asignación"><span class="ch kX">⌫</span></button></div><div class="mrowb">'+
+    MARKS.map(function(m){return '<button class="lg'+(B.m===m[0]?' on':'')+'" data-act="mark" data-m="'+m[0]+'">'+sh[m[0]]+'</button>'}).join('')+'</div></div></div>';
+}
+function mheaderHTML(){
+  return '<div class="hd"><div class="hdr"><div><div class="inst">FUESMEN · Servicio de Imágenes del Hospital Italiano</div><h1>Cronograma mensual del personal técnico</h1></div>'+viewToggleHTML()+'</div></div>'+
+  '<div class="bar" style="justify-content:space-between"><button class="btn" data-act="prev" title="Mes anterior">◀</button><b style="font-size:17px">'+MESES[S.month-1]+' '+S.year+'</b><button class="btn" data-act="next" title="Mes siguiente">▶</button><button class="btn" data-act="today">Actual</button></div>'+
+  '<div class="bar" style="margin-top:10px"><label class="mut" style="width:100%">Elaborado por<input id="by" value="'+esc(S.meta.by)+'" placeholder="Nombre y apellido" style="width:100%;margin-top:3px"></label><span id="stat" class="noprint"></span></div>'+
+  '<details class="how"><summary>Opciones e instrucciones</summary><div class="mmenu">'+
+  '<button class="btn pri" data-act="save">Guardar copia</button><button class="btn" data-act="csv">Exportar a Excel</button><button class="btn" data-act="print">Imprimir / PDF</button><button class="btn" data-act="walist">Enviar por WhatsApp</button><button class="btn" data-act="reglic" style="grid-column:1/-1">Registro de licencias <span class="regn">('+regCount()+')</span></button><button class="btn" data-act="ballic" style="grid-column:1/-1">Saldo de licencias</button><button class="btn danger" data-act="clear" style="grid-column:1/-1">Limpiar cronograma del mes</button></div><ol>'+
+  '<li>Elija el <b>técnico</b> con el selector (o las flechas ◀ ▶).</li>'+
+  '<li>En la barra inferior seleccione la <b>asignación</b> (M, T, N, D, F o L) y, si corresponde, la <b>condición</b> del reemplazo.</li>'+
+  '<li>Toque cada día para asignarlo. Un nuevo toque sobre el mismo día con la misma asignación la quita.</li>'+
+  '<li>«Marcar feriado» se encuentra debajo de cada día.</li></ol></details>';
+}
+function mobileHTML(){
+  var p=curPerson(), opts='';
+  S.groups.forEach(function(g){
+    var ps=S.people.filter(function(x){return x.g===g.id}); if(!ps.length) return;
+    opts+='<optgroup label="'+esc(g.name)+'">'+ps.map(function(x){return '<option value="'+x.id+'"'+(p&&x.id===p.id?' selected':'')+'>'+esc(x.name)+'</option>'}).join('')+'</optgroup>';
+  });
+  return mheaderHTML()+
+  '<div class="card mtech"><div class="mtop"><button class="btn" data-act="mprev" aria-label="Técnico anterior">◀</button><select id="msel" aria-label="Técnico">'+opts+'</select><button class="btn" data-act="mnext" aria-label="Técnico siguiente">▶</button></div>'+
+  (p?'<div class="nmw mtools" style="margin-top:8px"><input class="nmi" data-act="name" value="'+esc(p.name)+'" aria-label="Nombre"><button class="x wa" data-act="wa">Enviar</button><button class="x" data-act="delp">Quitar</button></div>':'')+
+  '<div class="bar" style="margin-top:8px"><button class="btn sm" data-act="addp" data-g="'+(p?p.g:'sup')+'">+ Agregar técnico</button><button class="btn sm pri" data-act="guard">Completar guardias del mes</button><button class="btn sm pri" data-act="habit">Completar turnos habituales</button></div></div>'+
+  '<div id="mcount" class="mut" style="margin:12px 2px 6px;font-size:12px">'+mcountText()+'</div>'+
+  '<div class="mlist" id="mlist">'+mlistHTML()+'</div>'+
+  '<details class="how" id="mcovwrap"><summary>Cobertura diaria</summary><div id="mcov">'+mcovInner()+'</div></details>'+
+  poolHTML()+leavesHTML()+footerHTML()+mbarHTML();
+}
+function refreshMobile(){
+  var l=document.getElementById('mlist'); if(l) l.innerHTML=mlistHTML();
+  var c=document.getElementById('mcov'); if(c) c.innerHTML=mcovInner();
+  var n=document.getElementById('mcount'); if(n) n.innerHTML=mcountText();
+  var pl=document.querySelector('.pool'); if(pl) pl.remove();
+  var w=document.getElementById('mcovwrap'); if(w) w.insertAdjacentHTML('afterend',poolHTML());
+  var a=document.getElementById('plist'); if(a) a.innerHTML=plistHTML(); var b=document.getElementById('rlist'); if(b) b.innerHTML=plistHTML(true);
+}
+function mobileTap(d){
+  var p=curPerson(); if(!p) return;
+  var cur=cellOf(p.id,d), same=cur&&cur.c===B.c&&(cur.m||'')===B.m;
+  if(B.c===''||same) setCell(p.id,d,null); else setCell(p.id,d,{c:B.c,m:B.m});
+  var row=document.querySelector('.mrow[data-d="'+d+'"]'); if(row) row.outerHTML=mrowHTML(p,d);
+  var c=document.getElementById('mcov'); if(c) c.innerHTML=mcovInner();
+  var n=document.getElementById('mcount'); if(n) n.innerHTML=mcountText();
+  persist();
+}
+function setView(v){VIEW=v; try{localStorage.setItem('diagrama:view',v)}catch(e){} render()}
+function render(){
+  var el=document.getElementById('app');
+  el.className=(VIEW==='mobile')?'mobile':'';
+  el.innerHTML=(VIEW==='mobile')?mobileHTML():headerHTML()+gridHTML()+poolHTML()+leavesHTML()+footerHTML();
+  if(S.focus){
+    var inp=(VIEW==='mobile')?document.querySelector('.mtools .nmi'):document.querySelector('tr[data-pid="'+S.focus+'"] .nmi');
+    if(inp){inp.focus();inp.select()} delete S.focus;
+  }
+}
+
+/* ---------- pintado ---------- */
+var app=document.getElementById('app'), painting=false, pmode='paint', lastKey='';
+function applyCell(td){
+  var pid=td.parentNode.dataset.pid, d=+td.dataset.d, key=pid+'|'+d;
+  if(key===lastKey) return; lastKey=key;
+  if(pmode==='erase') setCell(pid,d,null); else setCell(pid,d,{c:B.c,m:B.m});
+  td.innerHTML=cellInner(cellOf(pid,d));
+  document.getElementById('cov').innerHTML=covRows();
+}
+function startPaint(td){
+  var pid=td.parentNode.dataset.pid, d=+td.dataset.d, cur=cellOf(pid,d);
+  var same=cur&&cur.c===B.c&&(cur.m||'')===B.m;
+  pmode=(B.c===''||same)?'erase':'paint'; lastKey=''; applyCell(td);
+}
+app.addEventListener('pointerdown',function(e){
+  if(e.pointerType==='touch'||e.button>0) return;
+  var td=e.target.closest&&e.target.closest('td.c'); if(!td) return;
+  painting=true; startPaint(td);
+});
+app.addEventListener('pointermove',function(e){
+  if(!painting||e.pointerType==='touch') return;
+  var el=document.elementFromPoint(e.clientX,e.clientY), td=el&&el.closest&&el.closest('td.c');
+  if(td&&app.contains(td)) applyCell(td);
+});
+window.addEventListener('pointerup',function(){if(painting){painting=false;lastKey='';persist()}});
+window.addEventListener('pointercancel',function(){painting=false});
+
+/* ---------- acciones ---------- */
+function shiftMonth(k){S.month+=k; if(S.month<1){S.month=12;S.year--} if(S.month>12){S.month=1;S.year++} render(); persist()}
+function ask(msg,okLabel,cb){
+  var ov=document.createElement('div'); ov.className='ov noprint';
+  ov.innerHTML='<div class="dlg" role="dialog" aria-modal="true"><p>'+esc(msg)+'</p><div class="acts"><button class="btn" data-r="0">Cancelar</button><button class="btn pri" data-r="1">'+esc(okLabel)+'</button></div></div>';
+  function close(){ov.remove(); document.removeEventListener('keydown',key)}
+  function key(e){if(e.key==='Escape') close()}
+  ov.addEventListener('click',function(e){
+    var b=e.target.closest&&e.target.closest('[data-r]');
+    if(b){var ok=b.dataset.r==='1'; close(); if(ok) cb()} else if(e.target===ov) close();
+  });
+  document.addEventListener('keydown',key); document.body.appendChild(ov);
+  var ok=ov.querySelector('[data-r="1"]'); if(ok) ok.focus();
+}
+/* ---------- guardias ---------- */
+function guardPeople(){return S.people.filter(function(p){return p.g==='gua'})}
+function guardPlan(ps,start){
+  var n=dim(), L=ps.length, idx=start, plan={};
+  for(var d=1;d<=n;d++){
+    if(new Date(S.year,S.month-1,d).getDay()===0||isHol(d)){plan[d]={D:ps[idx%L].id,N:ps[(idx+1)%L].id}; idx+=2}
+    else{plan[d]={N:ps[idx%L].id}; idx++}
+  }
+  return plan;
+}
+function guardSuggest(ps){
+  var py=S.year, pm=S.month-1; if(pm<1){pm=12;py--}
+  var prev=S.cells[py+'-'+pad(pm)]; if(!prev) return 0;
+  for(var d=new Date(py,pm,0).getDate(); d>=1; d--){
+    var who=null, nw=null;
+    ps.forEach(function(p){var c=prev[p.id]&&prev[p.id][d]; if(c&&c.m!=='no'){if(c.c==='D')who=p; if(c.c==='N')nw=p}});
+    if(who||nw){
+      var last=nw||who, i=ps.indexOf(last);
+      return i<0?0:(i+1)%ps.length;
+    }
+  }
+  return 0;
+}
+function guardDialog(){
+  var ps=guardPeople();
+  if(ps.length<2){ask('Para completar las guardias se necesitan al menos dos técnicos en el grupo «Guardias de 12 h».','Entendido',function(){}); return}
+  var sug=guardSuggest(ps), nm={}; ps.forEach(function(p){nm[p.id]=p.name});
+  var DS=['dom','lun','mar','mié','jue','vie','sáb'];
+  var ov=document.createElement('div'); ov.className='ov noprint';
+  var opts=ps.map(function(p,i){return '<option value="'+i+'"'+(i===sug?' selected':'')+'>'+esc(p.name)+'</option>'}).join('');
+  ov.innerHTML='<div class="dlg" role="dialog" aria-modal="true" style="max-width:520px">'+
+    '<p><b>Completar guardias de '+MESES[S.month-1]+' '+S.year+'</b></p>'+
+    '<p class="mut" style="font-size:13px">De lunes a sábado, un técnico por día en guardia nocturna (N, 19–07), rotando en el orden en que figuran en la grilla. Los domingos y feriados, el que sigue en la rotación hace el día (D, 07–19) y el siguiente la noche (N, 19–07); el día posterior lo continúa el próximo de la rotación. Los feriados se toman de los marcados en la grilla (clic sobre el número del día). Se reemplazarán las asignaciones actuales del grupo en este mes.</p>'+
+    '<label class="mut" style="display:block;margin-bottom:8px">Realiza la guardia del día 1&nbsp;<select id="gst">'+opts+'</select></label>'+
+    '<div id="gpv" style="font-size:12px;background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:14px"></div>'+
+    '<div class="acts"><button class="btn" data-r="0">Cancelar</button><button class="btn pri" data-r="1">Completar guardias</button></div></div>';
+  function pv(){
+    var plan=guardPlan(ps,+ov.querySelector('#gst').value), h='<div class="mut" style="margin-bottom:4px">Vista previa de la primera semana</div>';
+    for(var d=1; d<=Math.min(7,dim()); d++){
+      h+='<div>'+DS[new Date(S.year,S.month-1,d).getDay()]+' '+d+(isHol(d)?' (feriado)':'')+(plan[d].D?' · <b>D</b> '+esc(nm[plan[d].D]):'')+(plan[d].N?' · <b>N</b> '+esc(nm[plan[d].N]):'')+'</div>';
+    }
+    ov.querySelector('#gpv').innerHTML=h;
+  }
+  function close(){ov.remove(); document.removeEventListener('keydown',key)}
+  function key(e){if(e.key==='Escape') close()}
+  ov.addEventListener('change',pv);
+  ov.addEventListener('click',function(e){
+    var b=e.target.closest&&e.target.closest('[data-r]');
+    if(b){
+      var ok=b.dataset.r==='1', start=+ov.querySelector('#gst').value; close();
+      if(ok){
+        var plan=guardPlan(ps,start);
+        ps.forEach(function(p){var m=S.cells[mk()]; if(m) delete m[p.id]});
+        for(var d=1; d<=dim(); d++){if(plan[d].D) setCell(plan[d].D,d,{c:'D',m:''}); if(plan[d].N) setCell(plan[d].N,d,{c:'N',m:''})}
+        reapplyLeaves(); render(); persist(); stat('Guardias de '+MESES[S.month-1]+' cargadas. Revise y corrija cualquier casilla que sea necesario.');
+      }
+    } else if(e.target===ov) close();
+  });
+  document.addEventListener('keydown',key); document.body.appendChild(ov); pv();
+}
+/* ---------- turnos habituales (mañana / tarde) ---------- */
+function isoOf(y,m,d){return y+'-'+pad(m)+'-'+pad(d)}
+function weeksBetween(a,b){return Math.round((Date.UTC(b.getFullYear(),b.getMonth(),b.getDate())-Date.UTC(a.getFullYear(),a.getMonth(),a.getDate()))/604800000)}
+function isSatWork(p,d){
+  var a=parseISO(p.satAnchor); if(!a) return false;
+  var w=weeksBetween(a,new Date(S.year,S.month-1,d)); return ((w%2)+2)%2===0;
+}
+function habitDialog(){
+  var gs=['man','tar'].map(function(id){return {g:S.groups.filter(function(x){return x.id===id})[0], ps:S.people.filter(function(x){return x.g===id})}}).filter(function(x){return x.g&&x.ps.length});
+  if(!gs.length){ask('No hay técnicos en los grupos «Turno mañana» o «Turno tarde».','Entendido',function(){}); return}
+  var sats=[]; for(var d=1; d<=dim(); d++) if(new Date(S.year,S.month-1,d).getDay()===6) sats.push(d);
+  function txt(par){var a=sats.filter(function(x,i){return i%2===par}); return a.length>1?a.slice(0,-1).join(', ')+' y '+a[a.length-1]:String(a[0])}
+  function def(p,idx){
+    if(p.sat==='none') return 'none';
+    var a=parseISO(p.satAnchor); if(a){var w=weeksBetween(a,new Date(S.year,S.month-1,sats[0])); return (((w%2)+2)%2===0)?'A':'B'}
+    return idx%2===0?'A':'B';
+  }
+  var h='<p><b>Completar turnos habituales de '+MESES[S.month-1]+' '+S.year+'</b></p>'+
+    '<p class="mut" style="font-size:13px">De lunes a viernes cada técnico queda en su turno: <b>M</b> (mañana 07–13) o <b>T</b> (tarde 13–19) según su grupo. Los sábados se trabajan <b>por medio</b>, según lo que se elija abajo; los domingos quedan libres. La alternancia continúa sola en los meses siguientes. Se reemplazarán las asignaciones actuales de estos técnicos en el mes, y las licencias registradas se vuelven a aplicar.</p>';
+  gs.forEach(function(x){
+    h+='<div class="hgt">'+esc(x.g.name)+'</div>';
+    x.ps.forEach(function(p,i){
+      var v=def(p,i);
+      h+='<div class="hrow"><span>'+esc(p.name)+'</span><select data-pid="'+p.id+'" data-g="'+x.g.id+'">'+
+        '<option value="A"'+(v==='A'?' selected':'')+'>Sábados '+txt(0)+'</option>'+
+        '<option value="B"'+(v==='B'?' selected':'')+'>Sábados '+txt(1)+'</option>'+
+        '<option value="none"'+(v==='none'?' selected':'')+'>No trabaja sábados</option></select></div>';
+    });
+  });
+  h+='<label class="mut" style="display:block;margin:14px 0"><input type="checkbox" id="hfer" checked> No cargar turnos en los feriados marcados</label>'+
+    '<div class="acts"><button class="btn" data-close="1">Cancelar</button><button class="btn pri" id="hok">Completar turnos</button></div>';
+  var ov=modal(h);
+  ov.querySelector('#hok').addEventListener('click',function(){
+    var skip=ov.querySelector('#hfer').checked, sel={}, n=0;
+    ov.querySelectorAll('select[data-pid]').forEach(function(s){sel[s.dataset.pid]={v:s.value,g:s.dataset.g}});
+    ov.querySelector('[data-close]').click();
+    var cells=S.cells[mk()]; S.people.forEach(function(p){
+      var o=sel[p.id]; if(!o) return;
+      if(cells) delete cells[p.id];
+      if(o.v==='none'){p.sat='none'} else {p.sat='alt'; p.satAnchor=isoOf(S.year,S.month,o.v==='A'?sats[0]:sats[1])}
+      var code=o.g==='man'?'M':'T';
+      for(var d=1; d<=dim(); d++){
+        var w=new Date(S.year,S.month-1,d).getDay();
+        if(w===0) continue; if(skip&&isHol(d)) continue;
+        if(w===6&&(o.v==='none'||!isSatWork(p,d))) continue;
+        setCell(p.id,d,{c:code,m:''}); n++;
+      }
+    });
+    reapplyLeaves(); render(); persist();
+    stat('Turnos habituales de '+MESES[S.month-1]+' cargados ('+n+' asignaciones). Revise y corrija cualquier casilla que sea necesario.');
+  });
+}
+
+/* ---------- licencias → cronograma ---------- */
+function parseISO(s){var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||''); return m?new Date(+m[1],+m[2]-1,+m[3]):null}
+function mkOf(dt){return dt.getFullYear()+'-'+pad(dt.getMonth()+1)}
+function cellAt(k,pid,d){var m=S.cells[k]; return (m&&m[pid]&&m[pid][d])||null}
+function putAt(k,pid,d,v){S.cells[k]=S.cells[k]||{}; var r=S.cells[k][pid]=S.cells[k][pid]||{}; if(v) r[d]=v; else delete r[d]}
+function findPerson(name){
+  name=(name||'').trim().toLowerCase(); if(!name) return null;
+  for(var i=0;i<S.people.length;i++) if(S.people[i].name.trim().toLowerCase()===name) return S.people[i];
+  return null;
+}
+function undoLeave(l){
+  (l.ap||[]).slice().reverse().forEach(function(a){
+    var cur=cellAt(a.k,a.p,a.d);
+    if(cur&&cur.c===a.s.c&&(cur.m||'')===(a.s.m||'')) putAt(a.k,a.p,a.d,a.prev);
+  });
+  l.ap=[];
+}
+function applyLeave(l){
+  undoLeave(l); l.res=''; l.warnRes=0;
+  var d1=parseISO(l.desde), d2=parseISO(l.hasta), who=findPerson(l.who);
+  if(!(l.who||'').trim()||!d1||!d2){l.res='Complete técnico, «Desde» y «Hasta» para reflejar la licencia en el cronograma.'; return}
+  if(!who){l.res='No se encontró a «'+l.who+'» en el cronograma. Elíjalo de la lista de técnicos.'; return}
+  if(d2<d1){l.res='La fecha «Hasta» es anterior a «Desde».'; return}
+  var rname=(l.rep||'').trim(), rp=findPerson(rname), extra='';
+  if(rname&&!rp){
+    var pi=-1; S.pool.forEach(function(n,i){if(n.trim().toLowerCase()===rname.toLowerCase()) pi=i});
+    if(pi>=0){var nm=S.pool.splice(pi,1)[0]; rp={id:uid(),name:nm,g:'sup'}; S.people.push(rp); extra=' «'+nm+'» se incorporó al cronograma como suplente.'}
+    else extra=' No se encontró al reemplazante «'+rname+'» en el cronograma: no se trasladaron turnos.';
+  }
+  if(rp&&rp.id===who.id) rp=null;
+  var nL=0, moved=0, noShift=0, conf=[], dt=new Date(d1), guard=0, mark=(l.est==='pend'?'pend':'ok');
+  while(dt<=d2&&guard++<400){
+    var k=mkOf(dt), d=dt.getDate(), prev=cellAt(k,who.id,d), pv=prev?{c:prev.c,m:prev.m||''}:null;
+    var work=!!(pv&&/^[MTND]$/.test(pv.c)&&pv.m!=='no');
+    l.ap.push({k:k,p:who.id,d:d,prev:pv,s:{c:'L',m:''}}); putAt(k,who.id,d,{c:'L',m:''}); nL++;
+    if(work){
+      if(rp){
+        if(cellAt(k,rp.id,d)) conf.push(d+'/'+(dt.getMonth()+1));
+        else{var s={c:pv.c,m:mark}; l.ap.push({k:k,p:rp.id,d:d,prev:null,s:s}); putAt(k,rp.id,d,{c:s.c,m:s.m}); moved++}
+      }
+    } else noShift++;
+    dt.setDate(dt.getDate()+1);
+  }
+  var msg='Cronograma actualizado: '+nL+' día'+(nL===1?'':'s')+' con licencia («L»).';
+  if(rp) msg+=' '+rp.name+' asignado/a en '+moved+' turno'+(moved===1?'':'s')+' de '+who.name+(/\.$/.test(who.name)?'':'.');
+  if(rp&&noShift) msg+=' En '+noShift+' día'+(noShift===1?'':'s')+' el técnico no tenía turno cargado, por lo que no hay nada que trasladar.';
+  if(conf.length) msg+=' No se pudo cubrir '+conf.join(', ')+' porque el reemplazante ya tiene una asignación esos días.';
+  l.res=msg+extra;
+  l.res+=saldoNote(l).t;
+  if(conf.length||extra.indexOf('No se encontró')>=0||(rp&&noShift&&!moved)) l.warnRes=1;
+}
+function reapplyLeaves(){
+  Object.keys(S.leaves).forEach(function(m){(S.leaves[m]||[]).forEach(function(l){if((l.who||'').trim()&&l.desde&&l.hasta) applyLeave(l)})});
+}
+function refreshView(){
+  if(VIEW==='mobile'){refreshMobile(); return}
+  var gw=document.querySelector('.gridwrap');
+  if(gw){var sl=gw.scrollLeft; gw.outerHTML=gridHTML(); var g2=document.querySelector('.gridwrap'); g2.scrollLeft=sl;
+    var pl=document.querySelector('.pool'); if(pl) pl.remove(); g2.insertAdjacentHTML('afterend',poolHTML());}
+  var a=document.getElementById('plist'); if(a) a.innerHTML=plistHTML(); var b=document.getElementById('rlist'); if(b) b.innerHTML=plistHTML(true);
+}
+/* ---------- WhatsApp ---------- */
+var WAL={M:'Turno mañana (07–13)',T:'Turno tarde (13–19)',N:'Guardia nocturna (19–07)',D:'Guardia diurna (07–19)',F:'Franco',L:'Licencia'};
+function waPhone(raw){
+  var d=String(raw||'').replace(/\D/g,''); if(!d) return '';
+  if(d.indexOf('549')===0) return d;
+  if(d.indexOf('54')===0){d=d.slice(2); if(d.charAt(0)==='9') d=d.slice(1); return '549'+d}
+  return '549'+d.replace(/^0+/,'');
+}
+function waUrl(tel,msg){return 'https://wa.me/'+waPhone(tel)+'?text='+encodeURIComponent(msg)}
+function waCount(p){var r=(S.cells[mk()]||{})[p.id]||{},n=0; Object.keys(r).forEach(function(d){if(r[d]&&r[d].m!=='no') n++}); return n}
+function waMsg(p){
+  var n=dim(), row=(S.cells[mk()]||{})[p.id]||{}, DS3=['dom','lun','mar','mié','jue','vie','sáb'], lines=[];
+  for(var d=1; d<=n; d++){
+    var c=row[d]; if(!c||c.m==='no') continue;
+    lines.push('• '+DS3[new Date(S.year,S.month-1,d).getDay()]+' '+d+'/'+pad(S.month)+' – '+WAL[c.c]+(c.m==='ok'?' (cobertura confirmada)':c.m==='pend'?' (cobertura a confirmar)':'')+(isHol(d)?' · feriado':''));
+  }
+  return 'Estimado/a '+p.name+':\n\n'+
+    'Le informamos su cronograma de trabajo correspondiente a '+MESES[S.month-1].toLowerCase()+' de '+S.year+' en el Servicio de Imágenes del Hospital Italiano (FUESMEN):\n\n'+
+    (lines.length?lines.join('\n'):'(No hay asignaciones cargadas para este mes.)')+
+    '\n\nSe solicita confirmar la recepción. Ante cualquier consulta o inconveniente, comuníquese con la Jefatura del Servicio.\n\n'+
+    'Saludos cordiales.\nJefatura del Servicio de Imágenes – Hospital Italiano · FUESMEN';
+}
+function modal(html){
+  var ov=document.createElement('div'); ov.className='ov noprint'; ov.innerHTML='<div class="dlg" role="dialog" aria-modal="true" style="max-width:600px">'+html+'</div>';
+  function close(){ov.remove(); document.removeEventListener('keydown',key)}
+  function key(e){if(e.key==='Escape') close()}
+  ov.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-close]'); if(b||e.target===ov) close()});
+  document.addEventListener('keydown',key); document.body.appendChild(ov); return ov;
+}
+function waCopy(ta,btn){
+  var done=function(){btn.textContent='Copiado ✓'; setTimeout(function(){btn.textContent='Copiar mensaje'},1800)};
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(done,function(){ta.select(); try{document.execCommand('copy'); done()}catch(e){}});
+  else{ta.select(); try{document.execCommand('copy'); done()}catch(e){}}
+}
+function waSingle(pid){
+  var p=S.people.filter(function(x){return x.id===pid})[0]; if(!p) return;
+  var ov=modal('<p><b>Enviar cronograma a '+esc(p.name)+'</b></p>'+
+    (waCount(p)?'':'<p class="lres warn">Este técnico no tiene asignaciones cargadas en '+MESES[S.month-1]+'.</p>')+
+    '<label class="mut" style="display:block;margin-bottom:8px">Teléfono (código de área + número, sin 0 ni 15)<br><input id="wtel" value="'+esc(p.tel||'')+'" placeholder="Ej.: código de área + número" style="width:260px;margin-top:3px"></label>'+
+    '<label class="mut" style="display:block;margin-bottom:12px">Mensaje (se puede editar antes de enviar)<textarea id="wmsg"></textarea></label>'+
+    '<p class="mut" style="font-size:12px">WhatsApp no permite adjuntar archivos desde un enlace: el cronograma se envía como texto. Si no hay teléfono cargado, WhatsApp pedirá elegir el contacto.</p>'+
+    '<div class="acts"><button class="btn" data-close="1">Cerrar</button><button class="btn" id="wcopy">Copiar mensaje</button><a class="btn wapp" id="wgo" target="_blank" rel="noopener">Abrir WhatsApp</a></div>');
+  var ta=ov.querySelector('#wmsg'), tel=ov.querySelector('#wtel'), go=ov.querySelector('#wgo');
+  ta.value=waMsg(p);
+  function upd(){go.href=waUrl(tel.value,ta.value)}
+  tel.addEventListener('input',function(){p.tel=tel.value; persist(); upd()});
+  ta.addEventListener('input',upd); upd();
+  ov.querySelector('#wcopy').addEventListener('click',function(e){waCopy(ta,e.target)});
+}
+function waList(){
+  var h='<p><b>Enviar cronograma de '+MESES[S.month-1]+' '+S.year+' por WhatsApp</b></p><p class="mut" style="font-size:12px;margin-top:-8px">Cada técnico recibe un mensaje formal con su propio cronograma del mes. Cargue el teléfono una sola vez; queda guardado.</p>';
+  S.groups.forEach(function(g){S.people.filter(function(p){return p.g===g.id}).forEach(function(p){
+    var c=waCount(p);
+    h+='<div class="wrow" data-pid="'+p.id+'"><div>'+esc(p.name)+'<div class="mut" style="font-size:11px">'+(c?c+' asignaciones':'sin asignaciones')+'</div></div>'+
+      '<input data-tel="1" value="'+esc(p.tel||'')+'" placeholder="Teléfono">'+
+      '<button class="btn sm" data-rev="1">Revisar</button>'+
+      '<a class="btn sm wapp" data-go="1" target="_blank" rel="noopener" href="'+esc(waUrl(p.tel,waMsg(p)))+'">Enviar</a></div>';
+  })});
+  h+='<div class="acts" style="margin-top:12px"><button class="btn" data-close="1">Cerrar</button></div>';
+  var ov=modal(h);
+  ov.addEventListener('input',function(e){
+    if(!e.target.dataset.tel) return; var row=e.target.closest('.wrow'), p=S.people.filter(function(x){return x.id===row.dataset.pid})[0];
+    p.tel=e.target.value; persist(); row.querySelector('[data-go]').href=waUrl(p.tel,waMsg(p));
+  });
+  ov.addEventListener('click',function(e){
+    var row=e.target.closest&&e.target.closest('.wrow'); if(!row) return;
+    if(e.target.dataset.rev){ov.querySelector('[data-close]').click(); waSingle(row.dataset.pid)}
+    else if(e.target.dataset.go){e.target.textContent='Enviado ✓'}
+  });
+}
+/* ---------- saldo de licencias ---------- */
+function leaveKind(l){var t=l.tipo||''; return t===TIPOS[0]?'vac':(t===TIPOS[1]?'prof':'otra')}
+function balanceFor(p){
+  var name=(p.name||'').trim().toLowerCase(), r={vac:0,prof:0,otra:0,pend:{vac:0,prof:0,otra:0}};
+  allLeaves().forEach(function(x){
+    var l=x.l; if((l.who||'').trim().toLowerCase()!==name) return;
+    var d=leaveDays(l); if(!d) return; var k=leaveKind(l); r[k]+=d; if(!l.conf) r.pend[k]+=d;
+  });
+  return r;
+}
+function cupoOf(p){
+  var c=p.cupo;
+  if(!c&&p.cupos){ /* datos de una versión anterior: se toma el último año cargado */
+    var ys=Object.keys(p.cupos).map(Number).sort(function(a,b){return b-a}); c={};
+    ['vac','prof'].forEach(function(f){for(var i=0;i<ys.length;i++){var v=p.cupos[ys[i]][f]; if(v!==''&&v!=null){c[f]=v; break}}});
+  }
+  c=c||{}; var out={vac:null,prof:null};
+  ['vac','prof'].forEach(function(f){if(c[f]!==''&&c[f]!=null) out[f]=+c[f]});
+  return out;
+}
+function restanHTML(cu,tk){
+  if(cu==null) return '<span class="mut">—</span>';
+  var r=cu-tk; return r<0?'<span class="neg">'+r+'</span>':(r===0?'<span class="mut">0</span>':'<span class="pos">'+r+'</span>');
+}
+function balDialog(){
+  var ov=modal('<p><b>Saldo de licencias por técnico</b></p>'+
+    '<p class="mut" style="font-size:12px;margin-top:-8px">Cargue una sola vez en «Corresponden» los días de cada técnico (vacaciones según su antigüedad y licencia profiláctica). Es un <b>único saldo que no se reinicia</b>: cada licencia registrada se resta de ese total, sin importar el año, y los días se cuentan corridos. Si le corresponden más días, modifique el valor y el saldo se recalcula.</p>'+
+    '<div id="balt"></div>'+
+    '<div class="acts" style="margin-top:14px"><button class="btn" data-close="1">Cerrar</button><button class="btn pri" id="balx">Exportar a Excel</button></div>');
+  ov.firstChild.style.maxWidth='1000px';
+  function draw(){
+    var h='<div style="overflow-x:auto"><table class="regt"><thead><tr><th rowspan="2">Técnico</th><th class="g" colspan="3">Vacaciones anuales</th><th class="g" colspan="3">Licencia profiláctica</th><th class="g" rowspan="2">Otras tomadas</th><th rowspan="2"></th></tr><tr>'+
+      '<th class="g">Corresp.</th><th>Tomadas</th><th>Restan</th><th class="g">Corresp.</th><th>Tomadas</th><th>Restan</th></tr></thead><tbody>';
+    orderedPeople().forEach(function(p){
+      var b=balanceFor(p), c=cupoOf(p);
+      function inp(f){return '<input class="num" type="number" min="0" max="999" data-pid="'+p.id+'" data-f="'+f+'" value="'+(c[f]==null?'':c[f])+'" title="Días que le corresponden en total">'}
+      function tk(k){return b[k]+(b.pend[k]?'<div class="mut" style="font-size:10px">'+b.pend[k]+' sin confirmar</div>':'')}
+      h+='<tr data-pid="'+p.id+'"><td>'+esc(p.name)+'</td><td class="b n">'+inp('vac')+'</td><td class="n">'+tk('vac')+'</td><td class="n rvr">'+restanHTML(c.vac,b.vac)+'</td>'+
+        '<td class="b n">'+inp('prof')+'</td><td class="n">'+tk('prof')+'</td><td class="n rpr">'+restanHTML(c.prof,b.prof)+'</td><td class="b n">'+tk('otra')+'</td>'+
+        '<td><button class="btn sm" data-det="'+p.id+'">Ver detalle</button></td></tr>';
+    });
+    ov.querySelector('#balt').innerHTML=h+'</tbody></table></div>';
+  }
+  draw();
+  ov.addEventListener('input',function(e){
+    var t=e.target; if(!t.dataset||!t.dataset.pid) return;
+    var pp=S.people.filter(function(x){return x.id===t.dataset.pid})[0]; if(!pp) return;
+    if(!pp.cupo){var cc=cupoOf(pp); pp.cupo={vac:cc.vac==null?'':cc.vac,prof:cc.prof==null?'':cc.prof}} pp.cupo[t.dataset.f]=(t.value===''?'':+t.value); persist();
+    refreshLeaveNotes(); var c=cupoOf(pp), b=balanceFor(pp), tr=t.closest('tr');
+    tr.querySelector('.rvr').innerHTML=restanHTML(c.vac,b.vac); tr.querySelector('.rpr').innerHTML=restanHTML(c.prof,b.prof);
+  });
+  ov.addEventListener('click',function(e){
+    var t=e.target;
+    if(t.dataset&&t.dataset.det){var pp=S.people.filter(function(x){return x.id===t.dataset.det})[0]; ov.querySelector('[data-close]').click(); if(pp) regDialog({who:pp.name.trim()}); return}
+    if(t.id==='balx'){
+      var q=function(v){v=String(v==null?'':v); return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}, rows=[];
+      rows.push(['FUESMEN · Servicio de Imágenes del Hospital Italiano']); rows.push(['Saldo de licencias del personal técnico']); rows.push(['Elaborado por',S.meta.by]); rows.push([]);
+      rows.push(['Técnico','Vacaciones corresponden','Vacaciones tomadas','Vacaciones restan','Profiláctica corresponde','Profiláctica tomadas','Profiláctica restan','Otras licencias tomadas (días)','Días sin confirmar']);
+      orderedPeople().forEach(function(pp){
+        var b=balanceFor(pp), c=cupoOf(pp);
+        rows.push([pp.name,c.vac==null?'':c.vac,b.vac,c.vac==null?'':c.vac-b.vac,c.prof==null?'':c.prof,b.prof,c.prof==null?'':c.prof-b.prof,b.otra,b.pend.vac+b.pend.prof+b.pend.otra]);
+      });
+      dl('saldo-licencias-imagenes.csv','text/csv;charset=utf-8','\ufeff'+rows.map(function(r){return r.map(q).join(';')}).join('\r\n'));
+    }
+  });
+}
+
+/* ---------- registro de licencias ---------- */
+function allLeaves(){
+  var out=[]; Object.keys(S.leaves).forEach(function(k){(S.leaves[k]||[]).forEach(function(l){out.push({l:l,k:k})})});
+  out.sort(function(a,b){var x=a.l.desde||'9999',y=b.l.desde||'9999'; return x<y?-1:x>y?1:0});
+  return out;
+}
+function regCount(){return allLeaves().length}
+function updRegBadge(){var n=regCount(); document.querySelectorAll('.regn').forEach(function(e){e.textContent='('+n+')'})}
+function fmtD(s){var d=parseISO(s); return d?pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear():'—'}
+function leaveDays(l){
+  var a=parseISO(l.desde), b=parseISO(l.hasta); if(!a||!b||b<a) return 0;
+  return Math.round((Date.UTC(b.getFullYear(),b.getMonth(),b.getDate())-Date.UTC(a.getFullYear(),a.getMonth(),a.getDate()))/86400000)+1;
+}
+function regFiltered(f){
+  return allLeaves().filter(function(x){
+    var l=x.l; if(f.who&&(l.who||'').trim()!==f.who) return false;
+    if(f.year&&(l.desde||'').slice(0,4)!==f.year&&(l.hasta||'').slice(0,4)!==f.year) return false;
+    if(f.est==='conf'&&!l.conf) return false; if(f.est==='pend'&&l.conf) return false;
+    return true;
+  });
+}
+function regSummary(list){
+  var m={}, order=[]; list.forEach(function(x){var w=(x.l.who||'').trim()||'(sin técnico)'; if(!m[w]){m[w]={n:0,d:0}; order.push(w)} m[w].n++; m[w].d+=leaveDays(x.l)});
+  return order.sort().map(function(w){return {who:w,n:m[w].n,d:m[w].d}});
+}
+function regCSV(f){
+  var q=function(v){v=String(v==null?'':v); return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}, rows=[], list=regFiltered(f), tot=0;
+  rows.push(['FUESMEN · Servicio de Imágenes del Hospital Italiano']); rows.push(['Registro de licencias del personal técnico']);
+  rows.push(['Filtro',(f.who||'Todos los técnicos')+' · '+(f.year||'Todos los años')+' · '+({conf:'Confirmadas',pend:'Pendientes de confirmar'}[f.est]||'Todos los estados')]); rows.push([]);
+  rows.push(['Técnico','Tipo de licencia','Desde','Hasta','Días','Reemplazante','Estado del reemplazo','Estado de la licencia','Fecha de confirmación','Observaciones']);
+  list.forEach(function(x){var l=x.l, d=leaveDays(l); tot+=d; rows.push([l.who,l.tipo,fmtD(l.desde),fmtD(l.hasta),d||'',l.rep,l.rep?(l.est==='pend'?'A confirmar':'Confirmado'):'',l.conf?'Confirmada':'Pendiente',l.conf?fmtD(l.confAt):'',l.hor])});
+  rows.push([]); rows.push(['Total',list.length+' licencias','','',tot]); rows.push([]);
+  rows.push(['Resumen por técnico','Licencias','Días']); regSummary(list).forEach(function(s){rows.push([s.who,s.n,s.d])});
+  dl('registro-licencias-imagenes.csv','text/csv;charset=utf-8','\ufeff'+rows.map(function(r){return r.map(q).join(';')}).join('\r\n'));
+}
+function regDialog(pre){
+  var f={who:(pre&&pre.who)||'',year:(pre&&pre.year)||'',est:''}, all=allLeaves(), names={}, years={};
+  all.forEach(function(x){var w=(x.l.who||'').trim(); if(w) names[w]=1; [x.l.desde,x.l.hasta].forEach(function(s){if(s) years[s.slice(0,4)]=1})});
+  if(f.who) names[f.who]=1; if(f.year) years[f.year]=1;
+  var nopt='<option value="">Todos los técnicos</option>'+Object.keys(names).sort().map(function(n){return '<option value="'+esc(n)+'">'+esc(n)+'</option>'}).join('');
+  var yopt='<option value="">Todos los años</option>'+Object.keys(years).sort().reverse().map(function(y){return '<option value="'+y+'">'+y+'</option>'}).join('');
+  var ov=modal('<p><b>Registro de licencias</b></p>'+
+    '<p class="mut" style="font-size:12px;margin-top:-8px">Se completa automáticamente con cada licencia que se carga en cualquier mes.</p>'+
+    '<div class="bar" style="margin-bottom:10px"><select id="regw">'+nopt+'</select><select id="regy">'+yopt+'</select><select id="regs"><option value="">Todos los estados</option><option value="pend">Pendientes de confirmar</option><option value="conf">Confirmadas</option></select></div>'+
+    '<div id="regt"></div>'+
+    '<div class="acts" style="margin-top:14px"><button class="btn" data-close="1">Cerrar</button><button class="btn" id="regb">Saldo por técnico</button><button class="btn pri" id="regx">Exportar a Excel</button></div>');
+  ov.firstChild.style.maxWidth='940px'; ov.querySelector('#regw').value=f.who; ov.querySelector('#regy').value=f.year;
+  function draw(){
+    var list=regFiltered(f), h='', tot=0;
+    if(!list.length){ov.querySelector('#regt').innerHTML='<div class="mut" style="padding:14px 0">'+(all.length?'No hay licencias que coincidan con el filtro.':'Todavía no hay licencias registradas. A medida que se carguen en cada mes, se irán agregando aquí.')+'</div>'; return}
+    h='<div style="overflow-x:auto"><table class="regt"><thead><tr><th>Técnico</th><th>Tipo</th><th>Desde</th><th>Hasta</th><th>Días</th><th>Reemplazante</th><th>Estado</th><th>Observaciones</th><th></th></tr></thead><tbody>';
+    list.forEach(function(x){
+      var l=x.l, d=leaveDays(l); tot+=d;
+      h+='<tr><td>'+(esc(l.who)||'<span class="mut">(sin técnico)</span>')+'</td><td>'+(esc(l.tipo)||'<span class="mut">—</span>')+'</td><td>'+fmtD(l.desde)+'</td><td>'+fmtD(l.hasta)+'</td><td class="n">'+(d||'—')+'</td><td>'+(esc(l.rep)||'<span class="mut">—</span>')+(l.rep&&l.est==='pend'?' <span class="mut">(a confirmar)</span>':'')+'</td><td>'+(l.conf?'<span style="color:var(--green)">Confirmada</span>'+(l.confAt?'<div class="mut">'+fmtD(l.confAt)+'</div>':''):'<span style="color:var(--amber)">Pendiente</span>')+'</td><td>'+esc(l.hor)+'</td><td><button class="btn sm" data-k="'+x.k+'" data-id="'+l.id+'">Ver en el mes</button></td></tr>';
+    });
+    h+='</tbody></table></div><p style="margin:12px 0 8px"><b>'+list.length+' licencia'+(list.length===1?'':'s')+' · '+tot+' día'+(tot===1?'':'s')+' en total'+(function(){var n=list.filter(function(x){return !x.l.conf}).length; return n?' · <span style="color:var(--amber)">'+n+' pendiente'+(n===1?'':'s')+' de confirmar</span>':' · todas confirmadas'})()+'</b></p><div>'+
+      regSummary(list).map(function(s){return '<span class="rchip">'+esc(s.who)+' · '+s.n+' licencia'+(s.n===1?'':'s')+' · '+s.d+' día'+(s.d===1?'':'s')+'</span>'}).join('')+'</div>';
+    ov.querySelector('#regt').innerHTML=h;
+  }
+  ov.addEventListener('change',function(e){if(e.target.id==='regw') f.who=e.target.value; else if(e.target.id==='regy') f.year=e.target.value; else if(e.target.id==='regs') f.est=e.target.value; else return; draw()});
+  ov.addEventListener('click',function(e){
+    var t=e.target; if(t.id==='regx'){regCSV(f); return}
+    if(t.id==='regb'){ov.querySelector('[data-close]').click(); balDialog(); return}
+    if(t.dataset&&t.dataset.k){
+      var k=t.dataset.k, id=t.dataset.id; ov.querySelector('[data-close]').click();
+      S.year=+k.slice(0,4); S.month=+k.slice(5); render(); persist();
+      var el=document.querySelector('.lic[data-lid="'+id+'"]'); if(el&&el.scrollIntoView) el.scrollIntoView({block:'center'});
+    }
+  });
+  draw();
+}
+function uid(){return 'x'+Math.random().toString(36).slice(2,8)}
+function dl(name,mime,text){
+  var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type:mime})); a.download=name;
+  document.body.appendChild(a); a.click(); setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},500);
+}
+function fname(ext){return 'cronograma-imagenes-'+MESES[S.month-1].toLowerCase()+'-'+S.year+'.'+ext}
+function saveCopy(){
+  S.ts=Date.now();
+  try{localStorage.setItem('diagrama:'+S.docId,JSON.stringify(S))}catch(e){}
+  var clone=document.documentElement.cloneNode(true);
+  clone.querySelector('#app').innerHTML='';
+  clone.querySelector('#seed').textContent=JSON.stringify(S).replace(/</g,'\\u003c');
+  dl(fname('html'),'text/html;charset=utf-8','<!doctype html>\n'+clone.outerHTML);
+  stat('Copia descargada · '+hhmm());
+}
+function exportCSV(){
+  var n=dim(), q=function(v){v=String(v==null?'':v); return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}, rows=[];
+  rows.push(['FUESMEN · Servicio de Imágenes del Hospital Italiano']); rows.push(['Cronograma mensual del personal técnico',MESES[S.month-1]+' '+S.year]); rows.push(['Elaborado por',S.meta.by]); rows.push([]);
+  var head=['Grupo','Técnico']; for(var d=1;d<=n;d++) head.push(d+' '+DOWL[new Date(S.year,S.month-1,d).getDay()]+(isHol(d)?' (feriado)':'')); rows.push(head);
+  var sym={ok:'*',pend:'?',no:'!'};
+  S.groups.forEach(function(g){S.people.filter(function(p){return p.g===g.id}).forEach(function(p){
+    var r=[g.name,p.name]; for(var d=1;d<=n;d++){var c=cellOf(p.id,d); r.push(c?c.c+(sym[c.m]||''):'')} rows.push(r);
+  })});
+  rows.push([]); rows.push(['Asignaciones','M=Mañana 07–13','T=Tarde 13–19','N=Guardia nocturna 19–07','D=Guardia diurna 07–19','F=Franco','L=Licencia']);
+  rows.push(['Condiciones','* = reemplazo confirmado','? = reemplazo a confirmar','! = reemplazo no disponible']);
+  var L=leavesForMonth().map(function(x){return x.l}); if(L.length){rows.push([]); rows.push(['Licencias del mes']); rows.push(['Técnico','Tipo de licencia','Desde','Hasta','Reemplazante','Estado del reemplazo','Estado de la licencia','Observaciones']);
+    L.forEach(function(l){rows.push([l.who,l.tipo,l.desde,l.hasta,l.rep,l.rep?(l.est==='pend'?'A confirmar':'Confirmado'):'',l.conf?'Confirmada':'Pendiente',l.hor])})}
+  if(S.meta.note){rows.push([]); rows.push(['Observaciones',S.meta.note])}
+  dl(fname('csv'),'text/csv;charset=utf-8','﻿'+rows.map(function(r){return r.map(q).join(';')}).join('\r\n'));
+}
+
+app.addEventListener('click',function(e){
+  if(e.pointerType==='touch'){var td=e.target.closest&&e.target.closest('td.c'); if(td){lastKey='';pmode='paint';startPaint(td);persist();return}}
+  var mr=e.target.closest&&e.target.closest('.mrow');
+  if(mr&&!e.target.closest('[data-act]')){mobileTap(+mr.dataset.d); return}
+  var t=e.target.closest&&e.target.closest('[data-act]'); if(!t) return;
+  var a=t.dataset.act, tr=t.closest('tr'), pid=(tr&&tr.dataset.pid)||MSEL;
+  if(a==='prev') shiftMonth(-1);
+  else if(a==='next') shiftMonth(1);
+  else if(a==='today'){S.year=NOW.getFullYear();S.month=NOW.getMonth()+1;render();persist()}
+  else if(a==='save') saveCopy();
+  else if(a==='guard') guardDialog();
+  else if(a==='habit') habitDialog();
+  else if(a==='view') setView(t.dataset.v);
+  else if(a==='undo') doUndo();
+  else if(a==='redo') doRedo();
+  else if(a==='mprev'||a==='mnext'){var o=orderedPeople(); if(o.length){var ix=0; o.forEach(function(x,i){if(x.id===MSEL)ix=i}); ix=(ix+(a==='mnext'?1:-1)+o.length)%o.length; MSEL=o[ix].id; render()}}
+  else if(a==='wa') waSingle(pid);
+  else if(a==='walist') waList();
+  else if(a==='reglic') regDialog();
+  else if(a==='ballic') balDialog();
+  else if(a==='csv') exportCSV();
+  else if(a==='print'){stat('Si no se abre la ventana de impresión, abra este archivo directamente en Chrome o Edge y use Ctrl + P → «Guardar como PDF».'); try{window.print()}catch(err){}}
+  else if(a==='clear'){ ask('¿Limpiar todas las asignaciones de '+MESES[S.month-1]+' '+S.year+'? Los técnicos y las filas se mantienen.','Limpiar',function(){delete S.cells[mk()];render();persist()}) }
+  else if(a==='brush'){B.c=t.dataset.c; document.querySelectorAll('[data-act=brush]').forEach(function(x){x.classList.toggle('on',x.dataset.c===B.c)}); var cp=document.getElementById('mcap'); if(cp) cp.innerHTML=mcapText()}
+  else if(a==='mark'){B.m=t.dataset.m; document.querySelectorAll('[data-act=mark]').forEach(function(x){x.classList.toggle('on',x.dataset.m===B.m)}); var cp2=document.getElementById('mcap'); if(cp2) cp2.innerHTML=mcapText()}
+  else if(a==='hol'){var k=hkey(+t.dataset.d); if(S.holidays[k]) delete S.holidays[k]; else S.holidays[k]=1; render(); persist()}
+  else if(a==='addp'){var id=uid(); S.people.push({id:id,name:'Nuevo técnico',g:t.dataset.g}); S.focus=id; MSEL=id; render(); persist()}
+  else if(a==='delp'){
+    var p=S.people.filter(function(x){return x.id===pid})[0];
+    if(p) ask('¿Quitar a '+p.name+' del cronograma? Se eliminarán sus asignaciones de todos los meses. Podrá reincorporarlo después desde la lista de personal sin asignaciones, pero deberá volver a cargar sus turnos.','Quitar',function(){
+      S.people=S.people.filter(function(x){return x.id!==pid});
+      var nm0=(p.name||'').trim(); if(nm0&&nm0!=='Nuevo técnico'&&S.pool.indexOf(nm0)<0) S.pool.push(nm0);
+      Object.keys(S.cells).forEach(function(m){delete S.cells[m][pid]}); render(); persist();
+    });
+  }
+  else if(a==='pool'){var i=+t.dataset.i, nm=S.pool.splice(i,1)[0]; var id2=uid(); S.people.push({id:id2,name:nm,g:'sup'}); S.focus=id2; MSEL=id2; render(); persist()}
+  else if(a==='addleave'){var k2=mk(); (S.leaves[k2]=S.leaves[k2]||[]).push({id:uid(),who:'',tipo:'',desde:'',hasta:'',rep:'',est:'ok',hor:'',ap:[],res:''}); render(); persist()}
+  else if(a==='confleave'){
+    var lic0=t.closest('.lic'), l0=findLeave(lic0.dataset.lid);
+    if(l0){l0.conf=!l0.conf; l0.confAt=l0.conf?todayISO():''; updLeaveUI(lic0,l0); updRegBadge(); persist()}
+  }
+  else if(a==='delleave'){var lid=t.closest('.lic').dataset.lid, lx=findLeave(lid); if(lx) undoLeave(lx); removeLeave(lid); render(); persist()}
+});
+app.addEventListener('input',function(e){
+  var t=e.target;
+  if(t.id==='by'){S.meta.by=t.value; persist()}
+  else if(t.id==='note'){S.meta.note=t.value; persist()}
+  else if(t.dataset.act==='name'){
+    var tr0=t.closest('tr'), pid=tr0?tr0.dataset.pid:MSEL; S.people.forEach(function(p){if(p.id===pid)p.name=t.value});
+    var op=document.querySelector('#msel option[value="'+pid+'"]'); if(op) op.textContent=t.value; var mc=document.getElementById('mcount'); if(mc&&VIEW==='mobile') mc.innerHTML=mcountText();
+    var dlst=document.getElementById('plist'); if(dlst) dlst.innerHTML=plistHTML(); var dl2=document.getElementById('rlist'); if(dl2) dl2.innerHTML=plistHTML(true); persist();
+  }
+  else if(t.dataset.f){
+    var lx=findLeave(t.closest('.lic').dataset.lid); if(lx) lx[t.dataset.f]=t.value; persist();
+  }
+});
+app.addEventListener('change',function(e){
+  var t=e.target; if(t.id==='msel'){MSEL=t.value; render(); return}
+  if(!t.dataset||!t.dataset.f) return;
+  var lic=t.closest('.lic'); if(!lic) return;
+  var l=findLeave(lic.dataset.lid); if(!l) return;
+  var wasConf=l.conf;
+  if(l.conf&&/^(who|tipo|desde|hasta|rep)$/.test(t.dataset.f)){l.conf=false; l.confAt=''}
+  applyLeave(l); refreshView(); updRegBadge(); updLeaveUI(lic,l);
+  if(wasConf&&!l.conf){var ls=lic.querySelector('.lstate'); if(ls) ls.textContent='Estado: pendiente de confirmación (la licencia se modificó después de confirmarla)'}
+  refreshLeaveNotes(); persist();
+});
+document.addEventListener('keydown',function(e){
+  if(!(e.ctrlKey||e.metaKey)||e.altKey) return;
+  var tg=e.target; if(tg&&/^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName)) return;
+  var k=(e.key||'').toLowerCase();
+  if(k==='z'&&!e.shiftKey){e.preventDefault(); doUndo()}
+  else if(k==='y'||(k==='z'&&e.shiftKey)){e.preventDefault(); doRedo()}
+});
+var wasMobile=false;
+window.addEventListener('beforeprint',function(){
+  if(VIEW==='mobile'){wasMobile=true; VIEW='pc'; render()}
+  var e=document.getElementById('pby'); if(e) e.textContent=S.meta.by||'';
+});
+window.addEventListener('afterprint',function(){if(wasMobile){wasMobile=false; VIEW='mobile'; render()}});
+render();
+stat('Conectando con Lumen…');
+
+/* ═════ Guardado compartido en Lumen (Supabase · img_diagrama) ═════
+   Se usa el cliente de la página que contiene este diagrama (imagenes.html).
+   Cada cambio se guarda en la base con control de versión: si otra persona guardó antes,
+   se carga su versión y se avisa. Sin permiso de edición, el diagrama queda en solo lectura. */
+var DOC='tecnicos';
+function rpcRemoto(fn,args){
+  var P=window.parent;
+  if(P&&P!==window&&typeof P.sbRpc==='function') return P.sbRpc(fn,args);
+  if(typeof window.sbRpc==='function') return window.sbRpc(fn,args);
+  return Promise.reject(new Error('SIN_CLIENTE'));
+}
+function tomarRemoto(d){ var seed=JSON.parse(document.getElementById('seed').textContent); d.groups=seed.groups; d.year=S.year; d.month=S.month; return d; }
+function soloLectura(){
+  if(REM.data){ S=tomarRemoto(JSON.parse(JSON.stringify(REM.data))); lastSnap=snapJSON(); render(); }
+  stat('Solo lectura: tu usuario puede ver el diagrama pero no modificarlo.');
+}
+function remotoEncolar(){
+  if(!REM.ok) return;
+  if(!REM.edit){ soloLectura(); return; }
+  clearTimeout(REM.timer); stat('Guardando…');
+  REM.timer=setTimeout(remotoEnviar,900);
+}
+function limpio(){ var o=JSON.parse(JSON.stringify(S)); delete o.focus; return o; }
+function remotoEnviar(){
+  if(REM.enviando){ REM.otra=true; return; }
+  REM.enviando=true;
+  var dato=limpio();
+  rpcRemoto('img_diagrama_guardar',{p_doc:DOC,p_data:dato,p_version:REM.ver}).then(function(r){
+    REM.enviando=false;
+    if(r&&r.ok){ REM.ver=r.version; REM.data=dato; stat('Guardado en Lumen · '+hhmm()+' · lo ven todos los que tienen acceso'); }
+    else if(r&&r.error==='CONFLICTO'){ remotoLeer(true).then(function(){ stat('⚠ Otra persona guardó cambios antes: se cargó su versión. Revisá y repetí lo que falte.'); }); }
+    else if(r&&r.error==='SIN_PERMISO'){ REM.edit=false; soloLectura(); }
+    else stat('No se pudo guardar en Lumen ('+((r&&r.error)||'error')+'). Los cambios quedaron en este navegador.');
+    if(REM.otra){ REM.otra=false; remotoEncolar(); }
+  },function(e){ REM.enviando=false; stat('Sin conexión con Lumen: los cambios quedaron en este navegador y se reintentan solos.'); clearTimeout(REM.timer); REM.timer=setTimeout(remotoEnviar,8000); });
+}
+function remotoLeer(forzar){
+  return rpcRemoto('img_diagrama_leer',{p_doc:DOC}).then(function(r){
+    if(!r||!r.ok){ stat('No se pudo leer el diagrama de Lumen ('+((r&&r.error)||'error')+'). Se muestra la copia de este navegador.'); return; }
+    REM.ok=true; REM.edit=!!r.puede_editar;
+    if(r.existe){
+      if(forzar||r.version!==REM.ver){
+        REM.ver=r.version; REM.data=r.data;
+        S=tomarRemoto(JSON.parse(JSON.stringify(r.data))); lastSnap=snapJSON(); U=[]; R=[]; updUndoUI(); render();
+        try{localStorage.setItem('diagrama:'+S.docId,JSON.stringify(S))}catch(e){}
+      }
+      stat(REM.edit?'Conectado a Lumen · los cambios se guardan para todos':'Solo lectura: tu usuario puede ver el diagrama pero no modificarlo.');
+    }else if(REM.edit){
+      REM.ver=null; remotoEnviar();   // primera vez: sube lo que hay (copia de este navegador o datos iniciales)
+    }else stat('Todavía no hay un diagrama guardado en Lumen.');
+  },function(){ stat('Sin conexión con Lumen: se muestra la copia de este navegador.'); });
+}
+remotoLeer(false);
+/* refresco: si otra persona guardó y acá no hay cambios en curso, se trae su versión */
+setInterval(function(){ if(document.visibilityState==='visible'&&!REM.enviando&&!pend&&REM.ok) remotoLeer(false); },30000);
+/* altura para el iframe contenedor */
+function avisarAltura(){ try{ if(window.parent!==window) window.parent.postMessage({diagramaAltura:document.documentElement.scrollHeight},'*'); }catch(e){} }
+new MutationObserver(avisarAltura).observe(document.body,{childList:true,subtree:true,attributes:true}); window.addEventListener('resize',avisarAltura); setTimeout(avisarAltura,300);
+})();
+</script>
+</body>
+</html>

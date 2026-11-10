@@ -2142,7 +2142,23 @@ function diagNotes(){
       }) : h('div', { class: 'rr no', t: 'Sin reemplazo definido.' }));
   }));
 }
+/* Diagrama del mes (10/11/2026): reemplazado por el diagrama editable (diagrama-mes.html), que guarda en img_diagrama.
+   La versión anterior queda como renderDiagAnterior por si hay que volver. */
 function renderDiag(){
+  const fr = document.createElement('iframe');
+  fr.src = 'diagrama-mes.html?v=20261110';
+  fr.title = 'Diagrama del mes · técnicos';
+  fr.setAttribute('style', 'width:100%;border:0;display:block;height:1100px;background:transparent;color-scheme:dark');
+  if(!window.__diagAltura){
+    window.__diagAltura = true;
+    window.addEventListener('message', function(ev){
+      if(ev.origin !== location.origin || !ev.data || !ev.data.diagramaAltura) return;
+      document.querySelectorAll('iframe[src^="diagrama-mes.html"]').forEach(function(f){ f.style.height = Math.max(600, ev.data.diagramaAltura + 20) + 'px'; });
+    });
+  }
+  return fr;
+}
+function renderDiagAnterior(){
   const days = monthDays(S.y, S.m), Cc = ST.C.diagCells(S.y, S.m), Gp = diagGroups(Cc), WL = ['L', 'M', 'Mi', 'J', 'V', 'S', 'D'], C_ = ST.C, hoy = ST.puente.hoy();
   const sections = [['Turno mañana', Gp.M], ['Turno tarde', Gp.T], ['Guardias de 12 h', Gp.G], ['Suplentes y otros que cubren este mes', Gp.O], ['Reemplazantes externos', Gp.X]].filter(function(x){ return x[1].length; });
   const out = h('div', null, diagHelp());
@@ -3307,7 +3323,7 @@ function renderTools(){
   if(vs.length > 1) poner(tools, h('div', { class: 'cr-seg', role: 'group', 'aria-label': 'Vista' }, vs.map(function(x){
     return h('button', { type: 'button', class: 'cr-btn sm' + (x[0] === v ? ' on' : ''), 'aria-pressed': x[0] === v ? 'true' : 'false', 'data-vista': x[0], t: x[1], on: { click: function(){ setVista(x[0]); } } });
   })));
-  const conMes = ['diag', 'horas', 'sems', 'plan', 'mes', 'pago', 'tcg', 'alertas'].indexOf(v) >= 0;
+  const conMes = ['horas', 'sems', 'plan', 'mes', 'pago', 'tcg', 'alertas'].indexOf(v) >= 0;
   const conAnio = v === 'anio';
   if(conMes || conAnio){
     const mover = function(n){
