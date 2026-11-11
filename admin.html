@@ -976,6 +976,13 @@
           <div class="ec-sub"><span class="kpi-sub" id="kpi-ref-sub">ID 1665: vacío o dígitos inválidos</span></div>
         </div>
       </div>
+      <div class="kpi-card ecard manual" onclick="openModal('internamb')">
+        <div class="num" id="kpi-internamb">—</div>
+        <div class="ec-body">
+          <div class="ec-top"><span class="ec-label">INTERNADOS en turno AMB</span><span class="ec-man-badge">⚠ Manual</span></div>
+          <div class="ec-sub"><span class="kpi-sub" id="kpi-internamb-sub">AMB con cuenta INTERNADOS: revisar</span></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -2641,6 +2648,7 @@ function calcSummaryBar(data) {
     (()=>{ const d=(r['Derivante']||'').trim().toUpperCase(); return !d || d==='A CONFIRMAR'; })() ||
     cosegTurnos.has(_safe(r['Turno N°'])) ||
     esErrorReferencia(r) ||
+    esErrorInternadoAmb(r) ||
     esErrorTramiteIncompleto(r)
   ).length;
 
@@ -2788,6 +2796,19 @@ function esErrorCuentaInternados(r) {
   return cuenta === 'OSEP' || cuenta === 'PAMI';
 }
 
+/* ══════════════════════════════════
+   CUENTA INTERNADOS CON TURNO AMB  (2026-11-11, regla de Santiago)
+   Si el Tipo Turno es AMB y la Cuenta es OSEP INTERNADOS o PAMI INTERNADOS,
+   alguno de los dos datos está mal (cuenta o tipo de turno). No se arregla con
+   bot: hay que revisarlo a mano. Es dato a nivel turno (se evalúa sobre el dedup).
+══════════════════════════════════ */
+function esErrorInternadoAmb(r) {
+  const tt = (r['Tipo Turno']||'').trim().toUpperCase();
+  if (tt !== 'AMB') return false;
+  const cuenta = (r['Cuenta']||'').trim().toUpperCase();
+  return cuenta === 'OSEP INTERNADOS' || cuenta === 'PAMI INTERNADOS';
+}
+
 // TC RM PAMI en FINAMED: REA + FINAMED (ID Aseguradora 1665 O el texto
 // "FINAMED SA - HOSP ITAL (PROV)") + Cuenta PAMI/PAMI INTERNADOS
 // + Servicio TOMOGRAFÍA/RESONANCIA MAGNÉTICA. Se reasigna a INSSJYP (cuenta 53) con el bot.
@@ -2928,8 +2949,15 @@ function calcKPIs(data) {
   const total1665 = rea.filter(r => String(r['ID Aseguradora']||'').trim()==='1665').length;
   document.getElementById('kpi-ref-sub').textContent = `${total1665 ? ((sinRef/total1665)*100).toFixed(1) : 0}% de ID 1665`;
 
+  // INTERNADOS en turno AMB: Tipo Turno AMB con cuenta OSEP/PAMI INTERNADOS → revisar a mano.
+  const internAmbErr = rea.filter(r => esErrorInternadoAmb(r));
+  document.getElementById('kpi-internamb').textContent = internAmbErr.length.toLocaleString();
+  document.getElementById('kpi-internamb-sub').textContent = 'AMB con cuenta INTERNADOS: revisar';
+
   // Tipo Cobertura: error si Tipo Cobertura ≠ OBL (cualquier aseguradora salvo PARTICULAR)
-  const cobErr = rea.filter(r => esErrorCobertura(r));
+  // 2026-11-11 (Santiago): se revisan TODAS las líneas de ID 3075/1665 del turno, no solo
+  // la primera: el turno es error si cualquiera de sus líneas no está en OBL.
+  const cobErr = dedupByTurno(data.filter(r => r['Estado'] === 'REA' && esErrorCobertura(r)));
   document.getElementById('kpi-cobertura').textContent = cobErr.length.toLocaleString();
   const reaOblIds = rea.filter(r => { const id=String(r['ID Aseguradora']||'').trim(); return id==='3075'||id==='1665'; });
   const totalOblIds = reaOblIds.length;
@@ -4257,6 +4285,7 @@ let modalTipo     = '';   // tipo de KPI activo (para condicionar export)
 const MODAL_COLORS = {
   instderiv:     'var(--red)',
   derivantes:    'var(--red)',
+  internamb:     'var(--red)',
   coseguros:     'var(--red)',
   cuentaint:     'var(--red)',
   aseguradoras:  'var(--purple)',
@@ -4286,6 +4315,7 @@ const MODAL_LABELS = {
   instderiv:     'Institución Derivante — FUESMEN cargado por operador de H.ITALIANO',
   derivantes:    'Sin Derivantes — Vacío o "A CONFIRMAR"',
   coseguros:     'Coseguros — Error de Carga (ID 1665 · Prestación COSEGURO · Neto $0 · por línea)',
+  internamb:     'INTERNADOS en turno AMB — Tipo Turno AMB con cuenta OSEP/PAMI INTERNADOS (revisar cuenta o tipo de turno)',
   cuentaint:     'Cuenta sin INTERNADOS — Turno INT en FINAMED (1665) con Cuenta OSEP/PAMI (debe ser OSEP/PAMI INTERNADOS)',
   aseguradoras:  'Turnos por Aseguradora',
   sinreferencia: 'Nº Referencia — Error (ID 1665: vacío o dígitos inválidos)',
@@ -4351,6 +4381,7 @@ function _openModalInternal(tipo) {
     case 'derivantes':   modalRows = filtered.filter(r => { const d=_safe(r['Derivante']).toUpperCase(); return !d || d==='A CONFIRMAR'; }); break;
     case 'coseguros':    modalRows = filtered.filter(esErrorCoseguro); break;
     case 'cuentaint':    modalRows = filtered.filter(esErrorCuentaInternados); break;
+    case 'internamb':    modalRows = filtered.filter(esErrorInternadoAmb); break;
     case 'aseguradoras': modalRows = filtered.filter(r => _safe(r['Aseguradora']) !== ''); break;
     case 'sinreferencia':modalRows = filtered.filter(r => esErrorReferencia(r)); break;
     case 'cobertura':   modalRows = filtered.filter(r => esErrorCobertura(r)); break;
@@ -4371,6 +4402,7 @@ function _openModalInternal(tipo) {
       (()=>{ const d=_safe(r['Derivante']).toUpperCase(); return !d || d==='A CONFIRMAR'; })() ||
       esErrorCoseguro(r) ||
       esErrorReferencia(r) ||
+      esErrorInternadoAmb(r) ||
       esErrorTramiteIncompleto(r)
     ); break;
     case 'sumturnos':    modalRows = [...filtered]; break;
