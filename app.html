@@ -1109,7 +1109,7 @@
         <span>Ver con sonido</span>
       </button>
     </div>
-    <p class="login-intro-text"><strong>Lumen</strong> es el sistema de control interno de Diagnóstico por Imágenes: detecta errores de carga, concilia turnos con las obras sociales y muestra el servicio en tiempo real. Ingresás con tu cuenta institucional de FUESMEN.</p>
+    <p class="login-intro-text"><strong>Lumen</strong> detecta errores de carga, los resuelve, cruza cada dato con las obras sociales y muestra todo el servicio en un solo lugar.</p>
   </section>
   <div class="login-box">
     <div class="login-logo">
@@ -1191,7 +1191,7 @@
       <button type="submit" class="btn-login" id="btn-login-submit">Ingresar</button>
       <div id="google-sep" style="display:flex;align-items:center;gap:10px;margin:14px 0 10px;color:#64748B;font-size:11px;letter-spacing:1px"><span style="flex:1;height:1px;background:rgba(148,163,184,.25)"></span>O<span style="flex:1;height:1px;background:rgba(148,163,184,.25)"></span></div>
       <button type="button" class="btn-login" id="btn-login-microsoft" onclick="doLoginMicrosoft()" style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;margin-top:8px;background:#fff;color:#1F2937;border:1px solid #CBD5E1;font-weight:600;text-transform:none;letter-spacing:.2px;font-size:14px;white-space:nowrap"><svg width="18" height="18" viewBox="0 0 23 23" aria-hidden="true" style="flex:none"><path fill="#F25022" d="M1 1h10v10H1z"/><path fill="#7FBA00" d="M12 1h10v10H12z"/><path fill="#00A4EF" d="M1 12h10v10H1z"/><path fill="#FFB900" d="M12 12h10v10H12z"/></svg><span>Entrar con Microsoft</span></button>
-      <p class="lumen-ms-hint">Usá tu cuenta institucional <b>@fuesmen.edu.ar</b> (la misma de Outlook y Teams).</p>
+      <p class="lumen-ms-hint">Usá tu correo institucional (el mismo de Outlook y Teams).</p>
       <div class="login-error" id="login-error"></div>
     </form>
 
@@ -2403,7 +2403,7 @@ try { if (/[?&]emergencia=1(&|$)/.test(location.search)) document.body.classList
     const rows = await sbRpc('usuario_por_auth_id', { p_auth_user_id: ses.user.id });
     if (!rows || rows.length === 0) {
       try { await window.sbAuth.auth.signOut({ scope: 'local' }); } catch (e) {}
-      mostrar('Esa cuenta no está habilitada en Lumen. Pedile al administrador que te dé de alta con tu mail @fuesmen.edu.ar.');
+      mostrar('Esa cuenta no está habilitada en Lumen. Pedile al administrador que te dé de alta con tu correo institucional.');
       return;
     }
     currentUser = enforceRoleOverride(rows[0]);
