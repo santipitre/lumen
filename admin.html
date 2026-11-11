@@ -2793,7 +2793,11 @@ function esErrorCuentaInternados(r) {
   const idAseg = String(r['ID Aseguradora']||'').trim();
   if (idAseg !== '1665') return false;
   const cuenta = (r['Cuenta']||'').trim().toUpperCase();
-  return cuenta === 'OSEP' || cuenta === 'PAMI';
+  if (cuenta !== 'OSEP' && cuenta !== 'PAMI') return false;
+  // 2026-11-11 (Santiago): solo Rayos X, Ecografía y Ecografía Doppler. Tomografía y
+  // Resonancia INT quedan afuera de esta regla.
+  const serv = (r['Servicio']||'').trim().toUpperCase();
+  return serv === 'RAYOS X' || serv === 'ECOGRAFÍA' || serv === 'ECOGRAFÍA DOPPLER';
 }
 
 /* ══════════════════════════════════
