@@ -906,7 +906,8 @@
 <style id="lumen-solo-ms">body:not(.lumen-emergencia) #login-form .form-group,body:not(.lumen-emergencia) #btn-login-submit,body:not(.lumen-emergencia) #google-sep,body:not(.lumen-emergencia) #otp-info{display:none!important}#login-form #btn-login-microsoft{margin-top:4px}.lumen-ms-hint{font-size:12px;color:#94A3B8;text-align:center;margin:10px 0 0;line-height:1.5}body.lumen-emergencia .lumen-ms-hint{display:none}.lumen-emerg-tag{display:none;font-size:11px;letter-spacing:1px;color:#FBBF24;text-align:center;margin:0 0 10px}body.lumen-emergencia .lumen-emerg-tag{display:block}</style>
 <style id="lumen-login-logo">.login-logo .ll-lumen{display:flex;flex-direction:column;align-items:center;margin:0 auto 18px}.login-logo .ll-lumen svg{width:112px;height:112px;display:block}.login-logo .ll-word{font-family:Inter,sans-serif;font-weight:500;font-size:34px;letter-spacing:.32em;color:#F1F5F9;margin:6px 0 0 .32em;line-height:1}.login-logo .ll-word span{color:#F59E0B}.login-logo .ll-by{font-size:11px;letter-spacing:.3em;color:#94A3B8;margin:6px 0 0 .3em}@media (max-width:420px){.login-logo .ll-lumen svg{width:88px;height:88px}.login-logo .ll-word{font-size:28px}}</style>
 <style id="lumen-login-movil">@media (max-width:1080px){.login-intro{order:0}}@media (max-width:600px){#screen-login{padding:140px 16px 24px}.login-layout{gap:16px;padding-bottom:16px}.login-intro-eyebrow{font-size:11px;letter-spacing:2px;margin-bottom:8px}.login-intro-frame{border-radius:12px}.login-intro-sound{left:10px;bottom:10px;padding:7px 11px;font-size:12px}.login-intro-text{display:none}.login-box{padding:22px 20px 18px;border-radius:14px}.login-logo{margin-bottom:16px}.login-logo .ll-lumen{flex-direction:row;justify-content:center;gap:12px;margin-bottom:12px}.login-logo .ll-lumen svg{width:56px;height:56px}.login-logo .ll-word{font-size:24px;margin:0 0 0 .32em}.login-logo .ll-by{display:none}.login-logo h2{font-size:17px;letter-spacing:3px}.login-logo p{font-size:10px}.login-back-link{margin-top:12px}}@media (max-width:600px) and (orientation:landscape){#screen-login{padding-top:130px}.login-intro{max-width:420px}}</style>
-<script src="lumen-neuro.js?v=20261110c"></script>
+<style id="lumen-login-luci">.login-box{--fly:0;--fx:50%;--fy:50%;position:relative;box-shadow:0 30px 80px rgba(0,0,0,.45),0 0 calc(var(--fly)*46px) rgba(245,170,40,calc(var(--fly)*.16)),inset 0 1px 0 rgba(255,255,255,.05)}.login-box::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(260px circle at var(--fx) var(--fy),rgba(250,196,80,calc(var(--fly)*.11)),transparent 70%)}.login-box::after{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;pointer-events:none;background:radial-gradient(240px circle at var(--fx) var(--fy),rgba(255,214,120,calc(var(--fly)*.95)),transparent 65%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}.login-box>*{position:relative}.ll-lumen .ll-arcs{transform-origin:60px 60px;animation:llSpin 38s linear infinite}.ll-lumen .ll-fly{transform-origin:78px 44px;animation:llPulse 2.6s ease-in-out infinite}.ll-lumen.flash .ll-fly{animation:llFlash 1.1s ease-out}@keyframes llSpin{to{transform:rotate(360deg)}}@keyframes llPulse{0%,100%{opacity:.75;transform:scale(1)}50%{opacity:1;transform:scale(1.18)}}@keyframes llFlash{0%{transform:scale(1)}18%{transform:scale(2.2);filter:brightness(1.8)}100%{transform:scale(1)}}@media (prefers-reduced-motion:reduce){.ll-lumen .ll-arcs,.ll-lumen .ll-fly{animation:none}}</style>
+<script src="lumen-neuro.js?v=20261111-luci2"></script>
 </head>
 <body>
 
@@ -990,7 +991,7 @@
         <circle cx="60" cy="60" r="42" fill="none" stroke="#3B82F6" stroke-width="0.8" opacity="0.35"/>
         <!-- Dark fill -->
         <circle cx="60" cy="60" r="41" fill="url(#innerGrad)" opacity="0.95"/>
-        <!-- Tech arc segments on outer ring -->
+        <g class="ll-arcs"><!-- Tech arc segments on outer ring -->
         <path d="M60 8 A52 52 0 0 1 100 30" fill="none" stroke="#22DBAE" stroke-width="2" stroke-linecap="round" opacity="0.7" filter="url(#glow)"/>
         <path d="M108 52 A52 52 0 0 1 104 80" fill="none" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
         <path d="M20 30 A52 52 0 0 1 60 8" fill="none" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
@@ -1010,12 +1011,12 @@
         <circle cx="113" cy="23" r="1" fill="#22DBAE" opacity="0.6"/>
         <circle cx="117" cy="51" r="0.8" fill="#3B82F6" opacity="0.4"/>
         <circle cx="10" cy="22" r="0.8" fill="#3B82F6" opacity="0.4"/>
-        <!-- Lumen "L" + firefly luciérnaga -->
+        </g><!-- Lumen "L" + firefly luciérnaga -->
         <text x="58" y="76" text-anchor="middle"
               font-family="Inter, sans-serif" font-weight="500" font-size="48"
               letter-spacing="-0.04em"
               fill="#F1F5F9" filter="url(#glow)">L</text>
-        <!-- Punto firefly (ámbar) en la esquina superior derecha de la L -->
+        <g class="ll-fly"><!-- Punto firefly (ámbar) en la esquina superior derecha de la L -->
         <circle cx="78" cy="44" r="6" fill="none" stroke="#F59E0B" stroke-width="0.8" opacity="0.4"/>
         <circle cx="78" cy="44" r="3.5" fill="#F59E0B" filter="url(#glow)"/>
         <circle cx="78" cy="44" r="1.6" fill="#FEF3C7"/>
@@ -1089,7 +1090,7 @@
   <section class="login-intro" aria-label="Qué es Lumen">
     <div class="login-intro-eyebrow"><b></b>Conocé Lumen en 30 segundos</div>
     <div class="login-intro-frame">
-      <video id="lumen-intro" src="lumen-intro.mp4?v=20261110" poster="lumen-intro.jpg?v=20261110" muted loop playsinline preload="metadata" aria-label="Video de presentación de Lumen"></video>
+      <video id="lumen-intro" src="lumen-intro.mp4?v=20261111" poster="lumen-intro.jpg?v=20261111" muted loop playsinline preload="metadata" aria-label="Video de presentación de Lumen"></video>
       <button type="button" class="login-intro-sound" id="lumen-intro-sound" onclick="lumenIntroSonido()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
         <span>Ver con sonido</span>
@@ -1154,7 +1155,7 @@
         <circle cx="78" cy="44" r="6" fill="none" stroke="#F59E0B" stroke-width="0.8" opacity="0.4"/>
         <circle cx="78" cy="44" r="3.5" fill="#F59E0B" filter="url(#glowLg)"/>
         <circle cx="78" cy="44" r="1.6" fill="#FEF3C7"/>
-      </svg><div class="ll-word">L<span>U</span>MEN</div><div class="ll-by">BY SPITRELLA</div></div>
+      </g></svg><div class="ll-word">L<span>U</span>MEN</div><div class="ll-by">BY SPITRELLA</div></div>
       <h2>INGRESO AL SISTEMA</h2>
       <p>Sistema de Control Interno</p>
     </div>
@@ -2231,9 +2232,14 @@ if (document.getElementById('screen-inicio').classList.contains('active')) showS
 
 /* -- CANVAS: PARTICULAS / CIRCUITOS -- */
 (function() {
-  /* Fondo de neuronas con sinapsis (lumen-neuro.js, 2026-11-10) */
+  /* Fondo de luciérnagas (lumen-neuro.js, 2026-11-11) */
   if (!window.LumenNeuro) return;
-  const syn = LumenNeuro.Synapse(document.getElementById('bg-canvas'));
+  const syn = LumenNeuro.Synapse(document.getElementById('bg-canvas'), {
+    scene: true,
+    glowEl: document.querySelector('#screen-login .login-box'),
+    origin: function () { var sv = document.querySelector('#screen-login .ll-lumen svg'); if (!sv) return null; var r = sv.getBoundingClientRect(); return r.width ? { x: r.left + r.width * 78 / 120, y: r.top + r.height * 44 / 120 } : null; },
+    onWave: function () { var l = document.querySelector('#screen-login .ll-lumen'); if (!l) return; l.classList.remove('flash'); void l.offsetWidth; l.classList.add('flash'); }
+  });
   let lastMs = 0;
   (function loop(ms) {
     // ~30 fps y sin dibujar con la pestaña oculta: liviano para PCs viejas

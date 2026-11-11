@@ -78,7 +78,7 @@
     if (window.LumenNeuro) arrancar();
     else {
       const sc = document.createElement('script');
-      sc.src = 'lumen-neuro.js?v=20261110c';
+      sc.src = 'lumen-neuro.js?v=20261111-luci2';
       sc.onload = arrancar;
       document.head.appendChild(sc);
     }
