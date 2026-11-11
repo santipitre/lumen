@@ -1383,7 +1383,7 @@ function showScreen(id) {
       id === 'screen-login'  ? 'Inicio' :
       id === 'screen-sedes'  ? 'Cerrar sesión' :
       id === 'screen-roles'  ? 'Sedes'  : 'Volver';
-    if (badge) { badge.style.display = 'inline-flex'; badge.style.left = ''; }
+    if (badge) { badge.style.display = 'inline-flex'; badge.style.left = '240px'; }
   }
   const lo = document.getElementById('btn-logout');
   if (lo) lo.classList.toggle('visible', id === 'screen-roles');
