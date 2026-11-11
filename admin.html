@@ -2954,7 +2954,7 @@ function calcKPIs(data) {
   document.getElementById('kpi-ref-sub').textContent = `${total1665 ? ((sinRef/total1665)*100).toFixed(1) : 0}% de ID 1665`;
 
   // INTERNADOS en turno AMB: Tipo Turno AMB con cuenta OSEP/PAMI INTERNADOS → revisar a mano.
-  const internAmbErr = rea.filter(r => esErrorInternadoAmb(r));
+  const internAmbErr = dedupByTurno(data.filter(r => r['Estado'] === 'REA' && esErrorInternadoAmb(r)));
   document.getElementById('kpi-internamb').textContent = internAmbErr.length.toLocaleString();
   document.getElementById('kpi-internamb-sub').textContent = 'AMB con cuenta INTERNADOS: revisar';
 
@@ -2987,7 +2987,9 @@ function calcKPIs(data) {
   document.getElementById('kpi-aseguradora-sub').textContent = 'FINAMED → INSSJYP';
 
   // Cuenta sin INTERNADOS: turno INT en FINAMED (1665) con Cuenta OSEP/PAMI a secas.
-  const cuentaIntErr = rea.filter(r => esErrorCuentaInternados(r));
+  // La Cuenta puede variar entre las líneas de un mismo turno: se evalúa por línea y se
+  // cuenta el turno una vez (igual que el detalle que abre la tarjeta, así no difieren).
+  const cuentaIntErr = dedupByTurno(data.filter(r => r['Estado'] === 'REA' && esErrorCuentaInternados(r)));
   document.getElementById('kpi-cuentaint').textContent = cuentaIntErr.length.toLocaleString();
   document.getElementById('kpi-cuentaint-sub').textContent = 'INT FINAMED: OSEP/PAMI sin INTERNADOS';
 
