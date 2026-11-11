@@ -501,6 +501,19 @@
       border-color: rgba(163,230,53,.22);
     }
     .mod-fila.imagenes .mod-icono svg { filter: drop-shadow(0 0 7px rgba(163,230,53,.40)); }
+    /* Dictom: dictado radiológico (ámbar) */
+    .mod-fila.dictom { border-color: rgba(245,158,11,.26); }
+    .mod-fila.dictom::before { background: #F59E0B; color: #F59E0B; }
+    .mod-fila.dictom:hover {
+      border-color: #F59E0B;
+      box-shadow: 0 -1px 0 rgba(148,197,255,.12) inset, 8px 10px 24px rgba(0,0,0,.55),
+                  0 0 38px rgba(245,158,11,.26);
+    }
+    .mod-fila.dictom .mod-icono {
+      background: linear-gradient(150deg, rgba(245,158,11,.14), rgba(10,15,20,.65));
+      border-color: rgba(245,158,11,.24);
+    }
+    .mod-fila.dictom .mod-icono svg { filter: drop-shadow(0 0 7px rgba(245,158,11,.40)); }
 
     @media (prefers-reduced-motion: reduce) {
       .mod-fila, .mod-fila::before, .mod-icono, .mod-flecha { transition: none; }
@@ -1319,6 +1332,11 @@ const MODULE_CARDS = {
 };
 
 /* -- Dashboard Imágenes H.Italiano: se agrega aparte para no tocar las entradas existentes -- */
+MODULE_CARDS.dictom = {
+  clase: 'dictom', nombre: 'Dictom', key: 'dictom',
+  desc: 'Dictado radiol&oacute;gico con IA &middot; Plantillas ACR &middot; BI-RADS',
+  svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/><rect x="82" y="34" width="36" height="62" rx="18" fill="none" stroke="#F59E0B" stroke-width="3.5"/><path d="M62 78 Q62 114 100 114 Q138 114 138 78" fill="none" stroke="#F59E0B" stroke-width="3.5" stroke-linecap="round"/><path d="M100 114 L100 132 M80 132 L120 132" stroke="#F59E0B" stroke-width="3.5" stroke-linecap="round"/><circle cx="100" cy="62" r="5" fill="#F59E0B"/><text x="100" y="204" text-anchor="middle" font-family="Inter,sans-serif" font-size="22" font-weight="600" fill="#E2E8F0">Dictom</text></svg>`
+};
 MODULE_CARDS.imagenes = {
   clase: 'imagenes', nombre: 'Dashboard Imágenes H.Italiano', key: 'imagenes',
   desc: 'Staff &middot; Cronogramas &middot; Docencia',
@@ -1805,6 +1823,19 @@ const IMG_SUBTARJETAS_OCULTAS = true;               // Médicos / Residentes / T
 const PERSONAL_OCULTO = true;                       // sub-tarjeta Personal dentro de Administrativo
 const ROLES_QUE_VEN_PERSONAL = ['licencias', 'solicitante']; // su único acceso a personal.html: no se les oculta
 
+// Dictom: la tarjeta aparece solo si el usuario tiene licencia vigente (RPC licencia_dictom_activa).
+async function dictomAcceso(usr) {
+  try {
+    if (!usr || !usr.id) return false;
+    const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/licencia_dictom_activa', {
+      method: 'POST', headers: await getSBHeaders(), body: JSON.stringify({ p_usuario_id: usr.id })
+    });
+    if (!r.ok) return false;
+    const f = await r.json();
+    return !!(f && f[0] && f[0].vigente);
+  } catch (e) { return false; }
+}
+
 // sim (opcional, solo "Ver según rol"): { user, imgAcc } -> dibuja el menú de ese usuario sin navegar ni tocar la sesión.
 async function renderModules(sim) {
   const usr = sim ? sim.user : currentUser;
@@ -1834,6 +1865,10 @@ async function renderModules(sim) {
     for (const t of imgAcc.pestanas) modulos[IMG_HIJO[t]] = imgAcc.nivel;
   }
 
+  // Dictom (dictado radiológico): solo con licencia vigente; en vista previa (sim) no se muestra.
+  delete modulos.dictom;
+  if (!sim && await dictomAcceso(usr)) modulos.dictom = 'edit';
+
   // Personal oculto salvo para los roles que dependen de él; nunca deja al usuario sin módulos.
   if (PERSONAL_OCULTO && !ROLES_QUE_VEN_PERSONAL.includes(usr.rol)
       && Object.keys(modulos).some(k => k !== 'personal' && modulos[k])) {
@@ -1846,13 +1881,14 @@ async function renderModules(sim) {
   const modulosConPermiso = ['admin', 'tecnico', 'medico', 'operativo', 'personal', 'caja', 'conciliacion', 'validacion', 'harefield']
     .filter(key => modulos[key]);
   if (modulos.imagenes) modulosConPermiso.push('imagenes');
+  if (modulos.dictom) modulosConPermiso.push('dictom');
   // En vista previa no se navega: solo se marca la tarjeta que sería el destino directo.
   let directo = null;
   if (sim && modulosConPermiso.length === 1) directo = modulosConPermiso[0];
   if (!sim && modulosConPermiso.length === 1) {
     const key = modulosConPermiso[0];
     const destinos = { admin:'admin.html', tecnico:'tecnico.html', medico:'medico.html', operativo:'operativo.html?modo=pedidos', personal:'personal.html', caja:'caja.html', conciliacion:'conciliacion-pami.html', validacion:'validacion-pami.html', harefield:'harefield.html' };
-    Object.assign(destinos, { imagenes:'imagenes.html', img_medicos:'imagenes.html#medicos', img_residentes:'imagenes.html#residentes', img_tecnicos:'imagenes.html#tecnicos', img_admin:'imagenes.html#administrativos' });
+    Object.assign(destinos, { dictom:'dictom.html', imagenes:'imagenes.html', img_medicos:'imagenes.html#medicos', img_residentes:'imagenes.html#residentes', img_tecnicos:'imagenes.html#tecnicos', img_admin:'imagenes.html#administrativos' });
     localStorage.setItem('spcd_rol', key);
     window.location.replace(destinos[key] || 'app.html');
     return;
@@ -1878,6 +1914,7 @@ async function renderModules(sim) {
     { padre: 'admin',    hijos: ['caja', 'conciliacion', 'validacion', 'harefield', 'operativo', 'personal'] },
     { padre: 'imagenes', hijos: IMG_SUBTARJETAS_OCULTAS ? [] : ['img_medicos', 'img_residentes', 'img_tecnicos', 'img_admin'] },
     { padre: 'medico',   hijos: [] },
+    { padre: 'dictom',   hijos: [] },
     { padre: 'tecnico',  hijos: [] }
   ];
 
@@ -2051,7 +2088,7 @@ function selectRol(nombre, clase) {
   selectedRol = nombre;
   localStorage.setItem('spcd_rol', nombre);
   const destinos = { admin:'admin.html', tecnico:'tecnico.html', medico:'medico.html', operativo:'operativo.html', personal:'personal.html', caja:'caja.html', conciliacion:'conciliacion-pami.html', validacion:'validacion-pami.html', harefield:'harefield.html' };
-  Object.assign(destinos, { imagenes:'imagenes.html', img_medicos:'imagenes.html#medicos', img_residentes:'imagenes.html#residentes', img_tecnicos:'imagenes.html#tecnicos', img_admin:'imagenes.html#administrativos' });
+  Object.assign(destinos, { dictom:'dictom.html', imagenes:'imagenes.html', img_medicos:'imagenes.html#medicos', img_residentes:'imagenes.html#residentes', img_tecnicos:'imagenes.html#tecnicos', img_admin:'imagenes.html#administrativos' });
   window.location.href = destinos[clase] || 'app.html';
 }
 
