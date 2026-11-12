@@ -5275,6 +5275,7 @@ async function bpLogin(ev) {
   }
 }
 function bpCancelar() { bpComando('cancelar'); }
+function bpAdelantar() { bpComando('adelantar'); }
 function bpFiltro(f) { BP.filtro = f; bpRender(); }
 function bpOjo(v) { BP.incluirOjo = !!v; bpRender(); }
 
@@ -5313,7 +5314,7 @@ function bpRender() {
   else if (c.estado === 'cancelada') banner = `<div class="bp-banner bad"><div class="grow"><b>Corrida cancelada.</b> ${bpEsc(c.mensaje)}</div></div>`;
   else if (c.estado === 'terminada') banner = `<div class="bp-banner ok"><div class="grow"><b>Corrida terminada.</b> ${ok} turnos con derivante cargado · ${rev} a revisar a mano.</div></div>`;
   else if (muerto) banner = `<div class="bp-banner bad"><div class="grow"><b>El bot no da señales hace más de 2 minutos.</b> Puede haberse cerrado la ventana del HIS o la PC se durmió.</div></div>`;
-  else if (['leyendo','aplicando','iniciando'].includes(c.estado)) banner = `<div class="bp-banner"><div class="grow"><b>Trabajando…</b> podés cerrar este panel: el bot sigue y lo reabrís desde la tarjeta.</div><button class="bp-btn stop" onclick="bpCancelar()">Detener</button></div>`;
+  else if (['leyendo','aplicando','iniciando'].includes(c.estado)) banner = `<div class="bp-banner"><div class="grow"><b>Trabajando…</b> podés cerrar este panel: el bot sigue y lo reabrís desde la tarjeta.${c.estado === 'leyendo' ? ' Si no querés esperar, <b>Procesar lo leído</b> corta la lectura y sigue con lo que ya está listo (lo demás queda para la próxima corrida; después igual confirmás antes de aplicar).' : ''}</div>${c.estado === 'leyendo' ? `<button class="bp-btn go" onclick="bpAdelantar()">Procesar lo leído</button>` : ''}<button class="bp-btn stop" onclick="bpCancelar()">Detener</button></div>`;
   const chip = (k, l) => `<button class="bp-chip ${BP.filtro === k ? 'on' : ''}" onclick="bpFiltro('${k}')">${l}</button>`;
   const f = BP.filtro;
   const vis = T.filter(x => f === 'todos' || (f === 'ok' && (x.estado === 'OK' || x.estado === 'YA_OK')) || (f === 'listo' && x.estado === 'LISTO')
