@@ -558,6 +558,52 @@
       font-family:'Inter',sans-serif; transition:all .2s; white-space:nowrap;
     }
     .ec-reparar:hover { background:rgba(34,219,174,.22); }
+    /* ── TABLERO DEL BOT (Derivantes) ── */
+    .bp-overlay { display:none; position:fixed; inset:0; z-index:1150; background:rgba(2,6,16,.86); align-items:flex-start; justify-content:center; padding:24px; overflow:auto; }
+    .bp-overlay.open { display:flex; }
+    .bp-box { width:100%; max-width:1100px; background:#0a1424; border:1px solid var(--border-a); border-radius:14px; box-shadow:0 24px 60px rgba(0,0,0,.6); overflow:hidden; }
+    .bp-head { display:flex; align-items:center; gap:12px; padding:16px 22px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+    .bp-title { flex:1; font-family:'Rajdhani',sans-serif; font-weight:700; letter-spacing:1.5px; font-size:17px; text-transform:uppercase; color:var(--text); min-width:200px; }
+    .bp-pill { font-size:11px; letter-spacing:1.2px; text-transform:uppercase; padding:4px 10px; border-radius:99px; border:1px solid var(--border-a); color:var(--muted); font-weight:600; }
+    .bp-pill.leyendo,.bp-pill.aplicando,.bp-pill.iniciando { color:var(--cyan); border-color:rgba(6,182,212,.5); background:rgba(6,182,212,.1); }
+    .bp-pill.esperando_login,.bp-pill.listo_para_aplicar { color:var(--amber); border-color:rgba(251,191,36,.5); background:rgba(251,191,36,.1); }
+    .bp-pill.terminada { color:var(--green); border-color:rgba(34,219,174,.5); background:rgba(34,219,174,.1); }
+    .bp-pill.error,.bp-pill.cancelada { color:var(--red); border-color:rgba(248,113,113,.5); background:rgba(248,113,113,.1); }
+    .bp-x { background:transparent; border:none; color:var(--muted); font-size:22px; cursor:pointer; }
+    .bp-body { padding:20px 22px 26px; }
+    .bp-msg { font-size:13px; color:var(--muted); margin-bottom:12px; }
+    .bp-bar { height:8px; background:rgba(59,130,246,.15); border-radius:99px; overflow:hidden; margin-bottom:18px; }
+    .bp-bar > i { display:block; height:100%; width:0; background:linear-gradient(90deg,var(--cyan),var(--green)); transition:width .6s; }
+    .bp-banner { border:1px solid rgba(251,191,36,.5); background:rgba(251,191,36,.08); border-radius:10px; padding:14px 16px; margin-bottom:16px; font-size:13px; line-height:1.55; display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+    .bp-banner b { color:var(--amber); }
+    .bp-banner.ok { border-color:rgba(34,219,174,.5); background:rgba(34,219,174,.07); } .bp-banner.ok b { color:var(--green); }
+    .bp-banner.bad { border-color:rgba(248,113,113,.5); background:rgba(248,113,113,.07); } .bp-banner.bad b { color:var(--red); }
+    .bp-banner .grow { flex:1; min-width:240px; }
+    .bp-btn { padding:9px 16px; border-radius:8px; border:1px solid var(--border-a); background:rgba(59,130,246,.12); color:var(--text); font-size:12px; letter-spacing:1.2px; text-transform:uppercase; cursor:pointer; font-family:'Inter',sans-serif; font-weight:600; }
+    .bp-btn.go { background:rgba(34,219,174,.16); border-color:rgba(34,219,174,.6); color:var(--green); }
+    .bp-btn.stop { background:rgba(248,113,113,.1); border-color:rgba(248,113,113,.5); color:var(--red); }
+    .bp-btn:disabled { opacity:.4; cursor:not-allowed; }
+    .bp-kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-bottom:18px; }
+    .bp-kpi { border:1px solid var(--border); background:rgba(30,58,138,.14); border-radius:10px; padding:12px 14px; }
+    .bp-kpi .n { font-family:'Rajdhani',sans-serif; font-size:30px; font-weight:700; line-height:1.1; }
+    .bp-kpi .l { font-size:10.5px; letter-spacing:1.3px; text-transform:uppercase; color:var(--muted); margin-top:2px; }
+    .bp-kpi.g .n { color:var(--green); } .bp-kpi.c .n { color:var(--cyan); } .bp-kpi.a .n { color:var(--amber); } .bp-kpi.r .n { color:var(--red); }
+    .bp-chips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+    .bp-chip { padding:5px 12px; border-radius:99px; border:1px solid var(--border); background:transparent; color:var(--muted); font-size:11.5px; cursor:pointer; font-family:'Inter',sans-serif; }
+    .bp-chip.on { color:var(--text); border-color:var(--cyan); background:rgba(6,182,212,.14); }
+    .bp-tablewrap { max-height:46vh; overflow:auto; border:1px solid var(--border); border-radius:10px; }
+    .bp-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+    .bp-table th { position:sticky; top:0; background:#0e1a30; text-align:left; font-size:10.5px; letter-spacing:1.2px; text-transform:uppercase; color:var(--muted); padding:9px 10px; }
+    .bp-table td { padding:8px 10px; border-top:1px solid var(--border); vertical-align:top; }
+    .bp-st { font-size:10.5px; letter-spacing:1px; font-weight:700; padding:2px 8px; border-radius:6px; white-space:nowrap; }
+    .bp-st.OK,.bp-st.YA_OK { color:var(--green); background:rgba(34,219,174,.12); }
+    .bp-st.LISTO { color:var(--cyan); background:rgba(6,182,212,.14); }
+    .bp-st.REVISION { color:var(--amber); background:rgba(251,191,36,.12); }
+    .bp-st.ERROR,.bp-st.BROWSER_CERRADO { color:var(--red); background:rgba(248,113,113,.12); }
+    .bp-st.PENDIENTE { color:var(--muted); background:rgba(148,163,184,.1); }
+    .bp-ojo { display:block; margin-top:4px; color:var(--amber); font-size:11.5px; }
+    .bp-dim { color:var(--muted); }
+    .bp-opt { display:flex; align-items:center; gap:8px; font-size:12.5px; }
     /* Overlay de instrucciones del bot */
     .reparar-overlay {
       display:none; position:fixed; inset:0; z-index:1100;
@@ -951,17 +997,19 @@
           <button class="ec-reparar" onclick="event.stopPropagation(); reparAutoCard('rxamb')" title="Genera el Excel y lanza el bot FUESMEN">🔧 Reparar automáticamente</button>
         </div>
       </div>
+      <div class="kpi-card ecard auto" onclick="openModal('derivantes')">
+        <div class="num" id="kpi-derivantes">—</div>
+        <div class="ec-body">
+          <div class="ec-top"><span class="ec-label">Sin Derivantes</span><span class="kpi-auto-badge">◐ Semi-automático</span></div>
+          <div class="ec-sub"><span class="kpi-sub" id="kpi-deriv-sub">sin dato o "A CONFIRMAR"</span><span class="kpi-arr"></span></div>
+          <button class="ec-reparar" onclick="event.stopPropagation(); reparAutoCard('derivantes')" title="Lee el sello de cada pedido y completa el derivante; vos confirmás antes de aplicar">🤖 Reparar con el bot</button>
+          <button class="ec-reparar" style="margin-top:6px;background:transparent;border-color:rgba(59,130,246,.4);color:var(--muted)" onclick="event.stopPropagation(); bpAbrir(false)" title="Abre el tablero de la última corrida">📊 Ver tablero</button>
+        </div>
+      </div>
     </div>
 
     <div class="ecard-group-label manual"><span class="pill"></span>Requieren carga manual</div>
     <div class="ecards">
-      <div class="kpi-card ecard manual" onclick="openModal('derivantes')">
-        <div class="num" id="kpi-derivantes">—</div>
-        <div class="ec-body">
-          <div class="ec-top"><span class="ec-label">Sin Derivantes</span><span class="ec-man-badge">⚠ Manual</span></div>
-          <div class="ec-sub"><span class="kpi-sub" id="kpi-deriv-sub">sin dato o "A CONFIRMAR"</span></div>
-        </div>
-      </div>
       <div class="kpi-card ecard manual" onclick="openModal('coseguros')">
         <div class="num" id="kpi-coseguros">—</div>
         <div class="ec-body">
@@ -1454,6 +1502,18 @@
       <span id="modal-footer-count"></span>
       <span>Presioná <kbd style="background:var(--glass);padding:1px 6px;border-radius:3px;border:1px solid var(--border)">Esc</kbd> para cerrar</span>
     </div>
+  </div>
+</div>
+
+<!-- ══════ OVERLAY: TABLERO DEL BOT DE DERIVANTES ══════ -->
+<div class="bp-overlay" id="bp-overlay">
+  <div class="bp-box">
+    <div class="bp-head">
+      <span class="bp-title">🤖 Sin Derivantes · bot automático</span>
+      <span class="bp-pill" id="bp-pill">—</span>
+      <button class="bp-x" onclick="bpCerrar()" title="Cerrar (el bot sigue trabajando)">✕</button>
+    </div>
+    <div class="bp-body" id="bp-body"><div class="bp-msg">Esperando al bot…</div></div>
   </div>
 </div>
 
@@ -4458,7 +4518,7 @@ function _openModalInternal(tipo) {
 
   // Botón "Reparar" para los KPIs que tienen bot (Inst. Derivante y Tipo Cobertura)
   const btnRep = document.getElementById('btn-reparar-instderiv');
-  if (btnRep) btnRep.style.display = (tipo === 'instderiv' || tipo === 'cobertura' || tipo === 'fuerafecha' || tipo === 'aseguradora' || tipo === 'cuentaint' || tipo === 'rxamb') ? 'inline-block' : 'none';
+  if (btnRep) btnRep.style.display = (tipo === 'instderiv' || tipo === 'cobertura' || tipo === 'fuerafecha' || tipo === 'aseguradora' || tipo === 'cuentaint' || tipo === 'rxamb' || tipo === 'derivantes') ? 'inline-block' : 'none';
 
   modalFiltered = [...modalRows];
   renderModalTable(modalFiltered);
@@ -4971,6 +5031,12 @@ const REPARAR_CFG = {
     protocolo: 'lumenbot://rxamb',
     cmd:       'cd "C:\\Users\\pitre\\Repos\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe lumen-fix-rxamb.py'
   },
+  derivantes: {
+    titulo:    '🤖 Sin Derivantes',
+    protocolo: 'lumenpanel://derivante',
+    panel:     true,
+    cmd:       'cd "C:\\Users\\pitre\\Repos\\Automatización tareas adm\\fuesmen_bot"; python lumen-panel-derivante.py'
+  },
   ausentes: {
     titulo:    '🔧 Ausentes · devolver la orden al paciente',
     protocolo: 'lumenbot://ausentes',
@@ -5044,11 +5110,143 @@ async function repararTodo() {
   try { window.location.href = 'lumenbot://todo'; } catch (e) { console.warn('protocolo todo no disponible:', e); }
 }
 
+/* ══════════════════════════════════
+   TABLERO DEL BOT DE DERIVANTES — misma pantalla, sin PowerShell visible.
+   El bot (lumen-panel-derivante.py) escribe en bot_corridas / bot_corrida_turnos;
+   esta pantalla consulta cada 2 s y manda órdenes por bot_comandos.
+══════════════════════════════════ */
+const BP = { id:null, prevId:null, timer:null, filtro:'todos', corrida:null, turnos:[], incluirOjo:false, esperaDesde:0 };
+const bpEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const BP_FIN = ['terminada','error','cancelada'];
+
+async function bpUltima() {
+  const r = await sbQuery('bot_corridas', 'bot=eq.derivante&order=creada.desc&limit=1&select=*');
+  return (r && r[0]) || null;
+}
+async function bpAbrir(esperarNueva) {
+  document.getElementById('bp-overlay').classList.add('open');
+  BP.filtro = 'todos'; BP.incluirOjo = false;
+  try {
+    const u = await bpUltima();
+    if (esperarNueva) { BP.prevId = u ? u.id : null; BP.id = null; BP.esperaDesde = Date.now(); }
+    else { BP.id = u ? u.id : null; BP.prevId = null; }
+  } catch (e) { console.warn('[bp]', e); }
+  bpRender();
+  clearInterval(BP.timer); BP.timer = setInterval(bpTick, 2000); bpTick();
+}
+function bpCerrar() {
+  document.getElementById('bp-overlay').classList.remove('open');
+  clearInterval(BP.timer); BP.timer = null;
+  if (typeof cargarReparaciones === 'function') cargarReparaciones(true);
+}
+async function bpTick() {
+  try {
+    if (!BP.id) {
+      const u = await bpUltima();
+      if (u && u.id !== BP.prevId) { BP.id = u.id; BP.prevId = null; }
+      else { bpRender(); return; }
+    }
+    const [c, t] = await Promise.all([
+      sbQuery('bot_corridas', `id=eq.${BP.id}&select=*`),
+      sbQuery('bot_corrida_turnos', `corrida_id=eq.${BP.id}&order=orden.asc&limit=1000&select=*`)
+    ]);
+    BP.corrida = (c && c[0]) || null; BP.turnos = t || [];
+    bpRender();
+    if (BP.corrida && BP_FIN.includes(BP.corrida.estado)) { clearInterval(BP.timer); BP.timer = null; }
+  } catch (e) { console.warn('[bp] tick', e); }
+}
+async function bpComando(comando, payload) {
+  const h = await getSBHeaders(); h['Prefer'] = 'return=minimal';
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/bot_comandos`, { method:'POST', headers:h,
+    body: JSON.stringify({ corrida_id: BP.id, comando, payload: payload || null }) });
+  if (!r.ok) { if (typeof spcdAlert === 'function') spcdAlert('No se pudo enviar la orden al bot (' + r.status + ').', { type:'error' }); return false; }
+  if (!BP.timer) BP.timer = setInterval(bpTick, 2000);
+  bpTick(); return true;
+}
+function bpAplicar() {
+  const listos = BP.turnos.filter(x => x.estado === 'LISTO' && (BP.incluirOjo || !x.ojo)).map(x => x.turno_n);
+  if (!listos.length) return;
+  const ok = () => bpComando('aplicar', { turnos: listos });
+  const msg = `Se van a cargar ${listos.length} derivantes en el HIS. ¿Confirmás?`;
+  if (typeof spcdConfirm === 'function') spcdConfirm(msg, { title:'Aplicar derivantes' }).then(y => { if (y) ok(); });
+  else if (window.confirm(msg)) ok();
+}
+function bpCancelar() { bpComando('cancelar'); }
+function bpFiltro(f) { BP.filtro = f; bpRender(); }
+function bpOjo(v) { BP.incluirOjo = !!v; bpRender(); }
+
+function bpRender() {
+  const body = document.getElementById('bp-body'), pill = document.getElementById('bp-pill');
+  if (!body) return;
+  const c = BP.corrida;
+  if (!c) {
+    pill.className = 'bp-pill iniciando'; pill.textContent = 'esperando';
+    const tarde = BP.esperaDesde && Date.now() - BP.esperaDesde > 25000;
+    body.innerHTML = `<div class="bp-banner ${tarde ? 'bad' : ''}"><div class="grow">${tarde
+      ? '<b>El bot no arrancó todavía.</b> Si el navegador preguntó «¿Abrir LumenBot?», aceptalo (tildá «Permitir siempre»). Si nunca lo registraste, hay que correr una vez el instalador del lanzador.'
+      : '<b>Iniciando el bot…</b> Si el navegador pregunta «¿Abrir LumenBot?», dale <b>Abrir</b>.'}</div></div>
+      ${BP.id === null && !BP.esperaDesde ? '<div class="bp-msg">Todavía no hay corridas registradas.</div>' : ''}`;
+    return;
+  }
+  pill.className = 'bp-pill ' + c.estado; pill.textContent = c.estado.replace(/_/g, ' ');
+  const T = BP.turnos, cnt = {}; T.forEach(x => cnt[x.estado] = (cnt[x.estado] || 0) + 1);
+  const ok = (cnt.OK || 0) + (cnt.YA_OK || 0), listo = cnt.LISTO || 0, rev = cnt.REVISION || 0, err = (cnt.ERROR || 0) + (cnt.BROWSER_CERRADO || 0);
+  const pend = cnt.PENDIENTE || 0, tot = c.total || T.length || 1;
+  const nOjo = T.filter(x => x.estado === 'LISTO' && x.ojo).length;
+  const listosAp = T.filter(x => x.estado === 'LISTO' && (BP.incluirOjo || !x.ojo)).length;
+  const pctRes = Math.round(100 * (ok + listo) / tot), pctProc = Math.round(100 * (tot - pend) / tot);
+  const muerto = !BP_FIN.includes(c.estado) && !['esperando_login','listo_para_aplicar'].includes(c.estado) && c.actualizada && (Date.now() - new Date(c.actualizada).getTime() > 120000);
+  let banner = '';
+  if (c.estado === 'esperando_login') banner = `<div class="bp-banner"><div class="grow"><b>Falta tu login.</b> Se abrió la ventana del HIS: ingresá usuario y contraseña. Cuando entres, el tablero sigue solo (o apretá el botón).</div><button class="bp-btn go" onclick="bpComando('login_ok')">Ya me logueé</button><button class="bp-btn stop" onclick="bpCancelar()">Cancelar</button></div>`;
+  else if (c.estado === 'listo_para_aplicar') banner = `<div class="bp-banner ok"><div class="grow"><b>Lectura terminada: no se modificó nada en el HIS.</b> Revisá la tabla. ${listosAp} derivantes están listos para cargar${nOjo ? `. Hay ${nOjo} marcados con <b>OJO</b> (identificados por nombre o con matrícula corregida): quedan afuera salvo que los incluyas.` : '.'}
+    ${nOjo ? `<label class="bp-opt" style="margin-top:8px"><input type="checkbox" ${BP.incluirOjo ? 'checked' : ''} onchange="bpOjo(this.checked)"> Incluir los ${nOjo} marcados OJO (los verifiqué a mano)</label>` : ''}</div>
+    <button class="bp-btn go" ${listosAp ? '' : 'disabled'} onclick="bpAplicar()">Aplicar ${listosAp}</button><button class="bp-btn stop" onclick="bpCancelar()">Descartar</button></div>`;
+  else if (c.estado === 'error') banner = `<div class="bp-banner bad"><div class="grow"><b>El bot se detuvo con un error.</b> ${bpEsc(c.mensaje)}</div></div>`;
+  else if (c.estado === 'cancelada') banner = `<div class="bp-banner bad"><div class="grow"><b>Corrida cancelada.</b> ${bpEsc(c.mensaje)}</div></div>`;
+  else if (c.estado === 'terminada') banner = `<div class="bp-banner ok"><div class="grow"><b>Corrida terminada.</b> ${ok} turnos con derivante cargado · ${rev} a revisar a mano.</div></div>`;
+  else if (muerto) banner = `<div class="bp-banner bad"><div class="grow"><b>El bot no da señales hace más de 2 minutos.</b> Puede haberse cerrado la ventana del HIS o la PC se durmió.</div></div>`;
+  else if (['leyendo','aplicando','iniciando'].includes(c.estado)) banner = `<div class="bp-banner"><div class="grow"><b>Trabajando…</b> podés cerrar este panel: el bot sigue y lo reabrís desde la tarjeta.</div><button class="bp-btn stop" onclick="bpCancelar()">Detener</button></div>`;
+  const chip = (k, l) => `<button class="bp-chip ${BP.filtro === k ? 'on' : ''}" onclick="bpFiltro('${k}')">${l}</button>`;
+  const f = BP.filtro;
+  const vis = T.filter(x => f === 'todos' || (f === 'ok' && (x.estado === 'OK' || x.estado === 'YA_OK')) || (f === 'listo' && x.estado === 'LISTO')
+    || (f === 'rev' && x.estado === 'REVISION') || (f === 'ojo' && x.ojo) || (f === 'err' && (x.estado === 'ERROR' || x.estado === 'BROWSER_CERRADO')));
+  const filas = vis.map(x => `<tr><td><b>${bpEsc(x.turno_n)}</b></td><td><span class="bp-st ${bpEsc(x.estado)}">${bpEsc(x.estado)}</span></td>
+    <td>${bpEsc(x.matricula) || '<span class="bp-dim">—</span>'}</td><td>${bpEsc(x.nombre_leido) || '<span class="bp-dim">—</span>'}${x.confianza ? ` <span class="bp-dim">(${bpEsc(x.confianza)})</span>` : ''}</td>
+    <td>${bpEsc(x.derivante_his) || '<span class="bp-dim">—</span>'}</td>
+    <td>${bpEsc(x.detalle)}${x.ojo ? `<span class="bp-ojo">⚠ OJO:${bpEsc(x.ojo)}</span>` : ''}</td></tr>`).join('');
+  body.innerHTML = `
+    <div class="bp-msg">${bpEsc(c.mensaje || '')}</div>
+    <div class="bp-bar"><i style="width:${pctProc}%"></i></div>
+    ${banner}
+    <div class="bp-kpis">
+      <div class="bp-kpi"><div class="n">${tot}</div><div class="l">Turnos</div></div>
+      <div class="bp-kpi g"><div class="n">${pctRes}%</div><div class="l">Resuelto (OK + listos)</div></div>
+      <div class="bp-kpi g"><div class="n">${ok}</div><div class="l">Cargados / ya OK</div></div>
+      <div class="bp-kpi c"><div class="n">${listo}</div><div class="l">Listos p/ aplicar</div></div>
+      <div class="bp-kpi a"><div class="n">${rev}</div><div class="l">A revisar a mano</div></div>
+      <div class="bp-kpi a"><div class="n">${T.filter(x => x.ojo).length}</div><div class="l">Con OJO</div></div>
+      <div class="bp-kpi r"><div class="n">${err}</div><div class="l">Errores</div></div>
+    </div>
+    <div class="bp-chips">${chip('todos', 'Todos (' + T.length + ')')}${chip('ok', 'Cargados (' + ok + ')')}${chip('listo', 'Listos (' + listo + ')')}${chip('rev', 'A revisar (' + rev + ')')}${chip('ojo', 'OJO')}${chip('err', 'Errores (' + err + ')')}</div>
+    <div class="bp-tablewrap"><table class="bp-table"><thead><tr><th>Turno</th><th>Estado</th><th>Matrícula</th><th>Leído del sello</th><th>Derivante en el HIS</th><th>Detalle</th></tr></thead><tbody>${filas || '<tr><td colspan="6" class="bp-dim">Sin turnos en este filtro.</td></tr>'}</tbody></table></div>`;
+}
+
 async function repararConBot() {
   const tipo = modalTipo;
   const cfg = REPARAR_CFG[tipo];
   if (!cfg) return;
 
+  if (cfg.panel) {                 // bot con tablero propio: sin overlay de PowerShell
+    try {
+      await exportExcel(undefined, false);
+      await bpAbrir(true);
+      try { window.location.href = cfg.protocolo; } catch (e) { console.warn('protocolo lumenbot no disponible:', e); }
+    } catch (err) {
+      console.error('[repararConBot] panel:', err);
+      if (typeof spcdAlert === 'function') spcdAlert('No se pudo preparar el bot: ' + (err && err.message ? err.message : err), { type:'error', title:'Error' });
+    }
+    return;
+  }
   const cantidad = modalRows.length;
   const overlay  = document.getElementById('reparar-overlay');
   const countTxt = document.getElementById('reparar-count-txt');
