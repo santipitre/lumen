@@ -574,6 +574,15 @@
     .bp-msg { font-size:13px; color:var(--muted); margin-bottom:12px; }
     .bp-bar { height:8px; background:rgba(59,130,246,.15); border-radius:99px; overflow:hidden; margin-bottom:18px; }
     .bp-bar > i { display:block; height:100%; width:0; background:linear-gradient(90deg,var(--cyan),var(--green)); transition:width .6s; }
+    .bp-prog { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:6px; }
+    .bp-prog-e { font-size:11px; letter-spacing:1.4px; text-transform:uppercase; color:var(--cyan); font-weight:700; }
+    .bp-prog-n { font-family:'Rajdhani',sans-serif; font-size:34px; font-weight:700; line-height:1; color:var(--text); }
+    .bp-card { margin-top:8px; padding:8px 10px; border-radius:8px; border:1px solid rgba(6,182,212,.45); background:rgba(6,182,212,.08); cursor:pointer; }
+    .bp-card.amber { border-color:rgba(251,191,36,.55); background:rgba(251,191,36,.08); }
+    .bp-card-l { display:flex; justify-content:space-between; gap:8px; font-size:10.5px; letter-spacing:1.2px; text-transform:uppercase; color:var(--cyan); font-weight:700; }
+    .bp-card.amber .bp-card-l { color:var(--amber); }
+    .bp-card-b { height:5px; border-radius:99px; background:rgba(59,130,246,.18); overflow:hidden; margin-top:6px; }
+    .bp-card-b > i { display:block; height:100%; background:linear-gradient(90deg,var(--cyan),var(--green)); transition:width .6s; }
     .bp-banner { border:1px solid rgba(251,191,36,.5); background:rgba(251,191,36,.08); border-radius:10px; padding:14px 16px; margin-bottom:16px; font-size:13px; line-height:1.55; display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
     .bp-banner b { color:var(--amber); }
     .bp-banner.ok { border-color:rgba(34,219,174,.5); background:rgba(34,219,174,.07); } .bp-banner.ok b { color:var(--green); }
@@ -1013,6 +1022,7 @@
           <div class="ec-sub"><span class="kpi-sub" id="kpi-deriv-sub">sin dato o "A CONFIRMAR"</span><span class="kpi-arr"></span></div>
           <button class="ec-reparar" onclick="event.stopPropagation(); reparAutoCard('derivantes')" title="Lee el sello de cada pedido y completa el derivante; vos confirmás antes de aplicar">🤖 Reparar con el bot</button>
           <button class="ec-reparar" style="margin-top:6px;background:transparent;border-color:rgba(59,130,246,.4);color:var(--muted)" onclick="event.stopPropagation(); bpAbrir(false)" title="Abre el tablero de la última corrida">📊 Ver tablero</button>
+          <div class="bp-card" id="bp-card" style="display:none" onclick="event.stopPropagation(); bpAbrir(false)" title="Abrir el tablero"><div class="bp-card-l"><span id="bp-card-t">—</span><span id="bp-card-n"></span></div><div class="bp-card-b"><i id="bp-card-i" style="width:0%"></i></div></div>
         </div>
       </div>
     </div>
@@ -5128,6 +5138,28 @@ const BP = { id:null, prevId:null, timer:null, filtro:'todos', corrida:null, tur
 const bpEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const BP_FIN = ['terminada','error','cancelada'];
 
+/* Avance en la TARJETA "Sin Derivantes" (aunque el tablero esté cerrado). */
+function bpCardPaint(c) {
+  const box = document.getElementById('bp-card'); if (!box) return;
+  const vivo = c && !BP_FIN.includes(c.estado);
+  if (!vivo) { box.style.display = 'none'; return; }
+  const pct = c.progreso != null ? c.progreso : 0;
+  const txt = { iniciando:'🤖 Iniciando…', esperando_login:'🔐 Falta tu login', leyendo:'🤖 Leyendo', listo_para_aplicar:'✅ Listo para aplicar', aplicando:'⚙ Aplicando' }[c.estado] || c.estado;
+  box.style.display = '';
+  box.classList.toggle('amber', c.estado === 'esperando_login' || c.estado === 'listo_para_aplicar');
+  document.getElementById('bp-card-t').textContent = txt;
+  document.getElementById('bp-card-n').textContent = (c.estado === 'esperando_login') ? 'tocá para ingresar' : (c.estado === 'listo_para_aplicar' ? 'tocá para revisar' : pct + '%');
+  document.getElementById('bp-card-i').style.width = (c.estado === 'esperando_login' ? 0 : pct) + '%';
+}
+async function bpCardTick() {
+  try {
+    if (document.hidden || typeof sbQuery !== 'function') return;
+    if (document.getElementById('bp-overlay')?.classList.contains('open')) return;   // el tablero ya pinta la tarjeta
+    bpCardPaint(await bpUltima());
+  } catch (e) {}
+}
+setTimeout(() => { bpCardTick(); setInterval(bpCardTick, 5000); }, 3000);
+
 async function bpUltima() {
   const r = await sbQuery('bot_corridas', 'bot=eq.derivante&order=creada.desc&limit=1&select=*');
   return (r && r[0]) || null;
@@ -5161,7 +5193,7 @@ async function bpTick() {
       sbQuery('bot_corrida_turnos', `corrida_id=eq.${BP.id}&order=orden.asc&limit=1000&select=*`)
     ]);
     BP.corrida = (c && c[0]) || null; BP.turnos = t || [];
-    bpRender();
+    bpRender(); bpCardPaint(BP.corrida);
     if (BP.corrida && BP_FIN.includes(BP.corrida.estado)) { clearInterval(BP.timer); BP.timer = null; }
   } catch (e) { console.warn('[bp] tick', e); }
 }
@@ -5260,7 +5292,9 @@ function bpRender() {
   const pend = cnt.PENDIENTE || 0, tot = c.total || T.length || 1;
   const nOjo = T.filter(x => x.estado === 'LISTO' && x.ojo).length;
   const listosAp = T.filter(x => x.estado === 'LISTO' && (BP.incluirOjo || !x.ojo)).length;
-  const pctRes = Math.round(100 * (ok + listo) / tot), pctProc = Math.round(100 * (tot - pend) / tot);
+  const pctRes = Math.round(100 * (ok + listo) / tot);
+  const pctProc = (c.progreso != null) ? c.progreso : Math.round(100 * (tot - pend) / tot);
+  const etapaTxt = c.etapa || ({ iniciando:'Iniciando', esperando_login:'Esperando tu login', leyendo:'Leyendo', listo_para_aplicar:'Lectura terminada', aplicando:'Aplicando en el HIS', terminada:'Terminado', error:'Error', cancelada:'Cancelada' })[c.estado] || c.estado;
   const muerto = !BP_FIN.includes(c.estado) && !['esperando_login','listo_para_aplicar'].includes(c.estado) && c.actualizada && (Date.now() - new Date(c.actualizada).getTime() > 120000);
   let banner = '';
   if (c.estado === 'esperando_login' && !c.clave_publica) banner = `<div class="bp-banner"><div class="grow"><b>Falta tu login.</b> Se abrió la ventana del HIS: ingresá usuario y contraseña ahí. Cuando entres, el tablero sigue solo (o apretá el botón).</div><button class="bp-btn go" onclick="bpComando('login_ok')">Ya me logueé</button><button class="bp-btn stop" onclick="bpCancelar()">Cancelar</button></div>`;
@@ -5284,6 +5318,7 @@ function bpRender() {
   const msgTop = (c.estado === 'esperando_login' && c.clave_publica) ? '' : bpEsc(c.mensaje || '');
   body.innerHTML = `${aviso}
     <div class="bp-msg">${msgTop}</div>
+    <div class="bp-prog"><span class="bp-prog-e">${bpEsc(etapaTxt)}</span><span class="bp-prog-n">${pctProc}%</span></div>
     <div class="bp-bar"><i style="width:${pctProc}%"></i></div>
     ${banner}
     <div class="bp-kpis">
