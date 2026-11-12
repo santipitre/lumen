@@ -559,7 +559,7 @@
     }
     .ec-reparar:hover { background:rgba(34,219,174,.22); }
     /* ── TABLERO DEL BOT (Derivantes) ── */
-    .bp-overlay { display:none; position:fixed; inset:0; z-index:1150; background:rgba(2,6,16,.86); align-items:flex-start; justify-content:center; padding:24px; overflow:auto; }
+    .bp-overlay { display:none; position:fixed; inset:0; z-index:99995; background:rgba(2,6,16,.86); align-items:flex-start; justify-content:center; padding:24px; overflow:auto; }
     .bp-overlay.open { display:flex; }
     .bp-box { width:100%; max-width:1100px; background:#0a1424; border:1px solid var(--border-a); border-radius:14px; box-shadow:0 24px 60px rgba(0,0,0,.6); overflow:hidden; }
     .bp-head { display:flex; align-items:center; gap:12px; padding:16px 22px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
@@ -604,6 +604,15 @@
     .bp-ojo { display:block; margin-top:4px; color:var(--amber); font-size:11.5px; }
     .bp-dim { color:var(--muted); }
     .bp-opt { display:flex; align-items:center; gap:8px; font-size:12.5px; }
+    .bp-login { border:1px solid rgba(251,191,36,.55); background:linear-gradient(180deg,rgba(251,191,36,.09),rgba(251,191,36,.03)); border-radius:12px; padding:18px 20px; margin-bottom:18px; }
+    .bp-login-t { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:16px; letter-spacing:1.4px; text-transform:uppercase; color:var(--amber); }
+    .bp-login-s { font-size:12px; color:var(--muted); margin:2px 0 14px; }
+    .bp-login-row { display:flex; gap:10px; flex-wrap:wrap; }
+    .bp-login-row input { flex:1; min-width:180px; padding:10px 12px; border-radius:8px; border:1px solid var(--border-a); background:#0e1a30; color:var(--text); font-size:14px; font-family:'Inter',sans-serif; outline:none; }
+    .bp-login-row input:focus { border-color:var(--amber); box-shadow:0 0 0 3px rgba(251,191,36,.15); }
+    .bp-login-m { min-height:18px; margin-top:10px; font-size:12.5px; color:var(--text); }
+    .bp-login-alt { margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; }
+    .bp-aviso { border:1px solid rgba(248,113,113,.5); background:rgba(248,113,113,.08); color:var(--red); border-radius:8px; padding:9px 12px; font-size:12.5px; margin-bottom:12px; }
     /* Overlay de instrucciones del bot */
     .reparar-overlay {
       display:none; position:fixed; inset:0; z-index:1100;
@@ -1513,7 +1522,7 @@
       <span class="bp-pill" id="bp-pill">—</span>
       <button class="bp-x" onclick="bpCerrar()" title="Cerrar (el bot sigue trabajando)">✕</button>
     </div>
-    <div class="bp-body" id="bp-body"><div class="bp-msg">Esperando al bot…</div></div>
+    <div class="bp-body"><div id="bp-login"></div><div id="bp-main"><div class="bp-msg">Esperando al bot…</div></div></div>
   </div>
 </div>
 
@@ -5115,7 +5124,7 @@ async function repararTodo() {
    El bot (lumen-panel-derivante.py) escribe en bot_corridas / bot_corrida_turnos;
    esta pantalla consulta cada 2 s y manda órdenes por bot_comandos.
 ══════════════════════════════════ */
-const BP = { id:null, prevId:null, timer:null, filtro:'todos', corrida:null, turnos:[], incluirOjo:false, esperaDesde:0 };
+const BP = { id:null, prevId:null, timer:null, filtro:'todos', corrida:null, turnos:[], incluirOjo:false, esperaDesde:0, confirmando:false, aviso:'', loginEnviado:null };
 const bpEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const BP_FIN = ['terminada','error','cancelada'];
 
@@ -5125,7 +5134,8 @@ async function bpUltima() {
 }
 async function bpAbrir(esperarNueva) {
   document.getElementById('bp-overlay').classList.add('open');
-  BP.filtro = 'todos'; BP.incluirOjo = false;
+  BP.filtro = 'todos'; BP.incluirOjo = false; BP.confirmando = false; BP.aviso = ''; BP.loginEnviado = null;
+  const lg = document.getElementById('bp-login'); if (lg) { lg.innerHTML = ''; lg.dataset.k = ''; }
   try {
     const u = await bpUltima();
     if (esperarNueva) { BP.prevId = u ? u.id : null; BP.id = null; BP.esperaDesde = Date.now(); }
@@ -5159,26 +5169,82 @@ async function bpComando(comando, payload) {
   const h = await getSBHeaders(); h['Prefer'] = 'return=minimal';
   const r = await fetch(`${SUPABASE_URL}/rest/v1/bot_comandos`, { method:'POST', headers:h,
     body: JSON.stringify({ corrida_id: BP.id, comando, payload: payload || null }) });
-  if (!r.ok) { if (typeof spcdAlert === 'function') spcdAlert('No se pudo enviar la orden al bot (' + r.status + ').', { type:'error' }); return false; }
+  if (!r.ok) { BP.aviso = 'No se pudo enviar la orden al bot (error ' + r.status + ').'; bpRender(); return false; }
+  BP.aviso = '';
   if (!BP.timer) BP.timer = setInterval(bpTick, 2000);
   bpTick(); return true;
 }
-function bpAplicar() {
+function bpAplicar() {             // primer clic: pide confirmación DENTRO del tablero
+  if (!BP.turnos.some(x => x.estado === 'LISTO' && (BP.incluirOjo || !x.ojo))) return;
+  BP.confirmando = true; bpRender();
+}
+function bpConfirmarAplicar() {
   const listos = BP.turnos.filter(x => x.estado === 'LISTO' && (BP.incluirOjo || !x.ojo)).map(x => x.turno_n);
-  if (!listos.length) return;
-  const ok = () => bpComando('aplicar', { turnos: listos });
-  const msg = `Se van a cargar ${listos.length} derivantes en el HIS. ¿Confirmás?`;
-  if (typeof spcdConfirm === 'function') spcdConfirm(msg, { title:'Aplicar derivantes' }).then(y => { if (y) ok(); });
-  else if (window.confirm(msg)) ok();
+  BP.confirmando = false;
+  if (listos.length) bpComando('aplicar', { turnos: listos });
+}
+function bpVolver() { BP.confirmando = false; bpRender(); }
+
+/* Login del HIS dentro del tablero: la contraseña se cifra acá con la clave pública que publicó el bot
+   (RSA-OAEP). Sólo el Chromium del bot, en esta PC, puede descifrarla; nunca se guarda en ningún lado. */
+function bpLoginRender(c) {
+  const box = document.getElementById('bp-login'); if (!box) return;
+  const ver = c && c.estado === 'esperando_login' && c.clave_publica;
+  if (!ver) { if (box.dataset.k) { box.innerHTML = ''; box.dataset.k = ''; } return; }
+  const bloq = (c.login_intentos || 0) >= 2, k = c.id + '|' + c.clave_publica.slice(-16) + '|' + bloq;
+  if (box.dataset.k !== k) {
+    box.dataset.k = k;
+    let u = ''; try { u = localStorage.getItem('bp_usuario_his') || ''; } catch (e) {}
+    box.innerHTML = `<form class="bp-login" onsubmit="bpLogin(event)">
+      <div class="bp-login-t">🔐 Ingresá al HIS</div>
+      <div class="bp-login-s">Usuario y contraseña del HIS de FUESMEN. Viajan cifrados al bot de esta PC y no se guardan.</div>
+      ${bloq ? '' : `<div class="bp-login-row">
+        <input id="bp-u" placeholder="Usuario" autocomplete="username" value="${bpEsc(u)}" maxlength="20">
+        <input id="bp-p" type="password" placeholder="Contraseña" autocomplete="current-password" maxlength="20">
+        <button class="bp-btn go" id="bp-entrar" type="submit">Ingresar</button></div>`}
+      <div class="bp-login-m" id="bp-login-m"></div>
+      <div class="bp-login-alt"><button type="button" class="bp-chip" onclick="bpComando('abrir_ventana')">Abrir ventana del HIS</button><button type="button" class="bp-chip" onclick="bpCancelar()">Cancelar</button></div>
+    </form>`;
+    const f = document.getElementById(u ? 'bp-p' : 'bp-u'); if (f) setTimeout(() => f.focus(), 60);
+  }
+  const m = document.getElementById('bp-login-m'); if (m) m.textContent = c.mensaje || '';
+  const b = document.getElementById('bp-entrar');
+  if (b && b.disabled && BP.loginEnviado !== null && c.mensaje !== BP.loginEnviado && !/Ingresando/i.test(c.mensaje || '')) {
+    b.disabled = false; b.textContent = 'Ingresar'; BP.loginEnviado = null;
+    const pp = document.getElementById('bp-p'); if (pp) pp.focus();
+  }
+}
+async function bpLogin(ev) {
+  ev.preventDefault();
+  const c = BP.corrida; if (!c || !c.clave_publica) return;
+  const uEl = document.getElementById('bp-u'), pEl = document.getElementById('bp-p'), b = document.getElementById('bp-entrar');
+  const u = (uEl.value || '').trim(), pw = pEl.value || '';
+  if (!u || !pw) { (u ? pEl : uEl).focus(); return; }
+  b.disabled = true; b.textContent = 'Ingresando…';
+  try { localStorage.setItem('bp_usuario_his', u); } catch (e) {}
+  try {
+    const der = Uint8Array.from(atob(c.clave_publica), ch => ch.charCodeAt(0));
+    const key = await crypto.subtle.importKey('spki', der, { name:'RSA-OAEP', hash:'SHA-256' }, false, ['encrypt']);
+    const ct = await crypto.subtle.encrypt({ name:'RSA-OAEP' }, key, new TextEncoder().encode(pw));
+    pEl.value = '';
+    BP.loginEnviado = c.mensaje || '';
+    const ok = await bpComando('login', { usuario: u, clave: btoa(String.fromCharCode(...new Uint8Array(ct))) });
+    if (!ok) { b.disabled = false; b.textContent = 'Ingresar'; BP.loginEnviado = null; }
+  } catch (e) {
+    b.disabled = false; b.textContent = 'Ingresar'; BP.loginEnviado = null;
+    BP.aviso = 'No pude cifrar la contraseña: ' + (e && e.message ? e.message : e); bpRender();
+  }
 }
 function bpCancelar() { bpComando('cancelar'); }
 function bpFiltro(f) { BP.filtro = f; bpRender(); }
 function bpOjo(v) { BP.incluirOjo = !!v; bpRender(); }
 
 function bpRender() {
-  const body = document.getElementById('bp-body'), pill = document.getElementById('bp-pill');
+  const body = document.getElementById('bp-main'), pill = document.getElementById('bp-pill');
   if (!body) return;
   const c = BP.corrida;
+  bpLoginRender(c);
+  const aviso = BP.aviso ? `<div class="bp-aviso">${bpEsc(BP.aviso)}</div>` : '';
   if (!c) {
     pill.className = 'bp-pill iniciando'; pill.textContent = 'esperando';
     const tarde = BP.esperaDesde && Date.now() - BP.esperaDesde > 25000;
@@ -5197,7 +5263,8 @@ function bpRender() {
   const pctRes = Math.round(100 * (ok + listo) / tot), pctProc = Math.round(100 * (tot - pend) / tot);
   const muerto = !BP_FIN.includes(c.estado) && !['esperando_login','listo_para_aplicar'].includes(c.estado) && c.actualizada && (Date.now() - new Date(c.actualizada).getTime() > 120000);
   let banner = '';
-  if (c.estado === 'esperando_login') banner = `<div class="bp-banner"><div class="grow"><b>Falta tu login.</b> Se abrió la ventana del HIS: ingresá usuario y contraseña. Cuando entres, el tablero sigue solo (o apretá el botón).</div><button class="bp-btn go" onclick="bpComando('login_ok')">Ya me logueé</button><button class="bp-btn stop" onclick="bpCancelar()">Cancelar</button></div>`;
+  if (c.estado === 'esperando_login' && !c.clave_publica) banner = `<div class="bp-banner"><div class="grow"><b>Falta tu login.</b> Se abrió la ventana del HIS: ingresá usuario y contraseña ahí. Cuando entres, el tablero sigue solo (o apretá el botón).</div><button class="bp-btn go" onclick="bpComando('login_ok')">Ya me logueé</button><button class="bp-btn stop" onclick="bpCancelar()">Cancelar</button></div>`;
+  else if (c.estado === 'listo_para_aplicar' && BP.confirmando) banner = `<div class="bp-banner"><div class="grow"><b>¿Confirmás?</b> Se van a cargar <b>${listosAp}</b> derivantes en el HIS. Esto sí modifica las órdenes.</div><button class="bp-btn go" onclick="bpConfirmarAplicar()">Sí, cargar ${listosAp}</button><button class="bp-btn" onclick="bpVolver()">Volver</button></div>`;
   else if (c.estado === 'listo_para_aplicar') banner = `<div class="bp-banner ok"><div class="grow"><b>Lectura terminada: no se modificó nada en el HIS.</b> Revisá la tabla. ${listosAp} derivantes están listos para cargar${nOjo ? `. Hay ${nOjo} marcados con <b>OJO</b> (identificados por nombre o con matrícula corregida): quedan afuera salvo que los incluyas.` : '.'}
     ${nOjo ? `<label class="bp-opt" style="margin-top:8px"><input type="checkbox" ${BP.incluirOjo ? 'checked' : ''} onchange="bpOjo(this.checked)"> Incluir los ${nOjo} marcados OJO (los verifiqué a mano)</label>` : ''}</div>
     <button class="bp-btn go" ${listosAp ? '' : 'disabled'} onclick="bpAplicar()">Aplicar ${listosAp}</button><button class="bp-btn stop" onclick="bpCancelar()">Descartar</button></div>`;
@@ -5214,8 +5281,9 @@ function bpRender() {
     <td>${bpEsc(x.matricula) || '<span class="bp-dim">—</span>'}</td><td>${bpEsc(x.nombre_leido) || '<span class="bp-dim">—</span>'}${x.confianza ? ` <span class="bp-dim">(${bpEsc(x.confianza)})</span>` : ''}</td>
     <td>${bpEsc(x.derivante_his) || '<span class="bp-dim">—</span>'}</td>
     <td>${bpEsc(x.detalle)}${x.ojo ? `<span class="bp-ojo">⚠ OJO:${bpEsc(x.ojo)}</span>` : ''}</td></tr>`).join('');
-  body.innerHTML = `
-    <div class="bp-msg">${bpEsc(c.mensaje || '')}</div>
+  const msgTop = (c.estado === 'esperando_login' && c.clave_publica) ? '' : bpEsc(c.mensaje || '');
+  body.innerHTML = `${aviso}
+    <div class="bp-msg">${msgTop}</div>
     <div class="bp-bar"><i style="width:${pctProc}%"></i></div>
     ${banner}
     <div class="bp-kpis">
@@ -5239,6 +5307,7 @@ async function repararConBot() {
   if (cfg.panel) {                 // bot con tablero propio: sin overlay de PowerShell
     try {
       await exportExcel(undefined, false);
+      try { closeModal(); } catch (e) {}
       await bpAbrir(true);
       try { window.location.href = cfg.protocolo; } catch (e) { console.warn('protocolo lumenbot no disponible:', e); }
     } catch (err) {
