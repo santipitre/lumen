@@ -5137,13 +5137,20 @@ async function repararTodo() {
 const BP = { id:null, prevId:null, timer:null, filtro:'todos', corrida:null, turnos:[], incluirOjo:false, esperaDesde:0, confirmando:false, aviso:'', loginEnviado:null };
 const bpEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const BP_FIN = ['terminada','error','cancelada'];
+/* Un solo cálculo del porcentaje para el tablero y la tarjeta: el que manda el bot y, si es un bot viejo
+   que no lo manda, turnos procesados sobre el total. */
+function bpPct(c) {
+  if (!c) return 0;
+  if (c.progreso != null) return Math.max(0, Math.min(100, c.progreso));
+  return c.total ? Math.round(100 * (c.procesados || 0) / c.total) : 0;
+}
 
 /* Avance en la TARJETA "Sin Derivantes" (aunque el tablero esté cerrado). */
 function bpCardPaint(c) {
   const box = document.getElementById('bp-card'); if (!box) return;
   const vivo = c && !BP_FIN.includes(c.estado);
   if (!vivo) { box.style.display = 'none'; return; }
-  const pct = c.progreso != null ? c.progreso : 0;
+  const pct = bpPct(c);
   const txt = { iniciando:'🤖 Iniciando…', esperando_login:'🔐 Falta tu login', leyendo:'🤖 Leyendo', listo_para_aplicar:'✅ Listo para aplicar', aplicando:'⚙ Aplicando' }[c.estado] || c.estado;
   box.style.display = '';
   box.classList.toggle('amber', c.estado === 'esperando_login' || c.estado === 'listo_para_aplicar');
@@ -5293,7 +5300,7 @@ function bpRender() {
   const nOjo = T.filter(x => x.estado === 'LISTO' && x.ojo).length;
   const listosAp = T.filter(x => x.estado === 'LISTO' && (BP.incluirOjo || !x.ojo)).length;
   const pctRes = Math.round(100 * (ok + listo) / tot);
-  const pctProc = (c.progreso != null) ? c.progreso : Math.round(100 * (tot - pend) / tot);
+  const pctProc = bpPct(c);
   const etapaTxt = c.etapa || ({ iniciando:'Iniciando', esperando_login:'Esperando tu login', leyendo:'Leyendo', listo_para_aplicar:'Lectura terminada', aplicando:'Aplicando en el HIS', terminada:'Terminado', error:'Error', cancelada:'Cancelada' })[c.estado] || c.estado;
   const muerto = !BP_FIN.includes(c.estado) && !['esperando_login','listo_para_aplicar'].includes(c.estado) && c.actualizada && (Date.now() - new Date(c.actualizada).getTime() > 120000);
   let banner = '';
