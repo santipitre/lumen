@@ -5305,11 +5305,15 @@ async function repararConBot() {
   if (!cfg) return;
 
   if (cfg.panel) {                 // bot con tablero propio: sin overlay de PowerShell
+    // El protocolo se dispara PRIMERO, todavía dentro del clic: Chrome bloquea en silencio los
+    // protocolos externos que se lanzan después de un await (se pierde la "activación del usuario").
+    // El bot espera unos segundos a que aparezca el Excel recién exportado.
+    try { window.location.href = cfg.protocolo; } catch (e) { console.warn('protocolo no disponible:', e); }
     try {
+      const pAbrir = bpAbrir(true);
       await exportExcel(undefined, false);
       try { closeModal(); } catch (e) {}
-      await bpAbrir(true);
-      try { window.location.href = cfg.protocolo; } catch (e) { console.warn('protocolo lumenbot no disponible:', e); }
+      await pAbrir;
     } catch (err) {
       console.error('[repararConBot] panel:', err);
       if (typeof spcdAlert === 'function') spcdAlert('No se pudo preparar el bot: ' + (err && err.message ? err.message : err), { type:'error', title:'Error' });
