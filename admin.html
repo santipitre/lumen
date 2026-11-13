@@ -600,8 +600,28 @@
     .bp-chips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
     .bp-chip { padding:5px 12px; border-radius:99px; border:1px solid var(--border); background:transparent; color:var(--muted); font-size:11.5px; cursor:pointer; font-family:'Inter',sans-serif; }
     .bp-chip.on { color:var(--text); border-color:var(--cyan); background:rgba(6,182,212,.14); }
-    .bp-tablewrap { max-height:46vh; overflow:auto; border:1px solid var(--border); border-radius:10px; }
-    .bp-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+    .bp-tablewrap { max-height:46vh; overflow-y:auto; overflow-x:hidden; border:1px solid var(--border); border-radius:10px; }
+    .bp-table { width:100%; table-layout:fixed; border-collapse:collapse; font-size:12.5px; }
+    .bp-table td, .bp-table th { overflow-wrap:anywhere; word-break:break-word; }
+    .bp-table .bp-st { white-space:normal; display:inline-block; letter-spacing:.6px; }
+    .bp-table tbody tr { cursor:pointer; }
+    .bp-table tbody tr:hover td { background:rgba(59,130,246,.09); }
+    .bp-clamp { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+    .bp-acc { white-space:nowrap; text-align:right; }
+    .bp-dec { width:30px; height:30px; border-radius:8px; border:1px solid var(--border); background:transparent; cursor:pointer; font-size:15px; font-weight:700; line-height:1; margin-left:4px; font-family:inherit; }
+    .bp-dec.ok { color:var(--green); border-color:rgba(34,219,174,.5); } .bp-dec.ok.on { background:rgba(34,219,174,.28); }
+    .bp-dec.no { color:var(--red); border-color:rgba(248,113,113,.5); } .bp-dec.no.on { background:rgba(248,113,113,.28); }
+    .bp-dec:disabled { opacity:.22; cursor:not-allowed; }
+    .bp-det-ov { display:none; position:fixed; inset:0; z-index:99996; background:rgba(2,6,16,.82); align-items:center; justify-content:center; padding:20px; }
+    .bp-det-ov.open { display:flex; }
+    .bp-det { width:min(700px,100%); max-height:88vh; overflow:auto; background:#0b1426; border:1px solid var(--border-a); border-radius:14px; padding:20px 22px; }
+    .bp-det-h { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+    .bp-det-h b { font-family:'Rajdhani',sans-serif; font-size:24px; }
+    .bp-det dl { display:grid; grid-template-columns:150px 1fr; gap:8px 14px; margin:0 0 16px; font-size:13px; line-height:1.5; }
+    .bp-det dt { color:var(--muted); font-size:10.5px; letter-spacing:1.2px; text-transform:uppercase; padding-top:2px; }
+    .bp-det dd { margin:0; overflow-wrap:anywhere; white-space:pre-wrap; }
+    .bp-det-b { display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+    @media (max-width:560px) { .bp-det dl { grid-template-columns:1fr; } }
     .bp-table th { position:sticky; top:0; background:#0e1a30; text-align:left; font-size:10.5px; letter-spacing:1.2px; text-transform:uppercase; color:var(--muted); padding:9px 10px; }
     .bp-table td { padding:8px 10px; border-top:1px solid var(--border); vertical-align:top; }
     .bp-st { font-size:10.5px; letter-spacing:1px; font-weight:700; padding:2px 8px; border-radius:6px; white-space:nowrap; }
@@ -5134,7 +5154,7 @@ async function repararTodo() {
    El bot (lumen-panel-derivante.py) escribe en bot_corridas / bot_corrida_turnos;
    esta pantalla consulta cada 2 s y manda órdenes por bot_comandos.
 ══════════════════════════════════ */
-const BP = { id:null, prevId:null, timer:null, filtro:'todos', corrida:null, turnos:[], incluirOjo:false, esperaDesde:0, confirmando:false, aviso:'', loginEnviado:null };
+const BP = { id:null, prevId:null, timer:null, filtro:'todos', corrida:null, turnos:[], incluirOjo:false, esperaDesde:0, confirmando:false, aviso:'', loginEnviado:null, dec:{}, decBusy:0, detalle:null };
 const bpEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const BP_FIN = ['terminada','error','cancelada'];
 /* Un solo cálculo del porcentaje para el tablero y la tarjeta: el que manda el bot y, si es un bot viejo
@@ -5184,6 +5204,7 @@ async function bpAbrir(esperarNueva) {
   clearInterval(BP.timer); BP.timer = setInterval(bpTick, 2000); bpTick();
 }
 function bpCerrar() {
+  BP.detalle = null; bpDetRender();
   document.getElementById('bp-overlay').classList.remove('open');
   clearInterval(BP.timer); BP.timer = null;
   if (typeof cargarReparaciones === 'function') cargarReparaciones(true);
@@ -5200,6 +5221,10 @@ async function bpTick() {
       sbQuery('bot_corrida_turnos', `corrida_id=eq.${BP.id}&order=orden.asc&limit=1000&select=*`)
     ]);
     BP.corrida = (c && c[0]) || null; BP.turnos = t || [];
+    try {
+      const dd = await sbQuery('bot_decisiones', 'bot=eq.derivante&select=turno_n,decision&limit=2000');
+      if (Array.isArray(dd) && !BP.decBusy) { BP.dec = {}; dd.forEach(x => { BP.dec[String(x.turno_n)] = x.decision; }); }
+    } catch (e) { console.warn('[bp] decisiones', e); }
     bpRender(); bpCardPaint(BP.corrida);
     if (BP.corrida && BP_FIN.includes(BP.corrida.estado)) { clearInterval(BP.timer); BP.timer = null; }
   } catch (e) { console.warn('[bp] tick', e); }
@@ -5213,14 +5238,88 @@ async function bpComando(comando, payload) {
   if (!BP.timer) BP.timer = setInterval(bpTick, 2000);
   bpTick(); return true;
 }
+/* Decisión manual por fila: ✓ (ok) la manda a "listos para aplicar", ✗ (error) a la bolsa de errores.
+   Se guarda en bot_decisiones: sobrevive al cierre del tablero y la usa el bot en la próxima corrida. */
+function bpEf(x) {
+  const d = BP.dec[String(x.turno_n)], e = x.estado;
+  if (e === 'OK' || e === 'YA_OK') return e;
+  if (d === 'error' && (e === 'REVISION' || e === 'LISTO' || e === 'ERROR')) return 'ERR_MAN';
+  if (d === 'ok' && (e === 'REVISION' || e === 'LISTO')) return 'LISTO';
+  return e;
+}
+function bpPuedeOk(x) {   // ✓ solo tiene sentido si hay una matrícula que buscar y no es una que el HIS no tiene
+  if (x.estado === 'LISTO') return true;
+  return x.estado === 'REVISION' && !!x.matricula && !/NO est[áa]\(n\) cargada|NOMBRE VAC/i.test(x.detalle || '');
+}
+function bpListosAp() {
+  const dc = x => BP.dec[String(x.turno_n)];
+  return {
+    turnos: BP.turnos.filter(x => x.estado === 'LISTO' && dc(x) !== 'error' && (BP.incluirOjo || !x.ojo || dc(x) === 'ok')).map(x => x.turno_n),
+    forzar: BP.turnos.filter(x => x.estado === 'REVISION' && dc(x) === 'ok').map(x => x.turno_n)
+  };
+}
+async function bpDecidir(turno, dec, ev) {
+  if (ev) ev.stopPropagation();
+  turno = String(turno);
+  const antes = BP.dec[turno] || null, nuevo = antes === dec ? null : dec;
+  BP.decBusy++;
+  if (nuevo) BP.dec[turno] = nuevo; else delete BP.dec[turno];
+  bpRender(); bpDetRender();
+  try {
+    const h = await getSBHeaders(); let r;
+    if (nuevo) {
+      h['Prefer'] = 'resolution=merge-duplicates,return=minimal';
+      r = await fetch(`${SUPABASE_URL}/rest/v1/bot_decisiones?on_conflict=bot,turno_n`, { method:'POST', headers:h,
+        body: JSON.stringify({ bot:'derivante', turno_n:turno, decision:nuevo, actualizada:new Date().toISOString() }) });
+    } else {
+      h['Prefer'] = 'return=minimal';
+      r = await fetch(`${SUPABASE_URL}/rest/v1/bot_decisiones?bot=eq.derivante&turno_n=eq.${encodeURIComponent(turno)}`, { method:'DELETE', headers:h });
+    }
+    if (!r.ok) throw new Error('error ' + r.status);
+    BP.aviso = '';
+  } catch (e) {
+    if (antes) BP.dec[turno] = antes; else delete BP.dec[turno];
+    BP.aviso = 'No se pudo guardar tu decisión sobre el turno ' + turno + ' (' + (e && e.message ? e.message : e) + '). Probá de nuevo.';
+  } finally { BP.decBusy = Math.max(0, BP.decBusy - 1); bpRender(); bpDetRender(); }
+}
+function bpDetalle(t) { BP.detalle = String(t); bpDetRender(); }
+function bpDetCerrar() { BP.detalle = null; bpDetRender(); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && BP.detalle) bpDetCerrar(); });
+function bpDetRender() {
+  let ov = document.getElementById('bp-det');
+  if (!ov) {
+    ov = document.createElement('div'); ov.id = 'bp-det'; ov.className = 'bp-det-ov';
+    ov.onclick = e => { if (e.target === ov) bpDetCerrar(); };
+    document.body.appendChild(ov);
+  }
+  const x = BP.detalle && BP.turnos.find(y => String(y.turno_n) === BP.detalle);
+  if (!x) { ov.classList.remove('open'); ov.innerHTML = ''; ov.dataset.k = ''; return; }
+  const d = BP.dec[String(x.turno_n)] || '', e = bpEf(x), bloq = x.estado === 'OK' || x.estado === 'YA_OK';
+  const k = JSON.stringify([x, d]);
+  if (ov.dataset.k !== k) {
+    ov.dataset.k = k;
+    const lbl = e === 'ERR_MAN' ? 'ERROR ✗' : (d === 'ok' && e === 'LISTO' ? 'LISTO ✓' : (e === 'BROWSER_CERRADO' ? 'ERROR' : e));
+    const f = (t, v) => v ? `<dt>${t}</dt><dd>${bpEsc(v)}</dd>` : '';
+    ov.innerHTML = `<div class="bp-det" onclick="event.stopPropagation()">
+      <div class="bp-det-h"><b>Turno ${bpEsc(x.turno_n)}</b><span class="bp-st ${e === 'ERR_MAN' ? 'ERROR' : bpEsc(e)}">${bpEsc(lbl)}</span></div>
+      <dl>${f('Matrícula(s) leída(s)', x.matricula) || '<dt>Matrícula(s)</dt><dd class="bp-dim">no se leyó ninguna</dd>'}
+        ${f('Nombre leído del sello', x.nombre_leido)}${f('Confianza de la lectura', x.confianza)}
+        ${f('Derivante en el HIS', x.derivante_his)}${f('Detalle', x.detalle)}${f('⚠ OJO', x.ojo)}${f('Notas de la IA sobre el sello', x.notas)}</dl>
+      <div class="bp-det-b">
+        ${bloq ? '' : `<button class="bp-btn go" ${bpPuedeOk(x) || d === 'ok' ? '' : 'disabled'} onclick="bpDecidir('${bpEsc(x.turno_n)}','ok')">${d === 'ok' ? '✓ Aprobado (quitar)' : '✓ Aprobar: listo para aplicar'}</button>
+        <button class="bp-btn stop" onclick="bpDecidir('${bpEsc(x.turno_n)}','error')">${d === 'error' ? '✗ En errores (quitar)' : '✗ Mandar a errores'}</button>`}
+        <button class="bp-btn" onclick="bpDetCerrar()">Cerrar</button></div></div>`;
+  }
+  ov.classList.add('open');
+}
 function bpAplicar() {             // primer clic: pide confirmación DENTRO del tablero
-  if (!BP.turnos.some(x => x.estado === 'LISTO' && (BP.incluirOjo || !x.ojo))) return;
+  const a = bpListosAp(); if (!(a.turnos.length + a.forzar.length)) return;
   BP.confirmando = true; bpRender();
 }
 function bpConfirmarAplicar() {
-  const listos = BP.turnos.filter(x => x.estado === 'LISTO' && (BP.incluirOjo || !x.ojo)).map(x => x.turno_n);
+  const a = bpListosAp();
   BP.confirmando = false;
-  if (listos.length) bpComando('aplicar', { turnos: listos });
+  if (a.turnos.length + a.forzar.length) bpComando('aplicar', { turnos: a.turnos, forzar: a.forzar });
 }
 function bpVolver() { BP.confirmando = false; bpRender(); }
 
@@ -5295,11 +5394,12 @@ function bpRender() {
     return;
   }
   pill.className = 'bp-pill ' + c.estado; pill.textContent = c.estado.replace(/_/g, ' ');
-  const T = BP.turnos, cnt = {}; T.forEach(x => cnt[x.estado] = (cnt[x.estado] || 0) + 1);
-  const ok = (cnt.OK || 0) + (cnt.YA_OK || 0), listo = cnt.LISTO || 0, rev = cnt.REVISION || 0, err = (cnt.ERROR || 0) + (cnt.BROWSER_CERRADO || 0);
+  const T = BP.turnos, cnt = {}; T.forEach(x => { const e = bpEf(x); cnt[e] = (cnt[e] || 0) + 1; });
+  const ok = (cnt.OK || 0) + (cnt.YA_OK || 0), listo = cnt.LISTO || 0, rev = cnt.REVISION || 0, err = (cnt.ERROR || 0) + (cnt.BROWSER_CERRADO || 0) + (cnt.ERR_MAN || 0);
   const pend = cnt.PENDIENTE || 0, tot = c.total || T.length || 1;
-  const nOjo = T.filter(x => x.estado === 'LISTO' && x.ojo).length;
-  const listosAp = T.filter(x => x.estado === 'LISTO' && (BP.incluirOjo || !x.ojo)).length;
+  const nOjo = T.filter(x => x.estado === 'LISTO' && x.ojo && !BP.dec[String(x.turno_n)]).length;
+  const pendOk = T.filter(x => (x.estado === 'REVISION' || x.estado === 'LISTO') && BP.dec[String(x.turno_n)] === 'ok').length;
+  const AP = bpListosAp(), listosAp = AP.turnos.length + AP.forzar.length;
   const pctRes = Math.round(100 * (ok + listo) / tot);
   const pctProc = bpPct(c);
   const etapaTxt = c.etapa || ({ iniciando:'Iniciando', esperando_login:'Esperando tu login', leyendo:'Leyendo', listo_para_aplicar:'Lectura terminada', aplicando:'Aplicando en el HIS', terminada:'Terminado', error:'Error', cancelada:'Cancelada' })[c.estado] || c.estado;
@@ -5307,22 +5407,29 @@ function bpRender() {
   let banner = '';
   if (c.estado === 'esperando_login' && !c.clave_publica) banner = `<div class="bp-banner"><div class="grow"><b>Falta tu login.</b> Se abrió la ventana del HIS: ingresá usuario y contraseña ahí. Cuando entres, el tablero sigue solo (o apretá el botón).</div><button class="bp-btn go" onclick="bpComando('login_ok')">Ya me logueé</button><button class="bp-btn stop" onclick="bpCancelar()">Cancelar</button></div>`;
   else if (c.estado === 'listo_para_aplicar' && BP.confirmando) banner = `<div class="bp-banner"><div class="grow"><b>¿Confirmás?</b> Se van a cargar <b>${listosAp}</b> derivantes en el HIS. Esto sí modifica las órdenes.</div><button class="bp-btn go" onclick="bpConfirmarAplicar()">Sí, cargar ${listosAp}</button><button class="bp-btn" onclick="bpVolver()">Volver</button></div>`;
-  else if (c.estado === 'listo_para_aplicar') banner = `<div class="bp-banner ok"><div class="grow"><b>Lectura terminada: no se modificó nada en el HIS.</b> Revisá la tabla. ${listosAp} derivantes están listos para cargar${nOjo ? `. Hay ${nOjo} marcados con <b>OJO</b> (identificados por nombre o con matrícula corregida): quedan afuera salvo que los incluyas.` : '.'}
+  else if (c.estado === 'listo_para_aplicar') banner = `<div class="bp-banner ok"><div class="grow"><b>Lectura terminada: no se modificó nada en el HIS.</b> Revisá la tabla: con ✓ aprobás una fila (se carga al aplicar) y con ✗ la mandás a errores. ${listosAp} derivantes están listos para cargar${nOjo ? `. Hay ${nOjo} marcados con <b>OJO</b> (identificados por nombre o con matrícula corregida): quedan afuera salvo que los incluyas.` : '.'}
     ${nOjo ? `<label class="bp-opt" style="margin-top:8px"><input type="checkbox" ${BP.incluirOjo ? 'checked' : ''} onchange="bpOjo(this.checked)"> Incluir los ${nOjo} marcados OJO (los verifiqué a mano)</label>` : ''}</div>
     <button class="bp-btn go" ${listosAp ? '' : 'disabled'} onclick="bpAplicar()">Aplicar ${listosAp}</button><button class="bp-btn stop" onclick="bpCancelar()">Descartar</button></div>`;
   else if (c.estado === 'error') banner = `<div class="bp-banner bad"><div class="grow"><b>El bot se detuvo con un error.</b> ${bpEsc(c.mensaje)}</div></div>`;
   else if (c.estado === 'cancelada') banner = `<div class="bp-banner bad"><div class="grow"><b>Corrida cancelada.</b> ${bpEsc(c.mensaje)}</div></div>`;
-  else if (c.estado === 'terminada') banner = `<div class="bp-banner ok"><div class="grow"><b>Corrida terminada.</b> ${ok} turnos con derivante cargado · ${rev} a revisar a mano.</div></div>`;
+  else if (c.estado === 'terminada') banner = `<div class="bp-banner ok"><div class="grow"><b>Corrida terminada.</b> ${ok} turnos con derivante cargado · ${rev} a revisar a mano.${pendOk ? ` Tenés <b>${pendOk}</b> aprobados con ✓ que todavía no se cargaron: apretá <b>Reparar con el bot</b> y se aplican en esa corrida (solo lee lo que ya está leído, tarda poco).` : ''}</div></div>`;
   else if (muerto) banner = `<div class="bp-banner bad"><div class="grow"><b>El bot no da señales hace más de 2 minutos.</b> Puede haberse cerrado la ventana del HIS o la PC se durmió.</div></div>`;
   else if (['leyendo','aplicando','iniciando'].includes(c.estado)) banner = `<div class="bp-banner"><div class="grow"><b>Trabajando…</b> podés cerrar este panel: el bot sigue y lo reabrís desde la tarjeta.${c.estado === 'leyendo' ? ' Si no querés esperar, <b>Procesar lo leído</b> corta la lectura y sigue con lo que ya está listo (lo demás queda para la próxima corrida; después igual confirmás antes de aplicar).' : ''}</div>${c.estado === 'leyendo' ? `<button class="bp-btn go" onclick="bpAdelantar()">Procesar lo leído</button>` : ''}<button class="bp-btn stop" onclick="bpCancelar()">Detener</button></div>`;
   const chip = (k, l) => `<button class="bp-chip ${BP.filtro === k ? 'on' : ''}" onclick="bpFiltro('${k}')">${l}</button>`;
   const f = BP.filtro;
-  const vis = T.filter(x => f === 'todos' || (f === 'ok' && (x.estado === 'OK' || x.estado === 'YA_OK')) || (f === 'listo' && x.estado === 'LISTO')
-    || (f === 'rev' && x.estado === 'REVISION') || (f === 'ojo' && x.ojo) || (f === 'err' && (x.estado === 'ERROR' || x.estado === 'BROWSER_CERRADO')));
-  const filas = vis.map(x => `<tr><td><b>${bpEsc(x.turno_n)}</b></td><td><span class="bp-st ${bpEsc(x.estado)}">${bpEsc(x.estado)}</span></td>
+  const sello = x => (x.matricula ? 2 : 0) + (x.nombre_leido ? 1 : 0);   // los que tienen el sello leído, arriba
+  const vis = T.filter(x => { const e = bpEf(x); return f === 'todos' || (f === 'ok' && (e === 'OK' || e === 'YA_OK')) || (f === 'listo' && e === 'LISTO')
+    || (f === 'rev' && e === 'REVISION') || (f === 'ojo' && x.ojo) || (f === 'err' && (e === 'ERROR' || e === 'BROWSER_CERRADO' || e === 'ERR_MAN')); });
+  if (f === 'rev') vis.sort((a, b) => sello(b) - sello(a) || (a.orden || 0) - (b.orden || 0));
+  const filas = vis.map(x => {
+    const e = bpEf(x), d = BP.dec[String(x.turno_n)] || '', bloq = x.estado === 'OK' || x.estado === 'YA_OK', tn = bpEsc(x.turno_n);
+    const lbl = e === 'ERR_MAN' ? 'ERROR ✗' : (d === 'ok' && e === 'LISTO' ? 'LISTO ✓' : (e === 'BROWSER_CERRADO' ? 'ERROR' : e));
+    const acc = bloq ? '' : `<button class="bp-dec ok ${d === 'ok' ? 'on' : ''}" title="Está bien: pasar a listos para aplicar" ${bpPuedeOk(x) || d === 'ok' ? '' : 'disabled'} onclick="bpDecidir('${tn}','ok',event)">✓</button><button class="bp-dec no ${d === 'error' ? 'on' : ''}" title="No está bien: mandar a errores" onclick="bpDecidir('${tn}','error',event)">✗</button>`;
+    return `<tr onclick="bpDetalle('${tn}')" title="Clic para ver la descripción completa"><td><b>${tn}</b></td><td><span class="bp-st ${e === 'ERR_MAN' ? 'ERROR' : bpEsc(e)}">${bpEsc(lbl)}</span></td>
     <td>${bpEsc(x.matricula) || '<span class="bp-dim">—</span>'}</td><td>${bpEsc(x.nombre_leido) || '<span class="bp-dim">—</span>'}${x.confianza ? ` <span class="bp-dim">(${bpEsc(x.confianza)})</span>` : ''}</td>
     <td>${bpEsc(x.derivante_his) || '<span class="bp-dim">—</span>'}</td>
-    <td>${bpEsc(x.detalle)}${x.ojo ? `<span class="bp-ojo">⚠ OJO:${bpEsc(x.ojo)}</span>` : ''}</td></tr>`).join('');
+    <td><div class="bp-clamp">${bpEsc(x.detalle)}</div>${x.ojo ? `<span class="bp-ojo">⚠ OJO: ${bpEsc(x.ojo)}</span>` : ''}</td><td class="bp-acc">${acc}</td></tr>`;
+  }).join('');
   const msgTop = (c.estado === 'esperando_login' && c.clave_publica) ? '' : bpEsc(c.mensaje || '');
   body.innerHTML = `${aviso}
     <div class="bp-msg">${msgTop}</div>
@@ -5339,7 +5446,8 @@ function bpRender() {
       <div class="bp-kpi r"><div class="n">${err}</div><div class="l">Errores</div></div>
     </div>
     <div class="bp-chips">${chip('todos', 'Todos (' + T.length + ')')}${chip('ok', 'Cargados (' + ok + ')')}${chip('listo', 'Listos (' + listo + ')')}${chip('rev', 'A revisar (' + rev + ')')}${chip('ojo', 'OJO')}${chip('err', 'Errores (' + err + ')')}</div>
-    <div class="bp-tablewrap"><table class="bp-table"><thead><tr><th>Turno</th><th>Estado</th><th>Matrícula</th><th>Leído del sello</th><th>Derivante en el HIS</th><th>Detalle</th></tr></thead><tbody>${filas || '<tr><td colspan="6" class="bp-dim">Sin turnos en este filtro.</td></tr>'}</tbody></table></div>`;
+    <div class="bp-tablewrap"><table class="bp-table"><colgroup><col style="width:74px"><col style="width:112px"><col style="width:100px"><col style="width:19%"><col style="width:16%"><col><col style="width:80px"></colgroup><thead><tr><th>Turno</th><th>Estado</th><th>Matrícula</th><th>Leído del sello</th><th>Derivante en el HIS</th><th>Detalle</th><th class="bp-acc">Revisión</th></tr></thead><tbody>${filas || '<tr><td colspan="7" class="bp-dim">Sin turnos en este filtro.</td></tr>'}</tbody></table></div>`;
+  bpDetRender();
 }
 
 async function repararConBot() {
