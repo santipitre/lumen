@@ -622,6 +622,8 @@
     .bp-det dl { display:grid; grid-template-columns:150px 1fr; gap:8px 14px; margin:0 0 16px; font-size:13px; line-height:1.5; }
     .bp-det dt { color:var(--muted); font-size:10.5px; letter-spacing:1.2px; text-transform:uppercase; padding-top:2px; }
     .bp-det dd { margin:0; overflow-wrap:anywhere; white-space:pre-wrap; }
+    .bp-det-in { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0 0 14px; padding:12px; border:1px dashed var(--border-a); border-radius:10px; font-size:12.5px; }
+    .bp-det-in input { width:130px; padding:8px 10px; border-radius:8px; border:1px solid var(--border-a); background:#0e1a30; color:var(--text); font-size:14px; font-family:inherit; }
     .bp-det-b { display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
     @media (max-width:560px) { .bp-det dl { grid-template-columns:1fr; } }
     .bp-table th { position:sticky; top:0; background:#0e1a30; text-align:left; font-size:10.5px; letter-spacing:1.2px; text-transform:uppercase; color:var(--muted); padding:9px 10px; }
@@ -5156,7 +5158,7 @@ async function repararTodo() {
    El bot (lumen-panel-derivante.py) escribe en bot_corridas / bot_corrida_turnos;
    esta pantalla consulta cada 2 s y manda órdenes por bot_comandos.
 ══════════════════════════════════ */
-const BP = { id:null, prevId:null, timer:null, filtro:'todos', corrida:null, turnos:[], incluirOjo:false, esperaDesde:0, confirmando:false, aviso:'', loginEnviado:null, dec:{}, decBusy:0, detalle:null };
+const BP = { id:null, prevId:null, timer:null, filtro:'todos', corrida:null, turnos:[], incluirOjo:false, esperaDesde:0, confirmando:false, aviso:'', loginEnviado:null, dec:{}, corr:{}, decBusy:0, detalle:null };
 const bpEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const BP_FIN = ['terminada','error','cancelada'];
 /* Un solo cálculo del porcentaje para el tablero y la tarjeta: el que manda el bot y, si es un bot viejo
@@ -5227,6 +5229,10 @@ async function bpTick() {
       const dd = await sbQuery('bot_decisiones', 'bot=eq.derivante&select=turno_n,decision&limit=2000');
       if (Array.isArray(dd) && !BP.decBusy) { BP.dec = {}; dd.forEach(x => { BP.dec[String(x.turno_n)] = x.decision; }); }
     } catch (e) { console.warn('[bp] decisiones', e); }
+    try {
+      const cc = await sbQuery('bot_correcciones', 'bot=eq.derivante&select=turno_n,matricula_correcta&limit=5000');
+      if (Array.isArray(cc) && !BP.decBusy) { BP.corr = {}; cc.forEach(x => { BP.corr[String(x.turno_n)] = x.matricula_correcta; }); }
+    } catch (e) { console.warn('[bp] correcciones', e); }
     bpRender(); bpCardPaint(BP.corrida);
     if (BP.corrida && BP_FIN.includes(BP.corrida.estado)) { clearInterval(BP.timer); BP.timer = null; }
   } catch (e) { console.warn('[bp] tick', e); }
@@ -5250,7 +5256,7 @@ function bpEf(x) {
   return e;
 }
 function bpPuedeOk(x) {   // ✓ solo tiene sentido si hay una matrícula que buscar y no es una que el HIS no tiene
-  if (x.estado === 'LISTO') return true;
+  if (x.estado === 'LISTO' || BP.corr[String(x.turno_n)]) return true;
   return x.estado === 'REVISION' && !!x.matricula && !/NO est[áa]\(n\) cargada|NOMBRE VAC/i.test(x.detalle || '');
 }
 function bpListosAp() {
@@ -5302,6 +5308,43 @@ document.addEventListener('click', ev => {
     else fallbackCopiar(n, ok);
   } catch (e) { console.warn('[copiar turno]', e); }
 });
+/* Corrección manual: escribís la matrícula correcta. Se guarda (bot_correcciones), el turno queda aprobado (✓)
+   y el bot la recuerda: si vuelve a ver esa misma matrícula mal leída o ese mismo médico, la corrige solo (y la marca OJO). */
+async function bpCorregir(turno) {
+  turno = String(turno);
+  const inp = document.getElementById('bp-corr-in'), v = ((inp && inp.value) || '').replace(/\D/g, '');
+  const x = BP.turnos.find(y => String(y.turno_n) === turno);
+  if (!x) return;
+  if (v.length < 3 || v.length > 8) { BP.aviso = 'La matrícula tiene que ser un número de 3 a 8 dígitos.'; bpRender(); return; }
+  BP.decBusy++;
+  const antes = BP.corr[turno] || null; BP.corr[turno] = v; BP.dec[turno] = 'ok';
+  bpRender(); bpDetRender();
+  try {
+    const h = await getSBHeaders(); h['Prefer'] = 'resolution=merge-duplicates,return=minimal';
+    const now = new Date().toISOString();
+    const r1 = await fetch(`${SUPABASE_URL}/rest/v1/bot_correcciones?on_conflict=bot,turno_n`, { method:'POST', headers:h,
+      body: JSON.stringify({ bot:'derivante', turno_n:turno, matricula_leida:x.matricula || null, nombre_leido:x.nombre_leido || null, matricula_correcta:v, actualizada:now }) });
+    if (!r1.ok) throw new Error('error ' + r1.status);
+    const r2 = await fetch(`${SUPABASE_URL}/rest/v1/bot_decisiones?on_conflict=bot,turno_n`, { method:'POST', headers:h,
+      body: JSON.stringify({ bot:'derivante', turno_n:turno, decision:'ok', actualizada:now }) });
+    if (!r2.ok) throw new Error('error ' + r2.status);
+    BP.aviso = '';
+  } catch (e) {
+    if (antes) BP.corr[turno] = antes; else delete BP.corr[turno];
+    delete BP.dec[turno];
+    BP.aviso = 'No se pudo guardar la corrección del turno ' + turno + ' (' + (e && e.message ? e.message : e) + ').';
+  } finally { BP.decBusy = Math.max(0, BP.decBusy - 1); bpRender(); bpDetRender(); }
+}
+async function bpQuitarCorreccion(turno) {
+  turno = String(turno);
+  BP.decBusy++; const antes = BP.corr[turno]; delete BP.corr[turno]; bpRender(); bpDetRender();
+  try {
+    const h = await getSBHeaders(); h['Prefer'] = 'return=minimal';
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/bot_correcciones?bot=eq.derivante&turno_n=eq.${encodeURIComponent(turno)}`, { method:'DELETE', headers:h });
+    if (!r.ok) throw new Error('error ' + r.status);
+  } catch (e) { if (antes) BP.corr[turno] = antes; BP.aviso = 'No se pudo quitar la corrección (' + (e && e.message ? e.message : e) + ').'; }
+  finally { BP.decBusy = Math.max(0, BP.decBusy - 1); bpRender(); bpDetRender(); }
+}
 function bpDetalle(t) { BP.detalle = String(t); bpDetRender(); }
 function bpDetCerrar() { BP.detalle = null; bpDetRender(); }
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && BP.detalle) bpDetCerrar(); });
@@ -5315,7 +5358,7 @@ function bpDetRender() {
   const x = BP.detalle && BP.turnos.find(y => String(y.turno_n) === BP.detalle);
   if (!x) { ov.classList.remove('open'); ov.innerHTML = ''; ov.dataset.k = ''; return; }
   const d = BP.dec[String(x.turno_n)] || '', e = bpEf(x), bloq = x.estado === 'OK' || x.estado === 'YA_OK';
-  const k = JSON.stringify([x, d]);
+  const k = JSON.stringify([x, d, BP.corr[String(x.turno_n)] || '']);
   if (ov.dataset.k !== k) {
     ov.dataset.k = k;
     const lbl = e === 'ERR_MAN' ? 'ERROR ✗' : (d === 'ok' && e === 'LISTO' ? 'LISTO ✓' : (e === 'BROWSER_CERRADO' ? 'ERROR' : e));
@@ -5325,6 +5368,11 @@ function bpDetRender() {
       <dl>${f('Matrícula(s) leída(s)', x.matricula) || '<dt>Matrícula(s)</dt><dd class="bp-dim">no se leyó ninguna</dd>'}
         ${f('Nombre leído del sello', x.nombre_leido)}${f('Confianza de la lectura', x.confianza)}
         ${f('Derivante en el HIS', x.derivante_his)}${f('Detalle', x.detalle)}${f('⚠ OJO', x.ojo)}${f('Notas de la IA sobre el sello', x.notas)}</dl>
+      ${bloq ? '' : `<div class="bp-det-in"><label for="bp-corr-in">¿La matrícula está mal leída? Escribí la correcta:</label>
+        <input id="bp-corr-in" inputmode="numeric" maxlength="8" placeholder="ej. 10218" value="${bpEsc(BP.corr[String(x.turno_n)] || '')}" onkeydown="if(event.key==='Enter')bpCorregir('${bpEsc(x.turno_n)}')">
+        <button class="bp-btn go" onclick="bpCorregir('${bpEsc(x.turno_n)}')">💾 Guardar y aprobar</button>
+        ${BP.corr[String(x.turno_n)] ? `<button class="bp-btn" onclick="bpQuitarCorreccion('${bpEsc(x.turno_n)}')">Quitar corrección</button>` : ''}
+        <div class="bp-dim" style="flex-basis:100%;font-size:11.5px">El bot busca esa matrícula en el HIS (no crea derivantes) y la recuerda: si vuelve a ver esa misma matrícula mal leída o ese mismo médico, la corrige solo y la deja en OJO. Se aplica en «Aplicar» (o en la próxima corrida). Correcciones guardadas: ${Object.keys(BP.corr).length}.</div></div>`}
       <div class="bp-det-b">
         ${bloq ? '' : `<button class="bp-btn go" ${bpPuedeOk(x) || d === 'ok' ? '' : 'disabled'} onclick="bpDecidir('${bpEsc(x.turno_n)}','ok')">${d === 'ok' ? '✓ Aprobado (quitar)' : '✓ Aprobar: listo para aplicar'}</button>
         <button class="bp-btn stop" onclick="bpDecidir('${bpEsc(x.turno_n)}','error')">${d === 'error' ? '✗ En errores (quitar)' : '✗ Mandar a errores'}</button>`}
@@ -5446,7 +5494,7 @@ function bpRender() {
     const lbl = e === 'ERR_MAN' ? 'ERROR ✗' : (d === 'ok' && e === 'LISTO' ? 'LISTO ✓' : (e === 'BROWSER_CERRADO' ? 'ERROR' : e));
     const acc = bloq ? '' : `<button class="bp-dec ok ${d === 'ok' ? 'on' : ''}" title="Está bien: pasar a listos para aplicar" ${bpPuedeOk(x) || d === 'ok' ? '' : 'disabled'} onclick="bpDecidir('${tn}','ok',event)">✓</button><button class="bp-dec no ${d === 'error' ? 'on' : ''}" title="No está bien: mandar a errores" onclick="bpDecidir('${tn}','error',event)">✗</button>`;
     return `<tr><td class="bp-tn" title="Clic: copia el N° de turno y lo busca en el HIS"><b>${tn}</b></td><td><span class="bp-st ${e === 'ERR_MAN' ? 'ERROR' : bpEsc(e)}">${bpEsc(lbl)}</span></td>
-    <td>${bpEsc(x.matricula) || '<span class="bp-dim">—</span>'}</td><td>${bpEsc(x.nombre_leido) || '<span class="bp-dim">—</span>'}${x.confianza ? ` <span class="bp-dim">(${bpEsc(x.confianza)})</span>` : ''}</td>
+    <td>${bpEsc(x.matricula) || '<span class="bp-dim">—</span>'}${BP.corr[String(x.turno_n)] ? `<div class="bp-ojo" style="color:var(--cyan)">✎ ${bpEsc(BP.corr[String(x.turno_n)])}</div>` : ''}</td><td>${bpEsc(x.nombre_leido) || '<span class="bp-dim">—</span>'}${x.confianza ? ` <span class="bp-dim">(${bpEsc(x.confianza)})</span>` : ''}</td>
     <td>${bpEsc(x.derivante_his) || '<span class="bp-dim">—</span>'}</td>
     <td class="bp-det-c" onclick="bpDetalle('${tn}')" title="Clic para ver la descripción completa"><div class="bp-clamp">${bpEsc(x.detalle)}</div>${x.ojo ? `<span class="bp-ojo">⚠ OJO: ${bpEsc(x.ojo)}</span>` : ''}</td><td class="bp-acc">${acc}</td></tr>`;
   }).join('');
