@@ -604,8 +604,9 @@
     .bp-table { width:100%; table-layout:fixed; border-collapse:collapse; font-size:12.5px; }
     .bp-table td, .bp-table th { overflow-wrap:anywhere; word-break:break-word; }
     .bp-table .bp-st { white-space:normal; display:inline-block; letter-spacing:.6px; }
-    .bp-table tbody tr { cursor:pointer; }
-    .bp-table tbody tr:hover td { background:rgba(59,130,246,.09); }
+    .bp-det-c { cursor:pointer; }
+    .bp-table tbody tr:hover .bp-det-c { background:rgba(59,130,246,.12); }
+    .bp-tn { cursor:copy; } .bp-tn b { border-bottom:1px dotted var(--muted); }
     .bp-clamp { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
     .bp-acc { white-space:nowrap; text-align:right; }
     .bp-dec { width:30px; height:30px; border-radius:8px; border:1px solid var(--border); background:transparent; cursor:pointer; font-size:15px; font-weight:700; line-height:1; margin-left:4px; font-family:inherit; }
@@ -5282,6 +5283,24 @@ async function bpDecidir(turno, dec, ev) {
     BP.aviso = 'No se pudo guardar tu decisión sobre el turno ' + turno + ' (' + (e && e.message ? e.message : e) + '). Probá de nuevo.';
   } finally { BP.decBusy = Math.max(0, BP.decBusy - 1); bpRender(); bpDetRender(); }
 }
+/* Clic en un N° de turno (columna "Turno" de cualquier tabla de Lumen): se copia al portapapeles.
+   Si está instalado el userscript «PAMI OME», ese mismo clic lo pega en el HIS y aprieta Buscar. */
+document.addEventListener('click', ev => {
+  try {
+    const t = ev.target; if (!t || !t.closest || t.closest('button,a,input,select,textarea')) return;
+    const td = t.closest('td'); if (!td) return;
+    const tb = td.closest('table'); if (!tb) return;
+    let head = null;
+    for (const r of tb.rows) { if (r.querySelector('th')) { head = r; break; } }
+    const th = head && head.cells[td.cellIndex]; if (!th) return;
+    if (!/^(n[°º]?\s*)?turno(\s*n[°º]?)?$/i.test((th.textContent || '').replace(/\s+/g, ' ').trim())) return;
+    const n = (td.textContent || '').replace(/\D/g, '');
+    if (n.length < 6 || n.length > 10) return;
+    const ok = () => { if (typeof showToast === 'function') showToast('📋 Turno ' + n + ' copiado'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(n).then(ok).catch(() => fallbackCopiar(n, ok));
+    else fallbackCopiar(n, ok);
+  } catch (e) { console.warn('[copiar turno]', e); }
+});
 function bpDetalle(t) { BP.detalle = String(t); bpDetRender(); }
 function bpDetCerrar() { BP.detalle = null; bpDetRender(); }
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && BP.detalle) bpDetCerrar(); });
@@ -5425,10 +5444,10 @@ function bpRender() {
     const e = bpEf(x), d = BP.dec[String(x.turno_n)] || '', bloq = x.estado === 'OK' || x.estado === 'YA_OK', tn = bpEsc(x.turno_n);
     const lbl = e === 'ERR_MAN' ? 'ERROR ✗' : (d === 'ok' && e === 'LISTO' ? 'LISTO ✓' : (e === 'BROWSER_CERRADO' ? 'ERROR' : e));
     const acc = bloq ? '' : `<button class="bp-dec ok ${d === 'ok' ? 'on' : ''}" title="Está bien: pasar a listos para aplicar" ${bpPuedeOk(x) || d === 'ok' ? '' : 'disabled'} onclick="bpDecidir('${tn}','ok',event)">✓</button><button class="bp-dec no ${d === 'error' ? 'on' : ''}" title="No está bien: mandar a errores" onclick="bpDecidir('${tn}','error',event)">✗</button>`;
-    return `<tr onclick="bpDetalle('${tn}')" title="Clic para ver la descripción completa"><td><b>${tn}</b></td><td><span class="bp-st ${e === 'ERR_MAN' ? 'ERROR' : bpEsc(e)}">${bpEsc(lbl)}</span></td>
+    return `<tr><td class="bp-tn" title="Clic: copia el N° de turno y lo busca en el HIS"><b>${tn}</b></td><td><span class="bp-st ${e === 'ERR_MAN' ? 'ERROR' : bpEsc(e)}">${bpEsc(lbl)}</span></td>
     <td>${bpEsc(x.matricula) || '<span class="bp-dim">—</span>'}</td><td>${bpEsc(x.nombre_leido) || '<span class="bp-dim">—</span>'}${x.confianza ? ` <span class="bp-dim">(${bpEsc(x.confianza)})</span>` : ''}</td>
     <td>${bpEsc(x.derivante_his) || '<span class="bp-dim">—</span>'}</td>
-    <td><div class="bp-clamp">${bpEsc(x.detalle)}</div>${x.ojo ? `<span class="bp-ojo">⚠ OJO: ${bpEsc(x.ojo)}</span>` : ''}</td><td class="bp-acc">${acc}</td></tr>`;
+    <td class="bp-det-c" onclick="bpDetalle('${tn}')" title="Clic para ver la descripción completa"><div class="bp-clamp">${bpEsc(x.detalle)}</div>${x.ojo ? `<span class="bp-ojo">⚠ OJO: ${bpEsc(x.ojo)}</span>` : ''}</td><td class="bp-acc">${acc}</td></tr>`;
   }).join('');
   const msgTop = (c.estado === 'esperando_login' && c.clave_publica) ? '' : bpEsc(c.mensaje || '');
   body.innerHTML = `${aviso}
