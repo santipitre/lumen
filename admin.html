@@ -572,6 +572,8 @@
     .bp-x { background:transparent; border:none; color:var(--muted); font-size:22px; cursor:pointer; }
     .bp-body { padding:20px 22px 26px; }
     .bp-msg { font-size:13px; color:var(--muted); margin-bottom:12px; }
+    .bp-xl { font-size:12px; color:var(--muted); margin:-6px 0 12px; }
+    .bp-xl.old { color:#fbbf24; }
     .bp-bar { height:8px; background:rgba(59,130,246,.15); border-radius:99px; overflow:hidden; margin-bottom:18px; }
     .bp-bar > i { display:block; height:100%; width:0; background:linear-gradient(90deg,var(--cyan),var(--green)); transition:width .6s; }
     .bp-prog { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:6px; }
@@ -5446,6 +5448,18 @@ function bpAdelantar() { bpComando('adelantar'); }
 function bpFiltro(f) { BP.filtro = f; bpRender(); }
 function bpOjo(v) { BP.incluirOjo = !!v; bpRender(); }
 
+/* Qué Excel usó la corrida (lo escribe el bot en bot_corridas.resumen.excel). Si el archivo es anterior a la corrida,
+   la lista de turnos puede ser vieja: se avisa en ámbar. */
+function bpExcelTxt(c) {
+  const x = c && c.resumen && c.resumen.excel;
+  if (!x || !x.nombre) return '';
+  const dm = s => s ? s.slice(8, 10) + '/' + s.slice(5, 7) + '/' + s.slice(0, 4) : '';
+  const h = x.exportado ? x.exportado.slice(8, 10) + '/' + x.exportado.slice(5, 7) + ' ' + x.exportado.slice(11, 16) : '—';
+  const rango = (x.desde && x.hasta) ? 'turnos del ' + dm(x.desde) + ' al ' + dm(x.hasta) : 'fechas de turno no legibles';
+  const t0 = x.exportado ? new Date(String(x.exportado).replace(' ', 'T')).getTime() : NaN;
+  const viejo = !isNaN(t0) && c.creada && (new Date(c.creada).getTime() - t0 > 15 * 60000);
+  return `<div class="bp-xl ${viejo ? 'old' : ''}" title="${bpEsc(x.nombre)}">📄 Excel de esta corrida: exportado ${bpEsc(h)} · ${bpEsc(x.filas)} turnos · ${bpEsc(rango)}${viejo ? ' · <b>⚠ es anterior a esta corrida: la lista puede estar vieja</b>' : ''}</div>`;
+}
 function bpRender() {
   const body = document.getElementById('bp-main'), pill = document.getElementById('bp-pill');
   if (!body) return;
@@ -5501,6 +5515,7 @@ function bpRender() {
   const msgTop = (c.estado === 'esperando_login' && c.clave_publica) ? '' : bpEsc(c.mensaje || '');
   body.innerHTML = `${aviso}
     <div class="bp-msg">${msgTop}</div>
+    ${bpExcelTxt(c)}
     <div class="bp-prog"><span class="bp-prog-e">${bpEsc(etapaTxt)}</span><span class="bp-prog-n">${pctProc}%</span></div>
     <div class="bp-bar"><i style="width:${pctProc}%"></i></div>
     ${banner}
