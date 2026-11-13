@@ -5467,7 +5467,7 @@ function bpRender() {
   bpLoginRender(c);
   const aviso = BP.aviso ? `<div class="bp-aviso">${bpEsc(BP.aviso)}</div>` : '';
   if (!c) {
-    pill.className = 'bp-pill iniciando'; pill.textContent = 'esperando';
+    pill.className = 'bp-pill iniciando'; pill.textContent = 'esperando'; BP._html = null;
     const tarde = BP.esperaDesde && Date.now() - BP.esperaDesde > 25000;
     body.innerHTML = `<div class="bp-banner ${tarde ? 'bad' : ''}"><div class="grow">${tarde
       ? '<b>El bot no arrancó todavía.</b> Si el navegador preguntó «¿Abrir LumenBot?», aceptalo (tildá «Permitir siempre»). Si nunca lo registraste, hay que correr una vez el instalador del lanzador.'
@@ -5513,7 +5513,7 @@ function bpRender() {
     <td class="bp-det-c" onclick="bpDetalle('${tn}')" title="Clic para ver la descripción completa"><div class="bp-clamp">${bpEsc(x.detalle)}</div>${x.ojo ? `<span class="bp-ojo">⚠ OJO: ${bpEsc(x.ojo)}</span>` : ''}</td><td class="bp-acc">${acc}</td></tr>`;
   }).join('');
   const msgTop = (c.estado === 'esperando_login' && c.clave_publica) ? '' : bpEsc(c.mensaje || '');
-  body.innerHTML = `${aviso}
+  const html = `${aviso}
     <div class="bp-msg">${msgTop}</div>
     ${bpExcelTxt(c)}
     <div class="bp-prog"><span class="bp-prog-e">${bpEsc(etapaTxt)}</span><span class="bp-prog-n">${pctProc}%</span></div>
@@ -5530,6 +5530,19 @@ function bpRender() {
     </div>
     <div class="bp-chips">${chip('todos', 'Todos (' + T.length + ')')}${chip('ok', 'Cargados (' + ok + ')')}${chip('listo', 'Listos (' + listo + ')')}${chip('rev', 'A revisar (' + rev + ')')}${chip('ojo', 'OJO')}${chip('err', 'Errores (' + err + ')')}</div>
     <div class="bp-tablewrap"><table class="bp-table"><colgroup><col style="width:74px"><col style="width:108px"><col style="width:116px"><col style="width:19%"><col style="width:16%"><col><col style="width:80px"></colgroup><thead><tr><th>Turno</th><th>Estado</th><th>Matrícula</th><th>Leído del sello</th><th>Derivante en el HIS</th><th>Detalle</th><th class="bp-acc">Revisión</th></tr></thead><tbody>${filas || '<tr><td colspan="7" class="bp-dim">Sin turnos en este filtro.</td></tr>'}</tbody></table></div>`;
+  /* El tablero se repinta cada 2 s mientras el bot trabaja. Antes eso recreaba la tabla y la mandaba arriba de todo
+     cuando bajabas por el listado. Ahora: si no cambió nada no se toca el DOM, y si cambió se conserva el scroll
+     (salvo que hayas cambiado de filtro). */
+  if (BP._html !== html) {
+    const wrap = body.querySelector('.bp-tablewrap');
+    const st = (wrap && BP._filtroPintado === BP.filtro) ? wrap.scrollTop : 0;
+    const ov = document.getElementById('bp-overlay'), ost = ov ? ov.scrollTop : 0;
+    body.innerHTML = html;
+    const nuevo = body.querySelector('.bp-tablewrap');
+    if (nuevo && st) nuevo.scrollTop = st;
+    if (ov && ost) ov.scrollTop = ost;
+    BP._html = html; BP._filtroPintado = BP.filtro;
+  }
   bpDetRender();
 }
 
