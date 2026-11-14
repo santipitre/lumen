@@ -314,6 +314,12 @@
     .au-hist-msg.ok { color:#4ADE80; } .au-hist-msg.warn { color:#FBBF24; } .au-hist-msg.err { color:#F87171; }
     .au-hist-note { font-size:10.5px; color:var(--muted); margin-top:8px; line-height:1.5; }
     .au-hist-vacio { font-size:12.5px; color:var(--muted); padding:8px 0; }
+    .au-hist-clic { cursor:pointer; border-radius:8px; padding:3px 6px; margin:0 -6px; transition:background .12s; }
+    .au-hist-clic:hover, .au-hist-clic:focus-visible { background:rgba(248,113,113,.10); outline:none; }
+    .au-hist-clic:hover .nom { text-decoration:underline; }
+    #au-hist-overlay .ti-detail-body td.ti-col-aseg { color:#FB7185; }
+    #au-hist-overlay .ti-detail-body tr:hover td { background:rgba(248,113,113,.07); }
+    #au-hist-overlay .ti-detail-body .au-hist-d-vacio { padding:26px 20px; color:var(--muted); font-size:13px; }
     @media(max-width:720px){ .au-hist-row { grid-template-columns:110px 1fr 100px; gap:8px; } }
 
     /* ── KPI GRID ── */
@@ -392,12 +398,12 @@
     }
     .ti-drop-clear:hover { background:rgba(248,113,113,.22); }
     /* ── Modal de detalle local (líneas leídas del Excel subido) ── */
-    #ti-detail-overlay, #au-detail-overlay {
+    #ti-detail-overlay, #au-detail-overlay, #au-hist-overlay {
       display:none; position:fixed; inset:0; z-index:1200;
       background:rgba(0,0,0,.66); backdrop-filter:blur(4px);
       align-items:center; justify-content:center; padding:24px;
     }
-    #ti-detail-overlay.open, #au-detail-overlay.open { display:flex; }
+    #ti-detail-overlay.open, #au-detail-overlay.open, #au-hist-overlay.open { display:flex; }
     .ti-detail-box {
       background:#0c1420; border:1px solid var(--border); border-radius:12px;
       width:min(1100px,96vw); max-height:88vh; display:flex; flex-direction:column;
@@ -1211,7 +1217,7 @@
       <div class="au-hist-rank" id="au-hist-rank"></div>
       <div class="au-hist-meses" id="au-hist-meses"></div>
       <div class="au-hist-msg" id="au-hist-msg"></div>
-      <div class="au-hist-note">Participación = ausentes de cada cuadro ÷ total de ausentes. Mide también cuántos turnos tiene cada aseguradora: no es la tasa de ausentismo.
+      <div class="au-hist-note">Hacé clic en un cuadro para ver sus turnos (fecha, N° de turno y cuenta). Participación = ausentes de cada cuadro ÷ total de ausentes. Mide también cuántos turnos tiene cada aseguradora: no es la tasa de ausentismo.
         Un turno cuenta una sola vez (por N° Turno), esté o no devuelto; si tiene líneas en dos aseguradoras va a la que no es Particular.
         Cada mes incluye solo los Excel cargados, así que puede estar incompleto. "Quitar" el Excel no borra el historial.</div>
     </div>
@@ -1539,6 +1545,27 @@
     </div>
     <div class="ti-detail-body" id="au-detail-body"></div>
     <div class="ti-detail-foot" id="au-detail-foot"></div>
+  </div>
+</div>
+
+<!-- ══════ MODAL DETALLE DEL HISTORIAL DE AUSENTES (clic en cada cuadro del ranking) ══════ -->
+<div id="au-hist-overlay" onclick="if(event.target===this) auHist.cerrarDetalle()">
+  <div class="ti-detail-box" style="width:min(760px,96vw)">
+    <div class="ti-detail-head">
+      <div class="ti-detail-bar" id="au-hist-d-bar"></div>
+      <div>
+        <div class="ti-detail-title" id="au-hist-d-title">Detalle</div>
+        <div class="ti-detail-count" id="au-hist-d-count"></div>
+      </div>
+      <div class="ti-detail-actions">
+        <button class="ti-btn ghost" onclick="auHist.cerrarDetalle()">✕ Cerrar</button>
+      </div>
+    </div>
+    <div class="ti-detail-search">
+      <input type="text" id="au-hist-d-search" placeholder="Buscar fecha, N° de turno o cuenta…" oninput="auHist.filtrarDetalle(this.value)">
+    </div>
+    <div class="ti-detail-body" id="au-hist-d-body"></div>
+    <div class="ti-detail-foot" id="au-hist-d-foot"></div>
   </div>
 </div>
 
@@ -2722,6 +2749,8 @@ const auHist = {
     const out={ registros:[], sinTurno:0, sinFecha:0, multiAseg:0 };
     if(!cT||!cA) return out;
     const parse = cF ? this.parser(au.rawRows, cF) : null;
+    // Columna "Cuenta" exacta (no "Cuenta SA"). Si el Excel no la trae, queda null y no pisa lo ya guardado.
+    const cC = Object.keys(au.rawRows[0]||{}).find(k=>au.normH(k)==='CUENTA') || null;
     const grupos=new Map();
     au.rawRows.forEach(r=>{ const t=S(r[cT]); if(!t){ out.sinTurno++; return; } if(!grupos.has(t)) grupos.set(t,[]); grupos.get(t).push(r); });
     const p2=n=>String(n).padStart(2,'0');
@@ -2735,10 +2764,70 @@ const auHist = {
       let f=null; if(parse){ for(const r of rs){ f=parse(r[cF]); if(f) break; } }
       if(!f){ out.sinFecha++; return; }
       out.registros.push({ turno_n:t, fecha_turno:f.y+'-'+p2(f.m)+'-'+p2(f.d), mes:f.y+'-'+p2(f.m), bucket,
-        aseguradora: S(rp[cA]).replace(/\s+/g,' ').slice(0,120) || null });
+        aseguradora: S(rp[cA]).replace(/\s+/g,' ').slice(0,120) || null,
+        cuenta: cC ? (S(rp[cC]).replace(/\s+/g,' ').slice(0,120) || null) : null });
     });
     return out;
   },
+
+  /* ── Detalle de un cuadro: FECHA · N° TURNO · CUENTA (lee de Supabase, todos los meses acumulados) ── */
+  det:{ k:null, rows:[], tk:0 },
+
+  async traerTurnos(k){
+    const out=[];
+    for(let off=0; off<100000; off+=1000){
+      const p=await sbQuery(this.TABLA,'select=fecha_turno,turno_n,cuenta&bucket=eq.'+encodeURIComponent(k)+
+        '&order=fecha_turno.desc,turno_n.desc&limit=1000&offset='+off);
+      if(!Array.isArray(p)) break;
+      for(const r of p) out.push(r);
+      if(p.length<1000) break;
+    }
+    return out;
+  },
+
+  async abrirDetalle(k){
+    const $=id=>document.getElementById(id); if(!$('au-hist-overlay')) return;
+    const LAB=(typeof auDrop!=='undefined'&&auDrop.LABEL)||{}, COL=(typeof auDrop!=='undefined'&&auDrop.COLOR)||{};
+    const tk=++this.det.tk;
+    this.det.k=k; this.det.rows=[];
+    $('au-hist-d-title').textContent=(LAB[k]||k)+' · ausentes con trámite completo';
+    $('au-hist-d-bar').style.background=COL[k]||'var(--red)';
+    $('au-hist-d-count').textContent='Cargando…';
+    $('au-hist-d-body').innerHTML=''; $('au-hist-d-foot').textContent='';
+    $('au-hist-d-search').value='';
+    $('au-hist-overlay').classList.add('open');
+    try{
+      const rows=await this.traerTurnos(k);
+      if(tk!==this.det.tk) return;            // se abrió otro cuadro mientras cargaba
+      this.det.rows=rows; this.pintarDetalle();
+    }catch(e){
+      if(tk!==this.det.tk) return;
+      console.warn('[auHist] detalle', e);
+      $('au-hist-d-count').textContent='';
+      $('au-hist-d-body').innerHTML='<div class="au-hist-d-vacio" style="color:#F87171">No se pudo leer el detalle: '+tiEsc((e&&e.message)||e)+'</div>';
+    }
+  },
+
+  filtrarDetalle(q){ this.pintarDetalle(q); },
+
+  pintarDetalle(q){
+    const $=id=>document.getElementById(id); const all=this.det.rows||[];
+    const f=String(q==null?($('au-hist-d-search')||{}).value:q).trim().toLowerCase();
+    const rows=f ? all.filter(r=>(this.fmtDia(r.fecha_turno)+' '+(r.turno_n||'')+' '+(r.cuenta||'')).toLowerCase().includes(f)) : all;
+    $('au-hist-d-count').textContent=tiNum(all.length)+(all.length===1?' turno ausente':' turnos ausentes');
+    if(!all.length){
+      $('au-hist-d-body').innerHTML='<div class="au-hist-d-vacio">Todavía no hay turnos ausentes en este cuadro.</div>';
+      $('au-hist-d-foot').textContent=''; return;
+    }
+    $('au-hist-d-body').innerHTML = rows.length
+      ? '<table><thead><tr><th>Fecha</th><th>N° Turno</th><th>Cuenta</th></tr></thead><tbody>'+
+        rows.map(r=>'<tr><td>'+this.fmtDia(r.fecha_turno)+'</td><td>'+tiEsc(r.turno_n)+'</td><td class="ti-col-aseg">'+tiEsc(r.cuenta||'—')+'</td></tr>').join('')+
+        '</tbody></table>'
+      : '<div class="au-hist-d-vacio">Ningún turno coincide con la búsqueda.</div>';
+    $('au-hist-d-foot').textContent = f ? (tiNum(rows.length)+' de '+tiNum(all.length)+' turnos') : (tiNum(all.length)+' turnos · ordenados por fecha, del más reciente al más antiguo');
+  },
+
+  cerrarDetalle(){ this.det.tk++; const ov=document.getElementById('au-hist-overlay'); if(ov) ov.classList.remove('open'); },
 
   setMsg(texto,tipo){ this.msg = texto ? {t:texto, k:tipo||''} : null; this.pintarMsg(); },
 
@@ -2824,7 +2913,7 @@ const auHist = {
     lid.innerHTML='Mayor participación: <b>'+tiEsc(LAB[l]||l)+'</b> · '+this.pct(tot[l],T); lid.style.display='';
     const mx=tot[l]||1;
     rank.innerHTML = orden.map(k=>
-      '<div class="au-hist-row"><span class="nom" title="'+tiEsc(LAB[k]||k)+'">'+tiEsc(LAB[k]||k)+'</span>'+
+      '<div class="au-hist-row au-hist-clic" data-k="'+k+'" role="button" tabindex="0" title="Ver los turnos de '+tiEsc(LAB[k]||k)+'"><span class="nom">'+tiEsc(LAB[k]||k)+'</span>'+
       '<span class="au-hist-bar"><i style="width:'+(tot[k]/mx*100).toFixed(1)+'%;background:'+(COL[k]||'var(--red)')+'"></i></span>'+
       '<span class="au-hist-val" style="color:'+(COL[k]||'var(--red)')+'">'+tiNum(tot[k])+'<small>'+this.pct(tot[k],T)+'</small></span></div>'
     ).join('');
@@ -2839,6 +2928,17 @@ const auHist = {
   }
 };
 window.auHist = auHist;
+document.addEventListener('click', e=>{
+  const row=e.target.closest && e.target.closest('#au-hist-rank .au-hist-clic');
+  if(row) auHist.abrirDetalle(row.dataset.k);
+});
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){ const ov=document.getElementById('au-hist-overlay'); if(ov&&ov.classList.contains('open')){ e.stopPropagation(); auHist.cerrarDetalle(); } return; }
+  if(e.key==='Enter'||e.key===' '){
+    const a=document.activeElement, row=a&&a.closest&&a.closest('#au-hist-rank .au-hist-clic');
+    if(row){ e.preventDefault(); auHist.abrirDetalle(row.dataset.k); }
+  }
+}, true);
 /* Si la sesión de Supabase tarda, el panel se refresca igual al volver a la pestaña (ver listeners de foco). */
 setTimeout(()=>{ try{ auHist.cargar(); }catch(e){} }, 800);
 
