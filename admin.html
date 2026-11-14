@@ -70,8 +70,8 @@
         linear-gradient(180deg,#0c1b34 0%,#0a1326 55%,#080e1c 100%);
       border:1px solid rgba(56,140,220,.35);
       box-shadow:0 12px 46px rgba(0,0,0,.45),inset 0 0 60px rgba(20,60,120,.25);
-      padding:20px 30px 28px; min-height:150px;
-      display:flex; flex-direction:column; justify-content:center; gap:14px;
+      padding:30px 30px 34px; min-height:112px;
+      display:flex; flex-direction:column; justify-content:center; gap:0;
     }
     .tech-banner .circuit{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; opacity:.9; }
     .tech-banner .grid-fx{ position:absolute; inset:0; pointer-events:none;
@@ -81,8 +81,8 @@
       background:linear-gradient(90deg,transparent,#38e1ff,#bfefff,#38e1ff,transparent);
       filter:blur(.4px); box-shadow:0 0 22px 3px rgba(56,225,255,.55); opacity:.85; }
     .tb-head{ position:relative; display:flex; align-items:center; justify-content:center; gap:14px; }
-    .tb-brief{ width:38px; height:38px; filter:drop-shadow(0 0 10px rgba(56,225,255,.7)); }
-    .tb-title{ font-family:'Rajdhani',sans-serif; font-weight:700; font-size:28px; letter-spacing:6px;
+    .tb-brief{ width:46px; height:46px; padding:9px; box-sizing:border-box; border-radius:13px; background:linear-gradient(145deg,rgba(56,225,255,.18),rgba(30,90,180,.12)); border:1px solid rgba(56,225,255,.45); box-shadow:0 0 22px rgba(56,225,255,.28), inset 0 0 12px rgba(56,225,255,.12); }
+    .tb-title{ font-family:'Rajdhani',sans-serif; font-weight:700; font-size:38px; letter-spacing:9px; line-height:1;
       color:#dff3ff; text-shadow:0 0 18px rgba(56,225,255,.55); text-transform:uppercase; }
     .tb-title b{ color:#38e1ff; }
     .tb-data{ position:relative; display:flex; gap:16px; flex-wrap:wrap; justify-content:center; }
@@ -99,7 +99,16 @@
     .tb-btn.cloud:hover{ background:rgba(34,219,174,.3); box-shadow:0 6px 18px rgba(34,219,174,.25); }
     .tb-btn.excel{ background:linear-gradient(135deg,rgba(59,130,246,.22),rgba(59,130,246,.08)); border:1px solid rgba(59,130,246,.55); color:#8fc0ff; }
     .tb-btn.excel:hover{ background:rgba(59,130,246,.3); box-shadow:0 6px 18px rgba(59,130,246,.25); }
-    .tb-note{ position:relative; text-align:center; font-size:11.5px; color:var(--green); min-height:14px; }
+    .tb-note{ position:relative; text-align:center; font-size:11.5px; color:var(--green); min-height:14px; margin-top:6px; }
+    .data-strip{ display:flex; align-items:center; gap:22px; flex-wrap:wrap; margin-top:12px; padding:12px 18px;
+      background:rgba(10,22,42,.55); border:1px solid rgba(56,140,220,.25); border-radius:12px; }
+    .ds-item{ display:flex; align-items:baseline; gap:10px; min-width:0; }
+    .ds-num{ font-family:'Rajdhani',sans-serif; font-weight:700; font-size:26px; line-height:1; color:#eaf6ff; }
+    .ds-mid{ font-family:'Rajdhani',sans-serif; font-weight:700; font-size:18px; line-height:1; color:#eaf6ff; }
+    .ds-lbl{ font-size:11px; letter-spacing:1.4px; color:var(--muted); text-transform:uppercase; }
+    .ds-sep{ width:1px; align-self:stretch; background:rgba(56,140,220,.28); }
+    .ds-actions{ margin-left:auto; display:flex; gap:10px; flex-wrap:wrap; }
+    @media (max-width:760px){ .tb-title{ font-size:26px; letter-spacing:5px; } .ds-actions{ margin-left:0; } .ds-sep{ display:none; } }
 
     /* ── SUMMARY BAR ── */
     .summary-bar {
@@ -1004,19 +1013,20 @@
       </svg>
       <div class="tb-title">Módulo <b>Administrativo</b></div>
     </div>
-    <div class="tb-data">
-      <div class="tb-stat">
-        <div class="txt"><div class="val big" id="kpi-num">—</div><div class="lbl" id="upload-sub-text">Cargando datos...</div></div>
-        <button class="tb-btn cloud" id="btn-traer-nube" onclick="traerUltimaDataNube()">☁️ Traer última data de la nube</button>
-      </div>
-      <div class="tb-stat">
-        <div class="txt"><div class="val mid" id="data-status">—</div><div class="lbl">Última actualización</div></div>
-        <button class="tb-btn excel" onclick="location.href='app.html'">📂 Recargar Excel</button>
-      </div>
-    </div>
-    <div class="tb-note" id="traer-nube-status"></div>
     <div class="horizon"></div>
    </div>
+
+   <!-- Datos cargados + acciones (antes dentro del banner) -->
+   <div class="data-strip">
+     <div class="ds-item"><span class="ds-num" id="kpi-num">—</span><span class="ds-lbl" id="upload-sub-text">Cargando datos...</span></div>
+     <span class="ds-sep"></span>
+     <div class="ds-item"><span class="ds-mid" id="data-status">—</span><span class="ds-lbl">Última actualización</span></div>
+     <div class="ds-actions">
+       <button class="tb-btn cloud" id="btn-traer-nube" onclick="traerUltimaDataNube()">☁️ Traer última data de la nube</button>
+       <button class="tb-btn excel" onclick="location.href='app.html'">📂 Recargar Excel</button>
+     </div>
+   </div>
+   <div class="tb-note" id="traer-nube-status"></div>
   </div>
 
   <!-- SUMMARY BAR (análisis) -->
