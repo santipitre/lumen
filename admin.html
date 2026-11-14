@@ -459,6 +459,14 @@
     .tc-hero-main { flex:1; min-width:0; }
     .tc-hero-label { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:20px; letter-spacing:2px; text-transform:uppercase; color:#e5eefb; }
     .tc-hero-sub { font-size:12.5px; color:var(--muted); margin-top:5px; }
+    .tc-meses { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+    .tc-mes { display:inline-flex; align-items:baseline; gap:8px; padding:6px 12px; border-radius:9px; cursor:pointer;
+      background:rgba(255,255,255,.05); border:1px solid rgba(34,211,238,.35); color:#cdd8e6; transition:background .15s,border-color .15s; }
+    .tc-mes:hover, .tc-mes.on { background:rgba(34,211,238,.18); border-color:#22d3ee; }
+    .tc-mes b { font-family:'Rajdhani',sans-serif; font-size:12px; letter-spacing:1.2px; text-transform:uppercase; font-weight:700; color:var(--muted); }
+    .tc-mes span { font-family:'Rajdhani',sans-serif; font-size:24px; font-weight:700; line-height:1; color:#67e8f9; }
+    .tc-mes.on b { color:#e5eefb; }
+    .tc-detail-meses { display:flex; flex-wrap:wrap; gap:8px; margin:12px 20px 0; }
     .tc-hero-go { font-family:'Rajdhani',sans-serif; font-size:12.5px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#67e8f9; border:1px solid rgba(34,211,238,.45); border-radius:8px; padding:9px 14px; white-space:nowrap; }
     #tc-detail-overlay .ti-detail-bar { background:#22d3ee; }
     #tc-detail-overlay .ti-detail-body td.ti-col-aseg { color:#67e8f9; }
@@ -1051,14 +1059,15 @@
   <div class="err-block fade-in">
     <div class="kpi-section-label sec-errores">Errores de carga</div>
 
-    <button type="button" class="tc-hero" id="tc-hero" onclick="tcOpen()" title="Ver el detalle de líneas">
+    <div class="tc-hero" id="tc-hero" role="button" tabindex="0" onclick="tcOpen()" onkeydown="if(event.key==='Enter')tcOpen()" title="Ver el detalle de líneas">
       <div class="tc-hero-num" id="tc-hero-num">—</div>
       <div class="tc-hero-main">
         <div class="tc-hero-label">Tomografías realizadas · INSSJYP · AMB</div>
         <div class="tc-hero-sub" id="tc-hero-sub">Cargá el Excel para ver el número</div>
+        <div class="tc-meses" id="tc-meses"></div>
       </div>
       <div class="tc-hero-go">Ver detalle ›</div>
-    </button>
+    </div>
 
     <div class="auto-head">
       <div class="ecard-group-label auto"><span class="pill"></span>Automatizados · con bot de reparación</div>
@@ -1544,6 +1553,7 @@
         <button class="ti-btn ghost" onclick="tcClose()">✕ Cerrar</button>
       </div>
     </div>
+    <div class="tc-detail-meses" id="tc-detail-meses"></div>
     <div class="ti-detail-search">
       <input type="text" id="tc-detail-search" placeholder="Buscar por fecha, turno o prestación…" oninput="tcFilter(this.value)">
     </div>
@@ -3124,7 +3134,9 @@ function render(data) {
    sin materiales/contraste/set de bomba/coseguro (misma exclusión que
    "Prácticas Realizadas"). Respeta los filtros de fecha/aseguradora/equipo.
 ══════════════════════════════════ */
-let _tcRows = [], _tcView = [];
+let _tcRows = [], _tcView = [], _tcMeses = [], _tcMes = '';
+const _TC_MN = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function _tcMesTxt(k) { const p = k.split('-'); return _TC_MN[+p[1]-1] + ' ' + p[0]; }
 function tcLineas(data) {
   const noEsPractica = ['MATERIAL','SET DE BOMBA','COSEGURO','RADIOFARMACO','NC/ND','AGUJAS','NOTA'];
   const out = [];
@@ -3146,6 +3158,15 @@ function tcLineas(data) {
 function _tcFecha(ds) { const p = String(ds).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : ds; }
 function calcTcHero(data) {
   _tcRows = tcLineas(data);
+  // Meses cargados = todos los meses con turnos en los datos (aunque tengan 0 tomografías)
+  const set = {};
+  (data || []).forEach(r => { const d = parseDate(r['Turno Fecha']); if (d) set[toDateStr(d).slice(0, 7)] = 1; });
+  _tcRows.forEach(x => { set[x.ds.slice(0, 7)] = 1; });
+  _tcMeses = Object.keys(set).sort();
+  if (_tcMes && !set[_tcMes]) _tcMes = '';
+  const cnt = {}; _tcRows.forEach(x => { const k = x.ds.slice(0, 7); cnt[k] = (cnt[k] || 0) + 1; });
+  const box = document.getElementById('tc-meses');
+  if (box) box.innerHTML = _tcMeses.map(k => '<span class="tc-mes" onclick="event.stopPropagation();tcOpen(\'' + k + '\')" title="Ver el detalle de ' + _tcMesTxt(k) + '"><b>' + _tcMesTxt(k) + '</b><span>' + (cnt[k] || 0).toLocaleString() + '</span></span>').join('');
   const num = document.getElementById('tc-hero-num'), sub = document.getElementById('tc-hero-sub');
   if (!num) return;
   num.textContent = _tcRows.length.toLocaleString();
@@ -3153,8 +3174,9 @@ function calcTcHero(data) {
   const rango = _tcRows.length ? _tcFecha(_tcRows[0].ds) + ' – ' + _tcRows[_tcRows.length - 1].ds.split('-').reverse().join('/') : 'sin datos en el período';
   sub.textContent = 'prestaciones (líneas, no turnos) · ' + turnos.toLocaleString() + ' turnos · ' + rango;
 }
-function tcOpen() {
+function tcOpen(mes) {
   if (!_tcRows.length && !(rawData && rawData.length)) return;
+  _tcMes = (typeof mes === 'string') ? mes : '';
   const s = document.getElementById('tc-detail-search'); if (s) s.value = '';
   tcFilter('');
   document.getElementById('tc-detail-overlay').classList.add('open');
@@ -3162,7 +3184,12 @@ function tcOpen() {
 function tcClose() { document.getElementById('tc-detail-overlay').classList.remove('open'); }
 function tcFilter(q) {
   q = String(q || '').trim().toUpperCase();
-  _tcView = !q ? _tcRows : _tcRows.filter(x => (_tcFecha(x.ds) + ' ' + x.turno + ' ' + x.prest).toUpperCase().includes(q));
+  const base = _tcMes ? _tcRows.filter(x => x.ds.slice(0, 7) === _tcMes) : _tcRows;
+  _tcView = !q ? base : base.filter(x => (_tcFecha(x.ds) + ' ' + x.turno + ' ' + x.prest).toUpperCase().includes(q));
+  const cnt = {}; _tcRows.forEach(x => { const k = x.ds.slice(0, 7); cnt[k] = (cnt[k] || 0) + 1; });
+  const mb = document.getElementById('tc-detail-meses');
+  if (mb) mb.innerHTML = '<span class="tc-mes' + (_tcMes ? '' : ' on') + '" onclick="_tcMes=\'\';tcFilter(document.getElementById(\'tc-detail-search\').value)"><b>Todos</b><span>' + _tcRows.length.toLocaleString() + '</span></span>' +
+    _tcMeses.map(k => '<span class="tc-mes' + (_tcMes === k ? ' on' : '') + '" onclick="_tcMes=\'' + k + '\';tcFilter(document.getElementById(\'tc-detail-search\').value)"><b>' + _tcMesTxt(k) + '</b><span>' + (cnt[k] || 0).toLocaleString() + '</span></span>').join('');
   const porTurno = {};
   _tcRows.forEach(x => { porTurno[x.turno] = (porTurno[x.turno] || 0) + 1; });
   const body = document.getElementById('tc-detail-body');
@@ -3173,7 +3200,7 @@ function tcFilter(q) {
         '</td><td class="ti-col-aseg">' + tiEsc(x.prest) + '</td></tr>').join('') + '</tbody></table>'
     : '<div style="padding:26px 20px;color:var(--muted);font-size:13px">Sin líneas para mostrar.</div>';
   document.getElementById('tc-detail-count').textContent =
-    _tcView.length.toLocaleString() + (q ? ' de ' + _tcRows.length.toLocaleString() : '') + ' prestaciones';
+    _tcView.length.toLocaleString() + (base.length !== _tcView.length ? ' de ' + base.length.toLocaleString() : '') + ' prestaciones' + (_tcMes ? ' · ' + _tcMesTxt(_tcMes) : '');
   document.getElementById('tc-detail-foot').textContent =
     'Estado REA · Tipo Turno AMB · Aseguradora INSSJYP · Servicio TOMOGRAFÍA · sin materiales, contraste, set de bomba ni coseguro. "x N" = el turno tiene N prestaciones.';
 }
