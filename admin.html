@@ -1550,7 +1550,7 @@
 
 <!-- ══════ MODAL DETALLE DEL HISTORIAL DE AUSENTES (clic en cada cuadro del ranking) ══════ -->
 <div id="au-hist-overlay" onclick="if(event.target===this) auHist.cerrarDetalle()">
-  <div class="ti-detail-box" style="width:min(760px,96vw)">
+  <div class="ti-detail-box" style="width:min(920px,96vw)">
     <div class="ti-detail-head">
       <div class="ti-detail-bar" id="au-hist-d-bar"></div>
       <div>
@@ -1562,7 +1562,7 @@
       </div>
     </div>
     <div class="ti-detail-search">
-      <input type="text" id="au-hist-d-search" placeholder="Buscar fecha, N° de turno o cuenta…" oninput="auHist.filtrarDetalle(this.value)">
+      <input type="text" id="au-hist-d-search" placeholder="Buscar fecha, N° de turno, cuenta o prestación…" oninput="auHist.filtrarDetalle(this.value)">
     </div>
     <div class="ti-detail-body" id="au-hist-d-body"></div>
     <div class="ti-detail-foot" id="au-hist-d-foot"></div>
@@ -2751,6 +2751,8 @@ const auHist = {
     const parse = cF ? this.parser(au.rawRows, cF) : null;
     // Columna "Cuenta" exacta (no "Cuenta SA"). Si el Excel no la trae, queda null y no pisa lo ya guardado.
     const cC = Object.keys(au.rawRows[0]||{}).find(k=>au.normH(k)==='CUENTA') || null;
+    // Columna de la prestación/estudio (en ese orden de preferencia; NO "Servicio", que es la modalidad). Sin ella queda null y no pisa lo ya guardado.
+    const cP = (()=>{ const ks=Object.keys(au.rawRows[0]||{}); for(const n of ['PRESTACION','ESTUDIO','PRACTICA','ESTUDIONOMBRE']){ const k=ks.find(x=>au.normH(x)===n); if(k) return k; } return null; })();
     const grupos=new Map();
     au.rawRows.forEach(r=>{ const t=S(r[cT]); if(!t){ out.sinTurno++; return; } if(!grupos.has(t)) grupos.set(t,[]); grupos.get(t).push(r); });
     const p2=n=>String(n).padStart(2,'0');
@@ -2765,7 +2767,8 @@ const auHist = {
       if(!f){ out.sinFecha++; return; }
       out.registros.push({ turno_n:t, fecha_turno:f.y+'-'+p2(f.m)+'-'+p2(f.d), mes:f.y+'-'+p2(f.m), bucket,
         aseguradora: S(rp[cA]).replace(/\s+/g,' ').slice(0,120) || null,
-        cuenta: cC ? (S(rp[cC]).replace(/\s+/g,' ').slice(0,120) || null) : null });
+        cuenta: cC ? (S(rp[cC]).replace(/\s+/g,' ').slice(0,120) || null) : null,
+        prestacion: cP ? ([...new Set(rs.map(r=>S(r[cP]).replace(/\s+/g,' ')).filter(Boolean))].join(' · ').slice(0,300) || null) : null });
     });
     return out;
   },
@@ -2776,7 +2779,7 @@ const auHist = {
   async traerTurnos(k){
     const out=[];
     for(let off=0; off<100000; off+=1000){
-      const p=await sbQuery(this.TABLA,'select=fecha_turno,turno_n,cuenta&bucket=eq.'+encodeURIComponent(k)+
+      const p=await sbQuery(this.TABLA,'select=fecha_turno,turno_n,cuenta,prestacion&bucket=eq.'+encodeURIComponent(k)+
         '&order=fecha_turno.desc,turno_n.desc&limit=1000&offset='+off);
       if(!Array.isArray(p)) break;
       for(const r of p) out.push(r);
@@ -2813,15 +2816,15 @@ const auHist = {
   pintarDetalle(q){
     const $=id=>document.getElementById(id); const all=this.det.rows||[];
     const f=String(q==null?($('au-hist-d-search')||{}).value:q).trim().toLowerCase();
-    const rows=f ? all.filter(r=>(this.fmtDia(r.fecha_turno)+' '+(r.turno_n||'')+' '+(r.cuenta||'')).toLowerCase().includes(f)) : all;
+    const rows=f ? all.filter(r=>(this.fmtDia(r.fecha_turno)+' '+(r.turno_n||'')+' '+(r.cuenta||'')+' '+(r.prestacion||'')).toLowerCase().includes(f)) : all;
     $('au-hist-d-count').textContent=tiNum(all.length)+(all.length===1?' turno ausente':' turnos ausentes');
     if(!all.length){
       $('au-hist-d-body').innerHTML='<div class="au-hist-d-vacio">Todavía no hay turnos ausentes en este cuadro.</div>';
       $('au-hist-d-foot').textContent=''; return;
     }
     $('au-hist-d-body').innerHTML = rows.length
-      ? '<table><thead><tr><th>Fecha</th><th>N° Turno</th><th>Cuenta</th></tr></thead><tbody>'+
-        rows.map(r=>'<tr><td>'+this.fmtDia(r.fecha_turno)+'</td><td>'+tiEsc(r.turno_n)+'</td><td class="ti-col-aseg">'+tiEsc(r.cuenta||'—')+'</td></tr>').join('')+
+      ? '<table><thead><tr><th>Fecha</th><th>N° Turno</th><th>Cuenta</th><th>Prestación</th></tr></thead><tbody>'+
+        rows.map(r=>'<tr><td>'+this.fmtDia(r.fecha_turno)+'</td><td>'+tiEsc(r.turno_n)+'</td><td class="ti-col-aseg">'+tiEsc(r.cuenta||'—')+'</td><td>'+tiEsc(r.prestacion||'—')+'</td></tr>').join('')+
         '</tbody></table>'
       : '<div class="au-hist-d-vacio">Ningún turno coincide con la búsqueda.</div>';
     $('au-hist-d-foot').textContent = f ? (tiNum(rows.length)+' de '+tiNum(all.length)+' turnos') : (tiNum(all.length)+' turnos · ordenados por fecha, del más reciente al más antiguo');
