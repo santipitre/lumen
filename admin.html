@@ -281,6 +281,41 @@
     #au-detail-overlay .ti-detail-body td.ti-col-aseg { color:#FB7185; }
     #au-detail-overlay .ti-detail-body tr:hover td { background:rgba(248,113,113,.07); }
 
+    /* ── Ausentes · Historial acumulado ── */
+    .au-hist { margin-top:18px; padding:18px 20px 14px; border:1px solid rgba(248,113,113,.28); border-radius:12px;
+      background:linear-gradient(180deg, rgba(248,113,113,.07), rgba(248,113,113,.01)); }
+    .au-hist-head { display:flex; gap:14px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; margin-bottom:14px; }
+    .au-hist-tt { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:15px; letter-spacing:2px; text-transform:uppercase; color:var(--red); }
+    .au-hist-st { font-size:11px; color:var(--muted); margin-top:3px; }
+    .au-hist-acciones { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .au-hist-lider { font-size:12px; padding:6px 12px; border-radius:999px; border:1px solid rgba(248,113,113,.45);
+      background:rgba(248,113,113,.12); color:#FCA5A5; white-space:nowrap; }
+    .au-hist-lider b { color:#fff; }
+    .au-hist-btn { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:11.5px; letter-spacing:1.2px; text-transform:uppercase;
+      cursor:pointer; border-radius:8px; padding:6px 11px; background:transparent; border:1px solid rgba(248,113,113,.4); color:#FCA5A5; }
+    .au-hist-btn:hover { background:rgba(248,113,113,.18); }
+    .au-hist-btn:disabled { opacity:.4; cursor:not-allowed; background:transparent; }
+    .au-hist-rank { display:grid; gap:9px; }
+    .au-hist-row { display:grid; grid-template-columns:170px 1fr 130px; gap:12px; align-items:center; font-size:12.5px; }
+    .au-hist-row .nom { color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .au-hist-bar { height:12px; border-radius:6px; background:rgba(255,255,255,.06); overflow:hidden; }
+    .au-hist-bar > i { display:block; height:100%; border-radius:6px; }
+    .au-hist-val { text-align:right; font-family:'Rajdhani',sans-serif; font-weight:700; font-size:15px; white-space:nowrap; }
+    .au-hist-val small { color:var(--muted); font-weight:600; font-size:12px; margin-left:4px; }
+    .au-hist-meses { margin-top:16px; overflow-x:auto; }
+    .au-hist-tabla { width:100%; border-collapse:collapse; font-size:12px; }
+    .au-hist-tabla th { text-align:right; padding:6px 8px; color:var(--muted); font-size:10.5px; letter-spacing:1px; text-transform:uppercase; font-weight:600; white-space:nowrap; }
+    .au-hist-tabla th:first-child, .au-hist-tabla td:first-child { text-align:left; }
+    .au-hist-tabla td { text-align:right; padding:6px 8px; border-top:1px solid rgba(255,255,255,.06); white-space:nowrap; }
+    .au-hist-tabla td small { color:var(--muted); margin-left:3px; }
+    .au-hist-tabla td.max { color:#fff; font-weight:700; background:rgba(248,113,113,.14); }
+    .au-hist-tabla tr.acum td { border-top:1px solid rgba(248,113,113,.4); font-weight:700; color:#fff; }
+    .au-hist-msg { font-size:11.5px; margin-top:10px; color:var(--muted); }
+    .au-hist-msg.ok { color:#4ADE80; } .au-hist-msg.warn { color:#FBBF24; } .au-hist-msg.err { color:#F87171; }
+    .au-hist-note { font-size:10.5px; color:var(--muted); margin-top:8px; line-height:1.5; }
+    .au-hist-vacio { font-size:12.5px; color:var(--muted); padding:8px 0; }
+    @media(max-width:720px){ .au-hist-row { grid-template-columns:110px 1fr 100px; gap:8px; } }
+
     /* ── KPI GRID ── */
     .kpi-section-label {
       display:flex; align-items:center; gap:8px;
@@ -1160,6 +1195,26 @@
     </div>
 
     <div id="au-meta" style="color:var(--muted);font-size:11px;margin-top:2px"></div>
+
+    <!-- Historial acumulado: se alimenta de Supabase (ausentes_historial), independiente del Excel que esté cargado -->
+    <div class="au-hist fade-in" id="au-hist">
+      <div class="au-hist-head">
+        <div>
+          <div class="au-hist-tt">Historial acumulado · ausentes con trámite completo</div>
+          <div class="au-hist-st" id="au-hist-sub">Cargando historial…</div>
+        </div>
+        <div class="au-hist-acciones">
+          <span class="au-hist-lider" id="au-hist-lider" style="display:none"></span>
+          <button class="au-hist-btn" id="au-hist-sync" onclick="auHist.sincronizarManual()" disabled title="Vuelve a sumar al historial el Excel cargado arriba (no duplica turnos)">↻ Sumar Excel cargado</button>
+        </div>
+      </div>
+      <div class="au-hist-rank" id="au-hist-rank"></div>
+      <div class="au-hist-meses" id="au-hist-meses"></div>
+      <div class="au-hist-msg" id="au-hist-msg"></div>
+      <div class="au-hist-note">Participación = ausentes de cada cuadro ÷ total de ausentes. Mide también cuántos turnos tiene cada aseguradora: no es la tasa de ausentismo.
+        Un turno cuenta una sola vez (por N° Turno), esté o no devuelto; si tiene líneas en dos aseguradoras va a la que no es Particular.
+        Cada mes incluye solo los Excel cargados, así que puede estar incompleto. "Quitar" el Excel no borra el historial.</div>
+    </div>
    </section>
   </div>
 
@@ -1684,11 +1739,12 @@ window.addEventListener('DOMContentLoaded', () => {
   // Al volver a la pestaña (p.ej. después de que el bot terminó de reparar),
   // re-consultar el contador de "arreglados" sin recargar la página.
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') { cargarReparaciones(false); cargarTramitesInc(false); }
+    if (document.visibilityState === 'visible') { cargarReparaciones(false); cargarTramitesInc(false); try{ window.auHist && window.auHist.cargar(); }catch(e){} }
   });
-  window.addEventListener('focus', () => { cargarReparaciones(false); cargarTramitesInc(false); });
+  window.addEventListener('focus', () => { cargarReparaciones(false); cargarTramitesInc(false); try{ window.auHist && window.auHist.cargar(); }catch(e){} });
   cargarTramitesInc();   // pestaña Trámites Incompletos: lee de Supabase (ti_snapshot), independiente del Excel
   cargarReparaciones();  // contador de arreglados: el sector Ausentes lo necesita aunque no haya Excel del dashboard
+  try{ window.auHist && window.auHist.cargar(); }catch(e){}   // historial acumulado de ausentes (Supabase)
 
   const sede = localStorage.getItem('spcd_sede') || '';
   document.getElementById('bc-sede').textContent  = sede || 'Sede';
@@ -2419,8 +2475,14 @@ Object.assign(auDrop, {
   detailKey:null, detailAll:[], detailLabel:'', detailTurnos:0, detailLineas:0, _detailN:null, _asegArr:[],
   LABEL:{ TOTAL:'Total ausentes', FINAMED:'FINAMED', PAMI:'PAMI (INSSJYP)', HAREFIELD:'Harefield', OSOTRAS:'Otras OS / Prepagas', PARTICULAR:'Particular' },
   COLOR:{ TOTAL:'var(--red)', FINAMED:'#FB7185', PAMI:'#F97316', HAREFIELD:'#E11D48', OSOTRAS:'#FCA5A5', PARTICULAR:'#DC2626' },
-  // Punto único de ajuste cuando definamos el criterio de "ausente".
-  filterRows(rows){ return rows; },
+  // Criterio de "ausente": si el Excel trae columna "Estado" (export de Estadística con TODOS los turnos),
+  // quedan solo los AUS. Los Turno-XXXX ya vienen solo con ausentes: no cambian.
+  filterRows(rows){
+    if(!rows||!rows.length) return rows;
+    const kEstado=Object.keys(rows[0]).find(h=>this.normH(h)==='ESTADO');
+    if(!kEstado) return rows;
+    return rows.filter(r=>this.S(r[kEstado]).toUpperCase()==='AUS');
+  },
   /* Paso 1 de la carga: los duplicados se quitan por "Fecha Turno" (trae hora,
      así que identifica el turno). Si el Excel no tiene esa columna, cae a N° Turno.
      Si un mismo valor agrupara más de un N° Turno, el pie del sector lo avisa. */
@@ -2503,6 +2565,20 @@ auDrop.pendientes = function(rows){
 
 /* El botón del modal solo aparece si el detalle abierto es automatizable. */
 /* Después de recalcular desde el Excel, volver a descontar lo ya devuelto. */
+/* Guarda en IndexedDB solo las filas ya filtradas (un Estadística completo son ~37.000 filas x 100 columnas). */
+auDrop.persist = async function(){
+  await this._idbSet('current', { v:1, fileName:this.fileName, colTurno:this.colTurno, colAseg:this.colAseg, colServ:this.colServ,
+    colFecha:this.colFecha, updatedAt:this.updatedAt, headers:this.headers, rows:this.filterRows(this.rows) });
+};
+
+/* Al SUBIR un Excel (no al restaurarlo al recargar) se suman sus ausentes al historial de Supabase. */
+auDrop.read = async function(file){
+  await Object.getPrototypeOf(this).read.call(this, file);
+  if(this.active && this.fileName===file.name){
+    try{ await auHist.sincronizar(this); }catch(e){ console.warn('[auHist] sincronizar', e); }
+  }
+};
+
 auDrop.compute = function(){
   Object.getPrototypeOf(this).compute.call(this);
   try { this.aplicarArreglados(); } catch(e){ console.warn('[auDrop] aplicarArreglados', e); }
@@ -2599,6 +2675,173 @@ async function auReparar(){
 
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>{ try{ auDrop.setup(); }catch(e){ console.warn('[auDrop] setup',e); } });
 else { try{ auDrop.setup(); }catch(e){ console.warn('[auDrop] setup',e); } }
+
+/* ══════════════════════════════════════════════════════════════════════
+   AUSENTES · HISTORIAL ACUMULADO
+   ----------------------------------------------------------------------
+   Un renglón por turno ausente en la tabla `ausentes_historial` (clave N° Turno,
+   sin datos de pacientes). Cada Excel que se sube suma sus turnos: si un turno ya
+   estaba, no se duplica. El panel lee la vista `ausentes_hist_mes` (mes x aseguradora),
+   así que no depende del Excel que esté cargado y no se pierde al "quitar".
+   Regla de aseguradora: un turno va a UN solo cuadro (el de la aseguradora que no es
+   Particular; si solo hay Particular, Particular) para que los % sumen 100.
+══════════════════════════════════════════════════════════════════════ */
+const auHist = {
+  TABLA:'ausentes_historial', VISTA:'ausentes_hist_mes',
+  rows:[], err:null, msg:null, ultimo:null, _cargando:false,
+
+  S(v){ return String(v==null?'':v).trim(); },
+  pct(n,t){ return t>0 ? (n/t*100).toLocaleString('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%' : '—'; },
+  mesLabel(k){ const M=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']; const p=String(k).split('-'); return M[(+p[1])-1]+' '+p[0]; },
+  fmtDia(iso){ const p=String(iso||'').split('-'); return p.length===3 ? p[2]+'/'+p[1]+'/'+p[0] : '—'; },
+
+  /* Lectura de fechas con el mismo criterio que "Ausentes por mes" (renderMeses): decide m/d vs d/m por votación. */
+  parser(rows,col){
+    const RX=/(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/, ISO=/(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/;
+    let dm=0, md=0;
+    rows.forEach(r=>{ const s=String(r[col]==null?'':r[col]); if(ISO.test(s)) return; const m=s.match(RX); if(m){ const a=+m[1], b=+m[2]; if(a>12&&b<=12) dm++; else if(b>12&&a<=12) md++; } });
+    const monthFirst = md>=dm;
+    const ok=(y,mo,d)=>{ if(!(mo>=1&&mo<=12&&d>=1&&d<=31)) return null; const t=new Date(Date.UTC(y,mo-1,d)); return (t.getUTCMonth()===mo-1) ? {y,m:mo,d} : null; };
+    return v=>{
+      if(v==null||v==='') return null;
+      if(typeof v==='number' && isFinite(v) && v>20000 && v<80000){ const t=new Date(Math.round((v-25569)*86400000)); if(!isNaN(t.getTime())) return ok(t.getUTCFullYear(), t.getUTCMonth()+1, t.getUTCDate()); }
+      const s=String(v);
+      let m=s.match(ISO); if(m) return ok(+m[1], +m[2], +m[3]);
+      m=s.match(RX);
+      if(m){ const a=+m[1], b=+m[2]; let y=+m[3]; if(y<100) y+=2000;
+        if(a>12&&b<=12) return ok(y,b,a);
+        if(b>12&&a<=12) return ok(y,a,b);
+        return monthFirst ? ok(y,a,b) : ok(y,b,a); }
+      return null;
+    };
+  },
+
+  /* Filas del Excel cargado (ya filtradas a AUS) -> un registro por N° Turno. */
+  construir(au){
+    const S=this.S, cT=au.colTurno, cA=au.colAseg, cF=au.colFecha;
+    const out={ registros:[], sinTurno:0, sinFecha:0, multiAseg:0 };
+    if(!cT||!cA) return out;
+    const parse = cF ? this.parser(au.rawRows, cF) : null;
+    const grupos=new Map();
+    au.rawRows.forEach(r=>{ const t=S(r[cT]); if(!t){ out.sinTurno++; return; } if(!grupos.has(t)) grupos.set(t,[]); grupos.get(t).push(r); });
+    const p2=n=>String(n).padStart(2,'0');
+    grupos.forEach((rs,t)=>{
+      const bs=rs.map(r=>au.bucket(r[cA]));
+      const distintos=[...new Set(bs)];
+      if(distintos.length>1) out.multiAseg++;
+      const noPart=distintos.filter(b=>b!=='PARTICULAR');
+      const bucket=noPart.length ? noPart[0] : 'PARTICULAR';
+      const rp=rs[bs.indexOf(bucket)];
+      let f=null; if(parse){ for(const r of rs){ f=parse(r[cF]); if(f) break; } }
+      if(!f){ out.sinFecha++; return; }
+      out.registros.push({ turno_n:t, fecha_turno:f.y+'-'+p2(f.m)+'-'+p2(f.d), mes:f.y+'-'+p2(f.m), bucket,
+        aseguradora: S(rp[cA]).replace(/\s+/g,' ').slice(0,120) || null });
+    });
+    return out;
+  },
+
+  setMsg(texto,tipo){ this.msg = texto ? {t:texto, k:tipo||''} : null; this.pintarMsg(); },
+
+  async sincronizar(au){
+    const arch = au.fileName || 'Excel';
+    if(typeof sbRpc!=='function'){
+      this.setMsg('No se pudo guardar en el historial: falta la conexión a Supabase en esta página.','err'); return;
+    }
+    try{
+      this.setMsg('Sumando al historial…');
+      const c=this.construir(au);
+      if(!c.registros.length){
+        this.setMsg('El Excel no tiene ausentes con fecha válida: no se agregó nada al historial.','warn'); return;
+      }
+      // Estadística = export con TODOS los turnos (el filtro por Estado descartó filas); Turno-XXXX ya viene solo con ausentes.
+      const fuente = (au.rows.length > au.rawRows.length) ? 'estadistica' : 'turno';
+      let nuevos=0, actualizados=0, omitidos=0;
+      for(let i=0;i<c.registros.length;i+=500){
+        const res=await sbRpc('ausentes_hist_cargar',{ p_registros:c.registros.slice(i,i+500), p_archivo:arch, p_fuente:fuente });
+        const r=Array.isArray(res)?res[0]:res; if(r){ nuevos+=+r.nuevos||0; actualizados+=+r.actualizados||0; omitidos+=+r.omitidos||0; }
+      }
+      const extra=[];
+      if(omitidos) extra.push(tiNum(omitidos)+' no se modificaron porque ya venían de un Turno-XXXX');
+      if(c.sinFecha) extra.push(tiNum(c.sinFecha)+' sin fecha válida (no se sumaron)');
+      if(c.sinTurno) extra.push(tiNum(c.sinTurno)+' filas sin N° Turno (no se sumaron)');
+      this.ultimo={ archivo:arch, turnos:c.registros.length, nuevos };
+      await this.cargar();
+      this.setMsg('✓ '+arch+': '+tiNum(c.registros.length)+' turnos ausentes · '+tiNum(nuevos)+' nuevos en el historial, '+tiNum(c.registros.length-nuevos)+' ya estaban'+(extra.length?' · ⚠ '+extra.join(' · '):''), extra.length?'warn':'ok');
+    }catch(e){
+      console.warn('[auHist] sincronizar', e);
+      this.setMsg('No se pudo guardar en el historial: '+((e&&e.message)||e)+'. Las tarjetas de arriba no se afectan; podés reintentar con "Sumar Excel cargado".','err');
+    }
+  },
+
+  sincronizarManual(){
+    if(typeof auDrop==='undefined' || !auDrop.active){ this.setMsg('Primero subí un Excel en el recuadro del sector.','warn'); return; }
+    return this.sincronizar(auDrop);
+  },
+
+  async cargar(){
+    if(typeof sbQuery!=='function' || this._cargando) return;
+    this._cargando=true;
+    try{
+      const rows=await sbQuery(this.VISTA,'select=mes,bucket,n,fecha_min,fecha_max,ultima_carga&order=mes.asc');
+      this.rows=Array.isArray(rows)?rows:[]; this.err=null;
+    }catch(e){ this.err=(e&&e.message)||String(e); console.warn('[auHist] cargar', e); }
+    finally{ this._cargando=false; }
+    this.render();
+  },
+
+  pintarMsg(){
+    const el=document.getElementById('au-hist-msg'); if(!el) return;
+    if(this.msg){ el.className='au-hist-msg '+this.msg.k; el.textContent=this.msg.t; return; }
+    if(this.err){ el.className='au-hist-msg err'; el.textContent='No se pudo leer el historial: '+this.err; return; }
+    el.className='au-hist-msg'; el.textContent='';
+  },
+
+  render(){
+    const $=id=>document.getElementById(id); if(!$('au-hist')) return;
+    const B=(typeof auDrop!=='undefined'&&auDrop.BUCKETS)?auDrop.BUCKETS:['FINAMED','PAMI','HAREFIELD','OSOTRAS','PARTICULAR'];
+    const LAB=(typeof auDrop!=='undefined'&&auDrop.LABEL)||{}, COL=(typeof auDrop!=='undefined'&&auDrop.COLOR)||{};
+    const sync=$('au-hist-sync'); if(sync) sync.disabled = !(typeof auDrop!=='undefined' && auDrop.active);
+    const tot={}, mes={}; let T=0, fMin=null, fMax=null;
+    B.forEach(k=>{ tot[k]=0; });
+    this.rows.forEach(r=>{
+      if(!(r.bucket in tot)) return;
+      const n=+r.n||0; tot[r.bucket]+=n; T+=n;
+      (mes[r.mes]=mes[r.mes]||{}); mes[r.mes][r.bucket]=(mes[r.mes][r.bucket]||0)+n;
+      if(r.fecha_min && (!fMin||r.fecha_min<fMin)) fMin=r.fecha_min;
+      if(r.fecha_max && (!fMax||r.fecha_max>fMax)) fMax=r.fecha_max;
+    });
+    const rank=$('au-hist-rank'), cm=$('au-hist-meses'), sub=$('au-hist-sub'), lid=$('au-hist-lider');
+    if(!T){
+      sub.textContent = this.err ? 'Historial no disponible' : 'Todavía no hay ausentes en el historial';
+      lid.style.display='none'; cm.innerHTML='';
+      rank.innerHTML = this.err ? '' : '<div class="au-hist-vacio">Se arma solo: subí el Excel de ausentes en el recuadro de arriba y sus turnos quedan acumulados acá.</div>';
+      this.pintarMsg(); return;
+    }
+    const meses=Object.keys(mes).sort();
+    const orden=B.slice().sort((a,b)=>tot[b]-tot[a]||(LAB[a]||a).localeCompare(LAB[b]||b));
+    sub.textContent = tiNum(T)+' turnos ausentes acumulados · turnos del '+this.fmtDia(fMin)+' al '+this.fmtDia(fMax)+' · '+meses.length+(meses.length===1?' mes':' meses');
+    const l=orden[0];
+    lid.innerHTML='Mayor participación: <b>'+tiEsc(LAB[l]||l)+'</b> · '+this.pct(tot[l],T); lid.style.display='';
+    const mx=tot[l]||1;
+    rank.innerHTML = orden.map(k=>
+      '<div class="au-hist-row"><span class="nom" title="'+tiEsc(LAB[k]||k)+'">'+tiEsc(LAB[k]||k)+'</span>'+
+      '<span class="au-hist-bar"><i style="width:'+(tot[k]/mx*100).toFixed(1)+'%;background:'+(COL[k]||'var(--red)')+'"></i></span>'+
+      '<span class="au-hist-val" style="color:'+(COL[k]||'var(--red)')+'">'+tiNum(tot[k])+'<small>'+this.pct(tot[k],T)+'</small></span></div>'
+    ).join('');
+    const celda=(n,t,max)=>'<td'+(max?' class="max"':'')+'>'+tiNum(n)+'<small>'+this.pct(n,t)+'</small></td>';
+    cm.innerHTML='<table class="au-hist-tabla"><thead><tr><th>Mes</th>'+orden.map(k=>'<th>'+tiEsc(LAB[k]||k)+'</th>').join('')+'<th>Total</th></tr></thead><tbody>'+
+      meses.map(m=>{
+        const f=mes[m], t=B.reduce((s,k)=>s+(f[k]||0),0), mxm=Math.max.apply(null,B.map(k=>f[k]||0));
+        return '<tr><td>'+this.mesLabel(m)+'</td>'+orden.map(k=>celda(f[k]||0,t,mxm>0&&(f[k]||0)===mxm)).join('')+'<td>'+tiNum(t)+'</td></tr>';
+      }).join('')+
+      '<tr class="acum"><td>Acumulado</td>'+orden.map(k=>celda(tot[k],T,k===l)).join('')+'<td>'+tiNum(T)+'</td></tr></tbody></table>';
+    this.pintarMsg();
+  }
+};
+window.auHist = auHist;
+/* Si la sesión de Supabase tarda, el panel se refresca igual al volver a la pestaña (ver listeners de foco). */
+setTimeout(()=>{ try{ auHist.cargar(); }catch(e){} }, 800);
+
 
 /* ══════════════════════════════════
    TRÁMITES INCOMPLETOS (pestaña) — versión Excel local (Opción A)
