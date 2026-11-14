@@ -398,12 +398,12 @@
     }
     .ti-drop-clear:hover { background:rgba(248,113,113,.22); }
     /* ── Modal de detalle local (líneas leídas del Excel subido) ── */
-    #ti-detail-overlay, #au-detail-overlay, #au-hist-overlay {
+    #ti-detail-overlay, #au-detail-overlay, #au-hist-overlay, #tc-detail-overlay {
       display:none; position:fixed; inset:0; z-index:1200;
       background:rgba(0,0,0,.66); backdrop-filter:blur(4px);
       align-items:center; justify-content:center; padding:24px;
     }
-    #ti-detail-overlay.open, #au-detail-overlay.open, #au-hist-overlay.open { display:flex; }
+    #ti-detail-overlay.open, #au-detail-overlay.open, #au-hist-overlay.open, #tc-detail-overlay.open { display:flex; }
     .ti-detail-box {
       background:#0c1420; border:1px solid var(--border); border-radius:12px;
       width:min(1100px,96vw); max-height:88vh; display:flex; flex-direction:column;
@@ -445,6 +445,24 @@
     }
     #au-detail-overlay .ti-detail-body .ti-mult { background:rgba(251,113,133,.14); color:#FB7185; border-color:rgba(251,113,133,.32); }
     .ti-detail-foot { padding:10px 20px; border-top:1px solid var(--border); font-size:11px; color:var(--muted); }
+    /* ── Recuadro destacado: Tomografías realizadas INSSJYP · AMB ── */
+    .tc-hero {
+      display:flex; align-items:center; gap:26px; width:100%; box-sizing:border-box; text-align:left;
+      margin:2px 0 18px; padding:18px 26px; cursor:pointer; color:inherit; font-family:inherit;
+      background:linear-gradient(135deg,rgba(34,211,238,.16),rgba(59,130,246,.10) 55%,rgba(12,20,32,.9)),#0c1420;
+      border:2px solid rgba(34,211,238,.55); border-radius:14px;
+      box-shadow:0 0 0 1px rgba(34,211,238,.12), 0 8px 34px rgba(34,211,238,.16);
+      transition:transform .15s, box-shadow .15s, border-color .15s;
+    }
+    .tc-hero:hover { transform:translateY(-2px); border-color:#22d3ee; box-shadow:0 0 0 1px rgba(34,211,238,.3), 0 12px 42px rgba(34,211,238,.28); }
+    .tc-hero-num { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:68px; line-height:1; color:#67e8f9; text-shadow:0 0 22px rgba(34,211,238,.45); min-width:150px; }
+    .tc-hero-main { flex:1; min-width:0; }
+    .tc-hero-label { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:20px; letter-spacing:2px; text-transform:uppercase; color:#e5eefb; }
+    .tc-hero-sub { font-size:12.5px; color:var(--muted); margin-top:5px; }
+    .tc-hero-go { font-family:'Rajdhani',sans-serif; font-size:12.5px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#67e8f9; border:1px solid rgba(34,211,238,.45); border-radius:8px; padding:9px 14px; white-space:nowrap; }
+    #tc-detail-overlay .ti-detail-bar { background:#22d3ee; }
+    #tc-detail-overlay .ti-detail-body td.ti-col-aseg { color:#67e8f9; }
+    @media (max-width:760px){ .tc-hero{ flex-wrap:wrap; gap:12px; } .tc-hero-num{ font-size:52px; min-width:0; } }
     /* Cabecera de "Automatizados" con el botón de reparar TODO */
     .auto-head { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
     .btn-reparar-todo {
@@ -1033,6 +1051,15 @@
   <div class="err-block fade-in">
     <div class="kpi-section-label sec-errores">Errores de carga</div>
 
+    <button type="button" class="tc-hero" id="tc-hero" onclick="tcOpen()" title="Ver el detalle de líneas">
+      <div class="tc-hero-num" id="tc-hero-num">—</div>
+      <div class="tc-hero-main">
+        <div class="tc-hero-label">Tomografías realizadas · INSSJYP · AMB</div>
+        <div class="tc-hero-sub" id="tc-hero-sub">Cargá el Excel para ver el número</div>
+      </div>
+      <div class="tc-hero-go">Ver detalle ›</div>
+    </button>
+
     <div class="auto-head">
       <div class="ecard-group-label auto"><span class="pill"></span>Automatizados · con bot de reparación</div>
       <button class="btn-reparar-todo" onclick="repararTodo()" title="Genera los 6 Excel y corre todos los arreglos con un solo login">⚡ Arreglar automáticamente TODO</button>
@@ -1502,6 +1529,28 @@
   <!-- Secciones Errores por Operador / Comparativo Mensual / Informe de Rendimiento removidas -->
 
 </div><!-- /main -->
+
+<!-- ══════ MODAL DETALLE: Tomografías INSSJYP · AMB ══════ -->
+<div id="tc-detail-overlay" onclick="if(event.target===this) tcClose()">
+  <div class="ti-detail-box" style="width:min(820px,96vw)">
+    <div class="ti-detail-head">
+      <div class="ti-detail-bar"></div>
+      <div>
+        <div class="ti-detail-title">Tomografías realizadas · INSSJYP · AMB</div>
+        <div class="ti-detail-count" id="tc-detail-count"></div>
+      </div>
+      <div class="ti-detail-actions">
+        <button class="ti-btn" onclick="tcExport()">⬇ Exportar a Excel</button>
+        <button class="ti-btn ghost" onclick="tcClose()">✕ Cerrar</button>
+      </div>
+    </div>
+    <div class="ti-detail-search">
+      <input type="text" id="tc-detail-search" placeholder="Buscar por fecha, turno o prestación…" oninput="tcFilter(this.value)">
+    </div>
+    <div class="ti-detail-body" id="tc-detail-body"></div>
+    <div class="ti-detail-foot" id="tc-detail-foot"></div>
+  </div>
+</div>
 
 <!-- ══════ MODAL DETALLE LOCAL (Trámites Incompletos · Excel subido) ══════ -->
 <div id="ti-detail-overlay" onclick="if(event.target===this) tiDrop.closeDetail()">
@@ -3062,10 +3111,82 @@ function resetFilters() {
 function render(data) {
   calcKPIs(data);        // cards de arriba (Sin Derivantes / Coseguros / Sin Nº Ref, etc.) — se quedan
   calcSummaryBar(data);  // barra resumen de arriba — se queda
+  calcTcHero(data);      // recuadro Tomografías INSSJYP · AMB
   // Secciones removidas (Resumen / Derivantes / Detalle / Errores por Operador / Comparativo):
   // sus render* ya no se llaman porque su DOM fue eliminado.
   renderTITab(data);   // sector Trámites Incompletos: detalle por aseguradora desde el Excel (Opción A)
 }
+
+/* ══════════════════════════════════
+   TOMOGRAFÍAS REALIZADAS · INSSJYP · AMB
+   Cuenta PRESTACIONES (líneas), no turnos. Criterio de línea:
+   Estado REA + Tipo Turno AMB + Aseguradora INSSJYP + Servicio TOMOGRAFÍA,
+   sin materiales/contraste/set de bomba/coseguro (misma exclusión que
+   "Prácticas Realizadas"). Respeta los filtros de fecha/aseguradora/equipo.
+══════════════════════════════════ */
+let _tcRows = [], _tcView = [];
+function tcLineas(data) {
+  const noEsPractica = ['MATERIAL','SET DE BOMBA','COSEGURO','RADIOFARMACO','NC/ND','AGUJAS','NOTA'];
+  const out = [];
+  (data || []).forEach(r => {
+    if (_safe(r['Estado']).toUpperCase() !== 'REA') return;
+    if (_safe(r['Tipo Turno']).toUpperCase() !== 'AMB') return;
+    if (!_safe(r['Aseguradora']).toUpperCase().includes('INSSJYP')) return;
+    if (_safe(r['Servicio']).toUpperCase().indexOf('TOMOGRAF') !== 0) return;
+    const prest = _safe(r['Prestación'] || r['Prestacion']);
+    const pu = prest.toUpperCase();
+    if (!pu || noEsPractica.some(x => pu.startsWith(x))) return;
+    const d = parseDate(r['Turno Fecha']);
+    if (!d) return;
+    out.push({ ds: toDateStr(d), turno: _safe(r['Turno N°']), prest });
+  });
+  out.sort((a, b) => a.ds < b.ds ? -1 : a.ds > b.ds ? 1 : (a.turno < b.turno ? -1 : a.turno > b.turno ? 1 : 0));
+  return out;
+}
+function _tcFecha(ds) { const p = String(ds).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : ds; }
+function calcTcHero(data) {
+  _tcRows = tcLineas(data);
+  const num = document.getElementById('tc-hero-num'), sub = document.getElementById('tc-hero-sub');
+  if (!num) return;
+  num.textContent = _tcRows.length.toLocaleString();
+  const turnos = new Set(_tcRows.map(x => x.turno).filter(Boolean)).size;
+  const rango = _tcRows.length ? _tcFecha(_tcRows[0].ds) + ' – ' + _tcRows[_tcRows.length - 1].ds.split('-').reverse().join('/') : 'sin datos en el período';
+  sub.textContent = 'prestaciones (líneas, no turnos) · ' + turnos.toLocaleString() + ' turnos · ' + rango;
+}
+function tcOpen() {
+  if (!_tcRows.length && !(rawData && rawData.length)) return;
+  const s = document.getElementById('tc-detail-search'); if (s) s.value = '';
+  tcFilter('');
+  document.getElementById('tc-detail-overlay').classList.add('open');
+}
+function tcClose() { document.getElementById('tc-detail-overlay').classList.remove('open'); }
+function tcFilter(q) {
+  q = String(q || '').trim().toUpperCase();
+  _tcView = !q ? _tcRows : _tcRows.filter(x => (_tcFecha(x.ds) + ' ' + x.turno + ' ' + x.prest).toUpperCase().includes(q));
+  const porTurno = {};
+  _tcRows.forEach(x => { porTurno[x.turno] = (porTurno[x.turno] || 0) + 1; });
+  const body = document.getElementById('tc-detail-body');
+  body.innerHTML = _tcView.length
+    ? '<table><thead><tr><th>Fecha</th><th>N° Turno</th><th>Prestación realizada</th></tr></thead><tbody>' +
+      _tcView.map(x => '<tr><td>' + tiEsc(_tcFecha(x.ds)) + '</td><td>' + tiEsc(x.turno || '—') +
+        (x.turno && porTurno[x.turno] > 1 ? '<span class="ti-mult">x ' + porTurno[x.turno] + '</span>' : '') +
+        '</td><td class="ti-col-aseg">' + tiEsc(x.prest) + '</td></tr>').join('') + '</tbody></table>'
+    : '<div style="padding:26px 20px;color:var(--muted);font-size:13px">Sin líneas para mostrar.</div>';
+  document.getElementById('tc-detail-count').textContent =
+    _tcView.length.toLocaleString() + (q ? ' de ' + _tcRows.length.toLocaleString() : '') + ' prestaciones';
+  document.getElementById('tc-detail-foot').textContent =
+    'Estado REA · Tipo Turno AMB · Aseguradora INSSJYP · Servicio TOMOGRAFÍA · sin materiales, contraste, set de bomba ni coseguro. "x N" = el turno tiene N prestaciones.';
+}
+function tcExport() {
+  if (typeof XLSX === 'undefined') { alert('No se pudo exportar: falta la librería de Excel.'); return; }
+  const aoa = [['Fecha', 'N° Turno', 'Prestación']].concat(_tcView.map(x => [_tcFecha(x.ds), x.turno, x.prest]));
+  const ws = XLSX.utils.aoa_to_sheet(aoa), wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'TC INSSJYP AMB');
+  XLSX.writeFile(wb, 'LUMEN_TC_INSSJYP_AMB.xlsx');
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { const ov = document.getElementById('tc-detail-overlay'); if (ov && ov.classList.contains('open')) { e.stopPropagation(); tcClose(); } }
+}, true);
 
 /* ══════════════════════════════════
    SUMMARY BAR
