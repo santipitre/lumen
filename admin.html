@@ -6198,6 +6198,8 @@ function emptyState(icon, text) {
       if (esAdmin === true) {
         const btn = document.getElementById('btn-top-permisos');
         if (btn) btn.style.display = '';
+        // Atajo desde el menú Área de trabajo (Administrativo › Gestión de Usuarios y Permisos)
+        if (/[?&]permisos=1(&|$)/.test(location.search) && !window.__permisosAbierto) { window.__permisosAbierto = true; window.abrirPanelPermisosModal(); }
         return true;
       }
     } catch (e) {

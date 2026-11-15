@@ -514,6 +514,51 @@
       border-color: rgba(245,158,11,.24);
     }
     .mod-fila.dictom .mod-icono svg { filter: drop-shadow(0 0 7px rgba(245,158,11,.40)); }
+    /* Residencia (naranja) y Docencia e Investigación (índigo) */
+    .mod-fila.residencia { border-color: rgba(251,146,60,.26); }
+    .mod-fila.residencia::before { background: #FB923C; color: #FB923C; }
+    .mod-fila.residencia:hover {
+      border-color: #FB923C;
+      box-shadow: 0 -1px 0 rgba(148,197,255,.12) inset, 8px 10px 24px rgba(0,0,0,.55),
+                  0 0 38px rgba(251,146,60,.26);
+    }
+    .mod-fila.residencia .mod-icono {
+      background: linear-gradient(150deg, rgba(251,146,60,.14), rgba(10,15,20,.65));
+      border-color: rgba(251,146,60,.22);
+    }
+    .mod-fila.residencia .mod-icono svg { filter: drop-shadow(0 0 7px rgba(251,146,60,.40)); }
+    .mod-fila.docencia { border-color: rgba(129,140,248,.26); }
+    .mod-fila.docencia::before { background: #818CF8; color: #818CF8; }
+    .mod-fila.docencia:hover {
+      border-color: #818CF8;
+      box-shadow: 0 -1px 0 rgba(148,197,255,.12) inset, 8px 10px 24px rgba(0,0,0,.55),
+                  0 0 38px rgba(129,140,248,.26);
+    }
+    .mod-fila.docencia .mod-icono {
+      background: linear-gradient(150deg, rgba(129,140,248,.14), rgba(10,15,20,.65));
+      border-color: rgba(129,140,248,.22);
+    }
+    .mod-fila.docencia .mod-icono svg { filter: drop-shadow(0 0 7px rgba(129,140,248,.40)); }
+
+    /* Vista de un módulo (menú de un solo nivel) */
+    .mod-detalle { display: flex; flex-direction: column; gap: 14px; animation: fadeUp .45s ease both; }
+    .mod-volver {
+      align-self: flex-start; cursor: pointer; background: transparent;
+      border: 1px solid rgba(148,197,255,.25); color: rgba(148,197,255,.8);
+      border-radius: 8px; padding: 8px 14px; font-size: 11px; letter-spacing: 2px;
+      text-transform: uppercase; font-family: 'Rajdhani', sans-serif; font-weight: 600;
+    }
+    .mod-volver:hover { color: #fff; border-color: var(--cyan, #22DBAE); }
+    .mod-fila.cab { cursor: default; }
+    .mod-fila.cab:hover { transform: none; }
+    .mod-fila.cab:hover::before { transform: scaleY(1); }
+    .mod-sec {
+      margin-top: 10px; font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+      color: var(--cyan, #22DBAE); font-family: 'Rajdhani', sans-serif; font-weight: 700;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .mod-sec::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(148,197,255,.25), transparent); }
+    .mod-items { display: flex; flex-direction: column; gap: 10px; }
 
     @media (prefers-reduced-motion: reduce) {
       .mod-fila, .mod-fila::before, .mod-icono, .mod-flecha { transition: none; }
@@ -1363,6 +1408,18 @@ MODULE_CARDS.img_admin = {
   svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/><path d="M40 62 L40 128 Q40 134 46 134 L154 134 Q160 134 160 128 L160 74 Q160 68 154 68 L102 68 L92 56 L46 56 Q40 56 40 62 Z" fill="none" stroke="#A3E635" stroke-width="4" stroke-linejoin="round"/><path d="M40 84 L160 84" stroke="#A3E635" stroke-width="2.5" stroke-opacity="0.5"/><path d="M62 104 L128 104 M62 118 L106 118" stroke="#22DBAE" stroke-width="3" stroke-linecap="round" stroke-opacity="0.85"/><text x="100" y="200" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">ADMINISTRATIVOS</text><text x="100" y="222" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="15" font-weight="700" fill="#22DBAE" letter-spacing="2">IM&#193;GENES</text></svg>`
 };
 
+/* -- Módulos nuevos del menú de un solo nivel: Residencia y Docencia e Investigación -- */
+MODULE_CARDS.residencia = {
+  clase: 'residencia', nombre: 'Residencia', key: 'residencia',
+  desc: 'Staff &middot; Cronograma &middot; Licencias de residentes',
+  svg: MODULE_CARDS.img_residentes.svg
+};
+MODULE_CARDS.docencia = {
+  clase: 'docencia', nombre: 'Docencia e Investigación', key: 'docencia',
+  desc: 'Plataforma Docente DxI &middot; Rotaciones &middot; Investigaci&oacute;n',
+  svg: `<svg viewBox="0 0 200 230" width="150" height="172" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="180" height="160" rx="24" fill="#0a1628" stroke="#1e3a8a" stroke-width="2"/><path d="M48 52 Q74 42 100 56 Q126 42 152 52 L152 126 Q126 116 100 130 Q74 116 48 126 Z" fill="none" stroke="#818CF8" stroke-width="5" stroke-linejoin="round"/><path d="M100 56 L100 130" stroke="#818CF8" stroke-width="4"/><path d="M62 74 Q78 69 90 76 M62 90 Q78 85 90 92 M110 76 Q122 69 138 74 M110 92 Q122 85 138 90" stroke="#818CF8" stroke-width="3" fill="none" stroke-linecap="round" opacity=".6"/></svg>`
+};
+
 /* -- SESSION -- */
 function getSession() {
   try {
@@ -1410,6 +1467,8 @@ function showScreen(id) {
 }
 
 function goBack() {
+  // Dentro de un módulo del Área de trabajo: volver al menú, no a Sedes.
+  if (currentScreen === 'screen-roles' && typeof MENU_EST !== 'undefined' && MENU_EST && MENU_EST.vista) { menuVolver(); return; }
   // Si está en sedes y vuelve, cerrar sesión
   if (currentScreen === 'screen-sedes') {
     doLogout();
@@ -1908,66 +1967,195 @@ async function renderModules(sim) {
     } catch(e) { /* silent */ }
   }
 
-  // Estructura: módulos principales con sus submódulos
-  // Orden: Administrativo, Dashboard Imágenes, Médico, Técnico.
-  const GRUPOS = [
-    { padre: 'admin',    hijos: ['caja', 'conciliacion', 'validacion', 'harefield', 'operativo', 'personal'] },
-    { padre: 'imagenes', hijos: IMG_SUBTARJETAS_OCULTAS ? [] : ['img_medicos', 'img_residentes', 'img_tecnicos', 'img_admin'] },
-    { padre: 'medico',   hijos: [] },
-    { padre: 'dictom',   hijos: [] },
-    { padre: 'tecnico',  hijos: [] }
-  ];
+  // Menú de un solo nivel (modelo v3, 15/11/2026): módulos -> ítems.
+  // Los destinos y los permisos son los de siempre; solo cambia cómo se agrupan.
+  const pest = (imgAcc && imgAcc.pestanas) || [];
+  MENU_EST = {
+    sim: !!sim, directo, pendingCount, vista: null,
+    c: { m: modulos, usr, pest, tieneImg: pest.length > 0, nivel: imgAcc ? imgAcc.nivel : null }
+  };
+  menuPintar();
+}
 
-  // El SVG de cada módulo trae el nombre adentro; acá sólo queremos el dibujo.
-  const soloIcono = (m) => m.svg
+/* ==== MENÚ DE UN SOLO NIVEL (modelo v3) ====
+   MENU_DEF define qué módulos hay y qué ítems tiene cada uno.
+   Cada ítem trae su destino real (url), su permiso (ver) y, si no existe todavía, prox:true.
+   Para sacar o mover un ítem se edita solo esta lista. */
+let MENU_EST = null;
+const NIVEL_EDITA = ['editar', 'admin'];
+const MENU_DEF = [
+  { k: 'admin', cls: 'admin', ic: 'admin', nombre: 'Administrativo', desc: 'Gesti&oacute;n &middot; Equipo',
+    frase: 'Todo lo administrativo del servicio.', secs: [
+    { t: 'Gesti&oacute;n', items: [
+      { n: 'Control de errores y tr&aacute;mites', d: 'Errores de carga &middot; Sin derivantes &middot; Tr&aacute;mites incompletos &middot; Ausentes &middot; Informe por operador', ic: 'admin', cls: 'admin', rol: 'Administrativo', url: 'admin.html', perm: 'admin', ver: c => !!c.m.admin },
+      { n: 'Gesti&oacute;n de Usuarios y Permisos', d: 'Crear y editar usuarios, roles, permisos por m&oacute;dulo, PIN', ic: 'admin', cls: 'admin', rol: 'Administrativo', url: 'admin.html?permisos=1', ver: c => !!c.m.admin && !!c.usr && c.usr.rol === 'admin' },
+      { n: 'Rendici&oacute;n de caja', d: 'Rendici&oacute;n de caja &middot; Retiros &middot; Arqueos', ic: 'caja', cls: 'caja', rol: 'Rendición de caja', url: 'caja.html', perm: 'caja', ver: c => !!c.m.caja },
+      { n: 'Conciliaci&oacute;n FUESMEN &harr; PAMI', d: 'Turnos vs bandeja de transmisi&oacute;n &middot; Validados &middot; Pendientes', ic: 'conciliacion', cls: 'conciliacion', rol: 'Conciliación FUESMEN ↔ PAMI', url: 'conciliacion-pami.html', perm: 'conciliacion', ver: c => !!c.m.conciliacion },
+      { n: 'Validaci&oacute;n de &oacute;rdenes PAMI', d: 'Bandeja en verde &middot; Autocompletado en el portal &middot; Credencial', ic: 'validacion', cls: 'validacion', rol: 'Validación de órdenes PAMI', url: 'validacion-pami.html', perm: 'validacion', ver: c => !!c.m.validacion },
+      { n: 'Harefield', d: 'Liquidaci&oacute;n mensual &middot; Cruce con camas prestadas &middot; Reparto FUESMEN / FADESA', ic: 'harefield', cls: 'harefield', rol: 'Harefield', url: 'harefield.html', perm: 'harefield', ver: c => !!c.m.harefield },
+      { n: 'Operativo', d: 'Stock medicaci&oacute;n &middot; Insumos &middot; Pedidos', ic: 'operativo', cls: 'operativo', rol: 'Operativo', url: 'operativo.html', perm: 'operativo', dot: true, ver: c => !!c.m.operativo },
+      { n: 'Personal', d: 'Licencias &middot; Cambios de turno &middot; Horarios', ic: 'personal', cls: 'personal', rol: 'Personal', url: 'personal.html', perm: 'personal', ver: c => !!c.m.personal },
+      { n: 'Organigrama y descriptores de puesto', d: 'Organigrama del servicio; cada cuadro abre el documento del rol', ic: 'admin', cls: 'admin', prox: true }
+    ] },
+    { t: 'Equipo', items: [
+      { n: 'Staff administrativo', d: 'Personal administrativo del servicio', ic: 'img_admin', cls: 'imagenes', rol: 'Administrativos', url: 'imagenes.html#administrativos', ver: c => c.pest.indexOf('administrativos') >= 0 },
+      { n: 'Cronograma administrativo', d: 'Horarios del equipo administrativo, con licencias y reemplazos', ic: 'img_admin', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html#cronogramas/administrativos', ver: c => c.tieneImg }
+    ] }
+  ] },
+  { k: 'medico', cls: 'medico', ic: 'medico', nombre: 'M&eacute;dico', desc: 'Informes &middot; Staff &middot; Informantes &middot; Cronogramas',
+    frase: 'El panel m&eacute;dico, el staff, los informantes y los cronogramas m&eacute;dicos.', secs: [
+    { t: 'Panel', items: [
+      { n: 'Panel m&eacute;dico', d: 'Sem&aacute;foro &middot; Resumen &middot; Pendientes &middot; M&eacute;dicos &middot; Prestaciones &middot; Demora &middot; Estudios sin informe', ic: 'medico', cls: 'medico', rol: 'Médico', url: 'medico.html', perm: 'medico', ver: c => !!c.m.medico }
+    ] },
+    { t: 'Equipo', items: [
+      { n: 'Staff m&eacute;dico', d: 'M&eacute;dicos del servicio y servicios en los que informan', ic: 'img_medicos', cls: 'imagenes', rol: 'Médicos', url: 'imagenes.html#medicos', ver: c => c.pest.indexOf('medicos') >= 0 }
+    ] },
+    { t: 'Cronogramas e informantes', items: [
+      { n: 'Cronograma Ecograf&iacute;a / Doppler', d: 'Agenda de m&eacute;dicos ecografistas', ic: 'img_medicos', cls: 'imagenes', rol: 'Médicos', url: 'imagenes.html#medicos/eco', ver: c => c.pest.indexOf('medicos') >= 0 },
+      { n: 'Eco / Doppler &middot; semana tipo', d: 'Semana tipo del servicio de Eco/Doppler', ic: 'img_medicos', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html#cronogramas/eco', ver: c => c.tieneImg },
+      { n: 'Guardias de Tomograf&iacute;a', d: 'Qui&eacute;n informa Tomograf&iacute;a por d&iacute;a y los R4 de fines de semana y feriados', ic: 'img_medicos', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html#cronogramas/tc', ver: c => c.tieneImg },
+      { n: 'Informantes &middot; Resonancia', d: 'Qui&eacute;n informa Resonancia', ic: 'img_medicos', cls: 'imagenes', rol: 'Médicos', url: 'imagenes.html#medicos/rm', ver: c => c.pest.indexOf('medicos') >= 0 },
+      { n: 'Informantes &middot; Tomograf&iacute;a', d: 'Qui&eacute;n informa Tomograf&iacute;a', ic: 'img_medicos', cls: 'imagenes', rol: 'Médicos', url: 'imagenes.html#medicos/inftc', ver: c => c.pest.indexOf('medicos') >= 0 },
+      { n: 'Informantes &middot; Radiolog&iacute;a', d: 'Qui&eacute;n informa Radiolog&iacute;a', ic: 'img_medicos', cls: 'imagenes', rol: 'Médicos', url: 'imagenes.html#medicos/infrx', ver: c => c.pest.indexOf('medicos') >= 0 },
+      { n: 'Informantes &middot; Ecograf&iacute;a y Doppler', d: 'Qui&eacute;n informa Eco y Doppler', ic: 'img_medicos', cls: 'imagenes', rol: 'Médicos', url: 'imagenes.html#medicos/infeco', ver: c => c.pest.indexOf('medicos') >= 0 }
+    ] }
+  ] },
+  { k: 'tecnico', cls: 'tecnico', ic: 'tecnico', nombre: 'T&eacute;cnico', desc: 'Estudios &middot; Staff &middot; Cronogramas, licencias y pago',
+    frase: 'El panel t&eacute;cnico, el staff y los cronogramas de t&eacute;cnicos.', secs: [
+    { t: 'Panel', items: [
+      { n: 'Panel t&eacute;cnico', d: 'Estudios realizados &middot; Tiempos promedio &middot; Equipos', ic: 'tecnico', cls: 'tecnico', rol: 'Técnico', url: 'tecnico.html', perm: 'tecnico', ver: c => !!c.m.tecnico }
+    ] },
+    { t: 'Equipo', items: [
+      { n: 'Staff t&eacute;cnico', d: 'T&eacute;cnicos por servicio y equipo', ic: 'img_tecnicos', cls: 'imagenes', rol: 'Técnicos', url: 'imagenes.html#tecnicos', ver: c => c.pest.indexOf('tecnicos') >= 0 }
+    ] },
+    { t: 'Cronogramas', items: [
+      { n: 'Cronograma de t&eacute;cnicos', d: 'Diagrama del mes &middot; Horas por t&eacute;cnico &middot; Semana tipo &middot; Semanas del mes &middot; Cuadro &middot; Mes', ic: 'img_tecnicos', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html#cronogramas/tecnicos', ver: c => c.tieneImg },
+      { n: 'Licencias y reemplazos', d: 'Confirmar reemplazos &middot; Licencias &middot; A&ntilde;o', ic: 'img_tecnicos', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html#cronogramas/licencias', ver: c => c.tieneImg },
+      { n: 'Pago de t&eacute;cnicos', d: 'Horas y valor a partir del cronograma &middot; solo edici&oacute;n', ic: 'img_tecnicos', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html#cronogramas/pago', ver: c => c.tieneImg && NIVEL_EDITA.indexOf(c.nivel) >= 0 },
+      { n: 'Radiograf&iacute;as', d: 'Cronograma de radiograf&iacute;as', ic: 'img_tecnicos', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html#cronogramas/radiografias', ver: c => c.tieneImg },
+      { n: 'Alertas del cronograma', d: 'Avisos del cronograma', ic: 'img_tecnicos', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html#cronogramas/alertas', ver: c => c.tieneImg },
+      { n: 'Resonancias', d: 'Cronograma de RM &middot; hoy Pr&oacute;ximamente', ic: 'img_tecnicos', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html#cronogramas/rm', ver: c => c.tieneImg }
+    ] }
+  ] },
+  { k: 'residencia', cls: 'residencia', ic: 'residencia', nombre: 'Residencia', desc: 'Staff &middot; Cronograma &middot; Licencias de residentes',
+    frase: 'Todo lo propio del residente.', secs: [
+    { t: 'Equipo', items: [
+      { n: 'Staff de residentes', d: 'Residentes por a&ntilde;o y servicio', ic: 'img_residentes', cls: 'residencia', rol: 'Residentes', url: 'imagenes.html#residentes', ver: c => c.pest.indexOf('residentes') >= 0 }
+    ] },
+    { t: 'Cronograma y licencias', items: [
+      { n: 'Cronograma de residentes', d: 'Cronograma propio de residentes', ic: 'img_residentes', cls: 'residencia', prox: true },
+      { n: 'Licencias de residentes', d: 'Cargar la licencia y que el cronograma se modifique en consecuencia', ic: 'img_residentes', cls: 'residencia', prox: true }
+    ] }
+  ] },
+  { k: 'docencia', cls: 'docencia', ic: 'docencia', nombre: 'Docencia e Investigaci&oacute;n', desc: 'Plataforma Docente DxI &middot; Rotaciones &middot; Investigaci&oacute;n',
+    frase: 'Lo docente del servicio, las rotaciones de residentes externos y la investigaci&oacute;n.', secs: [
+    { t: 'Plataforma Docente DxI', items: [
+      { n: 'M&oacute;dulos de formaci&oacute;n', d: 'Contenido de la Plataforma Docente DxI', ic: 'docencia', cls: 'docencia', rol: 'Docencia', url: 'imagenes.html#docencia', ver: c => c.tieneImg },
+      { n: 'Calculadoras', d: 'Herramientas de c&aacute;lculo de la plataforma', ic: 'docencia', cls: 'docencia', prox: true }
+    ] },
+    { t: 'Rotaciones e investigaci&oacute;n', items: [
+      { n: 'Rotaciones de residentes externos', d: 'Inscripci&oacute;n, solicitudes y asignaci&oacute;n', ic: 'docencia', cls: 'docencia', prox: true },
+      { n: 'Investigaci&oacute;n', d: 'M&oacute;dulo de investigaci&oacute;n del servicio', ic: 'docencia', cls: 'docencia', prox: true }
+    ] }
+  ] }
+];
+
+function menuIcono(key) {
+  const m = MODULE_CARDS[key];
+  if (!m) return '';
+  return m.svg
     .replace(/<text[\s\S]*?<\/text>/g, '')
     .replace(/width="\d+" height="\d+"/, 'width="100%" height="100%"')
     .replace('viewBox="0 0 200 230"', 'viewBox="0 0 200 180"');
+}
 
-  const fila = (key, esSub) => {
-    const m = MODULE_CARDS[key];
-    if (!m) return '';
-    const perm = modulos[key];
-    const ro = perm === 'view' ? '<span class="mod-ro">Solo lectura</span>' : '';
-    const dot = (key === 'operativo' && pendingCount > 0)
-      ? `<span class="notif-dot">${pendingCount}</span>` : '';
-    const clic = sim ? 'vrNoNavega()' : `selectRol('${m.nombre}','${m.key}')`;
-    const entraDirecto = (key === directo) ? '<span class="mod-ro">Entra directo</span>' : '';
-    return `<div class="mod-fila ${m.clase}${esSub ? ' sub' : ''}" onclick="${clic}">
-      ${dot}
-      <div class="mod-icono">${soloIcono(m)}</div>
+function menuHayContenido(mod, c) {
+  return mod.secs.some(s => s.items.some(i => !i.prox && i.ver(c)));
+}
+
+function menuFila(o) {
+  const clic = o.prox ? '' : ` onclick="${o.click}"`;
+  return `<div class="mod-fila ${o.cls}${o.sub ? ' sub' : ''}${o.cab ? ' cab' : ''}${o.prox ? ' inerte' : ''}"${clic}>
+      ${o.dot > 0 ? `<span class="notif-dot">${o.dot}</span>` : ''}
+      <div class="mod-icono">${menuIcono(o.ic)}</div>
       <div class="mod-cuerpo">
-        <div class="mod-nombre">${m.nombre}${ro}${entraDirecto}</div>
-        <div class="mod-desc">${m.desc}</div>
+        <div class="mod-nombre">${o.nombre}${o.tag || ''}</div>
+        <div class="mod-desc">${o.desc}</div>
       </div>
-      <div class="mod-flecha">&#10095;</div>
+      ${o.prox ? '<span class="mod-ro">Pr&oacute;ximamente</span>' : (o.cab ? '' : '<div class="mod-flecha">&#10095;</div>')}
     </div>`;
-  };
+}
 
-  const bloques = [];
-  let n = 0;
-  for (const g of GRUPOS) {
-    const tienePadre = !!modulos[g.padre];
-    const hijos = g.hijos.filter(k => modulos[k]);
-    if (!tienePadre && !hijos.length) continue;
+function menuPintar() {
+  const E = MENU_EST;
+  if (!E) return;
+  const grid = document.getElementById('roles-grid');
+  const c = E.c;
+  let html = '';
 
-    // Si no tiene el módulo padre pero sí alguno de los hijos, el encabezado
-    // se muestra apagado y sin clic: sirve para agrupar, no para entrar.
-    const mp = MODULE_CARDS[g.padre];
-    const cab = tienePadre ? fila(g.padre, false)
-      : `<div class="mod-fila ${mp.clase} inerte">
-           <div class="mod-icono">${soloIcono(mp)}</div>
-           <div class="mod-cuerpo"><div class="mod-nombre">${mp.nombre}</div></div>
-         </div>`;
-
-    bloques.push(`<div class="mod-grupo" style="animation-delay:${++n * 0.09}s">
-      ${cab}
-      ${hijos.length ? `<div class="mod-sub-wrap">${hijos.map(k => fila(k, true)).join('')}</div>` : ''}
-    </div>`);
+  if (E.vista) {
+    const mod = MENU_DEF.find(m => m.k === E.vista);
+    if (mod && menuHayContenido(mod, c)) {
+      const secs = mod.secs
+        .map(s => ({ t: s.t, items: s.items.filter(i => i.prox ? (!!c.usr && c.usr.rol === 'admin') : i.ver(c)) }))
+        .filter(s => s.items.length);
+      html = `<div class="mod-detalle">
+        <button class="mod-volver" onclick="menuVolver()">&#10094; &Aacute;rea de trabajo</button>
+        ${menuFila({ cls: mod.cls, cab: true, ic: mod.ic, nombre: mod.nombre, desc: mod.frase })}
+        ${secs.map(s => `<div class="mod-sec">${s.t}</div>
+          <div class="mod-items">${s.items.map(i => {
+            const ro = (i.perm && c.m[i.perm] === 'view') ? '<span class="mod-ro">Solo lectura</span>' : '';
+            const click = E.sim ? 'vrNoNavega()' : `menuIr('${i.url}','${(i.rol || '').replace(/'/g, "\\'")}')`;
+            return menuFila({ cls: i.cls, sub: true, ic: i.ic, nombre: i.n, desc: i.d, tag: ro, prox: i.prox, click, dot: i.dot ? E.pendingCount : 0 });
+          }).join('')}</div>`).join('')}
+      </div>`;
+    } else {
+      E.vista = null;
+    }
   }
 
-  grid.innerHTML = bloques.length > 0 ? bloques.join('') :
-    '<div style="text-align:center; color:var(--muted); padding:40px;"><p>No tenés módulos asignados para esta sede.</p><p style="font-size:11px; margin-top:8px;">Contactá al administrador.</p></div>';
+  if (!E.vista) {
+    const filas = MENU_DEF.filter(m => menuHayContenido(m, c)).map(m => {
+      const ro = (m.k === 'admin' && c.m.admin === 'view') ? '<span class="mod-ro">Solo lectura</span>' : '';
+      const dot = (m.k === 'admin' && c.m.operativo === 'admin') ? E.pendingCount : 0;
+      return `<div class="mod-grupo">${menuFila({ cls: m.cls, ic: m.ic, nombre: m.nombre, desc: m.desc, tag: ro, dot, click: `menuAbrir('${m.k}')` })}</div>`;
+    });
+    if (c.m.dictom) {
+      const d = MODULE_CARDS.dictom;
+      filas.push(`<div class="mod-grupo">${menuFila({ cls: d.clase, ic: 'dictom', nombre: d.nombre, desc: d.desc, click: E.sim ? 'vrNoNavega()' : `selectRol('${d.nombre}','dictom')` })}</div>`);
+    }
+    const aviso = (E.sim && E.directo && MODULE_CARDS[E.directo])
+      ? `<div class="mod-ro" style="align-self:center">Este usuario entra directo a: ${MODULE_CARDS[E.directo].nombre}</div>` : '';
+    html = filas.length ? aviso + filas.join('') :
+      '<div style="text-align:center; color:var(--muted); padding:40px;"><p>No ten&eacute;s m&oacute;dulos asignados para esta sede.</p><p style="font-size:11px; margin-top:8px;">Contact&aacute; al administrador.</p></div>';
+  }
+
+  grid.innerHTML = html;
+  const sc = document.getElementById('screen-roles');
+  if (sc) sc.scrollTop = 0;
+}
+
+/* Entrar a un módulo suma un paso al historial: el botón Volver del navegador (y el de Lumen) vuelven al menú, no a Sedes. */
+function menuAbrir(k) {
+  if (!MENU_EST) return;
+  MENU_EST.vista = k;
+  try { history.pushState({ spcdScreen: 'screen-roles', modulo: k }, ''); } catch (e) {}
+  menuPintar();
+}
+function menuVolver() {
+  if (!MENU_EST) return;
+  if (history.state && history.state.modulo) { history.back(); return; }   // popstate repinta el menú
+  MENU_EST.vista = null; menuPintar();
+}
+window.addEventListener('popstate', function (e) {
+  if (!MENU_EST || currentScreen !== 'screen-roles') return;
+  const k = (e.state && e.state.modulo) || null;
+  if (k !== MENU_EST.vista) { MENU_EST.vista = k; menuPintar(); }
+});
+function menuIr(url, nombre) {
+  selectedRol = nombre;
+  localStorage.setItem('spcd_rol', nombre);
+  window.location.href = url;
 }
 
 /* -- VER SEGÚN ROL (solo admin) --
