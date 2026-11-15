@@ -447,29 +447,17 @@ function pie(m){
   ]);
 }
 
-/* Módulo de origen (?m=): Residencia muestra solo el grupo Residencia (Clases, Cronograma, Material docente);
-   Docencia e Investigación muestra Explorar y Áreas. Sin ?m= (enlace viejo) se ven los tres grupos. */
-function ctxM(){ try{ return new URLSearchParams(location.search).get('m'); }catch(e){ return null; } }
-function esSubResidencia(s){ return RESIDENCIA.some(function(r){ return r.sub === s; }); }
-function subPermitida(sub){
-  const m = ctxM();
-  if(m === 'residencia') return esSubResidencia(sub) ? sub : RESIDENCIA[0].sub;
-  if(m === 'docencia') return esSubResidencia(sub) ? 'inicio' : sub;
-  return sub;
-}
-
 /* == navegación lateral (mismo orden que la plataforma DxI) == */
 function navLateral(sub){
   function item(s, txt, ic){
     const act = sub === s || (s === 'inicio' && !sub);
     return enlace(s, act ? { 'aria-current': 'page' } : null, [icono(ic), h('span', { texto: txt })]);
   }
-  const m = ctxM();
-  const gExplorar = h('div', { class: 'doc-nav-g' }, [h('div', { class: 'doc-nav-t', texto: 'Explorar' })].concat(EXPLORAR.map(function(x){ return item(x.sub, x.txt, x.ic); })));
-  const gAreas = h('div', { class: 'doc-nav-g' }, [h('div', { class: 'doc-nav-t', texto: 'Áreas' })].concat(areas().map(function(a){ return item('area-' + slug(a), a, 'area'); })));
-  const gResidencia = h('div', { class: 'doc-nav-g' }, [h('div', { class: 'doc-nav-t', texto: 'Residencia' })].concat(RESIDENCIA.map(function(x){ return item(x.sub, x.txt, x.ic); })));
-  return h('nav', { class: 'doc-nav', 'aria-label': m === 'residencia' ? 'Residencia' : 'Docencia' },
-    m === 'residencia' ? [gResidencia] : m === 'docencia' ? [gExplorar, gAreas] : [gExplorar, gAreas, gResidencia]);
+  return h('nav', { class: 'doc-nav', 'aria-label': 'Docencia' }, [
+    h('div', { class: 'doc-nav-g' }, [h('div', { class: 'doc-nav-t', texto: 'Explorar' })].concat(EXPLORAR.map(function(x){ return item(x.sub, x.txt, x.ic); }))),
+    h('div', { class: 'doc-nav-g' }, [h('div', { class: 'doc-nav-t', texto: 'Áreas' })].concat(areas().map(function(a){ return item('area-' + slug(a), a, 'area'); }))),
+    h('div', { class: 'doc-nav-g' }, [h('div', { class: 'doc-nav-t', texto: 'Residencia' })].concat(RESIDENCIA.map(function(x){ return item(x.sub, x.txt, x.ic); })))
+  ]);
 }
 
 /* sub de la ruta → qué ítem del menú queda marcado */
@@ -532,7 +520,7 @@ function cargar(){
 }
 
 function mostrar(el, sub, puente){
-  const nuevo = subPermitida(sub || 'inicio');
+  const nuevo = sub || 'inicio';
   if(D.actual && D.actual !== nuevo){ D.previo = D.actual; window.scrollTo(0, 0); }
   D.el = el; D.puente = puente; D.actual = nuevo;
   pintar();
