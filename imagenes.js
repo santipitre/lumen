@@ -19,14 +19,54 @@ const TAB_DOC = 'docencia';   /* 06/11/2026: sección nueva, «Próximamente» *
 /* Módulo de origen (?m=admin|medico|tecnico|residencia|docencia): decide qué pestañas y cronogramas se muestran y cómo se titula la pantalla.
    Cada sección vive en UN solo módulo; Docencia solo en Residencia y en Docencia e Investigación. Sin ?m= (enlace viejo) se ven todas, como antes. */
 const CONTEXTOS = {
-  admin:      { nombre: 'Administrativo', sub: 'Staff · Cronograma', tabs: ['administrativos', TAB_CRON], crons: ['administrativos', 'licencias'] },
-  medico:     { nombre: 'Médico', sub: 'Staff · Informantes · Cronogramas', tabs: ['medicos', TAB_CRON], crons: ['eco', 'tc'] },
-  tecnico:    { nombre: 'Técnico', sub: 'Staff · Cronogramas · Pago de técnicos', tabs: ['tecnicos', TAB_CRON], crons: ['tecnicos', 'pago', 'licencias', 'radiografias', 'alertas', 'rm'] },
-  residencia: { nombre: 'Residencia', sub: 'Staff · Docencia', tabs: ['residentes', TAB_DOC], crons: null },
-  docencia:   { nombre: 'Docencia e Investigación', sub: 'Plataforma Docente DxI', tabs: [TAB_DOC], crons: null }
+  admin:      { k: 'admin', nombre: 'Administrativo', sub: 'Staff · Cronograma', tabs: ['administrativos', TAB_CRON], crons: ['administrativos', 'licencias'], grps: ['adm'] },
+  medico:     { k: 'medico', nombre: 'Médico', sub: 'Staff · Eco/Doppler · Informantes · Cronogramas', tabs: ['medicos', TAB_CRON], crons: ['tc', 'radiografias'], grps: ['med'] },
+  tecnico:    { k: 'tecnico', nombre: 'Técnico', sub: 'Staff · Cronogramas · Pago de técnicos', tabs: ['tecnicos', TAB_CRON], crons: ['tecnicos', 'pago', 'licencias', 'alertas', 'rm'], grps: ['tec'] },
+  residencia: { k: 'residencia', nombre: 'Residencia', sub: 'Staff · Docencia', tabs: ['residentes', TAB_DOC], crons: null, grps: null },
+  docencia:   { k: 'docencia', nombre: 'Docencia e Investigación', sub: 'Plataforma Docente DxI', tabs: [TAB_DOC], crons: null, grps: null }
 };
-const CTX = (function(){ try{ return CONTEXTOS[new URLSearchParams(location.search).get('m')] || null; }catch(e){ return null; } })();
-const BASE = CTX ? CTX.nombre : 'Diagnóstico por Imágenes';
+let CTX = (function(){ try{ return CONTEXTOS[new URLSearchParams(location.search).get('m')] || null; }catch(e){ return null; } })();
+let BASE = CTX ? CTX.nombre : 'Diagnóstico por Imágenes';
+/* Enlace sin ?m= (marcador, menú viejo en caché): se deduce el módulo del destino, para que nunca se mezclen sectores. */
+const CTX_DE_TAB = { medicos: 'medico', residentes: 'residencia', tecnicos: 'tecnico', administrativos: 'admin', docencia: 'docencia' };
+const CTX_DE_CRON = { administrativos: 'admin', tecnicos: 'tecnico', pago: 'tecnico', alertas: 'tecnico', rm: 'tecnico', tc: 'medico', radiografias: 'medico', eco: 'medico' };
+function deducirCtx(hash, pestanas){
+  const p = parseHash(hash);
+  let k = CTX_DE_TAB[p.tab] || null, porCron = false;
+  if(!k && p.tab === TAB_CRON && CTX_DE_CRON[p.sub]){ k = CTX_DE_CRON[p.sub]; porCron = true; }
+  if(!k && p.tab === TAB_CRON && p.sub === 'licencias'){
+    /* Licencias vive en Administrativo y en Técnico: se queda con el módulo del que venías, o con el que tengas */
+    let g = null;
+    try{ g = sessionStorage.getItem('img_ctx'); }catch(e){ g = null; }
+    if(g !== 'admin' && g !== 'tecnico') g = pestanas.indexOf('tecnicos') >= 0 ? 'tecnico' : pestanas.indexOf('administrativos') >= 0 ? 'admin' : null;
+    if(g){ k = g; porCron = true; }
+  }
+  if(!k){ try{ k = sessionStorage.getItem('img_ctx'); }catch(e){ k = null; } }
+  function sirve(x, viaCron){
+    const c = CONTEXTOS[x];
+    if(!c) return false;
+    return viaCron || c.tabs.some(function(t){ return t !== TAB_CRON && (t === TAB_DOC || pestanas.indexOf(t) >= 0); });
+  }
+  if(k && sirve(k, porCron)) return k;
+  const orden = ['medicos', 'administrativos', 'tecnicos', 'residentes'];
+  for(let i = 0; i < orden.length; i++){
+    if(pestanas.indexOf(orden[i]) >= 0) return CTX_DE_TAB[orden[i]];
+  }
+  return null;
+}
+function fijarCtx(k){
+  CTX = k ? CONTEXTOS[k] || null : null;
+  BASE = CTX ? CTX.nombre : 'Diagnóstico por Imágenes';
+  try{ if(CTX) sessionStorage.setItem('img_ctx', CTX.k); }catch(e){}
+  if(CTX){
+    const q = new URLSearchParams(location.search);
+    if(q.get('m') !== CTX.k){
+      q.set('m', CTX.k);
+      history.replaceState(null, '', location.pathname + '?' + q.toString() + location.hash);
+    }
+  }
+  pintarCabecera();
+}
 const TIPO_DE = { medicos:'medico', residentes:'residente', tecnicos:'tecnico', administrativos:'administrativo' };
 const RPC_LECTURA = ['img_mi_acceso','img_catalogos','img_listar','img_ficha','img_cronograma','img_cron_leer'];
 const RPC_ESCRITURA = ['img_persona_guardar','img_persona_borrar','img_catalogo_guardar','img_turno_guardar','img_turno_borrar','img_cron_guardar','img_cron_borrar'];
@@ -3141,6 +3181,7 @@ const PUENTE_CRON = {
   mensajeDe: function(c, d){ return mensajeDe(c, d); },
   nivel: function(){ return E.nivel; },
   subs: function(){ return CTX ? CTX.crons : null; },
+  grupos: function(){ return CTX && CTX.crons ? CTX.grps : null; },
   hoy: function(){ return E.hoy; },
   personas: function(t){ return E.personas[t] || null; },
   aviso: function(t){ edToast(t); },
@@ -3207,7 +3248,7 @@ function pintarGrupos(r){
   g.hidden = !staff.length;
   g.setAttribute('href', '#' + (E.ultimoStaff && staff.indexOf(E.ultimoStaff) >= 0 ? E.ultimoStaff : (staff[0] || 'medicos')));
   g.setAttribute('aria-selected', enStaff ? 'true' : 'false');
-  fila.hidden = !enStaff;
+  fila.hidden = !enStaff || staff.length < 2;   /* con una sola población (módulo Médico, Técnico…) la fila repetiría el nombre del grupo */
   if(arriba) arriba.hidden = false;
 }
 
@@ -3233,6 +3274,7 @@ function render(){
     const a = document.querySelector('.subtabs a[href="#medicos/' + k + '"]');
     const d = document.getElementById('sub-' + k);
     const activa = r.tab === 'medicos' && k === r.sub;
+    if(k === 'eco') a.hidden = false;   /* el Cronograma Eco/Doppler (donde se edita) vive en Médico, una sola vez */
     if(activa) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     d.hidden = !activa;
   });
@@ -3344,6 +3386,8 @@ async function iniciar(){
     avisar('SIN PESTAÑAS', 'No tenés pestañas asignadas en este módulo.', false);
     return;
   }
+  if(!CTX){ const k = deducirCtx(location.hash, E.pestanas); if(k) fijarCtx(k); }
+  else { try{ sessionStorage.setItem('img_ctx', CTX.k); }catch(e){} }
   pintarModo();
   document.getElementById('aviso').hidden = true;
   document.querySelector('[role="tablist"]').hidden = false;

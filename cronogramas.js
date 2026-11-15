@@ -356,7 +356,7 @@ function calculos(M, hoy){
   }
   function repAll(){
     const out = [];
-    L.filter(function(l){ return PM[l.key] && (PM[l.key].grp === 'tec' || PM[l.key].grp === 'adm'); }).forEach(function(l){
+    L.filter(function(l){ return PM[l.key] && (PM[l.key].grp === 'tec' || PM[l.key].grp === 'adm') && grpCtxOk(PM[l.key].grp); }).forEach(function(l){
       l.reemps.forEach(function(r, i){
         const x = { l: l, r: r, i: i, est: repEst(r), pasado: lend(l) < hoy };
         if((x.est === 'ok' && x.pasado) || repDays(l, r).length || x.pasado) out.push(x);
@@ -1448,8 +1448,9 @@ function renderEdicion(){
 /* == cuadro "A confirmar" (arriba de todo) == */
 function ambitoPC(){
   const sub = S.sub, tab = subActual().tab;
-  if(sub === 'alertas') return { grps: ['tec', 'adm'], tabs: ['tec', 'adm', 'rx', 'tc', 'eco'], g: true, nom: 'todo el módulo' };
-  if(sub === 'licencias') return { grps: ['tec', 'adm'], tabs: ['tec', 'adm'], g: true, nom: 'técnicos y administrativos' };
+  const gg = ['tec', 'adm'].filter(grpCtxOk), todos = gg.length === 2, nomG = gg[0] ? TN[gg[0]] : '';
+  if(sub === 'alertas') return { grps: gg, tabs: todos ? ['tec', 'adm', 'rx', 'tc', 'eco'] : gg, g: gg.indexOf('tec') >= 0, nom: todos ? 'todo el módulo' : nomG };
+  if(sub === 'licencias') return { grps: gg, tabs: gg, g: gg.indexOf('tec') >= 0, nom: todos ? 'técnicos y administrativos' : nomG };
   return { grps: tab === 'tec' ? ['tec'] : tab === 'adm' ? ['adm'] : [], tabs: [tab], g: tab === 'tec', nom: TN[tab] };
 }
 function itemsPC(){
@@ -1563,7 +1564,11 @@ function subsPermitidas(){
   return p.length ? p : SUBS;
 }
 function subActual(){ const L = subsPermitidas(); return L.find(function(x){ return x.k === S.sub; }) || L[0]; }
-function tabAct(){ const t = subActual().tab; return t === 'lic' || t === 'todo' ? 'tec' : t; }
+/* Grupos de personas del módulo de origen: ['tec'], ['adm'] o ['med']; null = todos (enlace viejo). Licencias, reemplazos, alertas y pendientes se limitan a ellos. */
+function grpsCtx(){ return ST.puente && typeof ST.puente.grupos === 'function' ? ST.puente.grupos() : null; }
+function grpCtxOk(g){ const f = grpsCtx(); return !f || f.indexOf(g) >= 0; }
+function personasTA(){ return (grpCtxOk('tec') ? ST.C.people('tec') : []).concat(grpCtxOk('adm') ? ST.C.people('adm') : []); }
+function tabAct(){ const t = subActual().tab; return t === 'lic' || t === 'todo' ? (grpCtxOk('tec') ? 'tec' : 'adm') : t; }
 function vistaAct(){
   const vs = vistasVisibles(S.sub), g = S.vistas[S.sub];
   return g && vs.some(function(x){ return x[0] === g; }) ? g : vs[0][0];
@@ -2036,7 +2041,7 @@ function renderMes(){
 }
 function renderAnio(){
   const y = S.y, tot = diffD(y + '-01-01', (y + 1) + '-01-01'), t = tabAct(), hoy = ST.puente.hoy();
-  const ps = (S.sub === 'licencias' ? ST.C.people('tec').concat(ST.C.people('adm')) : ST.C.people(t)).filter(function(p){ return !S.pf || p.key === S.pf; });
+  const ps = (S.sub === 'licencias' ? personasTA() : ST.C.people(t)).filter(function(p){ return !S.pf || p.key === S.pf; });
   const pc = function(d){ return (d / tot * 100) + '%'; }, Y0 = y + '-01-01', Y1 = y + '-12-31';
   const doy = function(mo, d){ return diffD(y + '-01-01', iso(y, mo, d)); };
   const gt = h('div', { class: 'cr-gt' }, h('div', { class: 'cr-gm' }, MESES.map(function(mm, i){ return h('span', { s: { left: pc(doy(i, 1)) }, t: mm.slice(0, 3) }); })));
@@ -2450,7 +2455,7 @@ function renderConf(){
   return out;
 }
 function renderLista(){
-  const PM = ST.M.PM, ls = ST.M.L.filter(function(l){ return PM[l.key] && (PM[l.key].grp === 'tec' || PM[l.key].grp === 'adm') && (!S.pf || l.key === S.pf); }).sort(function(a, b){ return b.desde.localeCompare(a.desde); });
+  const PM = ST.M.PM, ls = ST.M.L.filter(function(l){ return PM[l.key] && (PM[l.key].grp === 'tec' || PM[l.key].grp === 'adm') && grpCtxOk(PM[l.key].grp) && (!S.pf || l.key === S.pf); }).sort(function(a, b){ return b.desde.localeCompare(a.desde); });
   if(!ls.length) return nota('Sin licencias cargadas.');
   if(enEdicion()) return h('div', null, ls.map(function(l){ return h('div', { class: 'cr-ledit' }, h('b', { class: 'cr-lnom', t: nmP(l.key) }), licFila(l)); }));
   return h('div', null, ls.map(function(l){
@@ -2789,6 +2794,7 @@ function fs5(d){ return fmtC(d); }
 function listaCorta(arr, n){ return arr.slice(0, n).join(', ') + (arr.length > n ? '…' : ''); }
 function alertasDe(scope){
   const C_ = ST.C, M = ST.M, PM = M.PM, hoy = ST.puente.hoy(), al = [];
+  if(scope === 'todo'){ const gg = ['tec', 'adm'].filter(grpCtxOk); if(gg.length === 1) scope = gg[0]; }   /* dentro de un módulo, «todo» es solo su sector */
   const inc = function(t){ return scope === 'todo' || scope === t; };
   const w = function(pre, txt, go){ al.push({ w: pre, txt: txt, go: go || null }); };
   const grpScope = function(k){
@@ -2865,29 +2871,29 @@ function alertasDe(scope){
 function pendientesDe(){
   const M = ST.M, o = [];
   const porTab = {};
-  M.F.filter(function(f){ return f.pend; }).forEach(function(f){ const n = TN[f.tab] || f.tab; porTab[n] = (porTab[n] || 0) + 1; });
+  M.F.filter(function(f){ return f.pend && grpCtxOk(ST.C.grpDeTab(f.tab)); }).forEach(function(f){ const n = TN[f.tab] || f.tab; porTab[n] = (porTab[n] || 0) + 1; });
   Object.keys(porTab).forEach(function(n){ o.push('Horarios a confirmar en ' + n + ': ' + porTab[n] + ' franja' + (porTab[n] === 1 ? '' : 's') + '.'); });
-  const gp = M.G.filter(function(g){ return g.pend; }).length;
+  const gp = grpCtxOk('tec') ? M.G.filter(function(g){ return g.pend; }).length : 0;
   if(gp) o.push('Guardias de técnicos a confirmar: ' + gp + '.');
-  const lp = M.L.filter(function(l){ return l.pend; });
+  const lp = M.L.filter(function(l){ return l.pend && (!M.PM[l.key] || grpCtxOk(M.PM[l.key].grp)); });
   if(lp.length) o.push('Licencias a confirmar: ' + lp.map(function(l){ return nmP(l.key) + ' (' + l.tipo + ')'; }).join(', ') + '.');
   const rs = ST.C.repAll().filter(function(x){ return !x.est || x.est === 'pe'; }).length;
   if(rs) o.push('Reemplazos sin estado definido: ' + rs + '.');
-  if(!M.TC.cambios.length && !Object.keys(M.TC.cal).length) o.push('Tomografía: cronograma mensual del Hospital Central sin cargar.');
+  if(grpCtxOk('med') && !M.TC.cambios.length && !Object.keys(M.TC.cal).length) o.push('Tomografía: cronograma mensual del Hospital Central sin cargar.');
   const hoyTc = ST.puente.hoy(), diasTc = monthDays(S.y, S.m).filter(function(d){ return d >= hoyTc; });
   const sinInf = diasTc.filter(function(d){ return !tcDay(d).inf; }).length;
   const sinR4 = diasTc.filter(function(d){ const x = tcDay(d); return x.r4 && !x.r4l.length; }).length;
-  if(sinInf || sinR4) o.push('Tomografía (' + MESES[S.m] + '): ' + (sinInf ? 'sin médico que informe en ' + sinInf + ' día' + (sinInf === 1 ? '' : 's') : '') + (sinInf && sinR4 ? ' y ' : '') + (sinR4 ? 'sin R4 en ' + sinR4 + ' fin' + (sinR4 === 1 ? '' : 'es') + ' de semana o feriado' + (sinR4 === 1 ? '' : 's') : '') + ' (a confirmar).');
+  if(grpCtxOk('med') && (sinInf || sinR4)) o.push('Tomografía (' + MESES[S.m] + '): ' + (sinInf ? 'sin médico que informe en ' + sinInf + ' día' + (sinInf === 1 ? '' : 's') : '') + (sinInf && sinR4 ? ' y ' : '') + (sinR4 ? 'sin R4 en ' + sinR4 + ' fin' + (sinR4 === 1 ? '' : 'es') + ' de semana o feriado' + (sinR4 === 1 ? '' : 's') : '') + ' (a confirmar).');
   /* regla semanal de Tomografía, horarios de Resonancia y de administrativos: el aviso se va solo cuando los datos están cargados */
   const smP = M.cfg.tcSemana || {}, vivoP = function(k){ return !!k && !!M.PM[k] && !M.PM[k].oculta; };
   const diasSin = [0, 1, 2, 3, 4].filter(function(wd){ return !(smP.dias && vivoP(smP.dias[String(wd)])); });
   const r4Sin = !(Array.isArray(smP.r4) && smP.r4.some(vivoP));
-  if(diasSin.length || r4Sin) o.push('Tomografía: regla semanal sin cargar' + (diasSin.length ? ' (quién informa: ' + diasSin.map(function(wd){ return DIAS[wd]; }).join(', ') + ')' : '') + (r4Sin ? (diasSin.length ? ' y' : '') + ' R4 de fines de semana' : '') + ' (a confirmar).');
+  if(grpCtxOk('med') && (diasSin.length || r4Sin)) o.push('Tomografía: regla semanal sin cargar' + (diasSin.length ? ' (quién informa: ' + diasSin.map(function(wd){ return DIAS[wd]; }).join(', ') + ')' : '') + (r4Sin ? (diasSin.length ? ' y' : '') + ' R4 de fines de semana' : '') + ' (a confirmar).');
   const rmSin = M.P.filter(function(p){ return p.grp === 'tec' && !p.oculta && p.serv.indexOf('Resonancia Magnética') >= 0 && !M.F.some(function(f){ return f.key === p.key && f.tab === 'tec'; }) && !M.G.some(function(g){ return g.key === p.key; }); });
-  if(rmSin.length) o.push('Técnicos de Resonancia Magnética sin horario cargado: ' + rmSin.map(function(p){ return nmP(p.key); }).join(', ') + ' (a confirmar).');
+  if(grpCtxOk('tec') && rmSin.length) o.push('Técnicos de Resonancia Magnética sin horario cargado: ' + rmSin.map(function(p){ return nmP(p.key); }).join(', ') + ' (a confirmar).');
   const admSin = M.P.filter(function(p){ return p.grp === 'adm' && !p.oculta && !M.F.some(function(f){ return f.key === p.key && f.tab === 'adm'; }); });
-  if(admSin.length) o.push('Administrativos sin régimen semanal cargado: ' + admSin.map(function(p){ return nmP(p.key); }).join(', ') + ' (a confirmar).');
-  if(puedeEditar() && !ST.R.tarifas) o.push('Pago de técnicos: tarifas sin cargar (a confirmar).');
+  if(grpCtxOk('adm') && admSin.length) o.push('Administrativos sin régimen semanal cargado: ' + admSin.map(function(p){ return nmP(p.key); }).join(', ') + ' (a confirmar).');
+  if(grpCtxOk('tec') && puedeEditar() && !ST.R.tarifas) o.push('Pago de técnicos: tarifas sin cargar (a confirmar).');
   return o;
 }
 function kpisDe(){
@@ -3143,7 +3149,7 @@ function formLic(p, alCerrar){
   refs.obs = h('input', { type: 'text', maxlength: '200', placeholder: 'Detalle (no cargar motivos de salud)', 'aria-label': 'Detalle' });
   refs.pend = h('input', { type: 'checkbox' });
   if(!p){
-    refs.p = selec([['', '— elegir persona —']].concat(ST.C.people('tec').concat(ST.C.people('adm')).map(function(x){ return [x.key, ST.C.nm(x)]; })), '', function(){});
+    refs.p = selec([['', '— elegir persona —']].concat(personasTA().map(function(x){ return [x.key, ST.C.nm(x)]; })), '', function(){});
     refs.p.setAttribute('aria-label', 'Persona');
   }
   return h('div', { class: 'cr-form', id: 'cr-form-lic' }, h('b', { t: 'Nueva licencia' }), refs.p ? campo('Persona', refs.p) : null, refs.tipo, h('label', { class: 'cr-f' }, 'Desde', refs.desde), h('label', { class: 'cr-f' }, 'Hasta (vacío = sin fecha de regreso)', refs.hasta), refs.obs,
@@ -3323,7 +3329,7 @@ function renderNav(){
 }
 function personasFiltro(){
   const t = tabAct();
-  if(S.sub === 'licencias') return ST.C.people('tec').concat(ST.C.people('adm'));
+  if(S.sub === 'licencias') return personasTA();
   return (t === 'eco' ? ecoPersonas() : ST.C.people(t)).filter(function(p){ return p.key !== 'res'; });
 }
 function renderTools(){
