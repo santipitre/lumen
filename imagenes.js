@@ -16,7 +16,17 @@ const INF_SERVICIO = {
 const TITULOS = { medicos:'Médicos', residentes:'Residentes', tecnicos:'Técnicos', administrativos:'Administrativos', cronogramas:'Cronogramas', docencia:'Docencia' };
 const TAB_CRON = 'cronogramas';
 const TAB_DOC = 'docencia';   /* 06/11/2026: sección nueva, «Próximamente» */
-const BASE = 'Dashboard Imágenes H.Italiano';
+/* Módulo de origen (?m=admin|medico|tecnico|residencia|docencia): decide qué pestañas y cronogramas se muestran y cómo se titula la pantalla.
+   Cada sección vive en UN solo módulo; Docencia solo en Residencia y en Docencia e Investigación. Sin ?m= (enlace viejo) se ven todas, como antes. */
+const CONTEXTOS = {
+  admin:      { nombre: 'Administrativo', sub: 'Staff · Cronograma', tabs: ['administrativos', TAB_CRON], crons: ['administrativos', 'licencias'] },
+  medico:     { nombre: 'Médico', sub: 'Staff · Informantes · Cronogramas', tabs: ['medicos', TAB_CRON], crons: ['eco', 'tc'] },
+  tecnico:    { nombre: 'Técnico', sub: 'Staff · Cronogramas · Pago de técnicos', tabs: ['tecnicos', TAB_CRON], crons: ['tecnicos', 'pago', 'licencias', 'radiografias', 'alertas', 'rm'] },
+  residencia: { nombre: 'Residencia', sub: 'Staff · Docencia', tabs: ['residentes', TAB_DOC], crons: null },
+  docencia:   { nombre: 'Docencia e Investigación', sub: 'Plataforma Docente DxI', tabs: [TAB_DOC], crons: null }
+};
+const CTX = (function(){ try{ return CONTEXTOS[new URLSearchParams(location.search).get('m')] || null; }catch(e){ return null; } })();
+const BASE = CTX ? CTX.nombre : 'Diagnóstico por Imágenes';
 const TIPO_DE = { medicos:'medico', residentes:'residente', tecnicos:'tecnico', administrativos:'administrativo' };
 const RPC_LECTURA = ['img_mi_acceso','img_catalogos','img_listar','img_ficha','img_cronograma','img_cron_leer'];
 const RPC_ESCRITURA = ['img_persona_guardar','img_persona_borrar','img_catalogo_guardar','img_turno_guardar','img_turno_borrar','img_cron_guardar','img_cron_borrar'];
@@ -3111,7 +3121,18 @@ function pintarInformantes(el, sub){
 /* Cronogramas (cronogramas.js): pestaña propia, siempre visible para quien tiene alguna pestaña asignada; los permisos por dato los aplica la base. */
 function pestanasVisibles(){
   const base = E.pestanas.length && window.LumenCronogramas ? E.pestanas.concat([TAB_CRON]) : E.pestanas;
-  return E.pestanas.length ? base.concat([TAB_DOC]) : base;
+  const todas = E.pestanas.length ? base.concat([TAB_DOC]) : base;
+  if(!CTX) return todas;
+  const f = todas.filter(function(k){ return CTX.tabs.indexOf(k) >= 0; });
+  return f.length ? f : todas;
+}
+
+function pintarCabecera(){
+  const nombre = CTX ? CTX.nombre : 'Diagnóstico por Imágenes';
+  const h1 = document.querySelector('.head h1'); if(h1) h1.textContent = nombre.toUpperCase();
+  const sub = document.querySelector('.head .sub'); if(sub) sub.textContent = CTX ? CTX.sub : 'Staff · Cronogramas · Docencia';
+  const cr = document.querySelector('.topbar-crumbs .crumb-active'); if(cr) cr.textContent = nombre.toUpperCase();
+  document.title = nombre + ' · Lumen by SPITRELLA';
 }
 
 const PUENTE_CRON = {
@@ -3119,6 +3140,7 @@ const PUENTE_CRON = {
   codigoDe: function(e){ return codigoDe(e); },
   mensajeDe: function(c, d){ return mensajeDe(c, d); },
   nivel: function(){ return E.nivel; },
+  subs: function(){ return CTX ? CTX.crons : null; },
   hoy: function(){ return E.hoy; },
   personas: function(t){ return E.personas[t] || null; },
   aviso: function(t){ edToast(t); },
@@ -3277,6 +3299,7 @@ async function iniciar(){
   E.hoy = hoyLocal();
   try{ E.vista = localStorage.getItem('img_vista') === 'tarjetas' ? 'tarjetas' : 'tabla'; }catch(e){ E.vista = 'tabla'; }
   document.getElementById('ses-chip').textContent = user.nombre || user.username || '';
+  pintarCabecera();
 
   const btn = document.getElementById('tema-btn');
   function pintarBoton(){

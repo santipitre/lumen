@@ -1554,7 +1554,15 @@ function repEditor(l, r){
 /* == utilidades de vista == */
 const TN = { tec: 'Técnicos', adm: 'Administrativos', rx: 'Radiografías', tc: 'Tomografía', eco: 'Eco/Doppler', lic: 'Licencias', todo: 'Todo' };
 const GN = { med: 'Informante', tec: 'Técnico', adm: 'Administrativo', res: 'Residentes' };
-function subActual(){ return SUBS.find(function(x){ return x.k === S.sub; }) || SUBS[0]; }
+/* Módulo de origen (?m= en imagenes.html): la pantalla puede mostrar solo algunas secciones.
+   ST.puente.subs() devuelve las claves permitidas, o null para todas (enlace viejo). */
+function subsPermitidas(){
+  const f = ST.puente && typeof ST.puente.subs === 'function' ? ST.puente.subs() : null;
+  if(!f) return SUBS;
+  const p = SUBS.filter(function(s){ return f.indexOf(s.k) >= 0; });
+  return p.length ? p : SUBS;
+}
+function subActual(){ const L = subsPermitidas(); return L.find(function(x){ return x.k === S.sub; }) || L[0]; }
 function tabAct(){ const t = subActual().tab; return t === 'lic' || t === 'todo' ? 'tec' : t; }
 function vistaAct(){
   const vs = vistasVisibles(S.sub), g = S.vistas[S.sub];
@@ -3289,7 +3297,7 @@ function bloqueEstado(titulo, texto, esError, reintentar){
   return h('div', { class: 'cr-estado' + (esError ? ' error' : ''), role: esError ? 'alert' : 'status' }, h('h2', { t: titulo }), h('p', { t: texto }),
     reintentar ? btn('Reintentar', 'sm pri', function(){ iniciarCarga(); }) : null);
 }
-function subsVisibles(){ return SUBS.filter(function(s){ return !s.soloEdicion || pagoVisible(); }); }
+function subsVisibles(){ return subsPermitidas().filter(function(s){ return !s.soloEdicion || pagoVisible(); }); }
 function renderKpis(){
   return h('div', { class: 'cr-kpis', id: 'cr-kpis' }, kpisDe().map(function(x){
     return h('div', { class: 'cr-kpi' + (x[3] ? ' bad' : '') }, h('small', { t: x[0] }), h('b', { t: x[1] }), h('em', { t: x[2] }));
@@ -3300,7 +3308,7 @@ function renderKpis(){
 function renderNav(){
   const act = subActual();
   let padreAct = act.padre || act.k;
-  if(act.hijoDeTodos) padreAct = S.licPadre && SUBS.some(function(s){ return s.k === S.licPadre && !s.padre && !s.hijoDeTodos; }) ? S.licPadre : 'tecnicos';
+  if(act.hijoDeTodos) padreAct = S.licPadre && subsPermitidas().some(function(s){ return s.k === S.licPadre && !s.padre && !s.hijoDeTodos; }) ? S.licPadre : (subsPermitidas().find(function(s){ return !s.padre && !s.hijoDeTodos; }) || SUBS[0]).k;
   else if(!act.padre) S.licPadre = act.k;
   const nav = h('nav', { class: 'cr-subs', 'aria-label': 'Vistas de Cronogramas' }, subsVisibles().filter(function(s){ return !s.padre && !s.hijoDeTodos; }).map(function(s){
     return h('a', { href: '#cronogramas/' + s.k, 'data-sub': s.k, 'aria-current': s.k === padreAct ? 'page' : null, t: s.n });
@@ -3913,6 +3921,8 @@ function alCambiarHashMod(){
 }
 function mostrar(el, sub, puente){
   ST.puente = puente; ST.el = el;
+  const _perm = subsPermitidas();
+  if(!sub || !_perm.some(function(s){ return s.k === sub; })) sub = _perm.some(function(s){ return s.k === S.sub; }) ? S.sub : _perm[0].k;
   if(sub && SUBS.some(function(s){ return s.k === sub; }) && sub !== S.sub){ S.sub = sub; S.pf = null; S.dp = null; S.dd = null; S.ddEd = null; S.hl = null; S.hlL = null; S.wk = null; S.addP = false; S.addLP = false; }
   if(!ST.iniciado){
     ST.iniciado = true;
