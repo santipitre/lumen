@@ -760,8 +760,7 @@
       const DEFAULTS = { admin:{admin:'edit',tecnico:'edit',medico:'edit',operativo:'admin'}, consultor:{admin:'view',tecnico:'view',medico:'view',operativo:'view'}, mixto:{medico:'edit',operativo:'admin'}, solicitante:{operativo:'pedidos'} };
       const s = JSON.parse(localStorage.getItem('spcd_session'));
       if (!s || !s.ts || Date.now() - s.ts >= 8*60*60*1000) return false;
-      const SOLICITANTES_FORZADOS = ['TRUMBO','VFORNI','ISKAMLEC','MWSANCHEZ','JAVILA','LBASTIAS'];
-      if (s.user.username && SOLICITANTES_FORZADOS.includes(String(s.user.username).toUpperCase())) return false;
+      if (s.user.rol === 'solicitante') return false;
       const pm = (s.user.permisos && s.user.permisos.modulos) ? s.user.permisos.modulos : (DEFAULTS[s.user.rol] || {});
       return pm.medico === 'edit' || pm.medico === 'admin';
     } catch (e) { return false; }

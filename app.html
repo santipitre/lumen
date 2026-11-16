@@ -1302,16 +1302,10 @@ let selectedRol  = '';
 let currentUser  = null; // { id, username, nombre, rol, permisos }
 let vrSim        = null; // Ver según rol: { user, imgAcc } mientras hay vista previa (nunca toca currentUser)
 
-/* -- OVERRIDE DURO DE ROL: estos usuarios SOLO pueden solicitar pedidos
-     (se fuerza rol='solicitante' sin importar lo que diga Supabase) -- */
-const SOLICITANTES_FORZADOS = ['TRUMBO', 'VFORNI', 'ISKAMLEC', 'MWSANCHEZ', 'JAVILA', 'LBASTIAS'];
+/* -- ROL: lo decide SOLO la tabla usuarios (columna rol). Antes habia aqui una lista
+     fija de usuarios forzados a 'solicitante'; se migro a la base (16/11/2026).
+     Se deja la funcion como pasa-manos porque la llaman varios puntos de login. -- */
 function enforceRoleOverride(user) {
-  if (!user || !user.username) return user;
-  if (SOLICITANTES_FORZADOS.includes(user.username.toUpperCase())) {
-    user.rol = 'solicitante';
-    // Limpia permisos personalizados para que use los defaults del rol solicitante
-    user.permisos = null;
-  }
   return user;
 }
 
@@ -2470,7 +2464,7 @@ if (document.getElementById('screen-inicio').classList.contains('active')) showS
   })(0);
 })();
 </script>
-<script src="chatbot.js?v=20261110-kb"></script>
+<script src="chatbot.js?v=20261116-rol"></script>
 <script src="spcd-sesion-barra.js?v=5025c14c"></script>
 <script>
 /* -- HISTORIAL DE PANTALLAS (06/11/2026) --

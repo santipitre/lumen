@@ -15,7 +15,7 @@
 </script>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
-  <title>Administrativo · Lumen by Pyralis</title>
+  <title>Administrativo · Lumen by SPITRELLA</title>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="theme-color" content="#0F172A"/>
@@ -975,7 +975,7 @@
 
 <!-- TOPBAR -->
 <div class="topbar">
-  <a href="app.html" class="topbar-logo" style="text-decoration:none; display:inline-flex; align-items:center; gap:8px; font-family:'Inter',sans-serif; font-weight:500; letter-spacing:-0.028em; color:var(--pyralis-text);"><svg class="firefly-svg" width="28" height="28" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" aria-label="Lumen by Pyralis" style="flex-shrink:0;"><rect x="3" y="3" width="54" height="54" rx="13" fill="#0A0F14" stroke="#1F2937" stroke-width="0.8"/><path d="M16 14 L16 46 L44 46" fill="none" stroke="#F1F5F9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="22" r="9" fill="none" stroke="#F59E0B" stroke-width="0.6" opacity="0.4"/><circle cx="38" cy="22" r="4" fill="#F59E0B"/><circle cx="38" cy="22" r="1.8" fill="#FEF3C7"/></svg><span style="font-size:18px;">L<span class="firefly-o">u</span>men</span></a>
+  <a href="app.html" class="topbar-logo" style="text-decoration:none; display:inline-flex; align-items:center; gap:8px; font-family:'Inter',sans-serif; font-weight:500; letter-spacing:-0.028em; color:var(--pyralis-text);"><svg class="firefly-svg" width="28" height="28" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" aria-label="Lumen by SPITRELLA" style="flex-shrink:0;"><rect x="3" y="3" width="54" height="54" rx="13" fill="#0A0F14" stroke="#1F2937" stroke-width="0.8"/><path d="M16 14 L16 46 L44 46" fill="none" stroke="#F1F5F9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="22" r="9" fill="none" stroke="#F59E0B" stroke-width="0.6" opacity="0.4"/><circle cx="38" cy="22" r="4" fill="#F59E0B"/><circle cx="38" cy="22" r="1.8" fill="#FEF3C7"/></svg><span style="font-size:18px;">L<span class="firefly-o">u</span>men</span></a>
   <div class="topbar-sep"></div>
   <div class="topbar-crumbs">
     <a href="app.html" title="Volver al inicio">Inicio</a><span>›</span>
@@ -1790,12 +1790,11 @@
 (function() {
   const SK = 'spcd_session', TO = 8*60*60*1000;
   const DEFAULTS = { admin:{admin:'edit',tecnico:'edit',medico:'edit',operativo:'admin'}, consultor:{admin:'view',tecnico:'view',medico:'view',operativo:'view'}, mixto:{medico:'edit',operativo:'admin'}, solicitante:{operativo:'pedidos'} };
-  const SOLICITANTES_FORZADOS = ['TRUMBO','VFORNI','ISKAMLEC','MWSANCHEZ','JAVILA','LBASTIAS'];
   try {
     const s = JSON.parse(localStorage.getItem(SK));
     if (!s || Date.now() - s.ts >= TO) throw 0;
     // Bloqueo explícito: usuarios solo-pedidos no pueden entrar a admin
-    if (s.user && s.user.username && SOLICITANTES_FORZADOS.includes(s.user.username.toUpperCase())) {
+    if (s.user && s.user.rol === 'solicitante') {
       window.location.href = 'operativo.html'; return;
     }
     const pm = (s.user.permisos && s.user.permisos.modulos) ? s.user.permisos.modulos : (DEFAULTS[s.user.rol]||{});
@@ -2457,7 +2456,7 @@ const tiDrop = {
     x.font='700 26px Inter, Calibri, Arial';
     [['L','#F1F5F9'],['u','#F59E0B'],['men','#F1F5F9']].forEach(([t,col])=>{ x.fillStyle=col; x.fillText(t,wx,wy); wx+=x.measureText(t).width; });
     x.font='600 8px Inter, Calibri, Arial'; x.fillStyle='#94A3B8';
-    x.fillText('by Pyralis', MX+MS+11, wy+15);
+    x.fillText('by SPITRELLA', MX+MS+11, wy+15);
     return c.toDataURL('image/png').split(',')[1];
   },
 
@@ -2487,7 +2486,7 @@ const tiDrop = {
       const fecha=d.toLocaleDateString('es-AR');
       const totalCols=Math.max(1, heads.length);
 
-      const wb=new ExcelJS.Workbook(); wb.creator='Lumen by Pyralis';
+      const wb=new ExcelJS.Workbook(); wb.creator='Lumen by SPITRELLA';
       const ws=wb.addWorksheet('Detalle', { views:[{ showGridLines:false }] });
       heads.forEach((h,i)=>{ const n=this.normH(h); let w=Math.min(34,Math.max(10,String(h).length+4));
         if(h===this.colTurno)w=12; if(h===this.colAseg)w=30; if(n.includes('PACIENTE'))w=26; if(n.includes('PRESTACION')||n.includes('SERVICIO'))w=24;
@@ -2541,7 +2540,7 @@ const tiDrop = {
       for(let i=1;i<=totalCols;i++){ const fc=ws.getCell(r,i); fc.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}}; fc.border={top:{style:'thin',color:{argb:GOLD}}}; }
       ws.mergeCells(r,1,r,totalCols);
       const footer=ws.getCell(r,1);
-      footer.value='Lumen by Pyralis — '+d.toLocaleString('es-AR')+'  ·  '+turnos.toLocaleString('es-AR')+' turnos / '+(this.detailLineas||rows.length).toLocaleString('es-AR')+' estudios';
+      footer.value='Lumen by SPITRELLA — '+d.toLocaleString('es-AR')+'  ·  '+turnos.toLocaleString('es-AR')+' turnos / '+(this.detailLineas||rows.length).toLocaleString('es-AR')+' estudios';
       footer.font={name:'Calibri',size:7,italic:true,color:{argb:MUTED}}; footer.alignment={horizontal:'right',vertical:'middle',indent:1};
       ws.getRow(r).height=16;
 
@@ -4603,7 +4602,7 @@ async function exportarInformeOperador(share) {
     const totalCols = 5; // A-E
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'Lumen by Pyralis';
+    wb.creator = 'Lumen by SPITRELLA';
     const ws = wb.addWorksheet('Informe');
 
     // Anchos de columna
@@ -4813,7 +4812,7 @@ async function exportarInformeOperador(share) {
     }
     ws.mergeCells(r,1,r,totalCols);
     const footer = ws.getCell(r,1);
-    footer.value = `Lumen by Pyralis — ${new Date().toLocaleString('es-AR')}`;
+    footer.value = `Lumen by SPITRELLA — ${new Date().toLocaleString('es-AR')}`;
     footer.font = { name:'Calibri', size:7, italic:true, color:{argb:MUTED} };
     footer.alignment = { horizontal:'right', vertical:'middle', indent:1 };
     ws.getRow(r).height = 16;
@@ -6884,7 +6883,7 @@ async function confirmarVincularAuth() {
 }
 </script>
 
-<script src="chatbot.js?v=20261110-kb"></script>
+<script src="chatbot.js?v=20261116-rol"></script>
 <script src="spcd-sesion-barra.js?v=5025c14c"></script>
 </body>
 </html>

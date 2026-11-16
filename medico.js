@@ -4,11 +4,10 @@
 (function() {
   const SK = 'spcd_session', TO = 8*60*60*1000;
   const DEFAULTS = { admin:{admin:'edit',tecnico:'edit',medico:'edit',operativo:'admin'}, consultor:{admin:'view',tecnico:'view',medico:'view',operativo:'view'}, mixto:{medico:'edit',operativo:'admin'}, solicitante:{operativo:'pedidos'} };
-  const SOLICITANTES_FORZADOS = ['TRUMBO','VFORNI','ISKAMLEC','MWSANCHEZ','JAVILA','LBASTIAS'];
   try {
     const s = JSON.parse(localStorage.getItem(SK));
     if (!s || Date.now() - s.ts >= TO) throw 0;
-    if (s.user && s.user.username && SOLICITANTES_FORZADOS.includes(s.user.username.toUpperCase())) {
+    if (s.user && s.user.rol === 'solicitante') {
       window.location.href = 'operativo.html'; return;
     }
     const pm = (s.user.permisos && s.user.permisos.modulos) ? s.user.permisos.modulos : (DEFAULTS[s.user.rol]||{});

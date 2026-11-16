@@ -1845,12 +1845,7 @@ async function initRealtimeAdminPedidos() {
 }
 
 function applyPermissions() {
-  // Override duro: estos usuarios SIEMPRE son solicitantes, sin importar la DB
-  const SOLICITANTES_FORZADOS = ['TRUMBO', 'VFORNI', 'ISKAMLEC', 'MWSANCHEZ', 'JAVILA', 'LBASTIAS'];
-  if (currentUser && currentUser.username && SOLICITANTES_FORZADOS.includes(currentUser.username.toUpperCase())) {
-    currentUser.rol = 'solicitante';
-  }
-
+  // El rol (incluido 'solicitante') lo decide la tabla usuarios.
   const rol = currentUser.rol;
   const tabs = document.querySelectorAll('.nav-tab');
 
@@ -5488,7 +5483,7 @@ function aplicarModoAccesoPostLogin() {
 <script src="spcd-bg.js?v=20261111-luci2"></script>
 <script src="spcd-share.js?v=865a3f49"></script>
 <script src="spcd-excel-template.js?v=541e71a8"></script>
-<script src="chatbot.js?v=20261110-kb"></script>
+<script src="chatbot.js?v=20261116-rol"></script>
 <script src="spcd-sesion-barra.js?v=5025c14c"></script>
 </body>
 </html>
