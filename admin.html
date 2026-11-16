@@ -734,6 +734,18 @@
     .bp-login-m { min-height:18px; margin-top:10px; font-size:12.5px; color:var(--text); }
     .bp-login-alt { margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; }
     .bp-aviso { border:1px solid rgba(248,113,113,.5); background:rgba(248,113,113,.08); color:var(--red); border-radius:8px; padding:9px 12px; font-size:12.5px; margin-bottom:12px; }
+    /* ── TABLERO "ARREGLAR TODO": una tarjeta por bot ── */
+    .bt-bots { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:10px; margin-bottom:18px; }
+    .bt-bot { border:1px solid var(--border); background:rgba(30,58,138,.12); border-radius:10px; padding:11px 13px; cursor:pointer; }
+    .bt-bot.on { border-color:var(--cyan); background:rgba(6,182,212,.1); }
+    .bt-bot-h { display:flex; justify-content:space-between; gap:8px; align-items:baseline; font-size:12.5px; font-weight:600; }
+    .bt-bot-s { font-size:10px; letter-spacing:1.1px; text-transform:uppercase; font-weight:700; color:var(--muted); white-space:nowrap; }
+    .bt-bot.corriendo .bt-bot-s { color:var(--cyan); } .bt-bot.listo .bt-bot-s { color:var(--green); }
+    .bt-bot.sin_excel .bt-bot-s, .bt-bot.salteado .bt-bot-s { color:var(--amber); }
+    .bt-bot-b { height:5px; border-radius:99px; background:rgba(59,130,246,.18); overflow:hidden; margin:8px 0 6px; }
+    .bt-bot-b > i { display:block; height:100%; background:linear-gradient(90deg,var(--cyan),var(--green)); transition:width .6s; }
+    .bt-bot-n { font-size:11.5px; color:var(--muted); line-height:1.4; }
+    .bp-st.NO_ENCONTRADO,.bp-st.OMITIDO_FECHA { color:var(--amber); background:rgba(251,191,36,.12); white-space:nowrap; font-size:9.5px; }
     /* Overlay de instrucciones del bot */
     .reparar-overlay {
       display:none; position:fixed; inset:0; z-index:1100;
@@ -1097,7 +1109,8 @@
 
     <div class="auto-head">
       <div class="ecard-group-label auto"><span class="pill"></span>Automatizados · con bot de reparación</div>
-      <button class="btn-reparar-todo" onclick="repararTodo()" title="Genera los 6 Excel y corre todos los arreglos con un solo login">⚡ Arreglar automáticamente TODO</button>
+      <button class="btn-reparar-todo" onclick="repararTodo()" title="Genera los 6 Excel y corre todos los arreglos en segundo plano, con un solo login en el tablero">⚡ Arreglar automáticamente TODO</button>
+      <div class="bp-card" id="bt-card" style="display:none;margin:0;min-width:210px" onclick="bpAbrir(false,'todo')" title="Abrir el tablero"><div class="bp-card-l"><span id="bt-card-t">—</span><span id="bt-card-n"></span></div><div class="bp-card-b"><i id="bt-card-i" style="width:0%"></i></div></div>
     </div>
     <div class="ecards">
       <div class="kpi-card ecard auto" onclick="openModal('instderiv')">
@@ -1721,7 +1734,7 @@
 <div class="bp-overlay" id="bp-overlay">
   <div class="bp-box">
     <div class="bp-head">
-      <span class="bp-title">🤖 Sin Derivantes · bot automático</span>
+      <span class="bp-title" id="bp-title">🤖 Sin Derivantes · bot automático</span>
       <span class="bp-pill" id="bp-pill">—</span>
       <button class="bp-x" onclick="bpCerrar()" title="Cerrar (el bot sigue trabajando)">✕</button>
     </div>
@@ -5630,8 +5643,8 @@ async function reparAutoCard(tipo) {
 }
 
 /* ARREGLAR AUTOMÁTICAMENTE TODO
-   Genera los 6 Excel (uno por tipo, con el nombre que cada bot espera) y dispara
-   el orquestador lumen-fix-todo.py, que loguea UNA sola vez y corre los 6 en orden.
+   Mismo sistema que "Sin Derivantes": un bot de fondo (lumen-panel-todo.py, lanzado OCULTO por lumentodo://run, sin PowerShell)
+   corre los 6 arreglos en orden con UN solo login, y el tablero muestra el avance y pide el usuario/contraseña del HIS.
    Orden = igual que las tarjetas. */
 async function repararTodo() {
   const ORDEN = [
@@ -5642,45 +5655,29 @@ async function repararTodo() {
     ['cuentaint',   'Cuenta sin INTERNADOS'],
     ['rxamb',       'RX AMB PAMI en FINAMED'],
   ];
-  const overlay  = document.getElementById('reparar-overlay');
-  const titleEl  = document.getElementById('reparar-title');
-  const countTxt = document.getElementById('reparar-count-txt');
-  const cmdEl    = document.getElementById('reparar-cmd');
+  const avisar = (m, t) => { if (typeof spcdAlert === 'function') spcdAlert(m, { type: t || 'error', title: 'Arreglar TODO' }); else console.warn(m); };
+  if (!filtered.length) { avisar('No hay datos cargados. Primero traé la data de la nube (o cargá el Excel) y volvé a intentar.', 'warning'); return; }
 
-  if (titleEl)  titleEl.textContent  = '⚡ Arreglar automáticamente TODO';
-  if (cmdEl)    cmdEl.textContent    = 'cd "C:\\Users\\pitre\\Repos\\Automatización tareas adm\\fuesmen_bot"; .\\.venv\\Scripts\\python.exe lumen-fix-todo.py';
-  if (overlay)  overlay.classList.add('open');
-
-  if (!filtered.length) {
-    if (countTxt) countTxt.textContent = 'No hay datos cargados. Primero traé la data de la nube (o cargá el Excel) y volvé a intentar.';
-    return;
-  }
-
-  const generados = [], vacios = [];
+  // Qué tipos tienen turnos con error (síncrono: el protocolo tiene que dispararse DENTRO del clic).
+  const aExportar = [];
   for (const [tipo, label] of ORDEN) {
-    if (countTxt) countTxt.textContent = 'Generando Excel: ' + label + '…';
-    try {
-      openModal(tipo);                       // setea modalTipo + modalRows + modalFiltered
-      const n = (modalRows || []).length;
-      if (!n) { vacios.push(label); continue; }
-      await exportExcel(undefined, false);   // descarga con el nombre que el bot espera
-      generados.push(label + ' (' + n + ')');
-    } catch (e) {
-      console.error('[repararTodo]', tipo, e);
-      vacios.push(label + ' (error)');
-    }
+    try { openModal(tipo); if ((modalRows || []).length) aExportar.push([tipo, label]); } catch (e) { console.error('[repararTodo]', tipo, e); }
   }
   try { closeModal(); } catch (e) {}
+  if (!aExportar.length) { avisar('No hay turnos con error en ninguno de los 6 tipos: no hace falta arreglar nada.', 'success'); return; }
 
-  if (countTxt) {
-    countTxt.innerHTML =
-      '<b>' + generados.length + ' Excel generado(s)</b> en Descargas: ' + (generados.join(', ') || '—') +
-      (vacios.length ? '<br><span style="color:var(--muted)">Sin turnos (no hace falta): ' + vacios.join(', ') + '</span>' : '');
+  // El protocolo se dispara PRIMERO (Chrome lo bloquea en silencio si va después de un await). El bot espera
+  // unos segundos a que terminen de bajar los Excel que se exportan a continuación.
+  try { window.location.href = 'lumentodo://run'; } catch (e) { console.warn('protocolo no disponible:', e); }
+  const pAbrir = bpAbrir(true, 'todo');
+  const fallaron = [];
+  for (const [tipo, label] of aExportar) {
+    try { openModal(tipo); await exportExcel(undefined, false); }   // descarga con el nombre que cada bot espera
+    catch (e) { console.error('[repararTodo]', tipo, e); fallaron.push(label); }
   }
-
-  // Dispara el orquestador (si el protocolo 'todo' está registrado). Si no abre nada,
-  // el fallback es doble clic en BOT_TODOS.bat (ver instrucciones del overlay).
-  try { window.location.href = 'lumenbot://todo'; } catch (e) { console.warn('protocolo todo no disponible:', e); }
+  try { closeModal(); } catch (e) {}
+  await pAbrir;
+  if (fallaron.length) avisar('No se pudo generar el Excel de: ' + fallaron.join(', ') + '. Ese bot se saltea en esta corrida.');
 }
 
 /* ══════════════════════════════════
@@ -5688,7 +5685,7 @@ async function repararTodo() {
    El bot (lumen-panel-derivante.py) escribe en bot_corridas / bot_corrida_turnos;
    esta pantalla consulta cada 2 s y manda órdenes por bot_comandos.
 ══════════════════════════════════ */
-const BP = { id:null, prevId:null, timer:null, filtro:'todos', corrida:null, turnos:[], incluirOjo:false, esperaDesde:0, confirmando:false, aviso:'', loginEnviado:null, dec:{}, corr:{}, decBusy:0, detalle:null };
+const BP = { bot:'derivante', id:null, prevId:null, timer:null, filtro:'todos', corrida:null, turnos:[], incluirOjo:false, esperaDesde:0, confirmando:false, aviso:'', loginEnviado:null, dec:{}, corr:{}, decBusy:0, detalle:null };
 const bpEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const BP_FIN = ['terminada','error','cancelada'];
 /* Un solo cálculo del porcentaje para el tablero y la tarjeta: el que manda el bot y, si es un bot viejo
@@ -5700,32 +5697,37 @@ function bpPct(c) {
 }
 
 /* Avance en la TARJETA "Sin Derivantes" (aunque el tablero esté cerrado). */
-function bpCardPaint(c) {
-  const box = document.getElementById('bp-card'); if (!box) return;
-  const vivo = c && !BP_FIN.includes(c.estado);
+function bpCardPaint(c, p) {
+  p = p || 'bp';
+  const box = document.getElementById(p + '-card'); if (!box) return;
+  const vivo = c && !BP_FIN.includes(c.estado) && !(c.actualizada && Date.now() - new Date(c.actualizada).getTime() > 600000);   // sin señales hace >10 min: corrida muerta
   if (!vivo) { box.style.display = 'none'; return; }
   const pct = bpPct(c);
-  const txt = { iniciando:'🤖 Iniciando…', esperando_login:'🔐 Falta tu login', leyendo:'🤖 Leyendo', listo_para_aplicar:'✅ Listo para aplicar', aplicando:'⚙ Aplicando' }[c.estado] || c.estado;
+  const txt = { iniciando:'🤖 Iniciando…', esperando_login:'🔐 Falta tu login', leyendo:'🤖 Leyendo', listo_para_aplicar:'✅ Listo para aplicar', aplicando:(p === 'bt' ? '⚙ Arreglando' : '⚙ Aplicando') }[c.estado] || c.estado;
   box.style.display = '';
   box.classList.toggle('amber', c.estado === 'esperando_login' || c.estado === 'listo_para_aplicar');
-  document.getElementById('bp-card-t').textContent = txt;
-  document.getElementById('bp-card-n').textContent = (c.estado === 'esperando_login') ? 'tocá para ingresar' : (c.estado === 'listo_para_aplicar' ? 'tocá para revisar' : pct + '%');
-  document.getElementById('bp-card-i').style.width = (c.estado === 'esperando_login' ? 0 : pct) + '%';
+  document.getElementById(p + '-card-t').textContent = txt;
+  document.getElementById(p + '-card-n').textContent = (c.estado === 'esperando_login') ? 'tocá para ingresar' : (c.estado === 'listo_para_aplicar' ? 'tocá para revisar' : pct + '%');
+  document.getElementById(p + '-card-i').style.width = (c.estado === 'esperando_login' ? 0 : pct) + '%';
 }
 async function bpCardTick() {
   try {
     if (document.hidden || typeof sbQuery !== 'function') return;
     if (document.getElementById('bp-overlay')?.classList.contains('open')) return;   // el tablero ya pinta la tarjeta
-    bpCardPaint(await bpUltima());
+    bpCardPaint(await bpUltima('derivante'));
+    bpCardPaint(await bpUltima('todo'), 'bt');
   } catch (e) {}
 }
 setTimeout(() => { bpCardTick(); setInterval(bpCardTick, 5000); }, 3000);
 
-async function bpUltima() {
-  const r = await sbQuery('bot_corridas', 'bot=eq.derivante&order=creada.desc&limit=1&select=*');
+async function bpUltima(bot) {
+  const r = await sbQuery('bot_corridas', 'bot=eq.' + (bot || BP.bot) + '&order=creada.desc&limit=1&select=*');
   return (r && r[0]) || null;
 }
-async function bpAbrir(esperarNueva) {
+async function bpAbrir(esperarNueva, bot) {
+  BP.bot = bot || 'derivante'; BP.corrida = null; BP.turnos = []; BP._html = null;
+  const ttl = document.getElementById('bp-title');
+  if (ttl) ttl.textContent = BP.bot === 'todo' ? '⚡ Arreglar automáticamente TODO · bot en segundo plano' : '🤖 Sin Derivantes · bot automático';
   document.getElementById('bp-overlay').classList.add('open');
   BP.filtro = 'todos'; BP.incluirOjo = false; BP.confirmando = false; BP.aviso = ''; BP.loginEnviado = null;
   const lg = document.getElementById('bp-login'); if (lg) { lg.innerHTML = ''; lg.dataset.k = ''; }
@@ -5752,18 +5754,20 @@ async function bpTick() {
     }
     const [c, t] = await Promise.all([
       sbQuery('bot_corridas', `id=eq.${BP.id}&select=*`),
-      sbQuery('bot_corrida_turnos', `corrida_id=eq.${BP.id}&order=orden.asc&limit=1000&select=*`)
+      sbQuery('bot_corrida_turnos', BP.bot === 'todo'
+        ? `corrida_id=eq.${BP.id}&estado=neq.PENDIENTE&order=actualizado.desc&limit=1000&select=*`
+        : `corrida_id=eq.${BP.id}&order=orden.asc&limit=1000&select=*`)
     ]);
     BP.corrida = (c && c[0]) || null; BP.turnos = t || [];
-    try {
+    if (BP.bot !== 'todo') try {
       const dd = await sbQuery('bot_decisiones', 'bot=eq.derivante&select=turno_n,decision&limit=2000');
       if (Array.isArray(dd) && !BP.decBusy) { BP.dec = {}; dd.forEach(x => { BP.dec[String(x.turno_n)] = x.decision; }); }
     } catch (e) { console.warn('[bp] decisiones', e); }
-    try {
+    if (BP.bot !== 'todo') try {
       const cc = await sbQuery('bot_correcciones', 'bot=eq.derivante&select=turno_n,matricula_correcta&limit=5000');
       if (Array.isArray(cc) && !BP.decBusy) { BP.corr = {}; cc.forEach(x => { BP.corr[String(x.turno_n)] = x.matricula_correcta; }); }
     } catch (e) { console.warn('[bp] correcciones', e); }
-    bpRender(); bpCardPaint(BP.corrida);
+    bpRender(); bpCardPaint(BP.corrida, BP.bot === 'todo' ? 'bt' : 'bp');
     if (BP.corrida && BP_FIN.includes(BP.corrida.estado)) { clearInterval(BP.timer); BP.timer = null; }
   } catch (e) { console.warn('[bp] tick', e); }
 }
@@ -6003,6 +6007,7 @@ function bpRender() {
       ${BP.id === null && !BP.esperaDesde ? '<div class="bp-msg">Todavía no hay corridas registradas.</div>' : ''}`;
     return;
   }
+  if (BP.bot === 'todo') return btRender(c, aviso);
   pill.className = 'bp-pill ' + c.estado; pill.textContent = c.estado.replace(/_/g, ' ');
   const T = BP.turnos, cnt = {}; T.forEach(x => { const e = bpEf(x); cnt[e] = (cnt[e] || 0) + 1; });
   const ok = (cnt.OK || 0) + (cnt.YA_OK || 0), listo = cnt.LISTO || 0, rev = cnt.REVISION || 0, err = (cnt.ERROR || 0) + (cnt.BROWSER_CERRADO || 0) + (cnt.ERR_MAN || 0);
@@ -6072,6 +6077,72 @@ function bpRender() {
     BP._html = html; BP._filtroPintado = BP.filtro;
   }
   bpDetRender();
+}
+
+/* ── Tablero de "ARREGLAR TODO": un bot de fondo (lumen-panel-todo.py) que corre los 6 arreglos con un solo login.
+   Comparte el canal (bot_corridas / bot_corrida_turnos / bot_comandos), el login cifrado y los botones con el de Derivantes. ── */
+const BT_ST = { pendiente:'En espera', corriendo:'Corriendo', listo:'Listo', sin_excel:'Sin Excel', sin_pendientes:'Nada pendiente', salteado:'Salteado' };
+function btRender(c, aviso) {
+  const body = document.getElementById('bp-main'), pill = document.getElementById('bp-pill');
+  pill.className = 'bp-pill ' + c.estado; pill.textContent = c.estado === 'aplicando' ? 'arreglando' : c.estado.replace(/_/g, ' ');
+  const R = c.resumen || {}, bots = R.bots || [], T = BP.turnos;
+  const sum = k => bots.reduce((s, b) => s + (b[k] || 0), 0);
+  const tot = c.total || sum('pend'), hechos = Math.max(c.procesados || 0, sum('hechos')), ok = sum('ok'), err = sum('err');
+  const otros = Math.max(0, hechos - ok - err), faltan = Math.max(0, tot - hechos), pct = bpPct(c);
+  const etapaTxt = c.etapa || ({ iniciando:'Iniciando', esperando_login:'Esperando tu login', aplicando:'Arreglando', terminada:'Terminado', error:'Error', cancelada:'Cancelada' })[c.estado] || c.estado;
+  const muerto = !BP_FIN.includes(c.estado) && c.estado !== 'esperando_login' && c.actualizada && (Date.now() - new Date(c.actualizada).getTime() > 120000);
+  let banner = '';
+  if (c.estado === 'esperando_login' && !c.clave_publica) banner = `<div class="bp-banner"><div class="grow"><b>Falta tu login.</b> Se abrió la ventana del HIS: ingresá usuario y contraseña ahí. Cuando entres, el tablero sigue solo (o apretá el botón).</div><button class="bp-btn go" onclick="bpComando('login_ok')">Ya me logueé</button><button class="bp-btn stop" onclick="bpCancelar()">Cancelar</button></div>`;
+  else if (c.estado === 'error') banner = `<div class="bp-banner bad"><div class="grow"><b>El bot se detuvo con un error.</b> ${bpEsc(c.mensaje)}</div></div>`;
+  else if (c.estado === 'cancelada') banner = `<div class="bp-banner bad"><div class="grow"><b>Corrida cancelada.</b> ${bpEsc(c.mensaje)}</div></div>`;
+  else if (c.estado === 'terminada') banner = `<div class="bp-banner ok"><div class="grow"><b>Terminado.</b> ${ok} turnos arreglados · ${err} con error${otros ? ` · ${otros} sin cambios (ya estaban bien u omitidos)` : ''}. Los errores quedan en el historial de cada bot y se reintentan en la próxima corrida.</div></div>`;
+  else if (muerto) banner = `<div class="bp-banner bad"><div class="grow"><b>El bot no da señales hace más de 2 minutos.</b> Puede haberse cerrado la ventana del HIS o la PC se durmió.</div><button class="bp-btn stop" onclick="bpCancelar()">Detener</button></div>`;
+  else if (['aplicando', 'iniciando'].includes(c.estado)) banner = `<div class="bp-banner"><div class="grow"><b>Trabajando en segundo plano…</b> podés cerrar este panel: el bot sigue y lo reabrís desde el botón de arriba. Cada turno se guarda apenas se arregla; si lo detenés, lo hecho queda.</div><button class="bp-btn stop" onclick="bpCancelar()">Detener</button></div>`;
+  const f = BP.filtro;
+  const chip = (k, l) => `<button class="bp-chip ${f === k ? 'on' : ''}" onclick="bpFiltro('${k}')">${l}</button>`;
+  const lab = {}; bots.forEach(b => { lab[b.tag] = b.label; });
+  const parte = x => { const i = String(x.turno_n).indexOf(':'); return i < 0 ? ['', String(x.turno_n)] : [String(x.turno_n).slice(0, i), String(x.turno_n).slice(i + 1)]; };
+  const esErr = x => ['ERROR', 'NO_ENCONTRADO', 'BROWSER_CERRADO'].includes(x.estado);
+  const vis = T.filter(x => f === 'todos' || (f === 'err' && esErr(x)) || parte(x)[0] === f);
+  const nErr = T.filter(esErr).length;
+  const tarjetas = bots.map(b => {
+    const pb = b.pend ? Math.round(100 * (b.hechos || 0) / b.pend) : (b.estado === 'sin_pendientes' || b.estado === 'listo' ? 100 : 0);
+    const det = b.pend ? `${b.hechos || 0} de ${b.pend} · ${b.ok || 0} arreglados · ${b.err || 0} ${(b.err || 0) === 1 ? 'error' : 'errores'}` : (b.msg || '');
+    return `<div class="bt-bot ${bpEsc(b.estado)} ${f === b.tag ? 'on' : ''}" onclick="bpFiltro(BP.filtro==='${bpEsc(b.tag)}'?'todos':'${bpEsc(b.tag)}')" title="Clic: ver solo los turnos de este bot">
+      <div class="bt-bot-h"><span>${bpEsc(b.label)}</span><span class="bt-bot-s">${bpEsc(BT_ST[b.estado] || b.estado)}</span></div>
+      <div class="bt-bot-b"><i style="width:${pb}%"></i></div><div class="bt-bot-n">${bpEsc(det)}${b.pend && b.msg ? ' · ' + bpEsc(b.msg) : ''}</div></div>`;
+  }).join('');
+  const filas = vis.map(x => {
+    const [tag, tn] = parte(x);
+    return `<tr><td>${bpEsc(lab[tag] || tag)}</td><td><b>${bpEsc(tn)}</b></td><td><span class="bp-st ${bpEsc(x.estado)}">${bpEsc(x.estado)}</span></td><td><div class="bp-clamp">${bpEsc(x.detalle)}</div></td></tr>`;
+  }).join('');
+  const msgTop = (c.estado === 'esperando_login' && c.clave_publica) ? '' : bpEsc(c.mensaje || '');
+  const chips = chip('todos', 'Todos (' + T.length + ')') + chip('err', 'Con error (' + nErr + ')') + bots.filter(b => b.pend).map(b => chip(b.tag, bpEsc(b.label))).join('');
+  const html = `${aviso}
+    <div class="bp-msg">${msgTop}</div>
+    <div class="bp-prog"><span class="bp-prog-e">${bpEsc(etapaTxt)}</span><span class="bp-prog-n">${pct}%</span></div>
+    <div class="bp-bar"><i style="width:${pct}%"></i></div>
+    ${banner}
+    <div class="bp-kpis">
+      <div class="bp-kpi"><div class="n">${tot}</div><div class="l">Turnos a arreglar</div></div>
+      <div class="bp-kpi g"><div class="n">${ok}</div><div class="l">Arreglados</div></div>
+      <div class="bp-kpi c"><div class="n">${faltan}</div><div class="l">Faltan</div></div>
+      <div class="bp-kpi r"><div class="n">${err}</div><div class="l">Con error</div></div>
+      <div class="bp-kpi a"><div class="n">${otros}</div><div class="l">Sin cambios</div></div>
+    </div>
+    ${tarjetas ? `<div class="bt-bots">${tarjetas}</div>` : ''}
+    <div class="bp-chips">${chips}</div>
+    <div class="bp-tablewrap"><table class="bp-table"><colgroup><col style="width:22%"><col style="width:90px"><col style="width:130px"><col></colgroup><thead><tr><th>Bot</th><th>Turno</th><th>Estado</th><th>Detalle</th></tr></thead><tbody>${filas || '<tr><td colspan="4" class="bp-dim">Todavía no hay turnos procesados en este filtro.</td></tr>'}</tbody></table></div>`;
+  if (BP._html !== html) {
+    const wrap = body.querySelector('.bp-tablewrap');
+    const st = (wrap && BP._filtroPintado === BP.filtro) ? wrap.scrollTop : 0;
+    const ov = document.getElementById('bp-overlay'), ost = ov ? ov.scrollTop : 0;
+    body.innerHTML = html;
+    const nuevo = body.querySelector('.bp-tablewrap');
+    if (nuevo && st) nuevo.scrollTop = st;
+    if (ov && ost) ov.scrollTop = ost;
+    BP._html = html; BP._filtroPintado = BP.filtro;
+  }
 }
 
 async function repararConBot() {
