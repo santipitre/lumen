@@ -139,3 +139,19 @@ html[data-ui="zafiro"] .btn-export{ border-radius:12px; color:var(--z-acc-ink); 
 html[data-ui="zafiro"] .btn-export:hover{ border-color:var(--z-acc); background:var(--z-card-hi); }
 html[data-ui="zafiro"] .export-menu{ border-radius:12px; }
 html[data-ui="zafiro"] .modal-bar{ background:var(--z-acc); }
+
+/* Médico · vistas de detalle a pantalla completa: letra más grande y acento azul */
+html[data-ui="zafiro"] .real-title{ font-size:30px; color:var(--z-acc-ink); letter-spacing:.08em; }
+html[data-ui="zafiro"] .real-subtitle{ font-size:15px; }
+html[data-ui="zafiro"] .btn-back-real{ font-size:14px; padding:10px 20px; letter-spacing:.06em; }
+html[data-ui="zafiro"] .real-sum-label{ font-size:13px; letter-spacing:.14em; }
+html[data-ui="zafiro"] .real-sum-val{ font-size:42px; }
+html[data-ui="zafiro"] .real-sum-val:not(.amber){ color:var(--z-acc-ink); }
+html[data-ui="zafiro"] .real-table-title{ font-size:17px; letter-spacing:.12em; }
+html[data-ui="zafiro"] .real-table th{ font-size:13px; letter-spacing:.12em; padding:14px 18px; }
+html[data-ui="zafiro"] .real-table td{ font-size:17px; padding:15px 18px; }
+html[data-ui="zafiro"] .real-table .rank-col{ font-size:20px; }
+html[data-ui="zafiro"] .real-table .num-col{ font-size:24px; color:var(--z-acc-ink); }
+html[data-ui="zafiro"] .real-table .time-col{ font-size:22px; }
+html[data-ui="zafiro"] .real-pct{ font-size:14px; }
+html[data-ui="zafiro"] .real-table-header .btn-export{ font-size:14px; padding:10px 18px; }
