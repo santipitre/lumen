@@ -1,0 +1,95 @@
+/* Zafiro · letra más grande en operativo (generado: x1.2 hasta 20px, x1.12 arriba; solo pantallas >= 900px) */
+@media (min-width:900px){
+html[data-ui="zafiro"] .btn-reset{font-size:14px}
+html[data-ui="zafiro"] .kpi-label{font-size:12px}
+html[data-ui="zafiro"] .ped-filtro-grp label{font-size:12px}
+html[data-ui="zafiro"] .ped-filtro-grp select,
+html[data-ui="zafiro"] .ped-filtro-grp input{font-size:14px}
+html[data-ui="zafiro"] .toast{font-size:16px}
+html[data-ui="zafiro"] .modal-box h3{font-size:24px}
+html[data-ui="zafiro"] .modal-box p{font-size:14px}
+html[data-ui="zafiro"] .logo-mini{font-size:18px}
+html[data-ui="zafiro"] .brand-name{font-size:19px}
+html[data-ui="zafiro"] .brand-sub{font-size:12px}
+html[data-ui="zafiro"] .user-chip{font-size:12px}
+html[data-ui="zafiro"] .login-logo .ll-icon{font-size:25px}
+html[data-ui="zafiro"] .login-logo h2{font-size:25px}
+html[data-ui="zafiro"] .login-logo p{font-size:13px}
+html[data-ui="zafiro"] .login-error{font-size:14px}
+html[data-ui="zafiro"] .modal-box h3{font-size:24px}
+html[data-ui="zafiro"] .modal-box p{font-size:14px}
+html[data-ui="zafiro"] .nav-tab{font-size:14px}
+html[data-ui="zafiro"] .tab-badge{font-size:12px}
+html[data-ui="zafiro"] .dash-title{font-size:31px}
+html[data-ui="zafiro"] .dash-sub{font-size:14px}
+html[data-ui="zafiro"] .stat-val{font-size:60px}
+html[data-ui="zafiro"] .stat-label{font-size:16px}
+html[data-ui="zafiro"] .alert-title-bar h3{font-size:19px}
+html[data-ui="zafiro"] .alert-count{font-size:13px}
+html[data-ui="zafiro"] .alert-card .alert-emoji{font-size:24px}
+html[data-ui="zafiro"] .alert-card .alert-prod{font-size:16px}
+html[data-ui="zafiro"] .alert-card .alert-detail{font-size:13px}
+html[data-ui="zafiro"] .alert-card .alert-badge{font-size:12px}
+html[data-ui="zafiro"] .section-header h2{font-size:25px}
+html[data-ui="zafiro"] .filter-btn{font-size:13px}
+html[data-ui="zafiro"] .search-box input{font-size:16px}
+html[data-ui="zafiro"] .stock-table{font-size:16px}
+html[data-ui="zafiro"] .stock-table thead th{font-size:12px}
+html[data-ui="zafiro"] .tipo-badge{font-size:12px}
+html[data-ui="zafiro"] .subcat-text{font-size:13px}
+html[data-ui="zafiro"] .entry-form h3{font-size:22px}
+html[data-ui="zafiro"] .btn-submit{font-size:17px}
+html[data-ui="zafiro"] .btn-secondary{font-size:17px}
+html[data-ui="zafiro"] .toast{font-size:16px}
+html[data-ui="zafiro"] .mov-item .mov-icon{font-size:22px}
+html[data-ui="zafiro"] .mov-item .mov-prod{font-size:16px}
+html[data-ui="zafiro"] .mov-item .mov-detail{font-size:13px}
+html[data-ui="zafiro"] .mov-item .mov-qty{font-size:24px}
+html[data-ui="zafiro"] .pedido-id{font-size:19px}
+html[data-ui="zafiro"] .pedido-estado{font-size:12px}
+html[data-ui="zafiro"] .pedido-meta{font-size:14px}
+html[data-ui="zafiro"] .pedido-items-list{font-size:14px}
+html[data-ui="zafiro"] .pedido-detail-table{font-size:14px}
+html[data-ui="zafiro"] .pedido-detail-table th{font-size:12px}
+html[data-ui="zafiro"] .pedido-info-grid{font-size:14px}
+html[data-ui="zafiro"] .urgencia-badge{font-size:12px}
+html[data-ui="zafiro"] .ocr-section h3{font-size:22px}
+html[data-ui="zafiro"] .ocr-drop .od-icon{font-size:40px}
+html[data-ui="zafiro"] .ocr-drop .od-title{font-size:18px}
+html[data-ui="zafiro"] .ocr-drop .od-sub{font-size:13px}
+html[data-ui="zafiro"] .ocr-progress .op-status{font-size:14px}
+html[data-ui="zafiro"] .ocr-results table{font-size:16px}
+html[data-ui="zafiro"] .ocr-results thead th{font-size:12px}
+html[data-ui="zafiro"] .ocr-results input[type="number"]{font-size:16px}
+html[data-ui="zafiro"] .ocr-summary{font-size:14px}
+html[data-ui="zafiro"] .detail-header h2{font-size:24px}
+html[data-ui="zafiro"] .detail-close{font-size:22px}
+html[data-ui="zafiro"] .detail-item .di-name{font-size:16px}
+html[data-ui="zafiro"] .detail-item .di-tipo{font-size:12px}
+html[data-ui="zafiro"] .detail-item .di-stock{font-size:19px}
+html[data-ui="zafiro"] .detail-item .di-display{font-size:13px}
+html[data-ui="zafiro"] .detail-item .di-lote-name{font-size:16px}
+html[data-ui="zafiro"] .detail-item .di-lote-detail{font-size:13px}
+html[data-ui="zafiro"] .detail-item .di-badge{font-size:12px}
+html[data-ui="zafiro"] .empty-state .es-icon{font-size:54px}
+html[data-ui="zafiro"] .empty-state h3{font-size:22px}
+html[data-ui="zafiro"] .empty-state p{font-size:14px}
+@media (max-width: 640px){
+html[data-ui="zafiro"] .brand-name{font-size:17px}
+html[data-ui="zafiro"] .stat-val{font-size:45px}
+html[data-ui="zafiro"] .stat-label{font-size:13px}
+html[data-ui="zafiro"] .dash-title{font-size:25px}
+html[data-ui="zafiro"] .nav-tab{font-size:13px}
+html[data-ui="zafiro"] .stock-table{font-size:14px}
+html[data-ui="zafiro"] .stock-table thead th{font-size:12px}
+}
+/* estilos en línea */
+html[data-ui="zafiro"] [style*="font-size:9px"],html[data-ui="zafiro"] [style*="font-size: 9px"]{font-size:12px !important}
+html[data-ui="zafiro"] [style*="font-size:10px"],html[data-ui="zafiro"] [style*="font-size: 10px"]{font-size:12px !important}
+html[data-ui="zafiro"] [style*="font-size:11px"],html[data-ui="zafiro"] [style*="font-size: 11px"]{font-size:13px !important}
+html[data-ui="zafiro"] [style*="font-size:12px"],html[data-ui="zafiro"] [style*="font-size: 12px"]{font-size:14px !important}
+html[data-ui="zafiro"] [style*="font-size:13px"],html[data-ui="zafiro"] [style*="font-size: 13px"]{font-size:16px !important}
+html[data-ui="zafiro"] [style*="font-size:14px"],html[data-ui="zafiro"] [style*="font-size: 14px"]{font-size:17px !important}
+html[data-ui="zafiro"] [style*="font-size:16px"],html[data-ui="zafiro"] [style*="font-size: 16px"]{font-size:19px !important}
+html[data-ui="zafiro"] [style*="font-size:18px"],html[data-ui="zafiro"] [style*="font-size: 18px"]{font-size:22px !important}
+}

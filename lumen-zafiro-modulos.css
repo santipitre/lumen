@@ -155,3 +155,39 @@ html[data-ui="zafiro"] .real-table .num-col{ font-size:24px; color:var(--z-acc-i
 html[data-ui="zafiro"] .real-table .time-col{ font-size:22px; }
 html[data-ui="zafiro"] .real-pct{ font-size:14px; }
 html[data-ui="zafiro"] .real-table-header .btn-export{ font-size:14px; padding:10px 18px; }
+
+/* ============================================================
+   MÓDULO OPERATIVO (operativo.html): su acento celeste (--sky) pasa al azul Zafiro.
+   Verde/ámbar/rojo/naranja de stock y pedidos NO se tocan (significan estado).
+   ============================================================ */
+html[data-ui="zafiro"]{ --sky:var(--z-acc-ink); --accent-bg:rgba(94,151,255,.12); }
+html[data-ui="zafiro"] .dash-title{ font-family:var(--z-font); font-weight:800; letter-spacing:.14em; }
+html[data-ui="zafiro"] .nav-tabs{ background:var(--z-card); border:1px solid var(--z-line); border-radius:16px; }
+html[data-ui="zafiro"] .nav-tab{ border-radius:12px; font-family:var(--z-font); }
+html[data-ui="zafiro"] .nav-tab.active{ background:rgba(94,151,255,.16); color:var(--z-acc-ink); border:1px solid var(--z-line-strong); }
+html[data-ui="zafiro"] :is(.stat-card,.pedido-card,.entry-form,.alert-card){
+  border-color:var(--z-line); border-radius:18px;
+  background:linear-gradient(180deg,var(--z-sheen),transparent 46%),var(--z-card); box-shadow:var(--z-raise);
+}
+html[data-ui="zafiro"] .alert-card{ border-radius:14px; }
+html[data-ui="zafiro"] .stat-card:hover{ border-color:var(--z-acc); }
+html[data-ui="zafiro"] .stock-table-wrap{ border-color:var(--z-line); border-radius:16px; }
+html[data-ui="zafiro"] .filter-btn{ border-radius:12px; background:var(--z-card-hi); border-color:var(--z-line); font-family:var(--z-font); }
+html[data-ui="zafiro"] .filter-btn.active{ background:rgba(94,151,255,.16); border-color:var(--z-acc); color:var(--z-acc-ink); }
+html[data-ui="zafiro"] :is(.modal-box,.detail-overlay > *){ background:var(--z-elev); border-color:var(--z-line); border-radius:20px; box-shadow:0 30px 70px -24px rgba(0,0,20,.8); }
+html[data-ui="zafiro"] :is(.btn-submit,.btn-login){ border-radius:12px; font-family:var(--z-font); }
+html[data-ui="zafiro"] :is(.search-box,.entry-form input,.entry-form select,.entry-form textarea){ background:var(--z-card-hi); border:1px solid var(--z-line); border-radius:12px; color:var(--z-ink); font-family:var(--z-font); }
+html[data-ui="zafiro"] :is(.search-box,.entry-form input,.entry-form select,.entry-form textarea):focus{ border-color:var(--z-acc); outline:none; box-shadow:0 0 0 4px rgba(94,151,255,.22); }
+html[data-ui="zafiro"] .user-chip{ border-radius:999px; font-family:var(--z-font); }
+html[data-ui="zafiro"] :is(.dash-title,.stat-val,.brand-name,.pedido-id,.alert-title-bar){ font-family:var(--z-font); }
+
+/* ============================================================
+   MÓDULO IMÁGENES (imagenes.html): su acento lima (--img-acc) pasa al azul Zafiro.
+   Imágenes maneja su propio tema claro/oscuro (data-tema claro|oscuro): en Zafiro queda oscuro
+   y se oculta su botón para que no se mezclen. Al volver a Clásico se restaura el tema guardado.
+   ============================================================ */
+html[data-ui="zafiro"]{
+  --img-acc:var(--z-acc-ink); --img-acc-dim:rgba(94,151,255,.14); --img-acc-ring:rgba(94,151,255,.38);
+  --glass:var(--z-card); --border:var(--z-line);
+}
+html[data-ui="zafiro"] #tema-btn{ display:none !important; }

@@ -1,0 +1,56 @@
+/* Zafiro · letra más grande en tecnico (generado: x1.2 hasta 20px, x1.12 arriba; solo pantallas >= 900px) */
+@media (min-width:900px){
+html[data-ui="zafiro"] .btn-reset{font-size:14px}
+html[data-ui="zafiro"] .kpi-label{font-size:12px}
+html[data-ui="zafiro"] .ped-filtro-grp label{font-size:12px}
+html[data-ui="zafiro"] .ped-filtro-grp select,
+html[data-ui="zafiro"] .ped-filtro-grp input{font-size:14px}
+html[data-ui="zafiro"] .toast{font-size:16px}
+html[data-ui="zafiro"] .modal-box h3{font-size:24px}
+html[data-ui="zafiro"] .modal-box p{font-size:14px}
+html[data-ui="zafiro"] .tec-tab{font-size:17px}
+html[data-ui="zafiro"] .upload-icon{font-size:36px}
+html[data-ui="zafiro"] .upload-title{font-size:19px}
+html[data-ui="zafiro"] .upload-sub{font-size:14px}
+html[data-ui="zafiro"] .upload-label{font-size:14px}
+html[data-ui="zafiro"] #data-status{font-size:14px}
+html[data-ui="zafiro"] .filter-label{font-size:12px}
+html[data-ui="zafiro"] .filter-input,
+html[data-ui="zafiro"] .filter-select{font-size:14px}
+html[data-ui="zafiro"] .btn-apply{font-size:14px}
+html[data-ui="zafiro"] .kpi-val{font-size:43px}
+html[data-ui="zafiro"] .kpi-sub{font-size:13px}
+html[data-ui="zafiro"] .kpi-icon{font-size:31px}
+html[data-ui="zafiro"] .kpi-hint{font-size:12px}
+html[data-ui="zafiro"] .chart-title{font-size:16px}
+html[data-ui="zafiro"] .table-header-title{font-size:16px}
+html[data-ui="zafiro"] .table-count{font-size:13px}
+html[data-ui="zafiro"] th{font-size:12px}
+html[data-ui="zafiro"] td{font-size:14px}
+html[data-ui="zafiro"] .badge{font-size:12px}
+html[data-ui="zafiro"] .rank-num{font-size:17px}
+html[data-ui="zafiro"] .rank-label{font-size:14px}
+html[data-ui="zafiro"] .rank-val{font-size:17px}
+html[data-ui="zafiro"] .empty-state .e-icon{font-size:45px}
+html[data-ui="zafiro"] .empty-state .e-text{font-size:16px}
+html[data-ui="zafiro"] .modal-head-title{font-size:24px}
+html[data-ui="zafiro"] .modal-head-count{font-size:13px}
+html[data-ui="zafiro"] .modal-close{font-size:17px}
+html[data-ui="zafiro"] .modal-search{font-size:14px}
+html[data-ui="zafiro"] .btn-export{font-size:13px}
+html[data-ui="zafiro"] .modal-table{font-size:13px}
+html[data-ui="zafiro"] .modal-table th{font-size:12px}
+html[data-ui="zafiro"] .modal-footer{font-size:13px}
+/* estilos en línea */
+html[data-ui="zafiro"] [style*="font-size:10px"],html[data-ui="zafiro"] [style*="font-size: 10px"]{font-size:12px !important}
+html[data-ui="zafiro"] [style*="font-size:10.5px"],html[data-ui="zafiro"] [style*="font-size: 10.5px"]{font-size:13px !important}
+html[data-ui="zafiro"] [style*="font-size:11px"],html[data-ui="zafiro"] [style*="font-size: 11px"]{font-size:13px !important}
+html[data-ui="zafiro"] [style*="font-size:11.5px"],html[data-ui="zafiro"] [style*="font-size: 11.5px"]{font-size:14px !important}
+html[data-ui="zafiro"] [style*="font-size:12px"],html[data-ui="zafiro"] [style*="font-size: 12px"]{font-size:14px !important}
+html[data-ui="zafiro"] [style*="font-size:12.5px"],html[data-ui="zafiro"] [style*="font-size: 12.5px"]{font-size:15px !important}
+html[data-ui="zafiro"] [style*="font-size:13px"],html[data-ui="zafiro"] [style*="font-size: 13px"]{font-size:16px !important}
+html[data-ui="zafiro"] [style*="font-size:14px"],html[data-ui="zafiro"] [style*="font-size: 14px"]{font-size:17px !important}
+html[data-ui="zafiro"] [style*="font-size:15px"],html[data-ui="zafiro"] [style*="font-size: 15px"]{font-size:18px !important}
+html[data-ui="zafiro"] [style*="font-size:16px"],html[data-ui="zafiro"] [style*="font-size: 16px"]{font-size:19px !important}
+html[data-ui="zafiro"] [style*="font-size:18px"],html[data-ui="zafiro"] [style*="font-size: 18px"]{font-size:22px !important}
+}
