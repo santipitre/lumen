@@ -1,0 +1,87 @@
+/* ============================================================
+   Lumen · Zafiro Lumen para páginas de MÓDULO (OPT-IN)
+   Va junto con lumen-zafiro.css (tokens, barra de estilo, buscador).
+   - Todo cuelga de html[data-ui="zafiro"]; sin ese atributo no cambia nada.
+   - Primera versión: SOLO OSCURO (la página declara <meta name="lumen-zafiro" content="oscuro">).
+   - Estrategia: remapear las variables que ya usan las páginas (--muted, --border, --cyan…)
+     y retocar lo que tiene colores fijos. Sin light-dark(), color-mix() ni CSS anidado.
+   ============================================================ */
+
+/* ---------- Variables de las páginas, remapeadas ---------- */
+html[data-ui="zafiro"]{
+  --navy:var(--z-bg); --surface:var(--z-elev);
+  --cyan:var(--z-acc-ink); --blue:var(--z-acc); --blue-d:var(--z-acc);
+  --text:var(--z-ink); --muted:var(--z-ink3); --slate:var(--z-ink3);
+  --border:var(--z-line); --border-a:var(--z-line-strong); --glass:var(--z-card);
+  --accent:var(--z-acc); --accent-bg:rgba(94,151,255,.12); --accent-border:var(--z-line-strong);
+  --red:#FF8A8A; --amber:#F6C453; --purple:#B7A4FF; --rose:#FF8FA8;
+  --pyralis-bg:var(--z-bg); --pyralis-bg-elevated:var(--z-elev);
+  --pyralis-bg-input:var(--z-card-hi); --pyralis-bg-hover:var(--z-line);
+  --pyralis-border:var(--z-line); --pyralis-border-strong:var(--z-line-strong);
+  --pyralis-text:var(--z-ink); --pyralis-text-muted:var(--z-ink3);
+}
+html[data-ui="zafiro"] body{ font-family:var(--z-font); }
+html[data-ui="zafiro"] .zctl{ bottom:46px; }
+
+/* ---------- Tipografía: la condensada pasa a Plus Jakarta ---------- */
+html[data-ui="zafiro"] :is(.au-hist-btn,.au-hist-tt,.au-hist-val,.bp-det-h b,.bp-kpi .n,.bp-login-t,.bp-prog-n,.bp-title,.btn-au-bot,.btn-reparar-todo,.chart-title,.ds-mid,.ds-num,.ecard .ec-label,.ecard .num,.ecard-group-label,.err-title h2,.export-menu-item .em-count,.export-menu-row .em-count,.kpi-val,.modal-head-title,.rank-num,.rank-val,.summary-item-val,.tab-btn,.table-header-title,.tb-stat .val,.tb-title,.tc-hero-go,.tc-hero-go-old,.tc-hero-label,.tc-hero-mes,.tc-hero-num,.tc-mes b,.tc-mes span,.ti-btn,.ti-detail-title,.ti-drop-title,.ti-exclusive-head .ti-tt,.ti-mes-chip .n){
+  font-family:var(--z-font);
+}
+
+/* ---------- Barra superior ---------- */
+html[data-ui="zafiro"] .topbar{ background:rgba(7,13,31,.80); border-bottom:1px solid var(--z-line); }
+html[data-ui="zafiro"][data-fx="on"] .topbar{ -webkit-backdrop-filter:blur(14px) saturate(1.3); backdrop-filter:blur(14px) saturate(1.3); }
+html[data-ui="zafiro"] .topbar-crumbs{ font-family:var(--z-font); }
+html[data-ui="zafiro"] .topbar .crumb-active{ color:var(--z-acc-ink); }
+html[data-ui="zafiro"] .sede-chip{ font-family:var(--z-font); color:var(--z-acc-ink); background:var(--z-card-hi); border:1px solid var(--z-line-strong); border-radius:999px; }
+html[data-ui="zafiro"] .btn-back-top{ font-family:var(--z-font); border-radius:12px; color:var(--z-ink2); background:var(--z-card-hi); border:1px solid var(--z-line); }
+html[data-ui="zafiro"] .btn-back-top:hover{ color:var(--z-acc-ink); border-color:var(--z-acc); background:var(--z-card-hi); }
+
+/* ---------- Encabezado del módulo ---------- */
+html[data-ui="zafiro"] .tech-banner{
+  border-radius:22px; border:1px solid var(--z-line);
+  background:linear-gradient(180deg,var(--z-sheen),transparent 46%),var(--z-card);
+  box-shadow:var(--z-raise),var(--z-halo);
+}
+html[data-ui="zafiro"] .tech-banner :is(.circuit,.grid-fx){ display:none; }
+html[data-ui="zafiro"] .tech-banner .horizon{ background:linear-gradient(90deg,transparent,var(--z-acc),transparent); box-shadow:none; opacity:.55; height:1px; }
+html[data-ui="zafiro"][data-fx="on"] .tech-banner .horizon{ box-shadow:0 0 18px 2px var(--z-glow); opacity:.8; }
+html[data-ui="zafiro"] .tb-brief{ background:linear-gradient(150deg,#16264F,#0A1230); border:1px solid rgba(150,185,255,.28); box-shadow:none; }
+html[data-ui="zafiro"] .tb-brief *{ stroke:var(--z-ic); }
+html[data-ui="zafiro"] .tb-title{ font-weight:800; letter-spacing:.14em; color:var(--z-ink); text-shadow:none; }
+html[data-ui="zafiro"] .tb-title b{ color:var(--z-acc-ink); }
+html[data-ui="zafiro"] :is(.tb-stat,.data-strip){ background:var(--z-card); border:1px solid var(--z-line); border-radius:16px; }
+html[data-ui="zafiro"] :is(.tb-stat .val,.ds-num,.ds-mid){ color:var(--z-ink); }
+html[data-ui="zafiro"] .ds-sep{ background:var(--z-line); }
+html[data-ui="zafiro"] .tb-btn{ font-family:var(--z-font); border-radius:12px; }
+html[data-ui="zafiro"] .tb-btn.excel{ background:var(--z-card-hi); border:1px solid var(--z-line-strong); color:var(--z-acc-ink); }
+html[data-ui="zafiro"] .tb-btn.excel:hover{ background:var(--z-card-hi); border-color:var(--z-acc); box-shadow:var(--z-halo); }
+
+/* ---------- Tarjetas ---------- */
+html[data-ui="zafiro"] .kpi-card{
+  border-radius:18px; border:1px solid var(--z-line);
+  background:linear-gradient(180deg,var(--z-sheen),transparent 46%),var(--z-card);
+  box-shadow:var(--z-raise);
+}
+html[data-ui="zafiro"] .tc-hero{
+  border-radius:20px; border:1px solid var(--z-line-strong);
+  background:linear-gradient(135deg,rgba(94,151,255,.20),rgba(94,151,255,.05) 55%,transparent),var(--z-card);
+  box-shadow:var(--z-raise),var(--z-halo);
+}
+html[data-ui="zafiro"] .tc-hero:hover{ border-color:var(--z-acc); box-shadow:var(--z-raise),var(--z-halo); }
+html[data-ui="zafiro"] .tc-hero-num{ color:var(--z-acc-ink); text-shadow:none; }
+html[data-ui="zafiro"] :is(.tabs .tab-btn,.tab-btn){ border-radius:12px; }
+
+/* ---------- Paneles, cajones y diálogos ---------- */
+html[data-ui="zafiro"] :is(.modal-drawer,.ti-detail-box,.bp-box,.reparar-box){
+  background:var(--z-elev); border-color:var(--z-line); box-shadow:0 30px 70px -24px rgba(0,0,20,.8);
+}
+html[data-ui="zafiro"] :is(.modal-head,.ti-detail-head,.bp-head,.reparar-box-head){ border-color:var(--z-line); }
+
+/* ---------- Entradas de formulario ---------- */
+html[data-ui="zafiro"] :is(input[type="text"],input[type="search"],input[type="number"],input[type="date"],select,textarea){ font-family:var(--z-font); }
+html[data-ui="zafiro"] :is(.filter-input,.filter-select,.modal-search,.ti-detail-search){ background:var(--z-card-hi); border:1px solid var(--z-line); border-radius:12px; color:var(--z-ink); }
+html[data-ui="zafiro"] :is(.filter-input,.filter-select,.modal-search,.ti-detail-search):focus{ border-color:var(--z-acc); outline:none; box-shadow:0 0 0 4px rgba(94,151,255,.22); }
+
+/* ---------- Efectos apagados ---------- */
+html[data-ui="zafiro"]:not([data-fx="on"]) :is(.kpi-card,.tc-hero):hover{ transform:none; }

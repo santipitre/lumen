@@ -30,6 +30,11 @@
   if (tema !== 'light' && tema !== 'dark') {
     tema = (window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
   }
+  /* Páginas de módulo que todavía no tienen tema claro lo declaran: <meta name="lumen-zafiro" content="oscuro"> */
+  function soloOscuro() {
+    var m = document.querySelector('meta[name="lumen-zafiro"]');
+    return !!(m && m.getAttribute('content') === 'oscuro');
+  }
   var fxPref = ls(KFX);
   function autoFx() {
     var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -102,6 +107,7 @@
 
   function paintCtl() {
     if (!ctl) return;
+    btnTema.hidden = soloOscuro();
     var toLight = tema === 'dark';
     btnTema.innerHTML = (toLight ? ICON_SUN : ICON_MOON) + '<span class="zl">' + (toLight ? 'Claro' : 'Oscuro') + '</span>';
     btnTema.setAttribute('aria-label', toLight ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro');
@@ -118,24 +124,28 @@
 
   function apply() {
     var id = pantalla();
-    var on = enabled && id && id !== 'screen-login' && id !== 'screen-inicio';
+    var conPantallas = !!document.querySelector('.screen');
+    var on = enabled && (conPantallas ? (id && id !== 'screen-login' && id !== 'screen-inicio') : true);
+    var temaVigente = soloOscuro() ? 'dark' : tema;
     var meta = document.querySelector('meta[name="theme-color"]');
     if (on) {
       root.setAttribute('data-ui', 'zafiro');
-      root.setAttribute('data-tema', tema);
+      root.setAttribute('data-tema', temaVigente);
       root.setAttribute('data-fx', fx ? 'on' : 'off');
+      if (!conPantallas) root.setAttribute('data-z-pagina', 'modulo');
       loadFont();
       buildCtl();
       paintCtl();
       if (ctl) ctl.hidden = false;
       if (meta) {
         if (!meta.hasAttribute('data-orig')) meta.setAttribute('data-orig', meta.getAttribute('content') || '');
-        meta.setAttribute('content', tema === 'light' ? '#DFE7F7' : '#070D1F');
+        meta.setAttribute('content', temaVigente === 'light' ? '#DFE7F7' : '#070D1F');
       }
     } else {
       root.removeAttribute('data-ui');
       root.removeAttribute('data-tema');
       root.removeAttribute('data-fx');
+      root.removeAttribute('data-z-pagina');
       if (ctl) ctl.hidden = true;
       if (meta && meta.hasAttribute('data-orig')) meta.setAttribute('content', meta.getAttribute('data-orig'));
     }
