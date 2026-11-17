@@ -85,3 +85,57 @@ html[data-ui="zafiro"] :is(.filter-input,.filter-select,.modal-search,.ti-detail
 
 /* ---------- Efectos apagados ---------- */
 html[data-ui="zafiro"]:not([data-fx="on"]) :is(.kpi-card,.tc-hero):hover{ transform:none; }
+
+/* ============================================================
+   MÓDULO MÉDICO (medico.html, medico-sla.html)
+   El acento verde del módulo pasa al azul Zafiro. Los verdes/rojos/ámbar
+   que significan algo (semáforo, badges, tarjetas de estado, mapa de calor)
+   NO se tocan.
+   ============================================================ */
+html[data-ui="zafiro"] :is(.upload-title,.alert-title,.alert-val,.sla-aviso-titulo,.sem-card-titulo,.real-title,.real-sum-val,.real-table-title,.real-table .rank-col,.real-table .num-col,.real-table .time-col){ font-family:var(--z-font); }
+html[data-ui="zafiro"]{ --accent-border:var(--z-line-strong); }
+
+/* Subida de Excel */
+html[data-ui="zafiro"] #upload-zone{ border:1.5px dashed var(--z-line-strong); border-radius:22px; background:linear-gradient(180deg,var(--z-sheen),transparent 46%),var(--z-card); }
+html[data-ui="zafiro"] #upload-zone.has-data{ border-color:var(--z-line-strong); background:var(--z-card); }
+html[data-ui="zafiro"] #upload-zone svg rect:first-child{ fill:#0C1636; stroke:rgba(150,185,255,.35); }
+html[data-ui="zafiro"] #upload-zone svg :is(path,circle):not([fill="#1E3A8A"]){ stroke:var(--z-ic); }
+html[data-ui="zafiro"] #upload-zone svg text{ fill:var(--z-acc-ink); }
+html[data-ui="zafiro"] .upload-title{ color:var(--z-acc-ink); letter-spacing:.14em; }
+html[data-ui="zafiro"] .upload-label{ background:var(--z-card-hi); border:1px solid var(--z-line-strong); border-radius:12px; color:var(--z-acc-ink); }
+html[data-ui="zafiro"] .upload-label:hover{ background:var(--z-card-hi); border-color:var(--z-acc); box-shadow:var(--z-halo); }
+
+/* Filtros */
+html[data-ui="zafiro"] .filter-select{ background:var(--z-card-hi); border:1px solid var(--z-line); border-radius:12px; color:var(--z-ink); font-family:var(--z-font); }
+html[data-ui="zafiro"] .filter-select:focus{ border-color:var(--z-acc); outline:none; box-shadow:0 0 0 4px rgba(94,151,255,.22); }
+html[data-ui="zafiro"] .btn-apply{ background:linear-gradient(135deg,#2A63D8,var(--z-acc)); color:#fff; border-radius:12px; font-family:var(--z-font); }
+html[data-ui="zafiro"] .btn-reset{ border-radius:12px; font-family:var(--z-font); }
+
+/* Pestañas */
+html[data-ui="zafiro"] .tabs{ background:var(--z-card); border:1px solid var(--z-line); border-radius:16px; }
+html[data-ui="zafiro"] .tab-btn{ border-radius:12px; }
+html[data-ui="zafiro"] .tab-btn.active{ background:rgba(94,151,255,.16); color:var(--z-acc-ink); border:1px solid var(--z-line-strong); }
+
+/* Tarjetas y paneles */
+html[data-ui="zafiro"] :is(.chart-card,.table-card,.sem-card,.med-mod,.real-sum-card,.tend-mod){
+  border-color:var(--z-line); border-radius:18px;
+  background:linear-gradient(180deg,var(--z-sheen),transparent 46%),var(--z-card);
+  box-shadow:var(--z-raise);
+}
+html[data-ui="zafiro"] :is(.chart-title,.table-header-title,.real-table-title){ color:var(--z-acc-ink); }
+html[data-ui="zafiro"] .chart-title::before,html[data-ui="zafiro"] .table-header-title::before{ background:var(--z-acc); box-shadow:none; }
+html[data-ui="zafiro"] :is(.table-header,.real-table-header){ border-color:var(--z-line); }
+html[data-ui="zafiro"] :is(.rank-bar,.real-bar):not(.bar-neutra){ background:linear-gradient(90deg,#2A63D8,var(--z-acc)) !important; }
+html[data-ui="zafiro"] :is(.rank-val,.real-pct){ color:var(--z-acc-ink); }
+html[data-ui="zafiro"] .rank-acceso:hover{ border-color:var(--z-acc); }
+html[data-ui="zafiro"] :is(.modal-table,.real-table,.med-tabla) th{ color:var(--z-ink3); }
+html[data-ui="zafiro"] :is(.modal-table,.real-table) tr:hover td{ background:rgba(94,151,255,.08); }
+
+/* Vistas a pantalla completa (detalle) */
+html[data-ui="zafiro"] .real-page{ background:var(--z-bg); }
+html[data-ui="zafiro"] .btn-back-real{ border-radius:12px; font-family:var(--z-font); }
+html[data-ui="zafiro"] .btn-back-real:hover{ border-color:var(--z-acc); color:var(--z-acc-ink); }
+html[data-ui="zafiro"] .btn-export{ border-radius:12px; color:var(--z-acc-ink); background:var(--z-card-hi); border:1px solid var(--z-line-strong); font-family:var(--z-font); }
+html[data-ui="zafiro"] .btn-export:hover{ border-color:var(--z-acc); background:var(--z-card-hi); }
+html[data-ui="zafiro"] .export-menu{ border-radius:12px; }
+html[data-ui="zafiro"] .modal-bar{ background:var(--z-acc); }
