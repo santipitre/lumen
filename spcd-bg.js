@@ -5,6 +5,8 @@
    ════════════════════════════════════════════════════════════════════════════ */
 (function() {
   if (window.__SPCD_BG_LOADED__) return;
+  /* Estilo Zafiro (opt-in): fondo común fijo, sin neuronas/luciérnagas ni animación. */
+  if (document.documentElement.getAttribute('data-ui') === 'zafiro') return;
   window.__SPCD_BG_LOADED__ = true;
 
   // CSS del canvas + efecto glass para contenedores comunes
@@ -57,6 +59,7 @@
   }
 
   function initCanvas() {
+    if (document.documentElement.getAttribute('data-ui') === 'zafiro') return; /* Zafiro: sin fondo animado */
     // Insertar canvas al inicio del body si no existe
     let canvas = document.getElementById('spcd-bg-canvas');
     if (!canvas) {

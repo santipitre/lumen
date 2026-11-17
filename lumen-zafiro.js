@@ -93,6 +93,10 @@
     btnOld.addEventListener('click', function () {
       enabled = false;
       ls(KUI, null);
+      /* En páginas de módulo el fondo animado clásico se arma al cargar: hay que recargar. */
+      if (root.getAttribute('data-z-pagina') === 'modulo') {
+        var u = new URL(location.href); u.searchParams.set('estilo', 'clasico'); location.replace(u.toString()); return;
+      }
       apply();
       if (typeof window.showToast === 'function') {
         window.showToast('Estilo clásico. Para volver al nuevo: agregá ?estilo=zafiro a la dirección.', 'info');

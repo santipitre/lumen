@@ -50,7 +50,7 @@ html[data-ui="zafiro"][data-fx="on"]{ --z-halo:0 0 38px -4px var(--z-glow); }
 /* ---------- Fondo: sin luciérnagas fuera del ingreso ---------- */
 html[data-ui="zafiro"]{ background-color:var(--z-bg); background-image:var(--z-bgimg); background-attachment:fixed; background-repeat:no-repeat; }
 html[data-ui="zafiro"] body{ background:transparent; color:var(--z-ink); font-family:var(--z-font); }
-html[data-ui="zafiro"] #bg-canvas{ display:none; }
+html[data-ui="zafiro"] :is(#bg-canvas,#spcd-bg-canvas){ display:none !important; }
 
 /* ---------- Variables que usa el CSS clásico, remapeadas solo en lo que cambia ---------- */
 html[data-ui="zafiro"] :is(.screen,.btn-back,.btn-logout,.vr-boton,.vr-barra,.vr-drawer,.vr-scrim,#lumen-badge){
