@@ -1,0 +1,38 @@
+/* ============================================================
+   Lumen · Zafiro Lumen para medico-sla.html (OPT-IN, solo oscuro)
+   Va después de lumen-zafiro.css y lumen-zafiro-modulos.css.
+   Los colores que significan algo (verde/amarillo/rojo de banners, puntos y errores) NO se tocan.
+   ============================================================ */
+html[data-ui="zafiro"]{
+  --bg:var(--z-bg); --input:var(--z-card-hi); --border-s:var(--z-line-strong);
+  --dim:var(--z-ink3); --lima:var(--z-acc-ink); --lima-ring:var(--z-line-strong);
+}
+html[data-ui="zafiro"] :is(h1,h2.sec,.card .v,.card .l,th,tr.mod td,.modal h3){ font-family:var(--z-font); }
+html[data-ui="zafiro"] tr.mod .extra{ font-family:var(--z-font); }
+html[data-ui="zafiro"] h1{ font-weight:800; letter-spacing:.14em; }
+html[data-ui="zafiro"] h2.sec{ color:var(--z-acc-ink); letter-spacing:.14em; font-weight:700; }
+html[data-ui="zafiro"] .note b{ color:var(--z-acc-ink); }
+
+/* Paneles de vidrio */
+html[data-ui="zafiro"] :is(.card,.tw){
+  border-color:var(--z-line); border-radius:18px;
+  background:linear-gradient(180deg,var(--z-sheen),transparent 46%),var(--z-card);
+  box-shadow:var(--z-raise);
+}
+html[data-ui="zafiro"] .modal{ background:var(--z-elev); border-color:var(--z-line); border-radius:20px; box-shadow:0 30px 70px -24px rgba(0,0,20,.8); }
+html[data-ui="zafiro"] .banner{ border-radius:14px; }
+html[data-ui="zafiro"] .banner.info{ border-color:var(--z-line-strong); background:rgba(94,151,255,.08); }
+html[data-ui="zafiro"] .banner.info b{ color:var(--z-acc-ink); }
+html[data-ui="zafiro"] tr.mod td{ background:rgba(94,151,255,.06); border-top-color:var(--z-line); }
+
+/* Entradas */
+html[data-ui="zafiro"] input[type=number]{ border-radius:10px; }
+html[data-ui="zafiro"] input[type=number]:focus{ outline:none; border-color:var(--z-acc); box-shadow:0 0 0 4px rgba(94,151,255,.22); }
+html[data-ui="zafiro"] input[type=number].err{ border-color:var(--red); box-shadow:0 0 0 2px rgba(255,138,138,.25); }
+html[data-ui="zafiro"] input[type=checkbox]{ accent-color:var(--z-acc); }
+
+/* Botones: acento azul */
+html[data-ui="zafiro"] .btn{ border-radius:12px; font-family:var(--z-font); background:var(--z-card-hi); }
+html[data-ui="zafiro"] .btn:not([disabled]):hover{ border-color:var(--z-acc); box-shadow:var(--z-halo); }
+html[data-ui="zafiro"] .btn.sec{ color:var(--z-ink2); }
+html[data-ui="zafiro"] .btn[disabled]{ color:var(--z-ink3); border-color:var(--z-line); }

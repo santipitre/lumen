@@ -1,0 +1,23 @@
+/* Zafiro · letra más grande en sla (generado: x1.2 hasta 20px, x1.12 arriba; solo pantallas >= 900px) */
+@media (min-width:900px){
+html[data-ui="zafiro"] h1{font-size:25px}
+html[data-ui="zafiro"] h2.sec{font-size:16px}
+html[data-ui="zafiro"] .sub{font-size:15px}
+html[data-ui="zafiro"] .note{font-size:14px}
+html[data-ui="zafiro"] .banner{font-size:15px}
+html[data-ui="zafiro"] .card .l{font-size:13px}
+html[data-ui="zafiro"] .card .v{font-size:25px}
+html[data-ui="zafiro"] .card small{font-size:14px}
+html[data-ui="zafiro"] table{font-size:15px}
+html[data-ui="zafiro"] th{font-size:14px}
+html[data-ui="zafiro"] tr.mod td{font-size:17px}
+html[data-ui="zafiro"] tr.mod .extra{font-size:14px}
+html[data-ui="zafiro"] td.meta{font-size:14px}
+html[data-ui="zafiro"] .u{font-size:14px}
+html[data-ui="zafiro"] .empty{font-size:14px}
+html[data-ui="zafiro"] .msg{font-size:14px}
+html[data-ui="zafiro"] .btn{font-size:15px}
+html[data-ui="zafiro"] .modal h3{font-size:20px}
+/* estilos en línea */
+html[data-ui="zafiro"] [style*="font-size:16px"],html[data-ui="zafiro"] [style*="font-size: 16px"]{font-size:19px !important}
+}
