@@ -1,0 +1,102 @@
+/* Zafiro · letra más grande en caja (generado: x1.2 hasta 20px, x1.12 arriba; solo pantallas >= 900px) */
+@media (min-width:900px){
+html[data-ui="zafiro"] .gate-wordmark{font-size:24px}
+html[data-ui="zafiro"] .gate-kicker{font-size:12px}
+html[data-ui="zafiro"] .gate-t{font-size:26px}
+html[data-ui="zafiro"] .gate-p{font-size:16px}
+html[data-ui="zafiro"] .gate-lab{font-size:12px}
+html[data-ui="zafiro"] #gate-mail{font-size:17px}
+html[data-ui="zafiro"] #gate-code{font-size:30px}
+html[data-ui="zafiro"] #gate-btn,
+html[data-ui="zafiro"] #gate-btn2{font-size:17px}
+html[data-ui="zafiro"] .gate-link{font-size:15px}
+html[data-ui="zafiro"] .gate-hint{font-size:15px}
+html[data-ui="zafiro"] .gate-pie span{font-size:12px}
+html[data-ui="zafiro"] #ro-banda{font-size:14px}
+html[data-ui="zafiro"] .brand{font-size:19px}
+html[data-ui="zafiro"] .top-right{font-size:14px}
+html[data-ui="zafiro"] nav.tabs button{font-size:18px}
+html[data-ui="zafiro"] .panel>h2{font-size:18px}
+html[data-ui="zafiro"] .hint{font-size:16px}
+html[data-ui="zafiro"] .cinta-eyebrow{font-size:14px}
+html[data-ui="zafiro"] .cinta-monto{font-size:37px}
+html[data-ui="zafiro"] .cinta-sub{font-size:16px}
+html[data-ui="zafiro"] .cinta-sello{font-size:12px}
+html[data-ui="zafiro"] .cr{font-size:16px}
+html[data-ui="zafiro"] .btn:not(.small){font-size:17px}
+html[data-ui="zafiro"] label.f{font-size:15px}
+html[data-ui="zafiro"] .drop.mini b{font-size:17px}
+html[data-ui="zafiro"] .err-campo{font-size:15px}
+html[data-ui="zafiro"] .drop b{font-size:19px}
+html[data-ui="zafiro"] .kpi .k{font-size:14px}
+html[data-ui="zafiro"] .kpi .v{font-size:24px}
+html[data-ui="zafiro"] .bar-row{font-size:15px}
+html[data-ui="zafiro"] .leyenda{font-size:14px}
+html[data-ui="zafiro"] .banner{font-size:16px}
+html[data-ui="zafiro"] #toast{font-size:16px}
+html[data-ui="zafiro"] dialog.dlg-confirm .dlg-kicker{font-size:12px}
+html[data-ui="zafiro"] dialog.dlg-confirm .dlg-h h2{font-size:24px}
+html[data-ui="zafiro"] dialog.dlg-confirm .dlg-b{font-size:17px}
+html[data-ui="zafiro"] .dlg-campo label{font-size:13px}
+html[data-ui="zafiro"] .dlg-campo textarea{font-size:16px}
+html[data-ui="zafiro"] .dlg-campo .err{font-size:14px}
+html[data-ui="zafiro"] .vacio{font-size:16px}
+html[data-ui="zafiro"] .vacio b{font-size:18px}
+html[data-ui="zafiro"] .riel-marca b{font-size:24px}
+html[data-ui="zafiro"] .riel-marca small{font-size:12px}
+html[data-ui="zafiro"] .riel-sec{font-size:12px}
+html[data-ui="zafiro"] nav.tabs button{font-size:17px}
+html[data-ui="zafiro"] #cnt-rev{font-size:13px}
+html[data-ui="zafiro"] .aviso-conf{font-size:15px}
+html[data-ui="zafiro"] .ac-sello{font-size:14px}
+html[data-ui="zafiro"] .riel-sede small{font-size:8px}
+html[data-ui="zafiro"] .riel-sede b{font-size:17px}
+html[data-ui="zafiro"] .riel-sede span{font-size:13px}
+html[data-ui="zafiro"] .marca-vista{font-size:14px}
+html[data-ui="zafiro"] .top-right{font-size:14px}
+html[data-ui="zafiro"] .cinta-monto{font-size:45px}
+html[data-ui="zafiro"] .kpi .v{font-size:29px}
+html[data-ui="zafiro"] #ro-banda{font-size:13px}
+html[data-ui="zafiro"] .kpi-pct{font-size:13px}
+html[data-ui="zafiro"] .tema-sw{font-size:13px}
+html[data-ui="zafiro"] ;
+function vistaReportes(){font-size:14px}
+html[data-ui="zafiro"] ;
+
+function dialogoQR(r){font-size:13px}
+html[data-ui="zafiro"] function comprobanteHTML(r){font-size:13px}
+html[data-ui="zafiro"] const dialogoDeposito=()=>{font-size:16px}
+html[data-ui="zafiro"] let fechaManual=hoyISO();
+function vistaManual(){font-size:13px}
+/* estilos en línea */
+html[data-ui="zafiro"] [style*="font-size:11px"],html[data-ui="zafiro"] [style*="font-size: 11px"]{font-size:13px !important}
+html[data-ui="zafiro"] [style*="font-size:14px"],html[data-ui="zafiro"] [style*="font-size: 14px"]{font-size:17px !important}
+}
+/* Tablas y filas: solo desde 1600px, para que la tabla de Días siga entrando sin barra horizontal */
+@media (min-width:1600px){
+html[data-ui="zafiro"] .btn.small{font-size:16px}
+html[data-ui="zafiro"] table.data{font-size:17px}
+html[data-ui="zafiro"] table.data thead th{font-size:14px}
+html[data-ui="zafiro"] .pie-rot{font-size:13px}
+html[data-ui="zafiro"] .pie-sub{font-size:12px}
+html[data-ui="zafiro"] tr.detalle td{font-size:16px}
+html[data-ui="zafiro"] .dsep-f{font-size:16px}
+html[data-ui="zafiro"] .dsep-m{font-size:16px}
+html[data-ui="zafiro"] .dsep-sub{font-size:14px}
+html[data-ui="zafiro"] .dsep-tot{font-size:17px}
+html[data-ui="zafiro"] .dsep-tot i{font-size:12px}
+html[data-ui="zafiro"] table.data.compacta th{font-size:13px}
+html[data-ui="zafiro"] table.data.compacta td.num{font-size:16px}
+html[data-ui="zafiro"] table.data.compacta .btn.small{font-size:15px}
+html[data-ui="zafiro"] table.data.compacta .tick{font-size:16px}
+html[data-ui="zafiro"] table.data.salidas td .sub{font-size:14px}
+html[data-ui="zafiro"] table.data.salidas td .sub.mono{font-size:14px}
+html[data-ui="zafiro"] .acciones.col .btn{font-size:14px}
+html[data-ui="zafiro"] table.data.salidas td .sub.mono{font-size:13px}
+html[data-ui="zafiro"] .badge{font-size:13px}
+html[data-ui="zafiro"] .comp-chip{font-size:14px}
+html[data-ui="zafiro"] .comp-chip button{font-size:16px}
+html[data-ui="zafiro"] .cajero-tag{font-size:16px}
+html[data-ui="zafiro"] .tick{font-size:18px}
+html[data-ui="zafiro"] .tick.chico{font-size:16px}
+}

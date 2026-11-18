@@ -35,6 +35,12 @@
     var m = document.querySelector('meta[name="lumen-zafiro"]');
     return !!(m && m.getAttribute('content') === 'oscuro');
   }
+  /* Páginas que manejan su propio tema (data-tema claro|oscuro), como Caja: <meta name="lumen-zafiro-tema" content="propio">.
+     Zafiro no toca ese atributo y solo se enciende mientras la página está en su modo oscuro. */
+  function temaPropio() {
+    var m = document.querySelector('meta[name="lumen-zafiro-tema"]');
+    return !!(m && m.getAttribute('content') === 'propio');
+  }
   var fxPref = ls(KFX);
   function autoFx() {
     var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -129,12 +135,14 @@
   function apply() {
     var id = pantalla();
     var conPantallas = !!document.querySelector('.screen');
+    var propio = temaPropio();
     var on = enabled && (conPantallas ? (id && id !== 'screen-login' && id !== 'screen-inicio') : true);
+    if (propio && root.getAttribute('data-tema') !== 'oscuro') on = false;
     var temaVigente = soloOscuro() ? 'dark' : tema;
     var meta = document.querySelector('meta[name="theme-color"]');
     if (on) {
       root.setAttribute('data-ui', 'zafiro');
-      root.setAttribute('data-tema', temaVigente);
+      if (!propio) root.setAttribute('data-tema', temaVigente);
       root.setAttribute('data-fx', fx ? 'on' : 'off');
       if (!conPantallas) root.setAttribute('data-z-pagina', 'modulo');
       loadFont();
@@ -147,7 +155,7 @@
       }
     } else {
       root.removeAttribute('data-ui');
-      root.removeAttribute('data-tema');
+      if (!propio) root.removeAttribute('data-tema');
       root.removeAttribute('data-fx');
       root.removeAttribute('data-z-pagina');
       if (ctl) ctl.hidden = true;
@@ -279,6 +287,7 @@
     var screens = document.querySelectorAll('.screen');
     var mo = new MutationObserver(apply);
     for (var i = 0; i < screens.length; i++) mo.observe(screens[i], { attributes: true, attributeFilter: ['class'] });
+    if (temaPropio()) new MutationObserver(apply).observe(root, { attributes: true, attributeFilter: ['data-tema'] });
     apply();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
