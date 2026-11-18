@@ -859,6 +859,8 @@
       letter-spacing: .5px;
     }
     .upload-sub.loaded { color: var(--green); }
+    .upload-meta { font-size: 11px; color: var(--muted); margin-top: 3px; letter-spacing: .5px; }
+    .upload-meta[hidden] { display: none; }
     .upload-badge {
       font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
       color: var(--muted); padding: 4px 10px;
@@ -961,6 +963,7 @@
 <style id="lumen-login-movil">@media (max-width:1080px){.login-intro{order:0}}@media (max-width:600px){#screen-login{padding:140px 16px 24px}.login-layout{gap:16px;padding-bottom:16px}.login-intro-eyebrow{font-size:11px;letter-spacing:2px;margin-bottom:8px}.login-intro-frame{border-radius:12px}.login-intro-sound{left:10px;bottom:10px;padding:7px 11px;font-size:12px}.login-intro-text{display:none}.login-box{padding:22px 20px 18px;border-radius:14px}.login-logo{margin-bottom:16px}.login-logo .ll-lumen{flex-direction:row;justify-content:center;gap:12px;margin-bottom:12px}.login-logo .ll-lumen svg{width:56px;height:56px}.login-logo .ll-word{font-size:24px;margin:0 0 0 .32em}.login-logo .ll-by{display:none}.login-logo h2{font-size:17px;letter-spacing:3px}.login-logo p{font-size:10px}.login-back-link{margin-top:12px}}@media (max-width:600px) and (orientation:landscape){#screen-login{padding-top:130px}.login-intro{max-width:420px}}</style>
 <style id="lumen-login-luci">.login-box{--fly:0;--fx:50%;--fy:50%;position:relative;box-shadow:0 30px 80px rgba(0,0,0,.45),0 0 calc(var(--fly)*46px) rgba(245,170,40,calc(var(--fly)*.16)),inset 0 1px 0 rgba(255,255,255,.05)}.login-box::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(260px circle at var(--fx) var(--fy),rgba(250,196,80,calc(var(--fly)*.11)),transparent 70%)}.login-box::after{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;pointer-events:none;background:radial-gradient(240px circle at var(--fx) var(--fy),rgba(255,214,120,calc(var(--fly)*.95)),transparent 65%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}.login-box>*{position:relative}.ll-lumen .ll-arcs{transform-origin:60px 60px;animation:llSpin 38s linear infinite}.ll-lumen .ll-fly{transform-origin:78px 44px;animation:llPulse 2.6s ease-in-out infinite}.ll-lumen.flash .ll-fly{animation:llFlash 1.1s ease-out}@keyframes llSpin{to{transform:rotate(360deg)}}@keyframes llPulse{0%,100%{opacity:.75;transform:scale(1)}50%{opacity:1;transform:scale(1.18)}}@keyframes llFlash{0%{transform:scale(1)}18%{transform:scale(2.2);filter:brightness(1.8)}100%{transform:scale(1)}}@media (prefers-reduced-motion:reduce){.ll-lumen .ll-arcs,.ll-lumen .ll-fly{animation:none}}</style>
   <link rel="stylesheet" href="lumen-zafiro.css?v=02faf2b3"/>
+  <link rel="stylesheet" href="lumen-zafiro-insignias.css?v=e8f08f16"/>
   <script src="lumen-zafiro.js?v=5bb8d397"></script>
 </head>
 <body>
@@ -1111,6 +1114,7 @@
       <div class="upload-info">
         <div class="upload-title" id="upload-title">CARGAR ARCHIVO EXCEL</div>
         <div class="upload-sub" id="upload-sub">Arrastra o hace click para subir el archivo .xls / .xlsx de Visual Medica</div>
+        <div class="upload-meta" id="upload-meta" hidden></div>
       </div>
       <span class="upload-badge" id="upload-badge">.XLS</span>
       <div class="upload-progress" id="upload-progress"></div>
@@ -1689,19 +1693,19 @@ const MENU_DEF = [
   { k: 'admin', cls: 'admin', ic: 'admin', nombre: 'Administrativo', desc: 'Gesti&oacute;n &middot; Equipo',
     frase: 'Todo lo administrativo del servicio.', secs: [
     { t: 'Gesti&oacute;n', items: [
-      { n: 'Control de errores y tr&aacute;mites', d: 'Errores de carga &middot; Sin derivantes &middot; Tr&aacute;mites incompletos &middot; Ausentes &middot; Informe por operador', ic: 'admin', cls: 'admin', rol: 'Administrativo', url: 'admin.html', perm: 'admin', ver: c => !!c.m.admin },
-      { n: 'Gesti&oacute;n de Usuarios y Permisos', d: 'Crear y editar usuarios, roles, permisos por m&oacute;dulo, PIN', ic: 'admin', cls: 'admin', rol: 'Administrativo', url: 'admin.html?permisos=1', ver: c => !!c.m.admin && !!c.usr && c.usr.rol === 'admin' },
+      { n: 'Control de errores y tr&aacute;mites', zi: 'clipboard', d: 'Errores de carga &middot; Sin derivantes &middot; Tr&aacute;mites incompletos &middot; Ausentes &middot; Informe por operador', ic: 'admin', cls: 'admin', rol: 'Administrativo', url: 'admin.html', perm: 'admin', ver: c => !!c.m.admin },
+      { n: 'Gesti&oacute;n de Usuarios y Permisos', zi: 'key', d: 'Crear y editar usuarios, roles, permisos por m&oacute;dulo, PIN', ic: 'admin', cls: 'admin', rol: 'Administrativo', url: 'admin.html?permisos=1', ver: c => !!c.m.admin && !!c.usr && c.usr.rol === 'admin' },
       { n: 'Rendici&oacute;n de caja', d: 'Rendici&oacute;n de caja &middot; Retiros &middot; Arqueos', ic: 'caja', cls: 'caja', rol: 'Rendición de caja', url: 'caja.html', perm: 'caja', ver: c => !!c.m.caja },
       { n: 'Conciliaci&oacute;n FUESMEN &harr; PAMI', d: 'Turnos vs bandeja de transmisi&oacute;n &middot; Validados &middot; Pendientes', ic: 'conciliacion', cls: 'conciliacion', rol: 'Conciliación FUESMEN ↔ PAMI', url: 'conciliacion-pami.html', perm: 'conciliacion', ver: c => !!c.m.conciliacion },
       { n: 'Validaci&oacute;n de &oacute;rdenes PAMI', d: 'Bandeja en verde &middot; Autocompletado en el portal &middot; Credencial', ic: 'validacion', cls: 'validacion', rol: 'Validación de órdenes PAMI', url: 'validacion-pami.html', perm: 'validacion', ver: c => !!c.m.validacion },
       { n: 'Harefield', d: 'Liquidaci&oacute;n mensual &middot; Cruce con camas prestadas &middot; Reparto FUESMEN / FADESA', ic: 'harefield', cls: 'harefield', rol: 'Harefield', url: 'harefield.html', perm: 'harefield', ver: c => !!c.m.harefield },
       { n: 'Operativo', d: 'Stock medicaci&oacute;n &middot; Insumos &middot; Pedidos', ic: 'operativo', cls: 'operativo', rol: 'Operativo', url: 'operativo.html', perm: 'operativo', dot: true, ver: c => !!c.m.operativo },
       { n: 'Personal', d: 'Licencias &middot; Cambios de turno &middot; Horarios', ic: 'personal', cls: 'personal', rol: 'Personal', url: 'personal.html', perm: 'personal', ver: c => !!c.m.personal },
-      { n: 'Organigrama y descriptores de puesto', d: 'Organigrama del servicio; cada cuadro abre el documento del rol', ic: 'admin', cls: 'admin', prox: true }
+      { n: 'Organigrama y descriptores de puesto', zi: 'network', d: 'Organigrama del servicio; cada cuadro abre el documento del rol', ic: 'admin', cls: 'admin', prox: true }
     ] },
     { t: 'Equipo', items: [
-      { n: 'Staff administrativo', d: 'Personal administrativo del servicio', ic: 'img_admin', cls: 'imagenes', rol: 'Administrativos', url: 'imagenes.html?m=admin#administrativos', ver: c => c.pest.indexOf('administrativos') >= 0 },
-      { n: 'Cronograma administrativo', d: 'Horarios del equipo administrativo, con licencias y reemplazos', ic: 'img_admin', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html?m=admin#cronogramas/administrativos', ver: c => c.tieneImg }
+      { n: 'Staff administrativo', zi: 'users', d: 'Personal administrativo del servicio', ic: 'img_admin', cls: 'imagenes', rol: 'Administrativos', url: 'imagenes.html?m=admin#administrativos', ver: c => c.pest.indexOf('administrativos') >= 0 },
+      { n: 'Cronograma administrativo', zi: 'calendar', d: 'Horarios del equipo administrativo, con licencias y reemplazos', ic: 'img_admin', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html?m=admin#cronogramas/administrativos', ver: c => c.tieneImg }
     ] }
   ] },
   { k: 'medico', cls: 'medico', ic: 'medico', nombre: 'M&eacute;dico', desc: 'Informes &middot; Staff &middot; Informantes &middot; Cronogramas',
@@ -1710,13 +1714,13 @@ const MENU_DEF = [
       { n: 'Panel m&eacute;dico', d: 'Sem&aacute;foro &middot; Resumen &middot; Pendientes &middot; M&eacute;dicos &middot; Prestaciones &middot; Demora &middot; Estudios sin informe', ic: 'medico', cls: 'medico', rol: 'Médico', url: 'medico.html', perm: 'medico', ver: c => !!c.m.medico }
     ] },
     { t: 'Equipo', items: [
-      { n: 'Staff m&eacute;dico', d: 'M&eacute;dicos del servicio y servicios en los que informan', ic: 'img_medicos', cls: 'imagenes', rol: 'Médicos', url: 'imagenes.html?m=medico#medicos', ver: c => c.pest.indexOf('medicos') >= 0 }
+      { n: 'Staff m&eacute;dico', zi: 'users', d: 'M&eacute;dicos del servicio y servicios en los que informan', ic: 'img_medicos', cls: 'imagenes', rol: 'Médicos', url: 'imagenes.html?m=medico#medicos', ver: c => c.pest.indexOf('medicos') >= 0 }
     ] },
     { t: 'Cronogramas e informantes', items: [
-      { n: 'Cronograma Ecograf&iacute;a / Doppler', d: 'Agenda de m&eacute;dicos ecografistas', ic: 'img_medicos', cls: 'imagenes', rol: 'Médicos', url: 'imagenes.html?m=medico#medicos/eco', ver: c => c.pest.indexOf('medicos') >= 0 },
-      { n: 'Guardias de Tomograf&iacute;a', d: 'Qui&eacute;n informa Tomograf&iacute;a por d&iacute;a y los R4 de fines de semana y feriados', ic: 'img_medicos', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html?m=medico#cronogramas/tc', ver: c => c.tieneImg },
-      { n: 'Radiograf&iacute;as', d: 'Cronograma de los m&eacute;dicos que informan Radiograf&iacute;as', ic: 'img_medicos', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html?m=medico#cronogramas/radiografias', ver: c => c.tieneImg },
-      { n: 'Informantes', d: 'Resonancia &middot; Tomograf&iacute;a &middot; Radiolog&iacute;a &middot; Eco y Doppler: qui&eacute;n informa cada servicio', ic: 'img_medicos', cls: 'imagenes', rol: 'Médicos', url: 'imagenes.html?m=medico#medicos/rm', ver: c => c.pest.indexOf('medicos') >= 0 }
+      { n: 'Cronograma Ecograf&iacute;a / Doppler', zi: 'calendar', d: 'Agenda de m&eacute;dicos ecografistas', ic: 'img_medicos', cls: 'imagenes', rol: 'Médicos', url: 'imagenes.html?m=medico#medicos/eco', ver: c => c.pest.indexOf('medicos') >= 0 },
+      { n: 'Guardias de Tomograf&iacute;a', zi: 'calclock', d: 'Qui&eacute;n informa Tomograf&iacute;a por d&iacute;a y los R4 de fines de semana y feriados', ic: 'img_medicos', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html?m=medico#cronogramas/tc', ver: c => c.tieneImg },
+      { n: 'Radiograf&iacute;as', zi: 'scan', d: 'Cronograma de los m&eacute;dicos que informan Radiograf&iacute;as', ic: 'img_medicos', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html?m=medico#cronogramas/radiografias', ver: c => c.tieneImg },
+      { n: 'Informantes', zi: 'filetext', d: 'Resonancia &middot; Tomograf&iacute;a &middot; Radiolog&iacute;a &middot; Eco y Doppler: qui&eacute;n informa cada servicio', ic: 'img_medicos', cls: 'imagenes', rol: 'Médicos', url: 'imagenes.html?m=medico#medicos/rm', ver: c => c.pest.indexOf('medicos') >= 0 }
     ] }
   ] },
   { k: 'tecnico', cls: 'tecnico', ic: 'tecnico', nombre: 'T&eacute;cnico', desc: 'Estudios &middot; Staff &middot; Cronogramas, licencias y pago',
@@ -1725,39 +1729,79 @@ const MENU_DEF = [
       { n: 'Panel t&eacute;cnico', d: 'Estudios realizados &middot; Tiempos promedio &middot; Equipos', ic: 'tecnico', cls: 'tecnico', rol: 'Técnico', url: 'tecnico.html', perm: 'tecnico', ver: c => !!c.m.tecnico }
     ] },
     { t: 'Equipo', items: [
-      { n: 'Staff t&eacute;cnico', d: 'T&eacute;cnicos por servicio y equipo', ic: 'img_tecnicos', cls: 'imagenes', rol: 'Técnicos', url: 'imagenes.html?m=tecnico#tecnicos', ver: c => c.pest.indexOf('tecnicos') >= 0 }
+      { n: 'Staff t&eacute;cnico', zi: 'users', d: 'T&eacute;cnicos por servicio y equipo', ic: 'img_tecnicos', cls: 'imagenes', rol: 'Técnicos', url: 'imagenes.html?m=tecnico#tecnicos', ver: c => c.pest.indexOf('tecnicos') >= 0 }
     ] },
     { t: 'Cronogramas', items: [
-      { n: 'Cronograma de t&eacute;cnicos', d: 'Diagrama del mes &middot; Horas por t&eacute;cnico &middot; Semana tipo &middot; Semanas del mes &middot; Cuadro &middot; Mes', ic: 'img_tecnicos', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html?m=tecnico#cronogramas/tecnicos', ver: c => c.tieneImg },
-      { n: 'Licencias y reemplazos', d: 'Confirmar reemplazos &middot; Licencias &middot; A&ntilde;o', ic: 'img_tecnicos', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html?m=tecnico#cronogramas/licencias', ver: c => c.tieneImg },
-      { n: 'Pago de t&eacute;cnicos', d: 'Horas y valor a partir del cronograma &middot; solo edici&oacute;n', ic: 'img_tecnicos', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html?m=tecnico#cronogramas/pago', ver: c => c.tieneImg && NIVEL_EDITA.indexOf(c.nivel) >= 0 },
-      { n: 'Alertas del cronograma', d: 'Avisos del cronograma', ic: 'img_tecnicos', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html?m=tecnico#cronogramas/alertas', ver: c => c.tieneImg },
-      { n: 'Resonancias', d: 'Cronograma de RM &middot; hoy Pr&oacute;ximamente', ic: 'img_tecnicos', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html?m=tecnico#cronogramas/rm', ver: c => c.tieneImg }
+      { n: 'Cronograma de t&eacute;cnicos', zi: 'calendar', d: 'Diagrama del mes &middot; Horas por t&eacute;cnico &middot; Semana tipo &middot; Semanas del mes &middot; Cuadro &middot; Mes', ic: 'img_tecnicos', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html?m=tecnico#cronogramas/tecnicos', ver: c => c.tieneImg },
+      { n: 'Licencias y reemplazos', zi: 'calminus', d: 'Confirmar reemplazos &middot; Licencias &middot; A&ntilde;o', ic: 'img_tecnicos', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html?m=tecnico#cronogramas/licencias', ver: c => c.tieneImg },
+      { n: 'Pago de t&eacute;cnicos', zi: 'coins', d: 'Horas y valor a partir del cronograma &middot; solo edici&oacute;n', ic: 'img_tecnicos', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html?m=tecnico#cronogramas/pago', ver: c => c.tieneImg && NIVEL_EDITA.indexOf(c.nivel) >= 0 },
+      { n: 'Alertas del cronograma', zi: 'bell', d: 'Avisos del cronograma', ic: 'img_tecnicos', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html?m=tecnico#cronogramas/alertas', ver: c => c.tieneImg },
+      { n: 'Resonancias', zi: 'magnet', d: 'Cronograma de RM &middot; hoy Pr&oacute;ximamente', ic: 'img_tecnicos', cls: 'imagenes', rol: 'Cronogramas', url: 'imagenes.html?m=tecnico#cronogramas/rm', ver: c => c.tieneImg }
     ] }
   ] },
   { k: 'residencia', cls: 'residencia', ic: 'residencia', nombre: 'Residencia', desc: 'Staff &middot; Cronograma &middot; Licencias de residentes',
     frase: 'Todo lo propio del residente.', secs: [
     { t: 'Equipo', items: [
-      { n: 'Staff de residentes', d: 'Residentes por a&ntilde;o y servicio', ic: 'img_residentes', cls: 'residencia', rol: 'Residentes', url: 'imagenes.html?m=residencia#residentes', ver: c => c.pest.indexOf('residentes') >= 0 }
+      { n: 'Staff de residentes', zi: 'users', d: 'Residentes por a&ntilde;o y servicio', ic: 'img_residentes', cls: 'residencia', rol: 'Residentes', url: 'imagenes.html?m=residencia#residentes', ver: c => c.pest.indexOf('residentes') >= 0 }
     ] },
     { t: 'Cronograma y licencias', items: [
-      { n: 'Cronograma de residentes', d: 'Cronograma propio de residentes', ic: 'img_residentes', cls: 'residencia', prox: true },
-      { n: 'Docencia', d: 'Plataforma Docente DxI: Explorar, Áreas y Residencia', ic: 'docencia', cls: 'residencia', rol: 'Docencia', url: 'imagenes.html?m=residencia#docencia', ver: c => c.tieneImg },
-      { n: 'Licencias de residentes', d: 'Cargar la licencia y que el cronograma se modifique en consecuencia', ic: 'img_residentes', cls: 'residencia', prox: true }
+      { n: 'Cronograma de residentes', zi: 'calendar', d: 'Cronograma propio de residentes', ic: 'img_residentes', cls: 'residencia', prox: true },
+      { n: 'Docencia', zi: 'book', d: 'Plataforma Docente DxI: Explorar, Áreas y Residencia', ic: 'docencia', cls: 'residencia', rol: 'Docencia', url: 'imagenes.html?m=residencia#docencia', ver: c => c.tieneImg },
+      { n: 'Licencias de residentes', zi: 'calminus', d: 'Cargar la licencia y que el cronograma se modifique en consecuencia', ic: 'img_residentes', cls: 'residencia', prox: true }
     ] }
   ] },
   { k: 'docencia', cls: 'docencia', ic: 'docencia', nombre: 'Docencia e Investigaci&oacute;n', desc: 'Plataforma Docente DxI &middot; Rotaciones &middot; Investigaci&oacute;n',
     frase: 'Lo docente del servicio, las rotaciones de residentes externos y la investigaci&oacute;n.', secs: [
     { t: 'Plataforma Docente DxI', items: [
-      { n: 'M&oacute;dulos de formaci&oacute;n', d: 'Contenido de la Plataforma Docente DxI', ic: 'docencia', cls: 'docencia', rol: 'Docencia', url: 'imagenes.html?m=docencia#docencia', ver: c => c.tieneImg },
-      { n: 'Calculadoras', d: 'Herramientas de c&aacute;lculo de la plataforma', ic: 'docencia', cls: 'docencia', prox: true }
+      { n: 'M&oacute;dulos de formaci&oacute;n', zi: 'book', d: 'Contenido de la Plataforma Docente DxI', ic: 'docencia', cls: 'docencia', rol: 'Docencia', url: 'imagenes.html?m=docencia#docencia', ver: c => c.tieneImg },
+      { n: 'Calculadoras', zi: 'calculator', d: 'Herramientas de c&aacute;lculo de la plataforma', ic: 'docencia', cls: 'docencia', prox: true }
     ] },
     { t: 'Rotaciones e investigaci&oacute;n', items: [
-      { n: 'Rotaciones de residentes externos', d: 'Inscripci&oacute;n, solicitudes y asignaci&oacute;n', ic: 'docencia', cls: 'docencia', prox: true },
-      { n: 'Investigaci&oacute;n', d: 'M&oacute;dulo de investigaci&oacute;n del servicio', ic: 'docencia', cls: 'docencia', prox: true }
+      { n: 'Rotaciones de residentes externos', zi: 'repeat', d: 'Inscripci&oacute;n, solicitudes y asignaci&oacute;n', ic: 'docencia', cls: 'docencia', prox: true },
+      { n: 'Investigaci&oacute;n', zi: 'flask', d: 'M&oacute;dulo de investigaci&oacute;n del servicio', ic: 'docencia', cls: 'docencia', prox: true }
     ] }
   ] }
 ];
+
+/* -- Glifos de las insignias (estilo Zafiro): línea, 24x24. Sin ?estilo=zafiro no se ven. -- */
+const ZAF_GLIFOS = {
+  briefcase: '<rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8.5 7V5.5A1.5 1.5 0 0 1 10 4h4a1.5 1.5 0 0 1 1.5 1.5V7"/><path d="M3 12.5h18"/><path d="M10.5 12.5V14h3v-1.5"/>',
+  stethoscope: '<path d="M6 3.5V9a4 4 0 0 0 8 0V3.5"/><path d="M5 3.5h2M13 3.5h2"/><path d="M10 13v2.5a4.5 4.5 0 0 0 9 0V13.5"/><circle cx="19" cy="11.5" r="2"/>',
+  monitor: '<rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M6 11h2.5l1.5-3 3 6 1.5-3H18"/>',
+  graduation: '<path d="M2.5 9.5 12 5l9.5 4.5L12 14 2.5 9.5Z"/><path d="M6.5 11.8V16c0 1.4 2.5 3 5.5 3s5.5-1.6 5.5-3v-4.2"/><path d="M21.5 9.5V15"/>',
+  book: '<path d="M12 6.5C10.3 5.2 8 4.5 4.5 4.5v13c3.5 0 5.8.7 7.5 2 1.7-1.3 4-2 7.5-2v-13C16 4.5 13.7 5.2 12 6.5Z"/><path d="M12 6.5v13"/>',
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"/><path d="M12 18v3M9 21h6"/>',
+  wallet: '<path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3"/><path d="M4 7.5V17a2.5 2.5 0 0 0 2.5 2.5H19a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1H6.5A2.5 2.5 0 0 1 4 7.5Z"/><circle cx="16" cy="13.5" r="1.1"/>',
+  compare: '<path d="M4 8h13l-3.5-3.5"/><path d="M20 16H7l3.5 3.5"/>',
+  shield: '<path d="M12 3 4.5 6v5.5c0 4.4 3 7.9 7.5 9.5 4.5-1.6 7.5-5.1 7.5-9.5V6L12 3Z"/><path d="m8.8 12 2.3 2.3 4.2-4.6"/>',
+  building: '<path d="M4 20.5V6.5L12 3l8 3.5v14"/><path d="M2.5 20.5h19"/><path d="M12 8.5v5M9.5 11h5"/><path d="M10 20.5v-3.5h4v3.5"/>',
+  package: '<path d="M12 3 3.5 7.5v9L12 21l8.5-4.5v-9L12 3Z"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9"/>',
+  users: '<circle cx="9" cy="8.5" r="3.2"/><path d="M3 19.5c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 5.6a3.1 3.1 0 0 1 0 5.8M17.5 14.3c2.2.5 3.5 2.3 3.5 5.2"/>',
+  idcard: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="11" r="2.2"/><path d="M5.8 16c.5-1.6 1.7-2.4 3.2-2.4s2.7.8 3.2 2.4M14.5 10H18M14.5 13.5H18"/>',
+  calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+  calclock: '<path d="M20 11V7.5A2.5 2.5 0 0 0 17.5 5h-11A2.5 2.5 0 0 0 4 7.5v11A2.5 2.5 0 0 0 6.5 21H11"/><path d="M4 10h16M8 3v4M16 3v4"/><circle cx="17" cy="17" r="4"/><path d="M17 15.2V17l1.2 1"/>',
+  calminus: '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4M9.5 15h5"/>',
+  filetext: '<path d="M14 3H7.5A2.5 2.5 0 0 0 5 5.5v13A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V8l-5-5Z"/><path d="M14 3v5h5M9 13h6M9 16.5h6"/>',
+  clipboard: '<rect x="5" y="4.5" width="14" height="16.5" rx="2.5"/><path d="M9 4.5V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v.5"/><path d="m9 13.2 2.2 2.2L15.3 11"/>',
+  key: '<circle cx="8.5" cy="14.5" r="4"/><path d="m11.5 11.5 8-8M16 7l2.5 2.5M14 9l2 2"/>',
+  network: '<rect x="9" y="3" width="6" height="5" rx="1.2"/><rect x="3" y="16" width="6" height="5" rx="1.2"/><rect x="15" y="16" width="6" height="5" rx="1.2"/><path d="M12 8v4M6 16v-4h12v4"/>',
+  coins: '<ellipse cx="12" cy="6.5" rx="7" ry="3"/><path d="M5 6.5v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5"/><path d="M5 11.5v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5"/>',
+  bell: '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15L6 16.5Z"/><path d="M10 21h4"/>',
+  magnet: '<path d="M5 14V5.5h4.5V14a2.5 2.5 0 0 0 5 0V5.5H19V14a7 7 0 0 1-14 0Z"/><path d="M5 9.5h4.5M14.5 9.5H19"/>',
+  scan: '<path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/>',
+  calculator: '<rect x="5" y="3" width="14" height="18" rx="2.5"/><rect x="8" y="6" width="8" height="3.5" rx=".8"/><path d="M8.5 13h.01M12 13h.01M15.5 13h.01M8.5 16.5h.01M12 16.5h.01M15.5 16.5h.01"/>',
+  repeat: '<path d="M4 11V9a3 3 0 0 1 3-3h12l-3-3"/><path d="M20 13v2a3 3 0 0 1-3 3H5l3 3"/>',
+  flask: '<path d="M9.5 3h5M10.5 3v6.2L5 18.5A2 2 0 0 0 6.8 21.5h10.4a2 2 0 0 0 1.8-3L13.5 9.2V3"/><path d="M8 15h8"/>'
+};
+const ZAF_GLIFO_POR_IC = {
+  admin: 'briefcase', medico: 'stethoscope', tecnico: 'monitor', residencia: 'graduation', docencia: 'book', dictom: 'mic',
+  caja: 'wallet', conciliacion: 'compare', validacion: 'shield', harefield: 'building', operativo: 'package', personal: 'idcard',
+  imagenes: 'scan', img_admin: 'users', img_medicos: 'stethoscope', img_tecnicos: 'monitor', img_residentes: 'graduation'
+};
+function zafGlifo(zi, ic) {
+  const k = ZAF_GLIFOS[zi] ? zi : (ZAF_GLIFO_POR_IC[ic] || 'briefcase');
+  return '<svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">' + ZAF_GLIFOS[k] + '</svg>';
+}
 
 function menuIcono(key) {
   const m = MODULE_CARDS[key];
@@ -1774,9 +1818,9 @@ function menuHayContenido(mod, c) {
 
 function menuFila(o) {
   const clic = o.prox ? '' : ` onclick="${o.click}"`;
-  return `<div class="mod-fila ${o.cls}${o.sub ? ' sub' : ''}${o.cab ? ' cab' : ''}${o.prox ? ' inerte' : ''}"${clic}>
+  return `<div class="mod-fila ${o.cls}${o.sub ? ' sub' : ''}${o.cab ? ' cab' : ''}${o.prox ? ' inerte' : ''}"${o.cab ? ' role="heading" aria-level="1"' : ''}${clic}>
       ${o.dot > 0 ? `<span class="notif-dot">${o.dot}</span>` : ''}
-      <div class="mod-icono">${menuIcono(o.ic)}</div>
+      <div class="mod-icono"><span class="mod-zi" aria-hidden="true">${zafGlifo(o.zi, o.ic)}</span>${menuIcono(o.ic)}</div>
       <div class="mod-cuerpo">
         <div class="mod-nombre">${o.nombre}${o.tag || ''}</div>
         <div class="mod-desc">${o.desc}</div>
@@ -1805,7 +1849,7 @@ function menuPintar() {
           <div class="mod-items">${s.items.map(i => {
             const ro = (i.perm && c.m[i.perm] === 'view') ? '<span class="mod-ro">Solo lectura</span>' : '';
             const click = E.sim ? 'vrNoNavega()' : `menuIr('${i.url}','${(i.rol || '').replace(/'/g, "\\'")}')`;
-            return menuFila({ cls: i.cls, sub: true, ic: i.ic, nombre: i.n, desc: i.d, tag: ro, prox: i.prox, click, dot: i.dot ? E.pendingCount : 0 });
+            return menuFila({ cls: i.cls, sub: true, ic: i.ic, zi: i.zi, nombre: i.n, desc: i.d, tag: ro, prox: i.prox, click, dot: i.dot ? E.pendingCount : 0 });
           }).join('')}</div>`).join('')}
       </div>`;
     } else {
@@ -1980,6 +2024,25 @@ function selectRol(nombre, clase) {
 }
 
 /* -- EXCEL UPLOAD -- */
+/* -- Fecha y hora del último archivo cargado (se muestra en la tarjeta de Sedes) -- */
+function fmtCarga(ts, txt) {
+  try {
+    if (ts) {
+      const d = new Date(Number(ts));
+      if (!isNaN(d.getTime())) return d.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).replace(', ', ' · ');
+    }
+  } catch (e) {}
+  return txt || '';
+}
+function pintarCarga() {
+  const m = document.getElementById('upload-meta');
+  if (!m) return;
+  let ts = null, tx = null;
+  try { ts = localStorage.getItem('spcd_upload_ts'); tx = localStorage.getItem('spcd_upload_date'); } catch (e) {}
+  const s = fmtCarga(ts, tx);
+  if (s) { m.textContent = 'Última carga: ' + s + ' hs'; m.hidden = false; } else { m.hidden = true; }
+}
+
 function handleExcelUpload(evt) {
   const file = evt.target.files[0];
   if (!file) return;
@@ -2003,6 +2066,7 @@ function handleExcelUpload(evt) {
 
       dbSave('spcd_data_full', data).catch(err => console.warn('IndexedDB error:', err));
       localStorage.setItem('spcd_upload_date', new Date().toLocaleString('es-AR', {hour12:false}));
+      try { localStorage.setItem('spcd_upload_ts', String(Date.now())); localStorage.setItem('spcd_upload_name', file.name); } catch(e) {}
       try { localStorage.removeItem('spcd_data_full'); } catch(e) {} // limpiar viejo storage
 
       progress.style.width = '100%';
@@ -2013,6 +2077,7 @@ function handleExcelUpload(evt) {
         sub.textContent = data.length.toLocaleString() + ' registros cargados';
         sub.className = 'upload-sub loaded';
         badge.textContent = 'OK';
+        pintarCarga();
         document.getElementById('btn-reload').style.display = 'inline-block';
         setTimeout(() => { progress.style.width = '0'; }, 600);
       }, 400);
@@ -2051,10 +2116,11 @@ dbLoad('spcd_data_full').then(data => {
     const zone = document.getElementById('upload-zone');
     zone.classList.add('has-data');
     document.getElementById('upload-icon').innerHTML = '&#9989;';
-    document.getElementById('upload-title').textContent = 'DATOS CARGADOS';
+    document.getElementById('upload-title').textContent = localStorage.getItem('spcd_upload_name') || 'DATOS CARGADOS';
     document.getElementById('upload-sub').textContent = data.length.toLocaleString() + ' registros (sesión anterior)';
     document.getElementById('upload-sub').className = 'upload-sub loaded';
     document.getElementById('upload-badge').textContent = 'OK';
+    pintarCarga();
     document.getElementById('btn-reload').style.display = 'inline-block';
   }
 }).catch(e => console.warn('Error loading IndexedDB data:', e));

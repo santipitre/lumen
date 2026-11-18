@@ -1,0 +1,90 @@
+/* ============================================================
+   Lumen · Zafiro · insignias de módulo (OPT-IN)
+   Va DESPUÉS de lumen-zafiro.css (app.html) y de lumen-zafiro-modulos.css (admin.html).
+   - Un solo lenguaje: baldosa redondeada con brillo suave + glifo de línea, en azul Zafiro.
+   - Claro y oscuro. Sin ?estilo=zafiro no cambia nada.
+   - Sin light-dark(), color-mix() ni CSS anidado (PC viejas del hospital).
+   ============================================================ */
+
+/* El glifo nuevo existe siempre en el HTML, pero solo se ve con Zafiro (ver reglas de abajo). */
+.mod-zi{ display:none; }
+
+/* ---------- Tokens de la baldosa ---------- */
+html[data-ui="zafiro"]{
+  --zi-bg:radial-gradient(120% 120% at 18% 0%,rgba(150,190,255,.36),rgba(70,120,235,.12) 52%,rgba(10,18,48,0) 100%),#0C1738;
+  --zi-line:rgba(160,195,255,.36);
+  --zi-hi:0 1px 0 rgba(205,225,255,.32) inset;
+  --zi-drop:0 10px 22px -10px rgba(3,8,36,.8);
+  --zi-glyph:#A9C8FF; --zi-glyph-hover:#D6E5FF;
+}
+html[data-ui="zafiro"][data-tema="light"]{
+  --zi-bg:radial-gradient(120% 120% at 18% 0%,#FFFFFF,#E4ECFF 58%,#CBDAFF 100%),#E4ECFF;
+  --zi-line:rgba(31,85,214,.30);
+  --zi-hi:0 1px 0 rgba(255,255,255,.95) inset;
+  --zi-drop:0 10px 20px -10px rgba(23,50,130,.45);
+  --zi-glyph:#1F55D6; --zi-glyph-hover:#143FA6;
+}
+
+/* ---------- Área de trabajo: baldosa de cada fila ---------- */
+html[data-ui="zafiro"] .mod-zi{ display:none; }
+html[data-ui="zafiro"] .mod-fila[class] .mod-icono[class] > .mod-zi{ display:flex; align-items:center; justify-content:center; width:100%; height:100%; }
+html[data-ui="zafiro"] .mod-icono > svg{ display:none; }
+html[data-ui="zafiro"] .mod-fila[class] .mod-icono[class]{
+  width:54px; height:54px; padding:0; border-radius:16px; overflow:hidden;
+  background:var(--zi-bg); border:1px solid var(--zi-line); box-shadow:var(--zi-hi),var(--zi-drop);
+}
+html[data-ui="zafiro"] .mod-fila.sub[class] .mod-icono[class]{ width:46px; height:46px; border-radius:14px; }
+html[data-ui="zafiro"] .mod-fila[class] .mod-zi svg{
+  width:27px; height:27px; fill:none; stroke:var(--zi-glyph); stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; filter:none;
+}
+html[data-ui="zafiro"] .mod-fila.sub[class] .mod-zi svg{ width:24px; height:24px; }
+html[data-ui="zafiro"][data-fx="on"] .mod-fila[class] .mod-zi svg{ filter:drop-shadow(0 0 6px rgba(123,174,255,.45)); }
+html[data-ui="zafiro"][data-tema="light"][data-fx="on"] .mod-fila[class] .mod-zi svg{ filter:none; }
+html[data-ui="zafiro"] .mod-fila[class]:hover .mod-icono[class]{ border-color:var(--z-line-strong); }
+html[data-ui="zafiro"] .mod-fila[class]:hover .mod-zi svg{ stroke:var(--zi-glyph-hover); }
+html[data-ui="zafiro"] .mod-fila.inerte[class] .mod-zi svg{ stroke:var(--z-ink3); filter:none; }
+@media (max-width:640px){
+  html[data-ui="zafiro"] .mod-fila[class] .mod-icono[class]{ width:48px; height:48px; border-radius:14px; }
+  html[data-ui="zafiro"] .mod-fila.sub[class] .mod-icono[class]{ width:42px; height:42px; border-radius:12px; }
+  html[data-ui="zafiro"] .mod-fila[class] .mod-zi svg{ width:24px; height:24px; }
+  html[data-ui="zafiro"] .mod-fila.sub[class] .mod-zi svg{ width:22px; height:22px; }
+}
+
+/* ---------- Encabezado del módulo: es un TÍTULO, no un botón ---------- */
+html[data-ui="zafiro"] .mod-fila.cab[class]{
+  background:none; border:0; border-radius:0; box-shadow:none; cursor:default;
+  padding:8px 4px 20px; margin-bottom:6px; gap:20px; overflow:visible;
+  border-bottom:1px solid var(--z-line);
+}
+html[data-ui="zafiro"] .mod-fila.cab[class]:hover{ background:none; border-color:var(--z-line); box-shadow:none; transform:none; }
+html[data-ui="zafiro"] .mod-fila.cab[class]::before,
+html[data-ui="zafiro"] .mod-fila.cab[class]::after,
+html[data-ui="zafiro"][data-fx="on"] .mod-fila.cab[class]::before,
+html[data-ui="zafiro"][data-fx="on"] .mod-fila.cab[class]::after{ display:none; content:none; }
+html[data-ui="zafiro"] .mod-fila.cab[class] .mod-icono[class]{ width:68px; height:68px; border-radius:20px; }
+html[data-ui="zafiro"] .mod-fila.cab[class] .mod-zi svg{ width:34px; height:34px; stroke-width:1.6; }
+html[data-ui="zafiro"] .mod-fila.cab .mod-nombre{ font-size:30px; font-weight:800; letter-spacing:-.01em; line-height:1.15; }
+html[data-ui="zafiro"] .mod-fila.cab .mod-desc{ font-size:14px; margin-top:6px; color:var(--z-ink2); }
+@media (max-width:640px){
+  html[data-ui="zafiro"] .mod-fila.cab[class]{ gap:14px; padding:4px 2px 16px; }
+  html[data-ui="zafiro"] .mod-fila.cab[class] .mod-icono[class]{ width:56px; height:56px; border-radius:17px; }
+  html[data-ui="zafiro"] .mod-fila.cab[class] .mod-zi svg{ width:28px; height:28px; }
+  html[data-ui="zafiro"] .mod-fila.cab .mod-nombre{ font-size:24px; }
+}
+
+/* ---------- Sedes: fecha y hora del último archivo cargado ---------- */
+html[data-ui="zafiro"] .upload-meta{ font-family:var(--z-font); font-size:12px; letter-spacing:0; color:var(--z-ink2); margin-top:3px; }
+
+/* ---------- admin.html: insignia de «Módulo Administrativo» ---------- */
+html[data-ui="zafiro"] .tb-head{ gap:18px; }
+html[data-ui="zafiro"] .tb-head .tb-brief{
+  width:62px; height:62px; padding:15px; border-radius:19px;
+  background:var(--zi-bg); border:1px solid var(--zi-line); box-shadow:var(--zi-hi),var(--zi-drop);
+  stroke:var(--zi-glyph); stroke-width:1.6;
+}
+html[data-ui="zafiro"] .tb-head .tb-brief *{ stroke:var(--zi-glyph); }
+html[data-ui="zafiro"][data-fx="on"] .tb-head .tb-brief{ filter:drop-shadow(0 0 8px rgba(123,174,255,.35)); }
+@media (max-width:760px){
+  html[data-ui="zafiro"] .tb-head{ gap:12px; }
+  html[data-ui="zafiro"] .tb-head .tb-brief{ width:46px; height:46px; padding:11px; border-radius:15px; }
+}
