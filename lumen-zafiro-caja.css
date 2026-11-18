@@ -53,3 +53,11 @@
   html[data-ui="zafiro"][data-tema="oscuro"] :is(input,select,textarea){ background:var(--z-card-hi); border-color:var(--z-line); color:var(--z-ink); border-radius:10px; }
   html[data-ui="zafiro"][data-tema="oscuro"] :is(input,select,textarea):focus{ border-color:var(--z-acc); outline:none; box-shadow:0 0 0 4px rgba(94,151,255,.22); }
 }
+
+/* Cabecera y pie fijos de las tablas: llevan fondo propio y opaco.
+   (--linea-2 es translúcido en Zafiro y dejaba ver las filas que pasan por debajo) */
+@media screen{
+  html[data-ui="zafiro"][data-tema="oscuro"] table.data thead th,
+  html[data-ui="zafiro"][data-tema="oscuro"] table.data tfoot.pie-total td,
+  html[data-ui="zafiro"][data-tema="oscuro"] table.data tfoot.pie-total tr:hover td{ background-color:#1C284A; }
+}
