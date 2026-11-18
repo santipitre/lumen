@@ -61,8 +61,6 @@
       font-size: 14px; line-height: 1.5;
     }
 
-    /* === CANVAS BG === */
-    #bg-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
 
     /* === TOPBAR === */
     .topbar {
@@ -695,7 +693,6 @@
 </head>
 <body>
 
-<canvas id="bg-canvas"></canvas>
 
 <!-- ==================== TOPBAR ==================== -->
 <div class="topbar">
@@ -5226,69 +5223,8 @@ function aplicarModoAccesoPostLogin() {
   }
 })();
 
-// ============================================================
-// CANVAS BACKGROUND
-// ============================================================
-(function() {
-  const canvas = document.getElementById('bg-canvas');
-  const ctx = canvas.getContext('2d');
-  let W, H, particles = [], nodes = [];
-
-  function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
-  function rnd(a, b) { return a + Math.random() * (b - a); }
-
-  function initP() {
-    particles = [];
-    const count = Math.floor((W * H) / 22000);
-    for (let i = 0; i < count; i++) {
-      particles.push({
-        x: Math.random() * W, y: Math.random() * H,
-        r: rnd(.5, 2), vx: rnd(-.15, .15), vy: rnd(-.15, .15),
-        alpha: rnd(.2, .55),
-        color: Math.random() > .5 ? '#38BDF8' : '#3B82F6'
-      });
-    }
-    nodes = particles.slice(0, 10);
-  }
-
-  function draw() {
-    ctx.clearRect(0, 0, W, H);
-    const grad = ctx.createRadialGradient(W*.5, H*.4, 0, W*.5, H*.5, W*.7);
-    grad.addColorStop(0, 'rgba(30,58,138,.15)');
-    grad.addColorStop(1, 'rgba(10,15,20,0)');
-    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
-
-    ctx.strokeStyle = 'rgba(30,58,138,.22)'; ctx.lineWidth = .5;
-    const gS = 60;
-    for (let x = 0; x < W; x += gS) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-    for (let y = 0; y < H; y += gS) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
-
-    for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist < 200) {
-          ctx.beginPath(); ctx.strokeStyle = 'rgba(56,189,248,' + (.12 * (1 - dist/200)) + ')';
-          ctx.lineWidth = .8; ctx.moveTo(nodes[i].x, nodes[i].y); ctx.lineTo(nodes[j].x, nodes[j].y); ctx.stroke();
-        }
-      }
-    }
-
-    particles.forEach(p => {
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color; ctx.fill(); ctx.globalAlpha = 1;
-      p.x += p.vx; p.y += p.vy;
-      if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
-      if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
-    });
-    requestAnimationFrame(draw);
-  }
-
-  resize(); initP(); draw();
-  window.addEventListener('resize', () => { resize(); initP(); });
-})();
 </script>
-<script src="spcd-bg.js?v=20261111-luci2"></script>
+<script src="spcd-bg.js?v=13886e5f"></script>
 <script src="spcd-share.js?v=865a3f49"></script>
 <script src="spcd-excel-template.js?v=541e71a8"></script>
 <script src="chatbot.js?v=20261116-rol"></script>
