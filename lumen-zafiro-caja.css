@@ -61,3 +61,13 @@
   html[data-ui="zafiro"][data-tema="oscuro"] table.data tfoot.pie-total td,
   html[data-ui="zafiro"][data-tema="oscuro"] table.data tfoot.pie-total tr:hover td{ background-color:#1C284A; }
 }
+
+/* Impresión: Caja tiene su propio diseño de papel (blanco, tinta oscura). Zafiro no lo toca.
+   lumen-zafiro.css pone texto claro y fondo azul en html/body: acá se devuelve lo del papel. */
+@media print{
+  html[data-ui="zafiro"]{ background:#FFFFFF !important; background-image:none !important; color:#16181D !important; }
+  html[data-ui="zafiro"] body{ background:#FFFFFF !important; background-image:none !important; color:#16181D !important; }
+  html[data-ui="zafiro"] body::before,html[data-ui="zafiro"] body::after{ display:none !important; }
+  html[data-ui="zafiro"] header.top{ background:#FFFFFF !important; color:#16181D !important; }
+  html[data-ui="zafiro"] h1{ color:#16181D !important; }
+}
