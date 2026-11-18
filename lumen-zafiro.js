@@ -41,14 +41,8 @@
     var m = document.querySelector('meta[name="lumen-zafiro-tema"]');
     return !!(m && m.getAttribute('content') === 'propio');
   }
-  var fxPref = ls(KFX);
-  function autoFx() {
-    var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var cores = navigator.hardwareConcurrency || 8;
-    var mem = navigator.deviceMemory || 8;
-    return !(reduce || cores <= 4 || mem <= 4);
-  }
-  var fx = fxPref === 'on' ? true : fxPref === 'off' ? false : autoFx();
+  /* Efectos siempre encendidos (decisión del 18/11/2026). Solo se respeta «reducir movimiento» del sistema operativo. */
+  var fx = !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   var ctl = null, btnTema = null, btnFx = null, fontLoaded = false;
 
@@ -81,37 +75,7 @@
       apply();
     });
 
-    btnFx = document.createElement('button');
-    btnFx.type = 'button';
-    btnFx.setAttribute('role', 'switch');
-    btnFx.innerHTML = '<span class="zsw" aria-hidden="true"></span><span class="zl">Efectos</span>';
-    btnFx.addEventListener('click', function () {
-      fx = !fx;
-      ls(KFX, fx ? 'on' : 'off');
-      apply();
-    });
-
-    var btnOld = document.createElement('button');
-    btnOld.type = 'button';
-    btnOld.setAttribute('aria-label', 'Volver al estilo clásico');
-    btnOld.title = 'Volver al estilo clásico';
-    btnOld.innerHTML = ICON_BACK + '<span class="zl">Clásico</span>';
-    btnOld.addEventListener('click', function () {
-      enabled = false;
-      ls(KUI, null);
-      /* En páginas de módulo el fondo animado clásico se arma al cargar: hay que recargar. */
-      if (root.getAttribute('data-z-pagina') === 'modulo') {
-        var u = new URL(location.href); u.searchParams.set('estilo', 'clasico'); location.replace(u.toString()); return;
-      }
-      apply();
-      if (typeof window.showToast === 'function') {
-        window.showToast('Estilo clásico. Para volver al nuevo: agregá ?estilo=zafiro a la dirección.', 'info');
-      }
-    });
-
     ctl.appendChild(btnTema);
-    ctl.appendChild(btnFx);
-    ctl.appendChild(btnOld);
     document.body.appendChild(ctl);
   }
 
@@ -122,8 +86,6 @@
     btnTema.innerHTML = (toLight ? ICON_SUN : ICON_MOON) + '<span class="zl">' + (toLight ? 'Claro' : 'Oscuro') + '</span>';
     btnTema.setAttribute('aria-label', toLight ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro');
     btnTema.title = toLight ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro';
-    btnFx.setAttribute('aria-checked', fx ? 'true' : 'false');
-    btnFx.title = fx ? 'Apagar efectos (más liviano)' : 'Encender efectos';
   }
 
   /* ---- Aplicar atributos según pantalla ---- */
@@ -148,7 +110,7 @@
       loadFont();
       buildCtl();
       paintCtl();
-      if (ctl) ctl.hidden = false;
+      if (ctl) ctl.hidden = soloOscuro();
       if (meta) {
         if (!meta.hasAttribute('data-orig')) meta.setAttribute('data-orig', meta.getAttribute('content') || '');
         meta.setAttribute('content', temaVigente === 'light' ? '#DFE7F7' : '#070D1F');

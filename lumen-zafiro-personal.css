@@ -1,0 +1,42 @@
+/* ============================================================
+   Lumen · Zafiro Lumen para personal.html (OPT-IN, solo oscuro)
+   Va después de lumen-zafiro.css y lumen-zafiro-modulos.css (que ya remapean --accent*, --glass, --border,
+   y dan estilo a .nav-tabs/.nav-tab/.topbar/.user-chip).
+   El violeta del módulo pasa al azul Zafiro. Los colores que distinguen el TIPO de licencia
+   (día libre, cambio de turno, llegar tarde, salir temprano) y el ESTADO (pendiente/aprobado/rechazado/cancelado) NO se tocan.
+   ============================================================ */
+html[data-ui="zafiro"]{ --sky:var(--z-acc-ink); --accent-bg:rgba(94,151,255,.12); }
+
+html[data-ui="zafiro"] :is(.section-header h2,.cal-title,.detail-header h2,.empty-state h3,.lic-id,.cal-day-num){ font-family:var(--z-font); }
+html[data-ui="zafiro"] .section-header h2{ font-weight:800; letter-spacing:.14em; }
+html[data-ui="zafiro"] .logo-mini{ background:linear-gradient(135deg,#16264F,#0A1230); border-color:rgba(150,185,255,.35); box-shadow:none; font-family:var(--z-font); }
+
+/* Botones */
+html[data-ui="zafiro"] .btn-submit{ background:linear-gradient(135deg,#2A63D8,var(--z-acc)); border:1px solid var(--z-line-strong); border-radius:12px; font-family:var(--z-font); }
+html[data-ui="zafiro"] .btn-secondary{ background:var(--z-card-hi); border:1px solid var(--z-line); border-radius:12px; font-family:var(--z-font); }
+html[data-ui="zafiro"] .btn-secondary:hover{ border-color:var(--z-acc); color:var(--z-acc-ink); }
+html[data-ui="zafiro"] .cal-nav-btn{ border-radius:12px; background:var(--z-card-hi); font-family:var(--z-font); }
+html[data-ui="zafiro"] .cal-nav-btn:hover{ border-color:var(--z-acc); color:var(--z-acc-ink); }
+
+/* Tarjetas de solicitud y calendario: vidrio */
+html[data-ui="zafiro"] :is(.licencia-card,.cal-wrap){
+  border-color:var(--z-line); border-radius:18px;
+  background:linear-gradient(180deg,var(--z-sheen),transparent 46%),var(--z-card); box-shadow:var(--z-raise);
+}
+html[data-ui="zafiro"] .licencia-card:hover{ border-color:var(--z-acc); }
+html[data-ui="zafiro"] .cal-day{ background:rgba(7,13,31,.45); border-color:var(--z-line); border-radius:10px; }
+html[data-ui="zafiro"] .cal-day.today{ border-color:var(--z-acc); box-shadow:inset 0 0 0 1px var(--z-acc); }
+
+/* Detalle y formulario */
+html[data-ui="zafiro"] .detail-overlay{ background:rgba(3,6,16,.78); }
+html[data-ui="zafiro"][data-fx="on"] .detail-overlay{ -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); }
+html[data-ui="zafiro"] .detail-box{ background:var(--z-elev); border-color:var(--z-line); border-radius:20px; box-shadow:0 30px 70px -24px rgba(0,0,20,.8); }
+html[data-ui="zafiro"] .detail-header{ border-color:var(--z-line); }
+html[data-ui="zafiro"] :is(.form-group input,.form-group select,.form-group textarea,select.tipo-selector){ background:var(--z-card-hi); border:1px solid var(--z-line); border-radius:12px; color:var(--z-ink); font-family:var(--z-font); }
+html[data-ui="zafiro"] :is(.form-group input,.form-group select,.form-group textarea,select.tipo-selector):focus{ border-color:var(--z-acc); outline:none; box-shadow:0 0 0 4px rgba(94,151,255,.22); }
+html[data-ui="zafiro"] #file-zone{ border-color:var(--z-line-strong); border-radius:16px; }
+html[data-ui="zafiro"] #file-zone:hover{ border-color:var(--z-acc); background:rgba(94,151,255,.08); }
+
+/* «Día libre» conserva un violeta propio: es una categoría, no el acento del módulo */
+html[data-ui="zafiro"] .lic-tipo.dia-libre{ background:rgba(183,164,255,.15); color:#B7A4FF; border-color:rgba(183,164,255,.3); }
+html[data-ui="zafiro"] .cal-day .lic-chip.dia-libre{ background:rgba(183,164,255,.2); color:#B7A4FF; }
