@@ -2159,7 +2159,7 @@ function diagNotes(){
    La versión anterior queda como renderDiagAnterior por si hay que volver. */
 function renderDiag(){
   const fr = document.createElement('iframe');
-  fr.src = 'diagrama-mes.html?v=20261110';
+  fr.src = 'diagrama-mes.html?v=20261118a';
   fr.title = 'Diagrama del mes · técnicos';
   fr.setAttribute('style', 'width:100%;border:0;display:block;height:1100px;background:transparent;color-scheme:dark');
   if(!window.__diagAltura){

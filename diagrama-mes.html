@@ -220,7 +220,9 @@ var S=load();
 var REM={ok:false,edit:false,ver:null,timer:null,enviando:false,otra:false,data:null};
 var B={c:'M',m:''};
 var MSEL='';
-var VIEW=(function(){try{var v=localStorage.getItem('diagrama:view'); if(v==='pc'||v==='mobile') return v}catch(e){} return (window.innerWidth<700)?'mobile':'pc'})();
+var MQ=window.matchMedia('(max-width: 699px)'), printing=false;
+function autoView(){return MQ.matches?'mobile':'pc'}
+var VIEW=autoView();   /* se adapta solo al dispositivo: celular (<700 px de ancho) o PC/tablet */
 var DS3=['dom','lun','mar','mié','jue','vie','sáb'];
 var U=[], R=[], pend=null, lastSnap=snapJSON();
 
@@ -388,38 +390,29 @@ function poolHTML(){
     S.pool.map(function(n,i){return '<a data-act="pool" data-i="'+i+'">'+esc(n)+'</a>'}).join(' ')+'</div>';
 }
 function headerHTML(){
-  return '<div class="hd"><div class="hdr"><div><div class="inst">FUESMEN · Servicio de Imágenes del Hospital Italiano</div><h1>Cronograma mensual del personal técnico</h1></div>'+viewToggleHTML()+'</div></div>'+
+  return '<div class="hd"><div class="hdr"><div><div class="inst">FUESMEN · Servicio de Imágenes del Hospital Italiano</div><h1>Cronograma mensual del personal técnico</h1></div></div></div>'+
   '<div class="bar"><button class="btn noprint" data-act="prev" title="Mes anterior">◀</button><b style="min-width:150px;text-align:center;font-size:16px">'+MESES[S.month-1]+' '+S.year+'</b><button class="btn noprint" data-act="next" title="Mes siguiente">▶</button><button class="btn noprint" data-act="today">Mes actual</button>'+
   '<button class="btn noprint" data-act="undo"'+(U.length?'':' disabled')+' style="margin-left:10px">↶ Deshacer</button><button class="btn noprint" data-act="redo"'+(R.length?'':' disabled')+'>↷ Rehacer</button>'+
   '<span class="sp"></span>'+
-  '<button class="btn pri noprint" data-act="save">Guardar copia</button>'+
+  '<button class="btn pri noprint" data-act="save">GUARDAR CAMBIOS</button>'+
   '<button class="btn noprint" data-act="csv">Exportar a Excel</button>'+
   '<button class="btn noprint" data-act="print">Imprimir / PDF</button>'+
   '<button class="btn noprint" data-act="walist">Enviar por WhatsApp</button>'+
   '<button class="btn noprint" data-act="reglic">Registro de licencias <span class="regn">('+regCount()+')</span></button>'+
   '<button class="btn noprint" data-act="ballic">Saldo de licencias</button>'+
   '<button class="btn danger noprint" data-act="clear">Limpiar cronograma del mes</button></div>'+
-  '<div class="bar" style="margin-top:10px"><label class="mut">Elaborado por&nbsp;<input id="by" value="'+esc(S.meta.by)+'" placeholder="Nombre y apellido" style="width:240px"></label><span id="stat" class="noprint"></span></div>'+
-  '<details class="how"><summary>Instrucciones de uso</summary><ol>'+
-  '<li>Seleccione una <b>asignación</b> (M, T, N, D, F o L) y haga clic, o arrastre con el mouse, sobre los días correspondientes a cada técnico.</li>'+
-  '<li>Un nuevo clic sobre una casilla con la misma asignación la quita. «Quitar asignación» limpia cualquier casilla.</li>'+
-  '<li>Para registrar reemplazos, seleccione la <b>condición</b> (confirmado, a confirmar o no disponible) y luego asigne. Un reemplazo «no disponible» no se computa en la cobertura diaria.</li>'+
-  '<li>Un clic sobre el número del día marca o quita un <b>feriado</b>. Es posible renombrar, agregar o quitar técnicos.</li>'+
-  '<li>Al finalizar: «Guardar copia» para enviar el archivo, «Exportar a Excel» o «Imprimir / PDF».</li></ol></details>'+
+  '<div class="bar" style="margin-top:10px"><span id="stat" class="noprint"></span></div>'+
   legendHTML();
 }
 function printFootHTML(){
   var a=CODES.map(function(c){return '<b>'+c[0]+'</b> '+c[1]}).join(' &nbsp;·&nbsp; ');
   var b=MARKS.filter(function(m){return m[0]}).map(function(m){return '<span class="ch kM m-'+m[0]+'" style="width:15px;height:15px;font-size:9px">M</span> '+m[1]}).join(' &nbsp;·&nbsp; ');
   return '<div class="only-print"><div class="refs"><div><b>Asignaciones:</b> '+a+'</div><div><b>Condiciones:</b> '+b+'</div></div>'+
-  '<div class="sigrow"><div><span class="line"></span>Elaborado por: <span id="pby">'+esc(S.meta.by)+'</span></div><div><span class="line"></span>Jefa de Servicio · Firma y aclaración</div><div><span class="line"></span>Fecha</div></div></div>';
+  '<div class="sigrow"><div><span class="line"></span>Jefa de Servicio · Firma y aclaración</div><div><span class="line"></span>Fecha</div></div></div>';
 }
 function footerHTML(){
   return '<div class="card"><h4>Observaciones</h4><textarea id="note" placeholder="Novedades del mes, cambios de último momento y asignaciones pendientes de confirmar.">'+esc(S.meta.note)+'</textarea></div>'+
   printFootHTML()+'<datalist id="plist">'+plistHTML()+'</datalist><datalist id="rlist">'+plistHTML(true)+'</datalist>';
-}
-function viewToggleHTML(){
-  return '<div class="vt noprint"><span class="lgt">Vista</span><button class="lg'+(VIEW==='pc'?' on':'')+'" data-act="view" data-v="pc">PC</button><button class="lg'+(VIEW==='mobile'?' on':'')+'" data-act="view" data-v="mobile">Celular</button></div>';
 }
 function orderedPeople(){var o=[]; S.groups.forEach(function(g){S.people.filter(function(p){return p.g===g.id}).forEach(function(p){o.push(p)})}); return o}
 function curPerson(){var o=orderedPeople(), p=o.filter(function(x){return x.id===MSEL})[0]; if(!p&&o.length){p=o[0]; MSEL=p.id} return p||null}
@@ -462,15 +455,12 @@ function mbarHTML(){
     MARKS.map(function(m){return '<button class="lg'+(B.m===m[0]?' on':'')+'" data-act="mark" data-m="'+m[0]+'">'+sh[m[0]]+'</button>'}).join('')+'</div></div></div>';
 }
 function mheaderHTML(){
-  return '<div class="hd"><div class="hdr"><div><div class="inst">FUESMEN · Servicio de Imágenes del Hospital Italiano</div><h1>Cronograma mensual del personal técnico</h1></div>'+viewToggleHTML()+'</div></div>'+
+  return '<div class="hd"><div class="hdr"><div><div class="inst">FUESMEN · Servicio de Imágenes del Hospital Italiano</div><h1>Cronograma mensual del personal técnico</h1></div></div></div>'+
   '<div class="bar" style="justify-content:space-between"><button class="btn" data-act="prev" title="Mes anterior">◀</button><b style="font-size:17px">'+MESES[S.month-1]+' '+S.year+'</b><button class="btn" data-act="next" title="Mes siguiente">▶</button><button class="btn" data-act="today">Actual</button></div>'+
-  '<div class="bar" style="margin-top:10px"><label class="mut" style="width:100%">Elaborado por<input id="by" value="'+esc(S.meta.by)+'" placeholder="Nombre y apellido" style="width:100%;margin-top:3px"></label><span id="stat" class="noprint"></span></div>'+
-  '<details class="how"><summary>Opciones e instrucciones</summary><div class="mmenu">'+
-  '<button class="btn pri" data-act="save">Guardar copia</button><button class="btn" data-act="csv">Exportar a Excel</button><button class="btn" data-act="print">Imprimir / PDF</button><button class="btn" data-act="walist">Enviar por WhatsApp</button><button class="btn" data-act="reglic" style="grid-column:1/-1">Registro de licencias <span class="regn">('+regCount()+')</span></button><button class="btn" data-act="ballic" style="grid-column:1/-1">Saldo de licencias</button><button class="btn danger" data-act="clear" style="grid-column:1/-1">Limpiar cronograma del mes</button></div><ol>'+
-  '<li>Elija el <b>técnico</b> con el selector (o las flechas ◀ ▶).</li>'+
-  '<li>En la barra inferior seleccione la <b>asignación</b> (M, T, N, D, F o L) y, si corresponde, la <b>condición</b> del reemplazo.</li>'+
-  '<li>Toque cada día para asignarlo. Un nuevo toque sobre el mismo día con la misma asignación la quita.</li>'+
-  '<li>«Marcar feriado» se encuentra debajo de cada día.</li></ol></details>';
+  '<div class="bar" style="margin-top:10px"><button class="btn pri" data-act="save" style="width:100%">GUARDAR CAMBIOS</button></div>'+
+  '<div class="bar" style="margin-top:6px"><span id="stat" class="noprint"></span></div>'+
+  '<details class="how"><summary>Más opciones</summary><div class="mmenu">'+
+  '<button class="btn" data-act="csv">Exportar a Excel</button><button class="btn" data-act="print">Imprimir / PDF</button><button class="btn" data-act="walist">Enviar por WhatsApp</button><button class="btn" data-act="reglic" style="grid-column:1/-1">Registro de licencias <span class="regn">('+regCount()+')</span></button><button class="btn" data-act="ballic" style="grid-column:1/-1">Saldo de licencias</button><button class="btn danger" data-act="clear" style="grid-column:1/-1">Limpiar cronograma del mes</button></div></details>';
 }
 function mobileHTML(){
   var p=curPerson(), opts='';
@@ -504,7 +494,8 @@ function mobileTap(d){
   var n=document.getElementById('mcount'); if(n) n.innerHTML=mcountText();
   persist();
 }
-function setView(v){VIEW=v; try{localStorage.setItem('diagrama:view',v)}catch(e){} render()}
+function onMQ(){ var v=autoView(); if(printing||v===VIEW) return; VIEW=v; render(); }
+if(MQ.addEventListener) MQ.addEventListener('change',onMQ); else if(MQ.addListener) MQ.addListener(onMQ);
 function render(){
   var el=document.getElementById('app');
   el.className=(VIEW==='mobile')?'mobile':'';
@@ -856,7 +847,7 @@ function balDialog(){
     if(t.dataset&&t.dataset.det){var pp=S.people.filter(function(x){return x.id===t.dataset.det})[0]; ov.querySelector('[data-close]').click(); if(pp) regDialog({who:pp.name.trim()}); return}
     if(t.id==='balx'){
       var q=function(v){v=String(v==null?'':v); return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}, rows=[];
-      rows.push(['FUESMEN · Servicio de Imágenes del Hospital Italiano']); rows.push(['Saldo de licencias del personal técnico']); rows.push(['Elaborado por',S.meta.by]); rows.push([]);
+      rows.push(['FUESMEN · Servicio de Imágenes del Hospital Italiano']); rows.push(['Saldo de licencias del personal técnico']); rows.push([]);
       rows.push(['Técnico','Vacaciones corresponden','Vacaciones tomadas','Vacaciones restan','Profiláctica corresponde','Profiláctica tomadas','Profiláctica restan','Otras licencias tomadas (días)','Días sin confirmar']);
       orderedPeople().forEach(function(pp){
         var b=balanceFor(pp), c=cupoOf(pp);
@@ -944,18 +935,34 @@ function dl(name,mime,text){
   document.body.appendChild(a); a.click(); setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},500);
 }
 function fname(ext){return 'cronograma-imagenes-'+MESES[S.month-1].toLowerCase()+'-'+S.year+'.'+ext}
-function saveCopy(){
+function aviso(titulo,msg,ok){
+  var ov=document.createElement('div'); ov.className='ov noprint';
+  ov.innerHTML='<div class="dlg" role="alertdialog" aria-modal="true"><p><b>'+esc(titulo)+'</b></p><p class="mut" style="font-size:13px">'+esc(msg)+'</p><div class="acts"><button class="btn pri" data-r="1">Aceptar</button></div></div>';
+  function close(){ov.remove(); document.removeEventListener('keydown',key)}
+  function key(e){if(e.key==='Escape'||e.key==='Enter') close()}
+  ov.addEventListener('click',function(e){if(e.target===ov||(e.target.closest&&e.target.closest('[data-r]'))) close()});
+  document.addEventListener('keydown',key); document.body.appendChild(ov);
+  var b=ov.querySelector('[data-r="1"]'); if(b) b.focus();
+}
+function guardarCambios(){
+  flush();
   S.ts=Date.now();
   try{localStorage.setItem('diagrama:'+S.docId,JSON.stringify(S))}catch(e){}
-  var clone=document.documentElement.cloneNode(true);
-  clone.querySelector('#app').innerHTML='';
-  clone.querySelector('#seed').textContent=JSON.stringify(S).replace(/</g,'\\u003c');
-  dl(fname('html'),'text/html;charset=utf-8','<!doctype html>\n'+clone.outerHTML);
-  stat('Copia descargada · '+hhmm());
+  if(!REM.ok){ aviso('No se pudo guardar en Lumen','No hay conexión con Lumen. Los cambios quedaron en este navegador y se vuelven a intentar solos; probá de nuevo en unos segundos.'); return; }
+  if(!REM.edit){ aviso('Solo lectura','Tu usuario puede ver el cronograma pero no modificarlo, así que no hay cambios para guardar.'); return; }
+  document.querySelectorAll('[data-act=save]').forEach(function(b){b.disabled=true; b.dataset.t=b.textContent; b.textContent='GUARDANDO…'});
+  clearTimeout(REM.timer); stat('Guardando…');
+  remotoEnviar(function(res){
+    document.querySelectorAll('[data-act=save]').forEach(function(b){b.disabled=false; b.textContent=b.dataset.t||'GUARDAR CAMBIOS'});
+    if(res==='ok') aviso('✓ Cambios guardados','Se guardó el cronograma de '+MESES[S.month-1]+' '+S.year+' en Lumen a las '+hhmm()+'. Lo ven todas las personas con acceso.');
+    else if(res==='conflicto') aviso('Otra persona guardó antes','Se cargó la versión más reciente. Revisá el cronograma y repetí lo que falte.');
+    else if(res==='sinpermiso') aviso('Solo lectura','Tu usuario no tiene permiso para modificar el cronograma.');
+    else aviso('No se pudo guardar en Lumen','Revisá la conexión. Los cambios quedaron en este navegador y se reintentan solos.');
+  });
 }
 function exportCSV(){
   var n=dim(), q=function(v){v=String(v==null?'':v); return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}, rows=[];
-  rows.push(['FUESMEN · Servicio de Imágenes del Hospital Italiano']); rows.push(['Cronograma mensual del personal técnico',MESES[S.month-1]+' '+S.year]); rows.push(['Elaborado por',S.meta.by]); rows.push([]);
+  rows.push(['FUESMEN · Servicio de Imágenes del Hospital Italiano']); rows.push(['Cronograma mensual del personal técnico',MESES[S.month-1]+' '+S.year]); rows.push([]);
   var head=['Grupo','Técnico']; for(var d=1;d<=n;d++) head.push(d+' '+DOWL[new Date(S.year,S.month-1,d).getDay()]+(isHol(d)?' (feriado)':'')); rows.push(head);
   var sym={ok:'*',pend:'?',no:'!'};
   S.groups.forEach(function(g){S.people.filter(function(p){return p.g===g.id}).forEach(function(p){
@@ -978,10 +985,9 @@ app.addEventListener('click',function(e){
   if(a==='prev') shiftMonth(-1);
   else if(a==='next') shiftMonth(1);
   else if(a==='today'){S.year=NOW.getFullYear();S.month=NOW.getMonth()+1;render();persist()}
-  else if(a==='save') saveCopy();
+  else if(a==='save') guardarCambios();
   else if(a==='guard') guardDialog();
   else if(a==='habit') habitDialog();
-  else if(a==='view') setView(t.dataset.v);
   else if(a==='undo') doUndo();
   else if(a==='redo') doRedo();
   else if(a==='mprev'||a==='mnext'){var o=orderedPeople(); if(o.length){var ix=0; o.forEach(function(x,i){if(x.id===MSEL)ix=i}); ix=(ix+(a==='mnext'?1:-1)+o.length)%o.length; MSEL=o[ix].id; render()}}
@@ -1014,8 +1020,7 @@ app.addEventListener('click',function(e){
 });
 app.addEventListener('input',function(e){
   var t=e.target;
-  if(t.id==='by'){S.meta.by=t.value; persist()}
-  else if(t.id==='note'){S.meta.note=t.value; persist()}
+  if(t.id==='note'){S.meta.note=t.value; persist()}
   else if(t.dataset.act==='name'){
     var tr0=t.closest('tr'), pid=tr0?tr0.dataset.pid:MSEL; S.people.forEach(function(p){if(p.id===pid)p.name=t.value});
     var op=document.querySelector('#msel option[value="'+pid+'"]'); if(op) op.textContent=t.value; var mc=document.getElementById('mcount'); if(mc&&VIEW==='mobile') mc.innerHTML=mcountText();
@@ -1045,10 +1050,10 @@ document.addEventListener('keydown',function(e){
 });
 var wasMobile=false;
 window.addEventListener('beforeprint',function(){
+  printing=true;
   if(VIEW==='mobile'){wasMobile=true; VIEW='pc'; render()}
-  var e=document.getElementById('pby'); if(e) e.textContent=S.meta.by||'';
 });
-window.addEventListener('afterprint',function(){if(wasMobile){wasMobile=false; VIEW='mobile'; render()}});
+window.addEventListener('afterprint',function(){printing=false; if(wasMobile){wasMobile=false; VIEW=autoView(); render()}});
 render();
 stat('Conectando con Lumen…');
 
@@ -1075,18 +1080,23 @@ function remotoEncolar(){
   REM.timer=setTimeout(remotoEnviar,900);
 }
 function limpio(){ var o=JSON.parse(JSON.stringify(S)); delete o.focus; return o; }
-function remotoEnviar(){
+REM.cbs=[];
+function remotoFin(res){ if(REM.otra) return; var c=REM.cbs; REM.cbs=[]; c.forEach(function(f){try{f(res)}catch(e){}}); }
+function remotoEnviar(cb){
+  if(typeof cb==='function') REM.cbs.push(cb);
   if(REM.enviando){ REM.otra=true; return; }
   REM.enviando=true;
   var dato=limpio();
   rpcRemoto('img_diagrama_guardar',{p_doc:DOC,p_data:dato,p_version:REM.ver}).then(function(r){
     REM.enviando=false;
-    if(r&&r.ok){ REM.ver=r.version; REM.data=dato; stat('Guardado en Lumen · '+hhmm()+' · lo ven todos los que tienen acceso'); }
-    else if(r&&r.error==='CONFLICTO'){ remotoLeer(true).then(function(){ stat('⚠ Otra persona guardó cambios antes: se cargó su versión. Revisá y repetí lo que falte.'); }); }
-    else if(r&&r.error==='SIN_PERMISO'){ REM.edit=false; soloLectura(); }
+    var res='error';
+    if(r&&r.ok){ res='ok'; REM.ver=r.version; REM.data=dato; stat('Guardado en Lumen · '+hhmm()+' · lo ven todos los que tienen acceso'); }
+    else if(r&&r.error==='CONFLICTO'){ res='conflicto'; REM.otra=false; remotoLeer(true).then(function(){ stat('⚠ Otra persona guardó cambios antes: se cargó su versión. Revisá y repetí lo que falte.'); remotoFin('conflicto'); }); return; }
+    else if(r&&r.error==='SIN_PERMISO'){ res='sinpermiso'; REM.edit=false; soloLectura(); }
     else stat('No se pudo guardar en Lumen ('+((r&&r.error)||'error')+'). Los cambios quedaron en este navegador.');
-    if(REM.otra){ REM.otra=false; remotoEncolar(); }
-  },function(e){ REM.enviando=false; stat('Sin conexión con Lumen: los cambios quedaron en este navegador y se reintentan solos.'); clearTimeout(REM.timer); REM.timer=setTimeout(remotoEnviar,8000); });
+    if(REM.otra){ REM.otra=false; remotoEncolar(); REM.otra=true; setTimeout(function(){REM.otra=false; remotoFin(res)},0); return; }
+    remotoFin(res);
+  },function(e){ REM.enviando=false; REM.otra=false; stat('Sin conexión con Lumen: los cambios quedaron en este navegador y se reintentan solos.'); clearTimeout(REM.timer); REM.timer=setTimeout(remotoEnviar,8000); remotoFin('error'); });
 }
 function remotoLeer(forzar){
   return rpcRemoto('img_diagrama_leer',{p_doc:DOC}).then(function(r){
