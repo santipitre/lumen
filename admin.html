@@ -2483,9 +2483,10 @@ const tiDrop = {
         XLSX.utils.book_append_sheet(wb, ws, 'Detalle'); XLSX.writeFile(wb, fname); return;
       }
 
-      // Paleta Lumen (fondo oscuro + acento dorado firefly) — igual que el informe por operador.
-      const NAVY='FF0A0F14', BLUED='FF243049', GOLD='FFF59E0B', WHITE='FFF1F5F9',
-            INK='FF0A0F14', SURF='FF0A0F14', ALT='FF0E1521', MUTED='FF94A3B8', CYAN='FF22DBAE';
+      // Paleta Zafiro claro (roles definidos en spcd-excel-template.js → SpcdExcel.T).
+      const T=SpcdExcel.T;
+      const NAVY=T.band, BLUED=T.info, GOLD=T.accent, WHITE=T.text,
+            INK=T.headText, SURF=T.rowA, ALT=T.rowB, MUTED=T.muted, CYAN=T.aseg;
       const turnos=this.detailTurnos||((key==='TOTAL')?this.dedupRows.length:(this.byTurnos[key]||0));
       const sede=(typeof localStorage!=='undefined' && localStorage.getItem('spcd_sede'))||'Hospital Italiano';
       const fecha=d.toLocaleDateString('es-AR');
@@ -2500,10 +2501,10 @@ const tiDrop = {
       // Fila 1: logo + título
       for(let i=1;i<=totalCols;i++) ws.getCell(1,i).fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}};
       ws.getRow(1).height=46;
-      try{ const logo=this.lumenLogoPNG(); const id=wb.addImage({base64:logo,extension:'png'}); ws.addImage(id,{ tl:{col:0,row:0}, ext:{width:210,height:44} }); }catch(e){ console.warn('[tiDrop] logo',e); }
+      try{ const logo=(window.SpcdExcel?SpcdExcel.generateLogoPNG():this.lumenLogoPNG()); const id=wb.addImage({base64:logo,extension:'png'}); ws.addImage(id,{ tl:{col:0,row:0}, ext:{width:210,height:44} }); }catch(e){ console.warn('[tiDrop] logo',e); }
       const tCol=totalCols>=4?3:1; ws.mergeCells(1,tCol,1,totalCols);
       const tt=ws.getCell(1,tCol); tt.value=this.XTITLE+' · '+String(label||'DETALLE').toUpperCase();
-      tt.font={name:'Calibri',size:13,bold:true,color:{argb:WHITE}}; tt.alignment={horizontal:'right',vertical:'middle',indent:1};
+      tt.font={name:'Calibri',size:13,bold:true,color:{argb:T.bandText}}; tt.alignment={horizontal:'right',vertical:'middle',indent:1};
 
       // Fila 2: regla dorada
       ws.getRow(2).height=4;
@@ -2514,7 +2515,7 @@ const tiDrop = {
       const t2=ws.getCell(3,1);
       const lineas=this.detailLineas||rows.length;   // lineas del Excel original (la hoja lleva 1 fila por turno)
       t2.value='  Sede: '+sede+'   |   '+fecha+'   |   '+turnos.toLocaleString('es-AR')+' turnos   |   '+lineas.toLocaleString('es-AR')+' estudios';
-      t2.font={name:'Calibri',size:9,bold:true,color:{argb:GOLD}}; t2.fill={type:'pattern',pattern:'solid',fgColor:{argb:BLUED}};
+      t2.font={name:'Calibri',size:9,bold:true,color:{argb:T.accentDeep}}; t2.fill={type:'pattern',pattern:'solid',fgColor:{argb:BLUED}};
       t2.alignment={horizontal:'center',vertical:'middle'}; ws.getRow(3).height=20;
 
       // Fila 4: espacio
@@ -2523,16 +2524,16 @@ const tiDrop = {
       // Fila 5: encabezados
       let r=5; const headerRow=r;
       heads.forEach((h,i)=>{ const c=ws.getCell(r,i+1); c.value=h;
-        c.font={name:'Calibri',size:8.5,bold:true,color:{argb:INK}}; c.fill={type:'pattern',pattern:'solid',fgColor:{argb:GOLD}};
-        c.alignment={horizontal:'center',vertical:'middle',wrapText:true}; c.border={bottom:{style:'thin',color:{argb:CYAN}},top:{style:'thin',color:{argb:GOLD}}}; });
+        c.font={name:'Calibri',size:8.5,bold:true,color:{argb:INK}}; c.fill={type:'pattern',pattern:'solid',fgColor:{argb:T.head}};
+        c.alignment={horizontal:'center',vertical:'middle',wrapText:true}; c.border={bottom:{style:'medium',color:{argb:T.accent}},top:{style:'thin',color:{argb:T.line}},left:{style:'thin',color:{argb:T.line}},right:{style:'thin',color:{argb:T.line}}}; });
       ws.getRow(r).height=20; r++;
 
-      const dataBorder={ bottom:{style:'hair',color:{argb:'FF334155'}}, left:{style:'hair',color:{argb:'FF1E293B'}}, right:{style:'hair',color:{argb:'FF1E293B'}} };
+      const dataBorder={ bottom:{style:'thin',color:{argb:T.line}}, left:{style:'hair',color:{argb:T.lineSoft}}, right:{style:'hair',color:{argb:T.lineSoft}} };
       rows.forEach((row,idx)=>{ const bg=idx%2===0?SURF:ALT;
         heads.forEach((h,i)=>{ const c=ws.getCell(r,i+1); let v=row[h]; if(v==null)v='';
           const isAseg=(h===this.colAseg);
           c.value=v;
-          c.font={name:'Calibri',size:9,color:{argb:isAseg?INK:WHITE},bold:isAseg};
+          c.font={name:'Calibri',size:9,color:{argb:isAseg?T.asegText:WHITE},bold:isAseg};
           c.fill={type:'pattern',pattern:'solid',fgColor:{argb:isAseg?CYAN:bg}};
           c.border=dataBorder;
           c.alignment={vertical:'middle',horizontal:(h===this.colTurno)?'center':'left',indent:1};
@@ -4596,10 +4597,11 @@ async function exportarInformeOperador(share) {
 
   try {
     // Paleta corporativa (mismo que exportExcel)
-    // Paleta Lumen: bandas oscuras + acento firefly dorado
-    const NAVY='FF0A0F14', BLUED='FF243049', BLUE='FFF59E0B', WHITE='FFF1F5F9',
-          INK='FF0A0F14', RED='FFF87171', SURF='FF0A0F14', CYAN='FFF59E0B', GREEN='FF10B981',
-          AMBER='FFFBBF24', MUTED='FF94A3B8', ALT='FF0E1521';
+    // Paleta Zafiro claro (roles definidos en spcd-excel-template.js → SpcdExcel.T)
+    const T = SpcdExcel.T;
+    const NAVY=T.band, BLUED=T.info, BLUE=T.accent, WHITE=T.text,
+          INK=T.headText, RED=T.bad, SURF=T.rowA, CYAN=T.accent, GREEN=T.ok,
+          AMBER=T.warn, MUTED=T.muted, ALT=T.rowB;
 
     const sede = localStorage.getItem('spcd_sede') || 'General';
     const fecha = new Date().toLocaleDateString('es-AR');
@@ -4624,7 +4626,7 @@ async function exportarInformeOperador(share) {
     ws.mergeCells(1, 3, 1, totalCols);
     const t1 = ws.getCell(1, 3);
     t1.value = inf.isGeneral ? 'INFORME GENERAL DE RENDIMIENTO' : 'INFORME DE RENDIMIENTO';
-    t1.font = { name:'Calibri', size:14, bold:true, color:{argb:WHITE} };
+    t1.font = { name:'Calibri', size:14, bold:true, color:{argb:T.bandText} };
     t1.alignment = { horizontal:'center', vertical:'middle' };
     for (let i=1;i<=totalCols;i++) ws.getCell(1,i).fill = { type:'pattern', pattern:'solid', fgColor:{argb:NAVY} };
     ws.getRow(1).height = 38;
@@ -4642,7 +4644,7 @@ async function exportarInformeOperador(share) {
     const t2 = ws.getCell('A3');
     const opLabel = inf.isGeneral ? 'Todos los operadores' : inf.op;
     t2.value = `  Sede: ${sede}   |   ${fecha}   |   ${inf.isGeneral?'Alcance':'Operador'}: ${opLabel}   |   Período: ${periodo}   |   ${inf.months.length} mes(es)`;
-    t2.font = { name:'Calibri', size:9, bold:true, color:{argb:RED} };
+    t2.font = { name:'Calibri', size:9, bold:true, color:{argb:T.accentDeep} };
     t2.fill = { type:'pattern', pattern:'solid', fgColor:{argb:BLUED} };
     t2.alignment = { horizontal:'center', vertical:'middle' };
     ws.getRow(3).height = 20;
@@ -4654,14 +4656,14 @@ async function exportarInformeOperador(share) {
     let r = 5;
 
     // Helper para título de sección
-    function sectionTitle(row, text, color=BLUE) {
+    function sectionTitle(row, text, color=T.section) {
       ws.mergeCells(row,1,row,totalCols);
       const c = ws.getCell(row,1);
       c.value = text;
-      c.font = { name:'Calibri', size:10, bold:true, color:{argb:INK} };
+      c.font = { name:'Calibri', size:10, bold:true, color:{argb:T.accentDeep} };
       c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:color} };
       c.alignment = { horizontal:'left', vertical:'middle', indent:1 };
-      c.border = { top:{style:'thin',color:{argb:CYAN}}, bottom:{style:'thin',color:{argb:CYAN}} };
+      c.border = { top:{style:'thin',color:{argb:T.line}}, bottom:{style:'medium',color:{argb:CYAN}} };
       ws.getRow(row).height = 18;
     }
     function headerRow(row, headers) {
@@ -4669,16 +4671,16 @@ async function exportarInformeOperador(share) {
         const c = ws.getCell(row, i+1);
         c.value = h;
         c.font = { name:'Calibri', size:8, bold:true, color:{argb:INK} };
-        c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:BLUE} };
+        c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:T.head} };
         c.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
-        c.border = { bottom:{style:'thin',color:{argb:CYAN}}, top:{style:'thin',color:{argb:BLUE}} };
+        c.border = { bottom:{style:'medium',color:{argb:CYAN}}, top:{style:'thin',color:{argb:T.line}}, left:{style:'thin',color:{argb:T.line}}, right:{style:'thin',color:{argb:T.line}} };
       });
       ws.getRow(row).height = 18;
     }
     const dataBorder = {
-      bottom:{style:'hair',color:{argb:'FF334155'}},
-      left:{style:'hair',color:{argb:'FF1E293B'}},
-      right:{style:'hair',color:{argb:'FF1E293B'}}
+      bottom:{style:'thin',color:{argb:T.line}},
+      left:{style:'hair',color:{argb:T.lineSoft}},
+      right:{style:'hair',color:{argb:T.lineSoft}}
     };
     function dataCell(cell, value, opts={}) {
       cell.value = value;
@@ -6266,7 +6268,7 @@ function emptyState(icon, text) {
 
 <script src="spcd-bg.js?v=13886e5f"></script>
 <script src="spcd-share.js?v=865a3f49"></script>
-<script src="spcd-excel-template.js?v=8240b23a"></script>
+<script src="spcd-excel-template.js?v=54552c64"></script>
 
 <!-- Supabase SDK + cliente JWT (Fase 2.D.5 · panel Permisos) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -6888,7 +6890,7 @@ async function confirmarVincularAuth() {
 }
 </script>
 
-<script src="chatbot.js?v=20261116-rol"></script>
+<script src="chatbot.js?v=20261118-rol"></script>
 <script src="spcd-sesion-barra.js?v=5025c14c"></script>
 </body>
 </html>

@@ -1,8 +1,10 @@
 /* ═══════════════════════════════════════════════════════════════════
-   SPCD-EXCEL-TEMPLATE  ·  Plantilla ejecutiva común (Bloomberg / Fintech)
+   SPCD-EXCEL-TEMPLATE  ·  Plantilla ejecutiva común — tema Zafiro CLARO
    ───────────────────────────────────────────────────────────────────
-   Paleta:   Negro Pyralis  +  Firefly dorado (#F59E0B)  ·  acento cian secundario
-   Estilo:   Ejecutivo / formal / institucional / data-terminal · Marca: Lumen by SPITRELLA
+   Paleta:   fondos claros (blanco / celeste muy suave) + azul Zafiro #1F55D6 como acento
+   Estilo:   Ejecutivo / formal / institucional · Marca: Lumen by SPITRELLA
+   Los colores de estado (verde / ámbar / rojo) son versiones oscuras, legibles sobre blanco.
+   SpcdExcel.T expone los roles de color para los exportadores que arman su propia hoja.
 
    Uso (cualquier módulo):
      await SpcdExcel.ready();
@@ -18,36 +20,46 @@
 (function (root) {
   'use strict';
 
-  /* ─────────────────────  PALETA EJECUTIVA · TECH NEÓN  ───────────────────── */
+  /* ─────────────────────  PALETA ZAFIRO CLARO  ───────────────────── */
+  /* Roles nuevos (T) + alias históricos (P) que siguen usando algunos módulos. */
+  const T = Object.freeze({
+    band:       'FFEAF0FC', // banda de título / pie
+    bandText:   'FF14234D', // texto sobre la banda (azul noche)
+    accent:     'FF1F55D6', // azul Zafiro (modo claro) — líneas y valores destacados
+    accentDeep: 'FF173FA8', // azul profundo — texto de acento sobre fondos claros
+    info:       'FFF3F6FD', // barra de metadatos
+    head:       'FFD9E5FC', // encabezado de tabla
+    headText:   'FF14234D',
+    section:    'FFE3ECFD', // título de sección / totales
+    rowA:       'FFFFFFFF', // filas impares
+    rowB:       'FFF5F8FE', // filas pares (cebra suave)
+    text:       'FF1B2333', // texto base
+    muted:      'FF5B6786', // texto secundario
+    line:       'FFD5DEF0', // bordes
+    lineSoft:   'FFE4EAF7',
+    ok:         'FF0B7A4B', // verde legible sobre blanco
+    warn:       'FF8A5A00', // ámbar oscuro
+    bad:        'FFC62828', // rojo
+    aseg:       'FFD6F3E8', // resalte suave (columna Aseguradora)
+    asegText:   'FF0B5D45',
+    gold:       'FFF59E0B'  // dorado de marca (solo logo)
+  });
   const P = {
-    INK:        'FF070B10', // Negro Pyralis — header principal
-    CARBON:     'FF0A0F14', // Fondo Pyralis — filas pares
-    STEEL:      'FF0E1521', // Elevado — filas impares
-    GRAPHITE:   'FF1F2937', // Borde Pyralis — divisores
-    SLATE:      'FF1A2332', // Input — bg secundario
-    CYAN:       'FFF59E0B', // Firefly dorado — ACENTO PRINCIPAL Lumen (alias histórico "CYAN")
-    CYAN_DEEP:  'FFB45309', // Dorado profundo — bordes de header
-    NEON:       'FFFCD34D', // Firefly soft — líneas brillantes
-    ICE:        'FFF1F5F9', // Texto claro destacado
-    WHITE:      'FFF1F5F9', // Blanco — texto base
-    SILVER:     'FF94A3B8', // Plata — texto secundario
-    MUTED:      'FF64748B', // Mudo — texto sutil
-    AMBER:      'FFFBBF24', // Ámbar — warnings
-    ROSE:       'FFF87171', // Rojo — errores / críticos
-    EMERALD:    'FF10B981', // Esmeralda — éxito
-    /* Acentos de marca Lumen (semánticos) */
-    GOLD:       'FFF59E0B', // Firefly (idéntico a CYAN, nombre claro)
-    GOLD_SOFT:  'FFFCD34D',
-    GOLD_GLOW:  'FFFEF3C7',
-    ACCENT2:    'FF06B6D4', // Cian eléctrico — acento secundario Lumen
+    INK:T.band, CARBON:T.rowA, STEEL:T.info, GRAPHITE:T.line, SLATE:T.section,
+    CYAN:T.accent, CYAN_DEEP:T.accentDeep, NEON:T.accentDeep, ICE:T.text, WHITE:T.text,
+    SILVER:T.muted, MUTED:T.muted, AMBER:T.warn, ROSE:T.bad, EMERALD:T.ok,
+    GOLD:T.gold, GOLD_SOFT:'FFFCD34D', GOLD_GLOW:'FFFEF3C7', ACCENT2:T.accent
   };
 
   /* Nombres "cortos" para usar fuera */
   const PALETTE = Object.freeze({
+    band:T.band, bandText:T.bandText, accent:T.accent, accentDeep:T.accentDeep, info:T.info,
+    head:T.head, section:T.section, rowA:T.rowA, rowB:T.rowB, text:T.text, muted:T.muted,
+    line:T.line, ok:T.ok, warn:T.warn, bad:T.bad, aseg:T.aseg, gold:T.gold,
+    /* claves históricas (las usa preview-excel.html) */
     ink:P.INK, carbon:P.CARBON, steel:P.STEEL, graphite:P.GRAPHITE, slate:P.SLATE,
     cyan:P.CYAN, cyanDeep:P.CYAN_DEEP, neon:P.NEON, ice:P.ICE, white:P.WHITE,
-    silver:P.SILVER, muted:P.MUTED, amber:P.AMBER, rose:P.ROSE, emerald:P.EMERALD,
-    gold:P.GOLD, goldSoft:P.GOLD_SOFT, goldGlow:P.GOLD_GLOW, accent2:P.ACCENT2
+    silver:P.SILVER, amber:P.AMBER, rose:P.ROSE, emerald:P.EMERALD
   });
 
   /* ─────────────────────  CARGADOR DE EXCELJS (lazy)  ───────────────────── */
@@ -64,24 +76,19 @@
     return root.__spcdExcelJSPromise;
   }
 
-  /* ─────────────────────  LOGO PNG (canvas) — Lumen by Pyralis  ─────────────────────
-     Identidad: "L" blanca + punto firefly dorado (favicon Lumen) + wordmark.
-     Paleta: fondo Pyralis #0A0F14 · firefly #F59E0B · texto #F1F5F9
+  /* ─────────────────────  LOGO PNG (canvas) — Lumen by SPITRELLA  ─────────────────────
+     Versión para fondo CLARO: panel azul noche con "L" blanca + punto firefly dorado,
+     wordmark en azul noche. Fondo transparente (se apoya sobre la banda de título).
   */
   function generateLogoPNG() {
     const c = document.createElement('canvas');
     c.width = 520; c.height = 110;
     const ctx = c.getContext('2d');
+    ctx.clearRect(0,0,c.width,c.height);
 
-    // Fondo INK Pyralis
-    ctx.fillStyle = '#070B10';
-    ctx.fillRect(0,0,c.width,c.height);
-
-    /* ── Marca: panel redondeado con "L" + punto dorado (escala del favicon 60→78) ── */
-    const bx = 16, by = 16, bs = 78, s = bs/60; // factor de escala desde el viewBox 60
+    const bx = 16, by = 16, bs = 78, s = bs/60;
     const X = x => bx + x*s, Y = y => by + y*s;
 
-    // Panel redondeado (rect x3 y3 54x54 rx13)
     (function roundRect(x,y,w,h,r){
       ctx.beginPath();
       ctx.moveTo(x+r,y);
@@ -91,53 +98,43 @@
       ctx.arcTo(x,y,x+w,y,r);
       ctx.closePath();
     })(X(3),Y(3),54*s,54*s,13*s);
-    ctx.fillStyle = '#0A0F14'; ctx.fill();
-    ctx.strokeStyle = '#1F2937'; ctx.lineWidth = 0.8*s; ctx.stroke();
+    ctx.fillStyle = '#14234D'; ctx.fill();
+    ctx.strokeStyle = '#2B4A9C'; ctx.lineWidth = 0.8*s; ctx.stroke();
 
-    // "L" (M16 14 L16 46 L44 46)
     ctx.beginPath();
     ctx.moveTo(X(16),Y(14));
     ctx.lineTo(X(16),Y(46));
     ctx.lineTo(X(44),Y(46));
-    ctx.strokeStyle = '#F1F5F9'; ctx.lineWidth = 3*s;
+    ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 3*s;
     ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
 
-    // Anillo firefly tenue (cx38 cy22 r9)
     ctx.beginPath(); ctx.arc(X(38),Y(22),9*s,0,Math.PI*2);
-    ctx.strokeStyle = 'rgba(245,158,11,.40)'; ctx.lineWidth = 0.8*s; ctx.stroke();
-    // Núcleo dorado (r4)
+    ctx.strokeStyle = 'rgba(245,158,11,.55)'; ctx.lineWidth = 0.8*s; ctx.stroke();
     ctx.beginPath(); ctx.arc(X(38),Y(22),4*s,0,Math.PI*2);
     ctx.fillStyle = '#F59E0B'; ctx.fill();
-    // Brillo central (r1.8)
     ctx.beginPath(); ctx.arc(X(38),Y(22),1.8*s,0,Math.PI*2);
     ctx.fillStyle = '#FEF3C7'; ctx.fill();
 
-    /* ── Wordmark ── */
     const tx = 116;
-    // "Lumen" (la 'u' en dorado, guiño al firefly-o de la marca)
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     ctx.font = '600 36px Rajdhani, Calibri, Arial';
     let cursor = tx;
-    const parts = [['L','#F1F5F9'],['u','#F59E0B'],['men','#F1F5F9']];
-    parts.forEach(([txt,col]) => {
+    [['L','#14234D'],['u','#E08A00'],['men','#14234D']].forEach(([txt,col]) => {
       ctx.fillStyle = col;
       ctx.fillText(txt, cursor, 52);
       cursor += ctx.measureText(txt).width;
     });
 
-    // Línea dorada fina debajo del wordmark
     ctx.beginPath();
     ctx.moveTo(tx, 60); ctx.lineTo(cursor + 6, 60);
-    ctx.strokeStyle = 'rgba(245,158,11,.45)'; ctx.lineWidth = 0.8; ctx.stroke();
+    ctx.strokeStyle = 'rgba(31,85,214,.55)'; ctx.lineWidth = 0.8; ctx.stroke();
 
-    // "by Pyralis"
     ctx.font = '600 12px Calibri, Arial';
-    ctx.fillStyle = '#94A3B8';
+    ctx.fillStyle = '#5B6786';
     ctx.fillText('by SPITRELLA', tx, 76);
 
-    // Tagline
     ctx.font = '600 9px Calibri, Arial';
-    ctx.fillStyle = 'rgba(148,163,184,.85)';
+    ctx.fillStyle = '#6B7794';
     ctx.fillText('ENTERPRISE  ·  INTELLIGENCE  ·  HEALTHCARE', tx, 92);
 
     return c.toDataURL('image/png').split(',')[1];
@@ -182,7 +179,7 @@
     // Se reutiliza en header, footer y nombre de archivo (todo el mismo ID).
     wb._lumenRef = makeReportHash();
     const ws = wb.addWorksheet(opts.sheetName || 'Reporte', {
-      properties: { tabColor: { argb: P.CYAN } },
+      properties: { tabColor: { argb: T.accent } },
       views: [{ showGridLines: false, state:'normal', zoomScale: 100 }],
       pageSetup: {
         paperSize: 9, // A4
@@ -193,7 +190,7 @@
         margins: { left:0.4, right:0.4, top:0.4, bottom:0.5, header:0.2, footer:0.2 }
       },
       headerFooter: {
-        oddFooter: '&L&8&"Calibri"&K94A3B8LUMEN by SPITRELLA&R&8&"Calibri"&KF59E0BPágina &P de &N'
+        oddFooter: '&L&8&"Calibri"&K5B6786LUMEN by SPITRELLA&R&8&"Calibri"&K1F55D6Página &P de &N'
       }
     });
     // Print area se ajusta cuando se sabe el rango — opcional
@@ -214,16 +211,16 @@
     const modulo  = (m.modulo || 'SPCD').toUpperCase();
     const hash = opts.hash || (ws.workbook && ws.workbook._lumenRef) || makeReportHash();
 
-    /* Fila 1 — barra superior cian neón (h=3) */
-    fillRange(ws, 1, 1, cols, P.CYAN);
-    ws.getRow(1).height = 3;
+    /* Fila 1 — barra superior azul Zafiro (h=4) */
+    fillRange(ws, 1, 1, cols, T.accent);
+    ws.getRow(1).height = 4;
 
-    /* Fila 2 — Logo + Título (h=46, INK) */
-    fillRange(ws, 2, 1, cols, P.INK);
+    /* Fila 2 — Logo + Título (h=46, banda clara) */
+    fillRange(ws, 2, 1, cols, T.band);
     if (cols > 3) ws.mergeCells(2, 4, 2, cols);
     const tCell = ws.getCell(2, Math.min(4, cols));
     tCell.value = sub;
-    tCell.font = { name:'Calibri', size:16, bold:true, color:{ argb:P.ICE } };
+    tCell.font = { name:'Calibri', size:16, bold:true, color:{ argb:T.bandText } };
     tCell.alignment = { horizontal:'center', vertical:'middle' };
     ws.getRow(2).height = 46;
 
@@ -235,19 +232,19 @@
       } catch(e) { /* logo silencioso */ }
     }
 
-    /* Fila 3 — línea neón cian fina (h=3) */
-    fillRange(ws, 3, 1, cols, P.INK);
+    /* Fila 3 — filete azul bajo la banda (h=3) */
+    fillRange(ws, 3, 1, cols, T.band);
     for (let i=1;i<=cols;i++) {
-      ws.getCell(3,i).border = { bottom: { style:'medium', color:{ argb:P.CYAN } } };
+      ws.getCell(3,i).border = { bottom: { style:'medium', color:{ argb:T.accent } } };
     }
     ws.getRow(3).height = 3;
 
-    /* Fila 4 — Brand bar con chips (h=24) */
-    fillRange(ws, 4, 1, cols, P.STEEL);
+    /* Fila 4 — barra de metadatos (h=24) */
+    fillRange(ws, 4, 1, cols, T.info);
     if (cols >= 1) ws.mergeCells(4, 1, 4, cols);
     const bar = ws.getCell(4, 1);
     const partes = [];
-    partes.push(`▸ MÓDULO: ${modulo}`);
+    partes.push(`MÓDULO: ${modulo}`);
     partes.push(`SEDE: ${sede.toUpperCase()}`);
     partes.push(`FECHA: ${fecha}`);
     if (usuario) partes.push(`USUARIO: ${usuario}`);
@@ -255,13 +252,13 @@
     if (typeof m.registros === 'number') partes.push(`REGISTROS: ${m.registros.toLocaleString('es-AR')}`);
     if (m.extra) partes.push(m.extra);
     partes.push(`ID: ${hash}`);
-    bar.value = '  ' + partes.join('   ◆   ');
-    bar.font = { name:'Consolas', size:9, bold:true, color:{ argb:P.CYAN } };
+    bar.value = '  ' + partes.join('   |   ');
+    bar.font = { name:'Calibri', size:9, bold:true, color:{ argb:T.accentDeep } };
+    bar.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:T.info } };
     bar.alignment = { horizontal:'left', vertical:'middle' };
-    bar.border = { bottom: { style:'hair', color:{ argb:P.GRAPHITE } } };
+    bar.border = { bottom: { style:'thin', color:{ argb:T.line } } };
     ws.getRow(4).height = 24;
 
-    /* Devuelvo metadata útil */
     return { hash, nextRow: 5, headerRows: 4 };
   }
 
@@ -279,8 +276,7 @@
     const span = Math.floor(cols / n);
     const remain = cols - span * n;
 
-    /* spacer arriba */
-    fillRange(ws, startRow, 1, cols, P.CARBON);
+    fillRange(ws, startRow, 1, cols, T.rowA);
     ws.getRow(startRow).height = 8;
 
     const labelRow = startRow + 1;
@@ -294,53 +290,49 @@
       cursor = c2 + 1;
 
       const tone = k.tone || (idx === 0 ? 'cyan' : (idx % 2 ? 'silver' : 'cyan'));
-      const accent = ({ cyan:P.CYAN, amber:P.AMBER, rose:P.ROSE, emerald:P.EMERALD, silver:P.SILVER })[tone] || P.CYAN;
+      const accent = ({ cyan:T.accent, amber:T.warn, rose:T.bad, emerald:T.ok, silver:T.muted })[tone] || T.accent;
 
-      // label row (h=18)
       ws.mergeCells(labelRow, c1, labelRow, c2);
       const lc = ws.getCell(labelRow, c1);
       lc.value = '  ' + (k.label || '').toUpperCase();
-      lc.font = { name:'Calibri', size:8, bold:true, color:{ argb:P.MUTED } };
-      lc.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:P.STEEL } };
+      lc.font = { name:'Calibri', size:8, bold:true, color:{ argb:T.muted } };
+      lc.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:T.info } };
       lc.alignment = { horizontal:'left', vertical:'middle' };
       lc.border = {
-        top:    { style:'thin',   color:{ argb:accent } },
-        left:   { style:'hair',   color:{ argb:P.GRAPHITE } },
-        right:  { style:'hair',   color:{ argb:P.GRAPHITE } }
+        top:    { style:'medium', color:{ argb:accent } },
+        left:   { style:'thin',   color:{ argb:T.line } },
+        right:  { style:'thin',   color:{ argb:T.line } }
       };
-      // Pintar resto de celdas del label-row dentro del card
       for (let i = c1+1; i <= c2; i++) {
         const x = ws.getCell(labelRow, i);
         x.fill = lc.fill;
-        x.border = { top: { style:'thin', color:{ argb:accent } } };
+        x.border = { top: { style:'medium', color:{ argb:accent } } };
       }
 
-      // value row (h=30)
       ws.mergeCells(valueRow, c1, valueRow, c2);
       const vc = ws.getCell(valueRow, c1);
       const v = (k.value === null || k.value === undefined) ? '—' : k.value;
       const hint = k.hint ? `   ${k.hint}` : '';
       vc.value = '  ' + v + hint;
-      vc.font = { name:'Consolas', size:18, bold:true, color:{ argb:accent } };
-      vc.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:P.CARBON } };
+      vc.font = { name:'Calibri', size:18, bold:true, color:{ argb:accent } };
+      vc.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:T.rowA } };
       vc.alignment = { horizontal:'left', vertical:'middle' };
       vc.border = {
-        bottom: { style:'thin', color:{ argb:P.GRAPHITE } },
-        left:   { style:'hair', color:{ argb:P.GRAPHITE } },
-        right:  { style:'hair', color:{ argb:P.GRAPHITE } }
+        bottom: { style:'thin', color:{ argb:T.line } },
+        left:   { style:'thin', color:{ argb:T.line } },
+        right:  { style:'thin', color:{ argb:T.line } }
       };
       for (let i = c1+1; i <= c2; i++) {
         const x = ws.getCell(valueRow, i);
         x.fill = vc.fill;
-        x.border = { bottom: { style:'thin', color:{ argb:P.GRAPHITE } } };
+        x.border = { bottom: { style:'thin', color:{ argb:T.line } } };
       }
     });
     ws.getRow(labelRow).height = 18;
     ws.getRow(valueRow).height = 30;
 
-    /* spacer abajo */
     const sp = valueRow + 1;
-    fillRange(ws, sp, 1, cols, P.CARBON);
+    fillRange(ws, sp, 1, cols, T.rowA);
     ws.getRow(sp).height = 8;
 
     return { nextRow: sp + 1 };
@@ -352,13 +344,14 @@
   function buildSection(ws, opts) {
     const cols = Math.max(1, opts.totalCols || 8);
     const r = opts.startRow;
-    fillRange(ws, r, 1, cols, P.INK);
+    fillRange(ws, r, 1, cols, T.section);
     ws.mergeCells(r, 1, r, cols);
     const c = ws.getCell(r, 1);
-    c.value = '  ◤  ' + (opts.title || 'DATOS').toUpperCase();
-    c.font = { name:'Calibri', size:11, bold:true, color:{ argb:P.CYAN } };
+    c.value = '  ' + (opts.title || 'DATOS').toUpperCase();
+    c.font = { name:'Calibri', size:11, bold:true, color:{ argb:T.accentDeep } };
+    c.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:T.section } };
     c.alignment = { horizontal:'left', vertical:'middle' };
-    c.border = { bottom: { style:'thin', color:{ argb:P.CYAN_DEEP } } };
+    c.border = { bottom: { style:'medium', color:{ argb:T.accent } } };
     ws.getRow(r).height = 22;
     return { nextRow: r + 1 };
   }
@@ -391,33 +384,33 @@
     cols.forEach((h,i) => {
       const cell = hr.getCell(i+1);
       cell.value = h;
-      cell.font = { name:'Calibri', size:9, bold:true, color:{ argb:P.INK } };
-      cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:P.CYAN } };
+      cell.font = { name:'Calibri', size:9, bold:true, color:{ argb:T.headText } };
+      cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:T.head } };
       cell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
       cell.border = {
-        top:    { style:'thin',   color:{ argb:P.CYAN_DEEP } },
-        bottom: { style:'medium', color:{ argb:P.CYAN_DEEP } },
-        left:   { style:'hair',   color:{ argb:P.STEEL } },
-        right:  { style:'hair',   color:{ argb:P.STEEL } }
+        top:    { style:'thin',   color:{ argb:T.line } },
+        bottom: { style:'medium', color:{ argb:T.accent } },
+        left:   { style:'thin',   color:{ argb:T.line } },
+        right:  { style:'thin',   color:{ argb:T.line } }
       };
     });
-    // Pintar columnas extra (más allá de las definidas) con el bg STEEL
+    // Pintar columnas extra (más allá de las definidas) con el mismo fondo de encabezado
     if (totalCols > cols.length) {
-      for (let i = cols.length+1; i <= totalCols; i++) fillCell(hr.getCell(i), P.STEEL);
+      for (let i = cols.length+1; i <= totalCols; i++) fillCell(hr.getCell(i), T.head);
     }
     hr.height = 24;
 
     // Data rows
     const cellBorderEven = {
-      bottom:{ style:'hair', color:{ argb:P.GRAPHITE } },
-      left:  { style:'hair', color:{ argb:P.STEEL } },
-      right: { style:'hair', color:{ argb:P.STEEL } }
+      bottom:{ style:'thin', color:{ argb:T.line } },
+      left:  { style:'hair', color:{ argb:T.lineSoft } },
+      right: { style:'hair', color:{ argb:T.lineSoft } }
     };
     const cellBorderOdd = cellBorderEven;
 
     rows.forEach((rowData, idx) => {
       const r = ws.getRow(startRow + 1 + idx);
-      const bg = (idx % 2 === 0) ? P.CARBON : P.STEEL;
+      const bg = (idx % 2 === 0) ? T.rowA : T.rowB;
       const isArray = Array.isArray(rowData);
       cols.forEach((c, i) => {
         const cell = r.getCell(i+1);
@@ -425,7 +418,7 @@
         if (isArray) val = rowData[i];
         else val = rowData[c] ?? rowData[c.toLowerCase?.()] ?? '';
         cell.value = (val === undefined || val === null) ? '' : val;
-        cell.font = { name:'Calibri', size:9, color:{ argb:P.WHITE } };
+        cell.font = { name:'Calibri', size:9, color:{ argb:T.text } };
         cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:bg } };
         cell.border = (idx%2===0)? cellBorderEven : cellBorderOdd;
         cell.alignment = { vertical:'middle', shrinkToFit:true, wrapText:false };
@@ -461,20 +454,17 @@
     const cols = Math.max(1, opts.totalCols || 8);
     const r = opts.startRow;
     const items = opts.items || [];
-    fillRange(ws, r, 1, cols, P.SLATE);
+    fillRange(ws, r, 1, cols, T.section);
     ws.mergeCells(r, 1, r, cols);
     const c = ws.getCell(r, 1);
-    const txt = items.map(it => {
-      const tone = it.tone || 'cyan';
-      const sep = '  ◆  ';
-      return `${(it.label||'').toUpperCase()}: ${it.value}`;
-    }).join('   ◆   ');
+    const txt = items.map(it => `${(it.label||'').toUpperCase()}: ${it.value}`).join('   |   ');
     c.value = '  ' + txt;
-    c.font = { name:'Consolas', size:10, bold:true, color:{ argb:P.CYAN } };
+    c.font = { name:'Calibri', size:10, bold:true, color:{ argb:T.accentDeep } };
+    c.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:T.section } };
     c.alignment = { horizontal:'left', vertical:'middle' };
     c.border = {
-      top:    { style:'thin',   color:{ argb:P.CYAN_DEEP } },
-      bottom: { style:'thin',   color:{ argb:P.CYAN_DEEP } }
+      top:    { style:'thin',   color:{ argb:T.accent } },
+      bottom: { style:'thin',   color:{ argb:T.accent } }
     };
     ws.getRow(r).height = 22;
     return { nextRow: r + 1 };
@@ -487,17 +477,14 @@
     const cols = Math.max(1, opts.totalCols || 8);
     const r = opts.startRow || 1;
 
-    /* spacer */
-    fillRange(ws, r, 1, cols, P.CARBON);
+    fillRange(ws, r, 1, cols, T.rowA);
     ws.getRow(r).height = 6;
 
-    /* línea cian fina */
-    fillRange(ws, r+1, 1, cols, P.INK);
-    for (let i=1;i<=cols;i++) ws.getCell(r+1,i).border = { top: { style:'medium', color:{ argb:P.CYAN } } };
+    fillRange(ws, r+1, 1, cols, T.band);
+    for (let i=1;i<=cols;i++) ws.getCell(r+1,i).border = { top: { style:'medium', color:{ argb:T.accent } } };
     ws.getRow(r+1).height = 3;
 
-    /* footer row con metadata */
-    fillRange(ws, r+2, 1, cols, P.INK);
+    fillRange(ws, r+2, 1, cols, T.band);
     ws.mergeCells(r+2, 1, r+2, cols);
     const c = ws.getCell(r+2, 1);
     const hash = opts.hash || (ws.workbook && ws.workbook._lumenRef) || makeReportHash();
@@ -510,7 +497,8 @@
       `Confidencial · Uso interno Hospital Italiano`
     ].filter(Boolean);
     c.value = '  ' + partes.join('   ·   ');
-    c.font = { name:'Calibri', size:8, italic:true, color:{ argb:P.SILVER } };
+    c.font = { name:'Calibri', size:8, italic:true, color:{ argb:T.muted } };
+    c.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:T.band } };
     c.alignment = { horizontal:'left', vertical:'middle' };
     ws.getRow(r+2).height = 18;
 
@@ -567,7 +555,7 @@
     accent(cell)  { cell.font = { ...(cell.font||{}), color:{ argb:P.CYAN }, bold:true }; }
   };
   root.SpcdExcel = {
-    PALETTE, P, ready, generateLogoPNG, createBook, buildHeader, buildKPIs,
+    PALETTE, P, T, ready, generateLogoPNG, createBook, buildHeader, buildKPIs,
     buildSection, buildTable, buildTotals, buildFooter, exportAndShare,
     makeReportHash, Fmt, fillCell, fillRange, getCurrentUser, getCurrentSede,
     nowAr, dateAr, nowIsoDate

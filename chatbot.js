@@ -1580,7 +1580,7 @@
       /* fallback: si por algún motivo no está cargado el template, lo cargamos al vuelo */
       await new Promise((res, rej) => {
         const s = document.createElement('script');
-        s.src = 'spcd-excel-template.js?v=1';
+        s.src = 'spcd-excel-template.js?v=54552c64'; /* hash de spcd-excel-template.js: actualizar si cambia la plantilla */
         s.onload = res; s.onerror = () => rej(new Error('No se pudo cargar spcd-excel-template.js'));
         document.head.appendChild(s);
       });
@@ -1723,7 +1723,7 @@
 
     let spec = null;
     const hoy = new Date();
-    const RED='F87171', AMBER='FBBF24', GREEN='55E78B';
+    const RED='C62828', AMBER='8A5A00', GREEN='0B7A4B'; /* legibles sobre fondo claro (plantilla Zafiro claro) */
 
     switch(metricId) {
       case 'total_reg':

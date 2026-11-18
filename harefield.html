@@ -709,7 +709,7 @@ const HF=(function(){
       XLSX.writeFile(wb,fname); toast('Excel plano descargado (sin ExcelJS)'); return;
     }
     // Fondo claro, tipografía Arial, una sola fila de título. Sin logo ni pie.
-    const INK='FF111827', GREY='FF6B7280', HEAD='FFE5E9F0', ZEBRA='FFF6F8FB', LINE='FFD1D5DB', TOTAL='FFEEF2F7';
+    const INK='FF111827', GREY='FF6B7280', HEAD='FFD9E5FC', ZEBRA='FFF5F8FE', LINE='FFD5DEF0', TOTAL='FFE3ECFD', ACC='FF1F55D6';
     const wb=new ExcelJS.Workbook(); wb.creator='Lumen by SPITRELLA'; wb.created=new Date();
     for(const [nm,tab] of sheets){
       const isF=tab==='F'; const heads=isF?HEADS_F:HEADS; const rows=R.lineas.filter(l=>l.tab===tab); const T=R[tab]; const nc=heads.length;
@@ -724,7 +724,7 @@ const HF=(function(){
       // Fila 2: encabezados
       let r=2; heads.forEach((h,i)=>{ const c=ws.getCell(r,i+1); c.value=h; c.font={name:'Arial',size:11,bold:true,color:{argb:INK}};
         c.fill={type:'pattern',pattern:'solid',fgColor:{argb:HEAD}}; c.alignment={horizontal:'center',vertical:'middle',wrapText:true};
-        c.border={top:{style:'thin',color:{argb:LINE}},bottom:{style:'medium',color:{argb:INK}},left:{style:'thin',color:{argb:LINE}},right:{style:'thin',color:{argb:LINE}}}; });
+        c.border={top:{style:'thin',color:{argb:LINE}},bottom:{style:'medium',color:{argb:ACC}},left:{style:'thin',color:{argb:LINE}},right:{style:'thin',color:{argb:LINE}}}; });
       ws.getRow(r).height=26; const headerRow=r; r++;
       const bd={top:{style:'thin',color:{argb:LINE}},bottom:{style:'thin',color:{argb:LINE}},left:{style:'thin',color:{argb:LINE}},right:{style:'thin',color:{argb:LINE}}};
       rows.forEach((l,idx)=>{ const vals=rowVals(l,isF);
@@ -778,6 +778,6 @@ const HF=(function(){
 })();
 </script>
 <script src="lumen-neuro.js?v=481a17c2" data-auto></script>
-<script src="chatbot.js?v=20261116-rol"></script>
+<script src="chatbot.js?v=20261118-rol"></script>
 </body>
 </html>
