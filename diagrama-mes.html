@@ -92,13 +92,13 @@ tfoot tr:first-child td,tfoot tr:first-child th{border-top:2px solid var(--line)
 .pool a{color:var(--lime);cursor:pointer;margin-right:10px;text-decoration:underline;white-space:nowrap}
 #stat{font-size:12px;color:var(--mut)}
 .title{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
-.ov{position:fixed;inset:0;background:rgba(5,9,18,.72);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px}
+.ov{position:fixed;inset:0;background:rgba(5,9,18,.72);display:flex;align-items:flex-start;justify-content:center;z-index:100;padding:16px;overflow:auto}
 .dlg{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;max-width:440px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.5)}
 .dlg p{margin:0 0 16px;font-size:14px;line-height:1.5}
 .dlg .acts{display:flex;gap:8px;justify-content:flex-end}
 .x.wa{margin-right:3px}
 .x.wa:hover{border-color:#25d366;color:#7fe3a5}
-.dlg{max-height:92vh;overflow:auto}
+.dlg{max-height:min(88vh,680px);overflow:auto}
 .dlg textarea{min-height:230px;font-size:13px;line-height:1.5}
 .imp table{border-collapse:collapse;width:100%;font-size:12px}
 .imp th,.imp td{padding:5px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
@@ -764,7 +764,9 @@ function modal(html){
   function close(){ov.remove(); document.removeEventListener('keydown',key)}
   function key(e){if(e.key==='Escape') close()}
   ov.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-close]'); if(b||e.target===ov) close()});
-  document.addEventListener('keydown',key); document.body.appendChild(ov); return ov;
+  document.addEventListener('keydown',key); document.body.appendChild(ov);
+  try{ if(window.parent!==window) window.parent.postMessage({diagramaModal:1},'*'); }catch(e){}
+  return ov;
 }
 function waCopy(ta,btn){
   var done=function(){btn.textContent='Copiado ✓'; setTimeout(function(){btn.textContent='Copiar mensaje'},1800)};
@@ -1271,7 +1273,7 @@ remotoLeer(false);
 /* refresco: si otra persona guardó y acá no hay cambios en curso, se trae su versión */
 setInterval(function(){ if(document.visibilityState==='visible'&&!REM.enviando&&!pend&&REM.ok) remotoLeer(false); },30000);
 /* altura para el iframe contenedor */
-function avisarAltura(){ try{ if(window.parent!==window) window.parent.postMessage({diagramaAltura:document.documentElement.scrollHeight},'*'); }catch(e){} }
+function avisarAltura(){ try{ if(window.parent!==window) window.parent.postMessage({diagramaAltura:Math.ceil(document.body.getBoundingClientRect().height)+8},'*'); }catch(e){} }
 new MutationObserver(avisarAltura).observe(document.body,{childList:true,subtree:true,attributes:true}); window.addEventListener('resize',avisarAltura); setTimeout(avisarAltura,300);
 })();
 </script>

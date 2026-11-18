@@ -2159,13 +2159,15 @@ function diagNotes(){
    La versión anterior queda como renderDiagAnterior por si hay que volver. */
 function renderDiag(){
   const fr = document.createElement('iframe');
-  fr.src = 'diagrama-mes.html?v=20261118c';
+  fr.src = 'diagrama-mes.html?v=20261118d';
   fr.title = 'Diagrama del mes · técnicos';
   fr.setAttribute('style', 'width:100%;border:0;display:block;height:1100px;background:transparent;color-scheme:dark');
   if(!window.__diagAltura){
     window.__diagAltura = true;
     window.addEventListener('message', function(ev){
-      if(ev.origin !== location.origin || !ev.data || !ev.data.diagramaAltura) return;
+      if(ev.origin !== location.origin || !ev.data) return;
+      if(ev.data.diagramaModal){ var fm = document.querySelector('iframe[src^="diagrama-mes.html"]'); if(fm){ var r = fm.getBoundingClientRect(); if(r.top < 0 || r.top > 120) window.scrollTo({ top: window.pageYOffset + r.top - 70, behavior: 'smooth' }); } return; }
+      if(!ev.data.diagramaAltura) return;
       document.querySelectorAll('iframe[src^="diagrama-mes.html"]').forEach(function(f){ f.style.height = Math.max(600, ev.data.diagramaAltura + 20) + 'px'; });
     });
   }
