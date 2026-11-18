@@ -100,6 +100,18 @@ tfoot tr:first-child td,tfoot tr:first-child th{border-top:2px solid var(--line)
 .x.wa:hover{border-color:#25d366;color:#7fe3a5}
 .dlg{max-height:92vh;overflow:auto}
 .dlg textarea{min-height:230px;font-size:13px;line-height:1.5}
+.imp table{border-collapse:collapse;width:100%;font-size:12px}
+.imp th,.imp td{padding:5px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+.imp select{max-width:200px;font-size:12px}
+.imp .no{color:#f0a0a3;font-size:11px}
+.imp .chk{display:flex;gap:8px;align-items:flex-start;margin:8px 0;font-size:13px}
+.imp .chk input{margin-top:3px}
+.impg{overflow:auto;max-height:240px;border:1px solid var(--line);border-radius:8px;margin-top:8px}
+.impg table{width:auto}.impg th,.impg td{padding:1px 2px;border:0;text-align:center;font-size:10px}
+.impg .ch{width:15px;height:15px;font-size:9px;border-width:1px}
+.impg .nmx{position:sticky;left:0;background:var(--card);text-align:left;padding:1px 8px 1px 4px;white-space:nowrap;font-size:11px}
+@media(max-width:699px){.imp>div>table thead{display:none}.imp>div>table,.imp>div>table tbody,.imp>div>table tr,.imp>div>table td{display:block;width:100%}.imp>div>table tr{border-bottom:1px solid var(--line);padding:6px 0}.imp>div>table td{border:0;padding:2px 4px}.imp select{max-width:100%;width:100%}}
+#app.dropz{outline:2px dashed var(--amber);outline-offset:-6px}
 .wrow{display:grid;grid-template-columns:1fr 170px auto auto;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
 .wrow:last-child{border-bottom:0}
 .wrow .sent{color:var(--green);font-size:12px}
@@ -200,6 +212,8 @@ a.btn.wapp{background:#25d366;border-color:#25d366;color:#06240f;font-weight:700
 <body>
 <div id="app"></div>
 
+<script src="diagrama-importar.js?v=20261118c"></script>
+<script src="diagrama-pdf.js?v=20261118c"></script>
 <script id="seed" type="application/json">{"docId":"diagrama-mes-imagenes-v1","ts":0,"year":2026,"month":11,"holidays":{"2026-10-12":1,"2026-11-23":1,"2026-12-08":1,"2026-12-25":1,"2027-01-01":1},"groups":[{"id":"man","name":"Turno mañana"},{"id":"tar","name":"Turno tarde"},{"id":"gua","name":"Guardias de 12 h"},{"id":"sup","name":"Personal suplente y cobertura del mes"}],"people":[{"id":"p1","name":"Forni V.","g":"man"},{"id":"p2","name":"Dalla Caneva M.","g":"man"},{"id":"p3","name":"Skamlec I.","g":"man"},{"id":"p4","name":"Benitez M.","g":"tar"},{"id":"p5","name":"Orozco M.","g":"tar"},{"id":"p6","name":"Cornejo F.","g":"tar"},{"id":"p7","name":"Battistella F.","g":"gua"},{"id":"p8","name":"Mursi C.","g":"gua"},{"id":"p9","name":"Granados E.","g":"gua"},{"id":"p10","name":"Ríos N.","g":"sup"},{"id":"p11","name":"Aminahuel H.","g":"sup"},{"id":"p12","name":"Lonigro C.","g":"sup"}],"pool":["Rumbo Tobias","Walker Arian","Romero Romina","Jofré Yanina","Lucas Federica"],"cells":{},"leaves":{},"meta":{"by":"","note":""}}</script>
 
 <script>
@@ -395,13 +409,15 @@ function headerHTML(){
   '<button class="btn noprint" data-act="undo"'+(U.length?'':' disabled')+' style="margin-left:10px">↶ Deshacer</button><button class="btn noprint" data-act="redo"'+(R.length?'':' disabled')+'>↷ Rehacer</button>'+
   '<span class="sp"></span>'+
   '<button class="btn pri noprint" data-act="save">GUARDAR CAMBIOS</button>'+
+  '<button class="btn noprint" data-act="import" title="Cargar el cronograma desde un archivo PDF, Excel, JPG o PNG">Cargar archivo</button>'+
+  '<button class="btn noprint" data-act="pdfplan" title="Descargar el PDF con el formato de la planilla">Exportar PDF</button>'+
   '<button class="btn noprint" data-act="csv">Exportar a Excel</button>'+
   '<button class="btn noprint" data-act="print">Imprimir / PDF</button>'+
   '<button class="btn noprint" data-act="walist">Enviar por WhatsApp</button>'+
   '<button class="btn noprint" data-act="reglic">Registro de licencias <span class="regn">('+regCount()+')</span></button>'+
   '<button class="btn noprint" data-act="ballic">Saldo de licencias</button>'+
   '<button class="btn danger noprint" data-act="clear">Limpiar cronograma del mes</button></div>'+
-  '<div class="bar" style="margin-top:10px"><span id="stat" class="noprint"></span></div>'+
+  '<div class="bar" style="margin-top:10px"><span id="stat" class="noprint"></span><input type="file" id="impfile" hidden accept=".pdf,.xlsx,.xls,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"></div>'+
   legendHTML();
 }
 function printFootHTML(){
@@ -457,10 +473,10 @@ function mbarHTML(){
 function mheaderHTML(){
   return '<div class="hd"><div class="hdr"><div><div class="inst">FUESMEN · Servicio de Imágenes del Hospital Italiano</div><h1>Cronograma mensual del personal técnico</h1></div></div></div>'+
   '<div class="bar" style="justify-content:space-between"><button class="btn" data-act="prev" title="Mes anterior">◀</button><b style="font-size:17px">'+MESES[S.month-1]+' '+S.year+'</b><button class="btn" data-act="next" title="Mes siguiente">▶</button><button class="btn" data-act="today">Actual</button></div>'+
-  '<div class="bar" style="margin-top:10px"><button class="btn pri" data-act="save" style="width:100%">GUARDAR CAMBIOS</button></div>'+
+  '<div class="bar" style="margin-top:10px"><button class="btn pri" data-act="save" style="width:100%">GUARDAR CAMBIOS</button><button class="btn" data-act="import" style="width:100%">Cargar archivo (PDF, Excel, foto)</button><input type="file" id="impfile" hidden accept=".pdf,.xlsx,.xls,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"></div>'+
   '<div class="bar" style="margin-top:6px"><span id="stat" class="noprint"></span></div>'+
   '<details class="how"><summary>Más opciones</summary><div class="mmenu">'+
-  '<button class="btn" data-act="csv">Exportar a Excel</button><button class="btn" data-act="print">Imprimir / PDF</button><button class="btn" data-act="walist">Enviar por WhatsApp</button><button class="btn" data-act="reglic" style="grid-column:1/-1">Registro de licencias <span class="regn">('+regCount()+')</span></button><button class="btn" data-act="ballic" style="grid-column:1/-1">Saldo de licencias</button><button class="btn danger" data-act="clear" style="grid-column:1/-1">Limpiar cronograma del mes</button></div></details>';
+  '<button class="btn" data-act="pdfplan">Exportar PDF</button><button class="btn" data-act="csv">Exportar a Excel</button><button class="btn" data-act="print">Imprimir / PDF</button><button class="btn" data-act="walist">Enviar por WhatsApp</button><button class="btn" data-act="reglic" style="grid-column:1/-1">Registro de licencias <span class="regn">('+regCount()+')</span></button><button class="btn" data-act="ballic" style="grid-column:1/-1">Saldo de licencias</button><button class="btn danger" data-act="clear" style="grid-column:1/-1">Limpiar cronograma del mes</button></div></details>';
 }
 function mobileHTML(){
   var p=curPerson(), opts='';
@@ -976,6 +992,136 @@ function exportCSV(){
   dl(fname('csv'),'text/csv;charset=utf-8','﻿'+rows.map(function(r){return r.map(q).join(';')}).join('\r\n'));
 }
 
+
+/* ---------- carga de archivo (PDF / Excel / JPG / PNG) y exportación PDF con el formato de la planilla ---------- */
+function importElegir(){
+  if(REM.ok&&!REM.edit){ aviso('Solo lectura','Tu usuario puede ver el cronograma pero no modificarlo, así que no se puede cargar un archivo.'); return; }
+  var i=document.getElementById('impfile'); if(i){ i.value=''; i.click(); }
+}
+function nombreLumen(n){
+  var p=String(n||'').split(','), ape=(p[0]||'').trim().toLowerCase().replace(/(^|\s)\S/g,function(c){return c.toUpperCase()}), nom=(p.slice(1).join(' ')||'').trim();
+  return ape+(nom?' '+nom[0].toUpperCase()+'.':'');
+}
+function licRuns(celdas){
+  var ds=Object.keys(celdas).map(Number).filter(function(d){return celdas[d].lic}).sort(function(a,b){return a-b}), out=[];
+  ds.forEach(function(d){var r=out[out.length-1]; if(r&&d===r.d2+1) r.d2=d; else out.push({d1:d,d2:d})});
+  return out;
+}
+function importArchivo(file){
+  if(REM.ok&&!REM.edit){ aviso('Solo lectura','Tu usuario puede ver el cronograma pero no modificarlo, así que no se puede cargar un archivo.'); return; }
+  if(!window.DiagramaImportar){ aviso('No se pudo cargar el lector','Falta el módulo de lectura de archivos. Recargá la página con Ctrl + F5 e intentá de nuevo.'); return; }
+  var ov=modal('<p><b>Leyendo «'+esc(file.name)+'»…</b></p><p class="mut" id="impst" style="font-size:13px">Preparando…</p><div class="acts"><button class="btn" data-close="1">Cancelar</button></div>'), cancel=false;
+  ov.addEventListener('click',function(e){ if(e.target===ov||(e.target.closest&&e.target.closest('[data-close]'))) cancel=true });
+  DiagramaImportar.leerArchivo(file,function(t){ var e=ov.querySelector('#impst'); if(e) e.textContent=t }).then(function(r){
+    if(cancel) return; var b=ov.querySelector('[data-close]'); if(b) b.click(); importVista(r,file.name);
+  },function(err){
+    if(cancel) return; var b=ov.querySelector('[data-close]'); if(b) b.click(); aviso('No se pudo leer el archivo',(err&&err.message)||'Error desconocido.');
+  });
+}
+function importVista(r,nombreArch){
+  var mes=r.mes||S.month, anio=r.anio||S.year, fuente={excel:'Excel',pdf:'PDF',imagen:'foto'}[r.fuente]||'archivo', tramos=0, nd=28;
+  var filas=r.personas.map(function(p){
+    var per=DiagramaImportar.emparejar(p.nombre,S.people), runs=licRuns(p.celdas); tramos+=runs.length;
+    Object.keys(p.celdas).forEach(function(d){ if(+d>nd) nd=+d });
+    return {p:p, sel:per?per.id:''};
+  });
+  var op='<option value="">— omitir —</option>', ord=orderedPeople();
+  function opts(sel){ return op+ord.map(function(x){return '<option value="'+x.id+'"'+(x.id===sel?' selected':'')+'>'+esc(x.name)+'</option>'}).join('')+'<option value="__new">+ Agregar como suplente</option>'; }
+  var rows='', grid='<table><thead><tr><th class="nmx"></th>', d;
+  for(d=1;d<=nd;d++) grid+='<th>'+d+'</th>'; grid+='</tr></thead><tbody>';
+  filas.forEach(function(f,i){
+    var cnt={}, txt=[]; Object.keys(f.p.celdas).forEach(function(k){var c=f.p.celdas[k].c; if(c) cnt[c]=(cnt[c]||0)+1});
+    ['M','T','N','D','F','L'].forEach(function(c){ if(cnt[c]) txt.push('<b>'+c+'</b> '+cnt[c]) });
+    rows+='<tr><td>'+esc(f.p.nombre)+(f.p.horario?'<div class="mut" style="font-size:11px">Horario '+f.p.horario+' (no se guarda)</div>':'')+'</td><td><select class="impsel" data-i="'+i+'">'+opts(f.sel)+'</select>'+(f.sel?'':'<div class="no">No está en el cronograma: elegí quién es o agregalo</div>')+'</td><td>'+(txt.join(' · ')||'<span class="mut">sin turnos</span>')+'</td></tr>';
+    grid+='<tr><td class="nmx">'+esc(f.p.nombre)+'</td>';
+    for(d=1;d<=nd;d++){ var c=f.p.celdas[d]; grid+='<td>'+(c&&c.c?'<span class="ch k'+c.c+'">'+c.c+'</span>':'')+'</td>'; }
+    grid+='</tr>';
+  });
+  grid+='</tbody></table>';
+  var fer=(r.feriados||[]).slice().sort(function(a,b){return a-b});
+  var h='<div class="imp"><p><b>Revisá lo que se leyó antes de aplicarlo</b></p>'+
+    '<p class="mut" style="font-size:12px;margin-top:-8px">'+esc(nombreArch)+' · leído desde '+fuente+' · '+filas.length+' persona'+(filas.length===1?'':'s')+'</p>'+
+    (r.fuente==='imagen'?'<p style="font-size:12px;color:var(--amber)">La lectura de fotos es aproximada: controlá bien las letras en «Ver casilla por casilla».</p>':'')+
+    (r.mes?'':'<p style="font-size:12px;color:var(--amber)">No pude leer el mes del archivo: elegilo acá.</p>')+
+    '<div class="bar" style="margin:8px 0"><label class="mut">Mes&nbsp;<select id="impm">'+MESES.map(function(m,i){return '<option value="'+(i+1)+'"'+(i+1===mes?' selected':'')+'>'+m+'</option>'}).join('')+'</select></label><label class="mut">Año&nbsp;<input id="impy" type="number" min="2000" max="2100" style="width:84px" value="'+anio+'"></label></div>'+
+    '<div style="overflow:auto;max-height:300px"><table><thead><tr><th>En el archivo</th><th>En Lumen</th><th>Se carga</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    (tramos?'<label class="chk"><input type="checkbox" id="impreg" checked><span>Registrar en el <b>Registro de licencias</b> los <b>'+tramos+' tramo'+(tramos===1?'':'s')+'</b> en amarillo (quedan pendientes de confirmar y sin tipo, para que los completes)</span></label>':'')+
+    (fer.length?'<label class="chk"><input type="checkbox" id="impfer" checked><span>Marcar como feriado los días <b>'+fer.join(', ')+'</b> (encabezado en rojo que no es domingo). Los feriados que ya estaban marcados se mantienen.</span></label>':'')+
+    '<details style="margin-top:8px"><summary style="cursor:pointer">Ver casilla por casilla</summary><div class="impg">'+grid+'</div></details>'+
+    '<p class="mut" style="font-size:12px;margin:10px 0 0">Se reemplazan los turnos de ese mes de las personas elegidas (las casillas vacías del archivo quedan vacías). Lo demás no se toca. Después podés deshacer con ↶ Deshacer.</p>'+
+    '<div class="acts" style="margin-top:12px"><button class="btn" data-close="1">Cancelar</button><button class="btn pri" id="impok">Aplicar al cronograma</button></div></div>';
+  var ov=modal(h); ov.firstChild.style.maxWidth='760px';
+  ov.addEventListener('change',function(e){ var t=e.target; if(t.classList&&t.classList.contains('impsel')) filas[+t.dataset.i].sel=t.value; });
+  ov.querySelector('#impok').addEventListener('click',function(){
+    var m=+ov.querySelector('#impm').value, y=+ov.querySelector('#impy').value, reg=!!(ov.querySelector('#impreg')&&ov.querySelector('#impreg').checked), fe=!!(ov.querySelector('#impfer')&&ov.querySelector('#impfer').checked);
+    if(!(y>=2000&&y<=2100)){ aviso('Año inválido','Escribí un año entre 2000 y 2100.'); return; }
+    if(!filas.some(function(f){return f.sel})){ aviso('No hay nadie elegido','Elegí a quién corresponde cada fila o agregalas como suplentes.'); return; }
+    ov.querySelector('[data-close]').click(); importAplicar(r,filas,m,y,reg,fe,nombreArch);
+  });
+}
+function importAplicar(r,filas,mes,anio,reg,fer,nombreArch){
+  flush();
+  var key=anio+'-'+pad(mes), nd=new Date(anio,mes,0).getDate(), nPers=0, nLic=0, nDup=0, nNew=0, hechos=[];
+  S.cells[key]=S.cells[key]||{};
+  filas.forEach(function(f){
+    if(!f.sel) return;
+    var per;
+    if(f.sel==='__new'){ per={id:uid(),name:nombreLumen(f.p.nombre),g:'sup'}; S.people.push(per); nNew++; }
+    else per=S.people.filter(function(x){return x.id===f.sel})[0];
+    if(!per) return; nPers++;
+    delete S.cells[key][per.id];
+    Object.keys(f.p.celdas).map(Number).forEach(function(d){
+      if(d<1||d>nd) return; var c=f.p.celdas[d], code=(c.lic&&reg)?c.base:c.c;   /* con licencia registrada, la «L» la pone la licencia */
+      if(code) putAt(key,per.id,d,{c:code,m:''});
+    });
+    if(reg) licRuns(f.p.celdas).forEach(function(run){ hechos.push({per:per,run:run}); });
+  });
+  hechos.forEach(function(x){
+    var d1=isoOf(anio,mes,x.run.d1), d2=isoOf(anio,mes,x.run.d2), nm=x.per.name.trim().toLowerCase();
+    if(allLeaves().some(function(y){return (y.l.who||'').trim().toLowerCase()===nm&&y.l.desde===d1&&y.l.hasta===d2})){ nDup++; return; }
+    var l={id:uid(),who:x.per.name,tipo:'',desde:d1,hasta:d2,rep:'',est:'ok',hor:'Cargada desde '+nombreArch,ap:[],res:''}, k=mkOf(parseISO(d1));
+    (S.leaves[k]=S.leaves[k]||[]).push(l); applyLeave(l); nLic++;
+  });
+  if(fer) (r.feriados||[]).forEach(function(d){ if(d>=1&&d<=nd) S.holidays[isoOf(anio,mes,d)]=1 });
+  S.year=anio; S.month=mes; reapplyLeaves(); render(); persist();
+  aviso('✓ Archivo cargado','Se completó '+MESES[mes-1]+' '+anio+' con '+nPers+' persona'+(nPers===1?'':'s')+(nNew?' ('+nNew+' agregada'+(nNew===1?'':'s')+' como suplente)':'')+
+    (nLic?' y se registraron '+nLic+' licencia'+(nLic===1?'':'s')+' (pendientes de confirmar, sin tipo)':'')+(nDup?' ('+nDup+' ya estaba'+(nDup===1?'':'n')+' registrada'+(nDup===1?'':'s')+')':'')+'. '+
+    (REM.ok&&REM.edit?'Ya se está guardando en Lumen. ':'Quedó en este navegador. ')+'Si algo no es lo que esperabas, «↶ Deshacer» vuelve atrás.');
+}
+function descargarBlob(name,blob){
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click(); setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},800);
+}
+function logoDatos(){
+  return new Promise(function(ok){
+    var im=new Image();
+    im.onload=function(){ try{
+      var w=128, h=Math.round(im.naturalHeight*w/im.naturalWidth), cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+      var cx=cv.getContext('2d'); cx.fillStyle='#fff'; cx.fillRect(0,0,w,h); cx.drawImage(im,0,0,w,h);
+      var px=cx.getImageData(0,0,w,h).data, s=[]; for(var i=0;i<px.length;i+=4) s.push(String.fromCharCode(px[i],px[i+1],px[i+2]));
+      ok({w:w,h:h,data:s.join('')});
+    }catch(e){ ok(null) } };
+    im.onerror=function(){ ok(null) }; im.src='hitaliano-logo.png';
+  });
+}
+function exportarPDF(){
+  if(!window.DiagramaPDF){ aviso('No se pudo generar el PDF','Falta el módulo del PDF. Recargá la página con Ctrl + F5 e intentá de nuevo.'); return; }
+  flush();
+  var n=dim(), mes=S.month, anio=S.year, row=S.cells[mk()]||{}, filas=[], fer=[], d;
+  orderedPeople().forEach(function(p){
+    var r=row[p.id]||{}, cel={}, any=false;
+    for(d=1;d<=n;d++){ var c=r[d]; if(c&&c.m!=='no'){ cel[d]={c:c.c,m:c.m||''}; any=true } }
+    if(any||p.g!=='sup') filas.push({nombre:p.name,celdas:cel});
+  });
+  for(d=1;d<=n;d++) if(isHol(d)) fer.push(d);
+  stat('Generando el PDF…');
+  logoDatos().then(function(logo){
+    var u8=DiagramaPDF.planilla({mes:mes,anio:anio,filas:filas,feriados:fer,logo:logo});
+    descargarBlob('planilla-tecnicos-'+MESES[mes-1].toLowerCase()+'-'+anio+'.pdf',new Blob([u8],{type:'application/pdf'}));
+    stat('PDF descargado · '+hhmm());
+  });
+}
+
 app.addEventListener('click',function(e){
   if(e.pointerType==='touch'){var td=e.target.closest&&e.target.closest('td.c'); if(td){lastKey='';pmode='paint';startPaint(td);persist();return}}
   var mr=e.target.closest&&e.target.closest('.mrow');
@@ -996,6 +1142,8 @@ app.addEventListener('click',function(e){
   else if(a==='reglic') regDialog();
   else if(a==='ballic') balDialog();
   else if(a==='csv') exportCSV();
+  else if(a==='import') importElegir();
+  else if(a==='pdfplan') exportarPDF();
   else if(a==='print'){stat('Si no se abre la ventana de impresión, abra este archivo directamente en Chrome o Edge y use Ctrl + P → «Guardar como PDF».'); try{window.print()}catch(err){}}
   else if(a==='clear'){ ask('¿Limpiar todas las asignaciones de '+MESES[S.month-1]+' '+S.year+'? Los técnicos y las filas se mantienen.','Limpiar',function(){delete S.cells[mk()];render();persist()}) }
   else if(a==='brush'){B.c=t.dataset.c; document.querySelectorAll('[data-act=brush]').forEach(function(x){x.classList.toggle('on',x.dataset.c===B.c)}); var cp=document.getElementById('mcap'); if(cp) cp.innerHTML=mcapText()}
@@ -1031,7 +1179,8 @@ app.addEventListener('input',function(e){
   }
 });
 app.addEventListener('change',function(e){
-  var t=e.target; if(t.id==='msel'){MSEL=t.value; render(); return}
+  var t=e.target; if(t.id==='impfile'){ if(t.files&&t.files[0]) importArchivo(t.files[0]); return }
+  if(t.id==='msel'){MSEL=t.value; render(); return}
   if(!t.dataset||!t.dataset.f) return;
   var lic=t.closest('.lic'); if(!lic) return;
   var l=findLeave(lic.dataset.lid); if(!l) return;
@@ -1041,6 +1190,10 @@ app.addEventListener('change',function(e){
   if(wasConf&&!l.conf){var ls=lic.querySelector('.lstate'); if(ls) ls.textContent='Estado: pendiente de confirmación (la licencia se modificó después de confirmarla)'}
   refreshLeaveNotes(); persist();
 });
+
+['dragenter','dragover'].forEach(function(ev){ app.addEventListener(ev,function(e){ if(e.dataTransfer&&Array.prototype.indexOf.call(e.dataTransfer.types||[],'Files')>=0){ e.preventDefault(); app.classList.add('dropz'); } }); });
+app.addEventListener('dragleave',function(e){ if(e.target===app) app.classList.remove('dropz'); });
+app.addEventListener('drop',function(e){ app.classList.remove('dropz'); var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f){ e.preventDefault(); importArchivo(f); } });
 document.addEventListener('keydown',function(e){
   if(!(e.ctrlKey||e.metaKey)||e.altKey) return;
   var tg=e.target; if(tg&&/^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName)) return;
