@@ -30,10 +30,10 @@
   --r:16px;
 }
 *{box-sizing:border-box}
-html{height:100%; background-color:var(--z-bg); background-image:var(--z-bgimg); background-repeat:no-repeat}
+html{height:100%; width:100%; overflow:hidden; overscroll-behavior:none; -webkit-text-size-adjust:100%; background-color:var(--z-bg); background-image:var(--z-bgimg); background-repeat:no-repeat}
 body{
   margin:0; background:transparent; color:var(--z-ink); font-family:var(--z-font);
-  display:flex; flex-direction:column; height:100vh; height:100dvh; overflow:hidden;
+  display:flex; flex-direction:column; position:fixed; top:0; right:0; bottom:0; left:0; overflow:hidden; overscroll-behavior:none;
   -webkit-tap-highlight-color:transparent; touch-action:manipulation;
   -webkit-user-select:none; user-select:none; font-size:18px; line-height:1.3;
 }
@@ -55,6 +55,7 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--z-acc-ink); outline
 .spacer{flex:1}
 .clock{font-size:16px; color:var(--z-ink2); font-variant-numeric:tabular-nums; text-align:right}
 .mode{font-size:13px; font-weight:700; padding:6px 12px; border-radius:999px; display:flex; align-items:center; white-space:nowrap; border:1px solid var(--c-line); background:var(--c-bg); color:var(--c)}
+.mshort,.pshort{display:none}
 .mode i{width:9px; height:9px; border-radius:50%; background:currentColor; display:block; margin-right:8px}
 .mode.demo{--c:var(--z-warn); --c-bg:var(--z-warn-bg); --c-line:var(--z-warn-line)}
 .mode.live{--c:var(--z-ok);   --c-bg:var(--z-ok-bg);   --c-line:var(--z-ok-line)}
@@ -73,7 +74,7 @@ main{flex:1; min-height:0; display:grid; grid-template-columns:392px 1fr; gap:16
 .dni .ph{color:#7683AD}
 .caret{width:3px; height:44px; background:var(--z-acc-ink); margin-left:2px; animation:blink 1s steps(1) infinite}
 @keyframes blink{50%{opacity:0}}
-.keypad{flex:1; min-height:0; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(4,minmax(54px,1fr)); gap:10px}
+.keypad{flex:1; min-height:0; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); grid-template-rows:repeat(4,minmax(54px,1fr)); gap:10px}
 .key{
   background:var(--z-card-hi); border:1px solid var(--z-line); border-radius:12px; font-size:30px; font-weight:600; color:var(--z-ink);
   transition:transform .06s, background .1s;
@@ -90,9 +91,11 @@ main{flex:1; min-height:0; display:grid; grid-template-columns:392px 1fr; gap:16
 .scan{height:54px; border-radius:14px; border:2px solid var(--z-acc); color:var(--z-acc-ink); font-weight:700; font-size:18px; display:flex; align-items:center; justify-content:center}
 .scan svg{margin-right:10px}
 .scan:active{background:var(--z-card-hi)}
+.chips{display:none}
+.chip{min-height:44px; border-radius:10px; border:1px dashed var(--z-warn-line); color:var(--z-warn); background:var(--z-warn-bg); font-size:13px; font-weight:600; padding:0 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 
 /* ---------- Resultados ---------- */
-.results{min-height:0; overflow:auto; display:flex; flex-direction:column; -webkit-overflow-scrolling:touch; padding-right:2px}
+.results{min-height:0; min-width:0; overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; display:flex; flex-direction:column; -webkit-overflow-scrolling:touch; padding-right:2px}
 .results > * + *{margin-top:14px}
 .state{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:32px; color:var(--z-ink2)}
 .state > * + *{margin-top:14px}
@@ -123,6 +126,7 @@ main{flex:1; min-height:0; display:grid; grid-template-columns:392px 1fr; gap:16
 .patient .sub{margin-top:6px; color:var(--z-ink3); font-size:16px}
 
 .banner{display:flex; align-items:flex-start; padding:16px 20px; border-radius:var(--r); border:2px solid var(--c-line); background:var(--c-bg); color:var(--c)}
+.banner > div{min-width:0}
 .banner svg{width:34px; height:34px; flex:none; margin-top:2px; margin-right:16px}
 .banner .h{font-size:23px; font-weight:700; line-height:1.15}
 .banner ul{margin:8px 0 0; padding-left:20px; font-size:18px; color:var(--z-ink)}
@@ -132,7 +136,7 @@ main{flex:1; min-height:0; display:grid; grid-template-columns:392px 1fr; gap:16
 .unk{--c:var(--z-unk); --c-bg:var(--z-unk-bg); --c-line:var(--z-unk-line)}
 .warn{--c:var(--z-warn); --c-bg:var(--z-warn-bg); --c-line:var(--z-warn-line)}
 
-.tabs{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; background:rgba(165,198,255,.07); border:1px solid var(--z-line); padding:6px; border-radius:16px}
+.tabs{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; background:rgba(165,198,255,.07); border:1px solid var(--z-line); padding:6px; border-radius:16px}
 .tab{min-height:62px; border-radius:12px; font-size:19px; font-weight:700; color:var(--z-ink3); display:flex; align-items:center; justify-content:center; padding:0 8px; text-align:center; line-height:1.1}
 .tab .badge{margin-left:10px}
 .tab[aria-selected="true"]{background:var(--z-card-hi); color:var(--z-ink); box-shadow:inset 0 -4px 0 var(--z-acc)}
@@ -142,10 +146,10 @@ main{flex:1; min-height:0; display:grid; grid-template-columns:392px 1fr; gap:16
 
 .list{display:grid; gap:12px}
 .item{
-  display:grid; grid-template-columns:104px 1fr auto; gap:6px 18px; align-items:center;
+  display:grid; grid-template-columns:104px minmax(0,1fr) auto; gap:6px 18px; align-items:center;
   background:var(--z-card); border:1px solid var(--z-line); border-left:9px solid var(--c); border-radius:14px; padding:16px 18px;
 }
-.item.prev{grid-template-columns:128px 1fr auto; padding:12px 18px}
+.item.prev{grid-template-columns:128px minmax(0,1fr) auto; padding:12px 18px}
 .hora{font-size:34px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1}
 .fecha{font-size:19px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--z-ink2)}
 .prest{font-size:21px; font-weight:700; overflow-wrap:anywhere}
@@ -213,14 +217,88 @@ main{flex:1; min-height:0; display:grid; grid-template-columns:392px 1fr; gap:16
   .key{font-size:26px}
   .go{height:56px; font-size:21px} .scan{height:46px; font-size:16px}
 }
-@media (max-width:699px){
-  .t2{display:none}
-  .item,.item.prev{grid-template-columns:1fr auto}
-  .item .hora,.item .fecha{grid-column:1/-1}
+/* Celular en vertical: una sola pantalla FIJA, sin scroll lateral.
+   Idle      → sólo teclado + atajos de demo.
+   Resultado → sólo resultados (el teclado vuelve con «Nueva consulta»). */
+@media (max-width:700px) and (orientation:portrait){
+  .top{min-height:48px; padding:6px 12px; padding-top:max(6px, env(safe-area-inset-top))}
+  .top > * + *{margin-left:10px}
+  .spacer,.t2{display:none}
+  .brand{flex:1; min-width:0}
+  .brand > div{min-width:0}
+  .mark{width:32px; height:32px}
+  .t1{font-size:17px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .clock{font-size:15px; white-space:nowrap; flex:none}
+  .mode{padding:5px 10px; flex:none}
+  .mfull{display:none} .mshort{display:inline}
+  main{grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr); gap:10px; padding:10px; padding-bottom:max(10px, env(safe-area-inset-bottom))}
+  .search{padding:12px}
+  .search > * + *{margin-top:8px}
+  .lbl{font-size:12px}
+  .dni{height:56px; font-size:34px} .caret{height:34px}
+  .keypad{flex:1; grid-template-rows:repeat(4,minmax(44px,1fr)); gap:8px}
+  .key{font-size:26px}
+  .go{height:56px; font-size:21px}
+  .scan{height:48px; font-size:16px}
+  .chips{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px}
+  body:not(.has-result) .results{display:none}
+  body.has-result .search{display:none}
 }
-@media (max-width:560px){
-  .item,.item.prev{grid-template-columns:1fr}
-  .side{align-items:flex-start}
-  .patient h2{font-size:24px}
+/* Celular en horizontal: poca altura, dos columnas (teclado angosto a la izquierda) */
+@media (orientation:landscape) and (max-height:480px){
+  .top{min-height:44px; padding-top:6px; padding-bottom:6px}
+  .t2,.lbl{display:none} .mark{width:30px; height:30px} .t1{font-size:18px}
+  main{grid-template-columns:300px minmax(0,1fr); gap:8px; padding:8px}
+  .search{padding:8px; overflow:visible}
+  .search > * + *{margin-top:6px}
+  .dni{height:44px; font-size:30px} .caret{height:30px}
+  .keypad{grid-template-rows:repeat(4,minmax(40px,1fr)); gap:6px}
+  .key{font-size:22px} .go{height:44px; font-size:19px} .scan{height:40px}
+}
+/* Contenido compacto de resultados: celulares (vertical u horizontal) */
+@media (max-width:700px), (orientation:landscape) and (max-height:480px){
+  .results > * + *{margin-top:6px}
+  .patient{padding:8px 12px}
+  .patient .who{margin-right:10px}
+  .patient h2{font-size:21px}
+  .patient .sub{font-size:14px; margin-top:2px}
+  .patient .btn{min-height:48px; font-size:16px; padding:0 14px}
+  .banner{padding:6px 12px}
+  .banner svg{width:26px; height:26px; margin-right:10px}
+  .banner .h{font-size:17px}
+  .banner ul{font-size:15px; margin-top:4px; padding-left:18px}
+  .banner.dup ul{display:none}
+  .tabs{gap:6px; padding:4px; margin-top:6px}
+  .tab{position:relative; min-height:46px; font-size:14px; padding:0 4px}
+  .tab .badge{position:absolute; top:-9px; right:-3px; margin:0; min-width:24px; height:24px; font-size:13px; padding:0 6px}
+  .list{gap:6px}
+  .item,.item.prev{grid-template-columns:auto minmax(0,1fr) auto; gap:3px 10px; padding:8px 12px; align-items:start}
+  .item .hora{grid-column:1; grid-row:1; font-size:24px; line-height:1.15}
+  .item .fecha{grid-column:1; grid-row:1; font-size:17px; line-height:1.4}
+  .item .main{grid-column:2 / -1; grid-row:1}
+  .side{display:contents}
+  .item .flag{grid-column:1 / 3; grid-row:2; justify-self:start; align-self:center; font-size:14px; padding:5px 10px 5px 8px}
+  .flag svg{width:18px; height:18px; margin-right:6px}
+  .item .pedido{grid-column:3; grid-row:2; align-self:center; width:auto; min-height:48px; padding:0 14px; font-size:16px}
+  .item .nopedido{grid-column:1 / -1; grid-row:3}
+  .pfull{display:none} .pshort{display:inline}
+  .item .prest,.item.prev .prest{display:inline; font-size:17px}
+  .item .meta{display:inline; margin:0 0 0 6px; font-size:14px}
+  .nopedido{font-size:14px}
+  .falta,.item.prev .falta{font-size:15px; margin-top:2px}
+  .foot{display:none}
+  .state{padding:16px}
+  .state h2{font-size:22px}
+  .state p{font-size:17px}
+  .vent{padding:20px 16px}
+  .vent svg{width:56px; height:56px}
+  .vent h3{font-size:28px}
+  .vent p{font-size:17px}
+  .empty{padding:20px 12px; font-size:17px}
+}
+@media (max-width:370px){
+  .item .flag{font-size:13px; padding:4px 8px 4px 6px}
+  .flag svg{width:16px; height:16px; margin-right:5px}
+  .item .pedido{padding:0 10px; font-size:15px}
 }
 @media (prefers-reduced-motion:reduce){.caret,.spinner,.idlebar i{animation-duration:0s}}

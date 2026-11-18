@@ -245,13 +245,13 @@ function resumen(d){
   if (malos.length){
     var items = malos.map(function (x) { return '<b>' + esc(x.hora||'--:--') + '</b> ' + esc(x.prestacion) + (x.tramite.faltante ? ' — ' + esc(x.tramite.faltante) : ''); });
     sinPedido.forEach(function (x) { items.push('<b>' + esc(x.hora||'--:--') + '</b> ' + esc(x.prestacion) + ' — sin pedido médico cargado'); });
-    return { c:'bad', icon:ICON.alert, h: malos.length === 1 ? 'Hay 1 trámite incompleto para hoy' : 'Hay ' + malos.length + ' trámites incompletos para hoy', items:items };
+    return { c:'bad', icon:ICON.alert, h: malos.length === 1 ? 'Hay 1 trámite incompleto para hoy' : 'Hay ' + malos.length + ' trámites incompletos para hoy', dup:true, items:items };
   }
   if (sinDato.length)
     return { c:'unk', icon:ICON.info, h:'El HIS no informó el estado del trámite',
              items:['No se puede confirmar. Verificar en ventanilla.'] };
   if (sinPedido.length)
-    return { c:'warn', icon:ICON.alert, h:'Trámite completo, pero sin pedido médico cargado',
+    return { c:'warn', icon:ICON.alert, h:'Trámite completo, pero sin pedido médico cargado', dup:true,
              items:sinPedido.map(function (x) { return '<b>' + esc(x.hora||'--:--') + '</b> ' + esc(x.prestacion); }) };
   return { c:'ok', icon:ICON.check, h: d.turnosHoy.length === 1 ? 'Trámite completo para hoy' : 'Trámites completos para hoy', items:[] };
 }
@@ -259,11 +259,11 @@ function resumen(d){
 function itemHoy(x){
   var ped = !x.pedido ? '<span class="nopedido">Pedido médico: sin dato</span>'
     : x.pedido.disponible
-      ? '<button class="btn ghost pedido" data-pedido="' + esc(x.pedido.url||'') + '" data-t="' + esc(x.prestacion) + '">' + ICON.doc + 'Ver pedido médico</button>'
+      ? '<button class="btn ghost pedido" data-pedido="' + esc(x.pedido.url||'') + '" data-t="' + esc(x.prestacion) + '">' + ICON.doc + '<span class="pfull">Ver pedido médico</span><span class="pshort">Pedido</span></button>'
       : '<span class="nopedido">Sin pedido médico cargado</span>';
   return '<article class="item ' + cls(x.tramite) + '">' +
     '<div class="hora">' + esc(x.hora||'--:--') + '</div>' +
-    '<div><div class="prest">' + esc(x.prestacion) + '</div>' + (x.equipo ? '<div class="meta">' + esc(x.equipo) + '</div>' : '') +
+    '<div class="main"><div class="prest">' + esc(x.prestacion) + '</div>' + (x.equipo ? '<div class="meta">' + esc(x.equipo) + '</div>' : '') +
       (x.tramite.completo === false && x.tramite.faltante ? '<div class="falta">' + esc(x.tramite.faltante) + '</div>' : '') + '</div>' +
     '<div class="side">' + flag(x.tramite) + ped + '</div></article>';
 }
@@ -271,7 +271,7 @@ function itemPrev(x){
   var f = x.fecha ? dmy(x.fecha) : '—';
   return '<article class="item prev ' + cls(x.tramite) + '">' +
     '<div class="fecha">' + esc(f) + '</div>' +
-    '<div><div class="prest">' + esc(x.prestacion) + '</div>' +
+    '<div class="main"><div class="prest">' + esc(x.prestacion) + '</div>' +
       (x.tramite.completo === false && x.tramite.faltante ? '<div class="falta">' + esc(x.tramite.faltante) + '</div>' : '') + '</div>' +
     '<div class="side">' + flag(x.tramite) + '</div></article>';
 }
@@ -321,7 +321,7 @@ function render(){
   }
   /* result */
   var rs = resumen(d);
-  var hora = d.consultadoEn ? new Date(d.consultadoEn).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}) : '';
+  var hora = d.consultadoEn ? new Date(d.consultadoEn).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false}) : '';
   var desde = dmy(hace(CONFIG.mesesPrevios)), hasta = dmy(ayerISO());
   var panel =
     S.tab === 'hoy' ? (d.turnosHoy.length ? '<div class="list">' + d.turnosHoy.map(itemHoy).join('') + '</div>'
@@ -334,15 +334,15 @@ function render(){
   R.innerHTML =
     '<div class="patient card">' +
       '<div class="who"><h2>' + esc(nombreMostrado(d.paciente.nombre)) + '</h2>' +
-        '<div class="sub">DNI ' + esc(fmtDni(S.dni)) + (hora ? ' · datos del HIS a las ' + esc(hora) : '') + '</div></div>' +
+        '<div class="sub">DNI ' + esc(fmtDni(S.dni)) + (hora ? ' · HIS ' + esc(hora) + ' hs' : '') + '</div></div>' +
       '<button class="btn ghost" id="btnNueva">Nueva consulta</button>' +
     '</div>' +
-    '<div class="banner ' + rs.c + '">' + rs.icon + '<div><div class="h">' + esc(rs.h) + '</div>' +
+    '<div class="banner ' + rs.c + (rs.dup ? ' dup' : '') + '">' + rs.icon + '<div><div class="h">' + esc(rs.h) + '</div>' +
       (rs.items.length ? '<ul>' + rs.items.map(function (i) { return '<li>' + i + '</li>'; }).join('') + '</ul>' : '') + '</div></div>' +
     '<div class="tabs" role="tablist">' +
-      '<button class="tab" role="tab" data-tab="hoy" aria-selected="' + (S.tab==='hoy') + '">Turno hoy ' + badge(d.turnosHoy) + '</button>' +
-      '<button class="tab" role="tab" data-tab="prev" aria-selected="' + (S.tab==='prev') + '">Estudios anteriores ' + badge(d.previos) + '</button>' +
-      '<button class="tab" role="tab" data-tab="vent" aria-selected="' + (S.tab==='vent') + '">Atención en ventanilla</button>' +
+      '<button class="tab" role="tab" data-tab="hoy" aria-selected="' + (S.tab==='hoy') + '"><span class="tl">Turno hoy</span>' + badge(d.turnosHoy) + '</button>' +
+      '<button class="tab" role="tab" data-tab="prev" aria-selected="' + (S.tab==='prev') + '"><span class="tl">Estudios anteriores</span>' + badge(d.previos) + '</button>' +
+      '<button class="tab" role="tab" data-tab="vent" aria-selected="' + (S.tab==='vent') + '"><span class="tl">Atención en ventanilla</span></button>' +
     '</div>' +
     (S.tab === 'prev' ? '<div class="foot">Del ' + desde + ' al ' + hasta + '</div>' : '') +
     panel + pieIdle();
@@ -438,9 +438,10 @@ function toast(msg){
   document.body.appendChild(n); clearTimeout(toastT); toastT = setTimeout(function () { n.remove(); }, 4500);
 }
 function reloj(){
-  var d = new Date(), corto = innerWidth < 900;
-  $('clock').textContent = d.toLocaleDateString('es-AR', corto ? {weekday:'short',day:'numeric',month:'short'} : {weekday:'long',day:'numeric',month:'long'})
-    + ' · ' + d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  var d = new Date(), w = innerWidth;
+  var hh = d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false});
+  $('clock').textContent = w < 700 ? hh
+    : d.toLocaleDateString('es-AR', w < 900 ? {weekday:'short',day:'numeric',month:'short'} : {weekday:'long',day:'numeric',month:'long'}) + ' · ' + hh;
 }
 addEventListener('resize', reloj);
 var wl = null;
@@ -456,7 +457,16 @@ document.addEventListener('visibilitychange', function () { if (document.visibil
 
 /* ---------- inicio ---------- */
 $('modeBadge').className = 'mode ' + (CONFIG.mode === 'demo' ? 'demo' : 'live');
-$('modeBadge').innerHTML = CONFIG.mode === 'demo' ? '<i></i>MODO DEMO · datos ficticios' : '<i></i>Conectado al HIS';
+$('modeBadge').innerHTML = CONFIG.mode === 'demo' ? '<i></i><span class="mfull">MODO DEMO · datos ficticios</span><span class="mshort">DEMO</span>' : '<i></i><span class="mfull">Conectado al HIS</span><span class="mshort">HIS</span>';
 reloj(); setInterval(reloj, 15000);
+if (CONFIG.mode === 'demo'){
+  $('demoChips').innerHTML = [['12345678','incompleto'],['23456789','todo ok'],['34567890','sin turno'],['45678901','2 turnos']]
+    .map(function (c) { return '<button class="chip" data-demo="' + c[0] + '" aria-label="Demo ' + c[0] + ', ' + c[1] + '">' + c[0] + ' · ' + c[1] + '</button>'; }).join('');
+  $('demoChips').hidden = false;
+  $('demoChips').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-demo]'); if (!b || S.phase === 'loading') return;
+    S.dni = b.dataset.demo; renderDni(); buscar();
+  });
+}
 renderDni(); render(); initScan();
 })();
