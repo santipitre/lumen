@@ -136,7 +136,7 @@ main{flex:1; min-height:0; display:grid; grid-template-columns:392px 1fr; gap:16
 .unk{--c:var(--z-unk); --c-bg:var(--z-unk-bg); --c-line:var(--z-unk-line)}
 .warn{--c:var(--z-warn); --c-bg:var(--z-warn-bg); --c-line:var(--z-warn-line)}
 
-.tabs{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; background:rgba(165,198,255,.07); border:1px solid var(--z-line); padding:6px; border-radius:16px}
+.tabs{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; background:rgba(165,198,255,.07); border:1px solid var(--z-line); padding:6px; border-radius:16px}
 .tab{min-height:62px; border-radius:12px; font-size:19px; font-weight:700; color:var(--z-ink3); display:flex; align-items:center; justify-content:center; padding:0 8px; text-align:center; line-height:1.1}
 .tab .badge{margin-left:10px}
 .tab[aria-selected="true"]{background:var(--z-card-hi); color:var(--z-ink); box-shadow:inset 0 -4px 0 var(--z-acc)}
@@ -165,15 +165,34 @@ main{flex:1; min-height:0; display:grid; grid-template-columns:392px 1fr; gap:16
 .nopedido{font-size:16px; color:var(--z-ink3); font-weight:600}
 .empty{padding:34px 20px; text-align:center; color:var(--z-ink2); font-size:19px; border:1px dashed var(--z-line-strong); border-radius:14px}
 
-.vent{display:flex; flex-direction:column; align-items:center; text-align:center; padding:36px 24px; background:var(--z-card); border:2px solid var(--z-line-strong); border-radius:var(--r)}
-.vent > * + *{margin-top:16px}
-.vent svg{width:76px; height:76px; color:var(--z-acc-ink)}
-.vent h3{margin:0; font-size:38px; line-height:1.05; letter-spacing:-.3px}
-.vent p{margin:0; font-size:21px; color:var(--z-ink2); max-width:460px}
-
-.idlebar{height:5px; background:rgba(165,198,255,.14); border-radius:3px; overflow:hidden; flex:none}
-.idlebar i{display:block; height:100%; width:100%; background:var(--z-acc); transform-origin:left; animation:drain var(--t,45s) linear forwards}
-@keyframes drain{to{transform:scaleX(0)}}
+/* ---------- Atención en ventanilla: barra fija abajo + hoja de motivo/observación ---------- */
+.ventbar{position:sticky; bottom:0; flex:none; padding:16px 0 2px; background:linear-gradient(to bottom,rgba(7,13,31,0),#070D1F 38%); z-index:5}
+.ventbtn{width:100%; min-height:64px; font-size:22px}
+.ventbtn svg{width:30px; height:30px; margin-right:12px; flex:none}
+.vdone{display:flex; align-items:center; justify-content:center; min-height:56px; padding:0 16px; border-radius:14px; border:2px solid var(--z-ok-line); background:var(--z-ok-bg); color:var(--z-ok); font-size:19px; font-weight:700; text-align:center}
+.vdone svg{width:26px; height:26px; margin-right:10px; flex:none}
+.vdone b{color:var(--z-ink); margin:0 .3em; font-size:1.2em; letter-spacing:.5px; font-variant-numeric:tabular-nums}
+.sheet{background:var(--z-elev); border:1px solid var(--z-line-strong); border-radius:18px; width:min(560px,100%); max-height:100%; overflow-y:auto; padding:22px; -webkit-user-select:text; user-select:text}
+.sheet #ventBody > * + *{margin-top:12px}
+.sheet h3{margin:0; font-size:28px; letter-spacing:-.3px}
+.vsub{margin:0; font-size:17px; color:var(--z-ink2)}
+.mot{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px}
+.mbtn{display:flex; align-items:center; min-height:64px; padding:8px 12px; border-radius:14px; border:2px solid var(--z-line); background:var(--z-card); text-align:left; font-size:17px; font-weight:600; line-height:1.15; color:var(--z-ink2)}
+.mbtn b{flex:none; width:40px; height:40px; border-radius:10px; display:grid; place-items:center; margin-right:10px; background:var(--z-card-hi); color:var(--z-ink); font-size:24px}
+.mbtn[aria-checked="true"]{border-color:var(--z-acc); background:var(--z-card-hi); color:var(--z-ink); box-shadow:inset 0 -4px 0 var(--z-acc)}
+.mbtn[aria-checked="true"] b{background:var(--z-acc); color:var(--z-on-acc)}
+.sheet textarea{display:block; width:100%; min-height:76px; resize:none; border-radius:12px; border:2px solid var(--z-line-strong); background:var(--z-bg); color:var(--z-ink); font:inherit; font-size:18px; padding:10px 12px; -webkit-user-select:text; user-select:text}
+.sheet textarea:focus{outline:3px solid var(--z-acc-ink); outline-offset:1px}
+.sheet textarea::placeholder{color:#7683AD}
+.vhint{display:flex; justify-content:space-between; font-size:13px; color:var(--z-ink3)}
+.vhint span + span{margin-left:12px; flex:none; font-variant-numeric:tabular-nums}
+.tk{display:flex; flex-direction:column; align-items:center; text-align:center}
+.tk > * + *{margin-top:10px}
+.tk-l{font-size:14px; font-weight:700; color:var(--z-ink3); text-transform:uppercase; letter-spacing:.8px}
+.tk-n{font-size:104px; font-weight:700; line-height:1; letter-spacing:2px; color:var(--z-acc-ink); font-variant-numeric:tabular-nums}
+.tk-m{font-size:19px; font-weight:600; color:var(--z-ink2)}
+.tk-o{font-size:17px; color:var(--z-ink); background:var(--z-card); border:1px solid var(--z-line); border-radius:12px; padding:10px 14px; max-width:100%; overflow-wrap:anywhere}
+.tk p{margin:0; font-size:17px; color:var(--z-ink2); max-width:420px}
 .foot{font-size:13px; color:var(--z-ink3); text-align:center; padding:2px 0 4px}
 
 /* ---------- Modal pedido / escáner / toast ---------- */
@@ -269,7 +288,7 @@ main{flex:1; min-height:0; display:grid; grid-template-columns:392px 1fr; gap:16
   .banner ul{font-size:15px; margin-top:4px; padding-left:18px}
   .banner.dup ul{display:none}
   .tabs{gap:6px; padding:4px; margin-top:6px}
-  .tab{position:relative; min-height:46px; font-size:14px; padding:0 4px}
+  .tab{position:relative; min-height:46px; font-size:15px; padding:0 4px}
   .tab .badge{position:absolute; top:-9px; right:-3px; margin:0; min-width:24px; height:24px; font-size:13px; padding:0 6px}
   .list{gap:6px}
   .item,.item.prev{grid-template-columns:auto minmax(0,1fr) auto; gap:3px 10px; padding:8px 12px; align-items:start}
@@ -290,15 +309,39 @@ main{flex:1; min-height:0; display:grid; grid-template-columns:392px 1fr; gap:16
   .state{padding:16px}
   .state h2{font-size:22px}
   .state p{font-size:17px}
-  .vent{padding:20px 16px}
-  .vent svg{width:56px; height:56px}
-  .vent h3{font-size:28px}
-  .vent p{font-size:17px}
+  .ventbar{padding-top:10px}
+  .ventbtn{min-height:52px; font-size:18px}
+  .ventbtn svg{width:26px; height:26px; margin-right:10px}
+  .vdone{min-height:48px; font-size:16px}
+  .sheet{padding:14px; border-radius:16px}
+  .sheet h3{font-size:22px}
+  .vsub{font-size:15px}
+  .mbtn{min-height:56px; font-size:15px; padding:6px 8px}
+  .mbtn b{width:34px; height:34px; font-size:20px; margin-right:8px}
+  .sheet textarea{min-height:64px}
+  .tk-n{font-size:76px}
   .empty{padding:20px 12px; font-size:17px}
+}
+/* Hoja de ventanilla en celular horizontal: todo en una pantalla baja */
+@media (orientation:landscape) and (max-height:480px){
+  .ov{padding:8px}
+  .sheet{padding:10px 14px}
+  .sheet #ventBody > * + *{margin-top:7px}
+  .sheet h3{font-size:19px}
+  .vsub,.tk p{display:none}
+  .sheet .lbl{display:block; font-size:12px}
+  .mot{grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px}
+  .mbtn{min-height:48px; font-size:13px; padding:4px 6px}
+  .mbtn b{width:28px; height:28px; font-size:17px; margin-right:6px}
+  .sheet textarea{min-height:44px; font-size:16px; padding:6px 10px}
+  .vhint{font-size:12px}
+  .btn{min-height:48px}
+  .tk-n{font-size:56px}
+  .tk > * + *{margin-top:6px}
 }
 @media (max-width:370px){
   .item .flag{font-size:13px; padding:4px 8px 4px 6px}
   .flag svg{width:16px; height:16px; margin-right:5px}
   .item .pedido{padding:0 10px; font-size:15px}
 }
-@media (prefers-reduced-motion:reduce){.caret,.spinner,.idlebar i{animation-duration:0s}}
+@media (prefers-reduced-motion:reduce){.caret,.spinner{animation-duration:0s}}

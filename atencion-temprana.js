@@ -16,7 +16,6 @@ var CONFIG = Object.assign({
   endpoint: '',
   headers: {},
   timeoutMs: 45000,       // el HIS es lento: tope de espera por consulta
-  autoClearSeg: 45,       // privacidad: limpia la pantalla tras este tiempo sin tocar
   mesesPrevios: 3,
   nombreCompleto: false   // false → "APELLIDO, N." (la pantalla queda a la vista de la cola)
 }, window.ATENCION_TEMPRANA || {});
@@ -139,7 +138,7 @@ function consultarDemo(dni, rangos, signal){
 /* =====================================================================
    ESTADO
    ===================================================================== */
-var S = { dni:'', phase:'idle', data:null, tab:'hoy', ctrl:null, why:'', tick:null, idle:null, err:'' };
+var S = { dni:'', phase:'idle', data:null, tab:'hoy', ctrl:null, why:'', tick:null, err:'', ticket:null, vmot:'G', vobs:'' };
 
 function setPhase(p){
   S.phase = p;
@@ -169,8 +168,8 @@ function tecla(k){
 }
 function limpiar(mantenerPantalla){
   abortar('cancel');
-  clearInterval(S.tick); clearTimeout(S.idle);
-  S.dni = ''; S.data = null; S.tab = 'hoy';
+  clearInterval(S.tick);
+  S.dni = ''; S.data = null; S.tab = 'hoy'; S.ticket = null; S.vobs = ''; cerrarVent();
   if (!mantenerPantalla) setPhase('idle');
   else { S.phase = 'idle'; document.body.classList.remove('has-result'); render(); }
   renderDni();
@@ -189,14 +188,14 @@ function buscar(){
     if (S.ctrl !== ctrl) return;
     var data = norm(raw);
     S.data = data; S.tab = 'hoy';
+    S.ticket = null; S.vobs = '';
     setPhase(data.paciente ? 'result' : 'notfound');
-    armarIdle();
   }).catch(function (e) {
     if (S.ctrl !== ctrl && S.why !== 'timeout') return;       // cancelada a propósito
     S.err = S.why === 'timeout'
       ? 'El HIS no respondió a tiempo.'
       : (e && e.message ? e.message : 'No se pudo consultar el HIS.');
-    setPhase('error'); armarIdle();
+    setPhase('error');
   }).then(fin, fin);
 }
 function norm(d){
@@ -212,19 +211,6 @@ function norm(d){
   };
 }
 
-/* ---------- privacidad: limpiar solo ---------- */
-function armarIdle(){
-  clearTimeout(S.idle);
-  var bar = document.querySelector('.idlebar i');
-  if (bar){ bar.style.animation = 'none'; void bar.offsetWidth; bar.style.animation = ''; }
-  S.idle = setTimeout(function () {
-    if (conResultado()){ limpiar(false); toast('Pantalla limpiada por inactividad (datos del paciente)'); }
-  }, CONFIG.autoClearSeg * 1000);
-}
-['pointerdown','keydown'].forEach(function (ev) {
-  document.addEventListener(ev, function () { if (conResultado()) armarIdle(); }, true);
-});
-
 /* =====================================================================
    RENDER
    ===================================================================== */
@@ -238,7 +224,7 @@ function cls(t){ return t.completo === true ? 'ok' : t.completo === false ? 'bad
 function resumen(d){
   if (!d.turnosHoy.length)
     return { c:'warn', icon:ICON.info, h:'No tiene turno para hoy',
-             items:['Revisá “Estudios anteriores” si trae una orden vieja.','Si no se resuelve acá, sigue en la cola a ventanilla.'] };
+             items:['Revisá “Estudios anteriores” si trae una orden vieja.','Si no se resuelve acá, tocá «Atención en ventanilla».'] };
   var malos = d.turnosHoy.filter(function (x) { return x.tramite.completo === false; });
   var sinDato = d.turnosHoy.filter(function (x) { return x.tramite.completo === null; });
   var sinPedido = d.turnosHoy.filter(function (x) { return x.pedido && x.pedido.disponible === false; });
@@ -279,10 +265,71 @@ function badge(list){
   var bad = list.filter(function (x) { return x.tramite.completo === false; }).length;
   return '<span class="badge ' + (bad ? 'bad' : (list.length ? 'ok' : '')) + '">' + list.length + '</span>';
 }
-function pieIdle(){
-  return '<div class="idlebar" style="--t:' + CONFIG.autoClearSeg + 's"><i></i></div>' +
-         '<div class="foot">Por privacidad, la pantalla se limpia sola tras ' + CONFIG.autoClearSeg + ' s sin tocarla.</div>';
+/* ---------- atención en ventanilla (genera el número de cola) ---------- */
+function hhmm(ms){ return new Date(ms).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false}); }
+function sugerido(d){
+  if (!d || !d.paciente) return 'G';
+  if (!d.turnosHoy.length) return 'N';
+  if (d.turnosHoy.some(function (x) { return x.tramite.completo === false; })) return 'T';
+  if (d.turnosHoy.some(function (x) { return x.pedido && x.pedido.disponible === false; })) return 'P';
+  return 'G';
 }
+function ventBar(){
+  if (S.ticket) return '<div class="ventbar done"><div class="vdone">' + ICON.check + '<span>Número <b>' + esc(S.ticket.codigo) + '</b> generado · en cola a ventanilla</span></div></div>';
+  return '<div class="ventbar"><button class="btn primary ventbtn" data-vent="1">' + ICON.queue + 'Atención en ventanilla</button></div>';
+}
+function abrirVent(){
+  if (S.ticket) return;
+  if (!window.ColaAT) return toast('No se cargó la cola de ventanilla (atencion-cola.js).');
+  S.vmot = sugerido(S.data);
+  renderVent(); $('ventOv').hidden = false;
+}
+function cerrarVent(){ var o = $('ventOv'); if (o){ o.hidden = true; $('ventBody').innerHTML = ''; } }
+function renderVent(){
+  var b = $('ventBody'), C = window.ColaAT;
+  if (S.ticket){
+    var t = S.ticket;
+    b.innerHTML = '<div class="tk"><div class="tk-l">Número para ventanilla</div><div class="tk-n">' + esc(t.codigo) + '</div>' +
+      '<div class="tk-m">' + esc(C.motivo(t.letra).nombre) + ' · llegada ' + esc(hhmm(t.ts)) + ' hs</div>' +
+      (t.obs ? '<div class="tk-o">“' + esc(t.obs) + '”</div>' : '') +
+      '<p>Pedile al paciente que espere en ventanilla: lo van a llamar por este número.</p>' +
+      '<div class="btnrow"><button class="btn primary" data-vact="listo">Listo · Siguiente paciente</button></div></div>';
+    return;
+  }
+  b.innerHTML = '<h3 id="ventTitle">Atención en ventanilla</h3>' +
+    '<p class="vsub">Se genera un número para que lo llamen en ventanilla.</p>' +
+    '<div class="lbl">Motivo</div>' +
+    '<div class="mot" role="radiogroup" aria-label="Motivo">' + C.MOTIVOS.map(function (m) {
+      return '<button class="mbtn" role="radio" data-mot="' + m.letra + '" aria-checked="' + (S.vmot === m.letra) + '"><b>' + m.letra + '</b><span>' + esc(m.nombre) + '</span></button>';
+    }).join('') + '</div>' +
+    '<label class="lbl" for="ventObs">Observación (opcional)</label>' +
+    '<textarea id="ventObs" rows="2" maxlength="' + C.OBS_MAX + '" placeholder="Ej.: trae orden de PAMI sin validar">' + esc(S.vobs) + '</textarea>' +
+    '<div class="vhint"><span>La ve el personal de ventanilla en pantalla. Sin datos clínicos.</span><span id="ventCnt">' + S.vobs.length + '/' + C.OBS_MAX + '</span></div>' +
+    '<div class="btnrow"><button class="btn ghost" data-vact="cancel">Cancelar</button><button class="btn primary" data-vact="ok">Generar número</button></div>';
+}
+function generarVent(){
+  var ta = $('ventObs'); if (ta) S.vobs = ta.value;
+  S.ticket = window.ColaAT.emitir(S.vmot, S.vobs);
+  renderVent(); render();
+}
+$('ventOv').addEventListener('click', function (e) {
+  if (e.target === $('ventOv')) return cerrarVent();
+  var m = e.target.closest('[data-mot]');
+  if (m){
+    S.vmot = m.dataset.mot;
+    Array.prototype.forEach.call(document.querySelectorAll('.mbtn'), function (n) { n.setAttribute('aria-checked', String(n === m)); });
+    return;
+  }
+  var a = e.target.closest('[data-vact]'); if (!a) return;
+  if (a.dataset.vact === 'cancel') return cerrarVent();
+  if (a.dataset.vact === 'ok') return generarVent();
+  if (a.dataset.vact === 'listo') return limpiar(false);
+});
+$('ventOv').addEventListener('input', function (e) {
+  if (e.target.id !== 'ventObs') return;
+  S.vobs = e.target.value;
+  var c = $('ventCnt'); if (c) c.textContent = S.vobs.length + '/' + window.ColaAT.OBS_MAX;
+});
 
 function render(){
   var R = $('results'), d = S.data;
@@ -292,7 +339,7 @@ function render(){
       '<ol>' +
         '<li>Ingresá o escaneá el documento del paciente.</li>' +
         '<li>Mirá si el trámite está completo (bandera verde) o incompleto (bandera roja).</li>' +
-        '<li>Si no se puede resolver en la fila, el paciente sigue a ventanilla.</li>' +
+        '<li>Si no se resuelve acá, tocá «Atención en ventanilla» para darle un número.</li>' +
       '</ol>' +
       (CONFIG.mode === 'demo' ? '<div class="demohint"><b>Modo demo</b> — datos ficticios. Probá los documentos ' +
         '<b>12345678</b> (trámite incompleto), <b>23456789</b> (todo en orden), <b>34567890</b> (sin turno hoy), ' +
@@ -309,14 +356,14 @@ function render(){
   }
   if (S.phase === 'error'){
     R.innerHTML = '<div class="state card"><div class="banner bad" style="max-width:560px;text-align:left">' + ICON.alert +
-      '<div><div class="h">No se pudo consultar</div><ul><li>' + esc(S.err) + '</li><li>Reintentá, o el paciente sigue en la cola a ventanilla.</li></ul></div></div>' +
-      '<div class="btnrow"><button class="btn primary" id="btnRetry">Reintentar</button><button class="btn ghost" id="btnNueva">Nueva consulta</button></div></div>' + pieIdle();
+      '<div><div class="h">No se pudo consultar</div><ul><li>' + esc(S.err) + '</li><li>Reintentá, o dale un número para ventanilla.</li></ul></div></div>' +
+      '<div class="btnrow"><button class="btn primary" id="btnRetry">Reintentar</button><button class="btn ghost" id="btnNueva">Nueva consulta</button></div></div>' + ventBar();
     renderDni(); return;
   }
   if (S.phase === 'notfound'){
     R.innerHTML = '<div class="state card"><div class="banner warn" style="max-width:560px;text-align:left">' + ICON.info +
-      '<div><div class="h">Documento ' + esc(fmtDni(S.dni)) + ' no encontrado en el HIS</div><ul><li>Verificá que el número esté bien escrito.</li><li>Si está bien, sigue en la cola a ventanilla.</li></ul></div></div>' +
-      '<div class="btnrow"><button class="btn primary" id="btnNueva">Nueva consulta</button></div></div>' + pieIdle();
+      '<div><div class="h">Documento ' + esc(fmtDni(S.dni)) + ' no encontrado en el HIS</div><ul><li>Verificá que el número esté bien escrito.</li><li>Si está bien, dale un número para ventanilla.</li></ul></div></div>' +
+      '<div class="btnrow"><button class="btn primary" id="btnNueva">Nueva consulta</button></div></div>' + ventBar();
     renderDni(); return;
   }
   /* result */
@@ -328,9 +375,7 @@ function render(){
                                           : '<div class="empty">No tiene turno el día de hoy.</div>')
   : S.tab === 'prev' ? (d.previos.length ? '<div class="list">' + d.previos.map(itemPrev).join('') + '</div>'
                                          : '<div class="empty">Sin estudios entre el ' + desde + ' y el ' + hasta + '.</div>')
-  : '<div class="vent">' + ICON.queue + '<h3>Sigue en la cola</h3>' +
-       '<p>Este paciente tiene que ser atendido en ventanilla.</p>' +
-       '<button class="btn primary" id="btnNueva" style="min-height:64px;font-size:21px;padding:0 34px">Siguiente paciente</button></div>';
+  : '';
   R.innerHTML =
     '<div class="patient card">' +
       '<div class="who"><h2>' + esc(nombreMostrado(d.paciente.nombre)) + '</h2>' +
@@ -342,10 +387,9 @@ function render(){
     '<div class="tabs" role="tablist">' +
       '<button class="tab" role="tab" data-tab="hoy" aria-selected="' + (S.tab==='hoy') + '"><span class="tl">Turno hoy</span>' + badge(d.turnosHoy) + '</button>' +
       '<button class="tab" role="tab" data-tab="prev" aria-selected="' + (S.tab==='prev') + '"><span class="tl">Estudios anteriores</span>' + badge(d.previos) + '</button>' +
-      '<button class="tab" role="tab" data-tab="vent" aria-selected="' + (S.tab==='vent') + '"><span class="tl">Atención en ventanilla</span></button>' +
     '</div>' +
     (S.tab === 'prev' ? '<div class="foot">Del ' + desde + ' al ' + hasta + '</div>' : '') +
-    panel + pieIdle();
+    panel + ventBar();
   renderDni();
 }
 
@@ -360,9 +404,11 @@ $('results').addEventListener('click', function (e) {
   if (t.id === 'btnCancel'){ abortar('cancel'); clearInterval(S.tick); return setPhase('idle'); }
   if (t.id === 'btnRetry') return buscar();
   if (t.dataset.tab){ S.tab = t.dataset.tab; return render(); }
+  if (t.dataset.vent) return abrirVent();
   if (t.dataset.pedido !== undefined) return abrirPedido(t.dataset.pedido, t.dataset.t);
 });
 document.addEventListener('keydown', function (e) {
+  if (!$('ventOv').hidden){ if (e.key === 'Escape') cerrarVent(); return; }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (!$('pedidoOv').hidden){ if (e.key === 'Escape') cerrarPedido(); return; }
   if (!$('scanOv').hidden) return;

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#070D1F">
+<meta name="robots" content="noindex, nofollow">
+<title>Ventanilla · Turnos · Lumen</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="atencion-ventanilla.css?v=6a31f52b">
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10" fill="#1d3a5f"/><path d="M13 9v20h13" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="27" cy="12" r="4.2" fill="#c8962e"/></svg>
+    <div><div class="t1">Ventanilla · Turnos</div><div class="t2">Lumen · Diagnóstico por Imágenes</div></div>
+  </div>
+  <div class="spacer"></div>
+  <div class="stat" id="stat" aria-live="polite"></div>
+  <div class="clock" id="clock"></div>
+  <div class="mode demo" id="modeBadge"><i></i><span>DEMO · cola local</span></div>
+</header>
+
+<main>
+  <section class="calling" aria-label="Llamando ahora">
+    <h2>Llamando ahora</h2>
+    <div class="callist" id="llamando"></div>
+  </section>
+
+  <section class="queue" aria-label="En espera">
+    <div class="filtros" id="filtros" role="group" aria-label="Filtrar por letra"></div>
+    <div class="thead" aria-hidden="true"><span>Número</span><span>Llegada</span><span>Motivo</span><span>Observación</span><span></span></div>
+    <div class="rows" id="rows" aria-live="polite"></div>
+  </section>
+</main>
+
+<footer class="demobar" id="demoBar">
+  <span>Demo: la cola se comparte con el tablero de recepción sólo entre pestañas de este mismo navegador.</span>
+  <button class="btn ghost sm" id="btnSembrar">Cargar ejemplos</button>
+  <button class="btn ghost sm" id="btnVaciar">Vaciar cola</button>
+</footer>
+
+<script src="atencion-cola.js?v=4cca3ab8"></script>
+<script src="atencion-ventanilla.js?v=632fd9f6"></script>
+</body>
+</html>
