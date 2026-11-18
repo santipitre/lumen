@@ -1,0 +1,59 @@
+/* Zafiro · letra más grande en conciliacion (generado: x1.2 hasta 20px, x1.12 arriba; solo pantallas >= 900px) */
+@media (min-width:900px){
+html[data-ui="zafiro"] .tb-crumb{font-size:18px}
+html[data-ui="zafiro"] .ses-chip{font-size:13px}
+html[data-ui="zafiro"] .tb-back{font-size:13px}
+html[data-ui="zafiro"] h1.page{font-size:27px}
+html[data-ui="zafiro"] .page-sub{font-size:15px}
+html[data-ui="zafiro"] .cfg label{font-size:12px}
+html[data-ui="zafiro"] .cfg input{font-size:16px}
+html[data-ui="zafiro"] .btn{font-size:14px}
+html[data-ui="zafiro"] .drop-ico{font-size:29px}
+html[data-ui="zafiro"] .drop-title{font-size:18px}
+html[data-ui="zafiro"] .drop-sub{font-size:14px}
+html[data-ui="zafiro"] .drop-status{font-size:14px}
+html[data-ui="zafiro"] .drop-status .cnt{font-size:24px}
+html[data-ui="zafiro"] .drop-warn{font-size:13px}
+html[data-ui="zafiro"] .kpi-lbl{font-size:12px}
+html[data-ui="zafiro"] .kpi-val{font-size:36px}
+html[data-ui="zafiro"] .kpi-pct{font-size:13px}
+html[data-ui="zafiro"] .filters label{font-size:12px}
+html[data-ui="zafiro"] .filters input,
+html[data-ui="zafiro"] .filters select{font-size:16px}
+html[data-ui="zafiro"] .restored-bar{font-size:15px}
+html[data-ui="zafiro"] .link-btn{font-size:13px}
+html[data-ui="zafiro"] .chip{font-size:14px}
+html[data-ui="zafiro"] .chip-n{font-size:12px}
+html[data-ui="zafiro"] .modal-head h3{font-size:22px}
+html[data-ui="zafiro"] .modal-x{font-size:25px}
+html[data-ui="zafiro"] .cmp-col h4{font-size:16px}
+html[data-ui="zafiro"] .cmp-none{font-size:16px}
+html[data-ui="zafiro"] .alts h5{font-size:13px}
+html[data-ui="zafiro"] .toast{font-size:16px}
+html[data-ui="zafiro"] .hl-bar label{font-size:12px}
+html[data-ui="zafiro"] .hl-bar textarea{font-size:14px}
+html[data-ui="zafiro"] .hl-info{font-size:14px}
+/* estilos en línea */
+html[data-ui="zafiro"] [style*="font-size:10px"],html[data-ui="zafiro"] [style*="font-size: 10px"]{font-size:12px !important}
+html[data-ui="zafiro"] [style*="font-size:12px"],html[data-ui="zafiro"] [style*="font-size: 12px"]{font-size:14px !important}
+html[data-ui="zafiro"] [style*="font-size:14px"],html[data-ui="zafiro"] [style*="font-size: 14px"]{font-size:17px !important}
+}
+/* Tabla, filas y modal: solo desde 1600px, para no ensanchar la tabla de turnos */
+@media (min-width:1600px){
+html[data-ui="zafiro"] table.recon{font-size:14px}
+html[data-ui="zafiro"] table.recon th{font-size:12px}
+html[data-ui="zafiro"] .badge{font-size:12px}
+html[data-ui="zafiro"] .mini-btn{font-size:13px}
+html[data-ui="zafiro"] .cp{font-size:14px}
+html[data-ui="zafiro"] .obs-sel{font-size:13px}
+html[data-ui="zafiro"] .obs-txt{font-size:12px}
+html[data-ui="zafiro"] .kv{font-size:15px}
+html[data-ui="zafiro"] .alt-row{font-size:14px}
+html[data-ui="zafiro"] .sort-arrow{font-size:12px}
+html[data-ui="zafiro"] select.est-filter{font-size:13px}
+html[data-ui="zafiro"] .ar-box{font-size:16px}
+html[data-ui="zafiro"] .vi-box{font-size:14px}
+html[data-ui="zafiro"] .grp-name{font-size:15px}
+html[data-ui="zafiro"] .grp-n{font-size:12px}
+html[data-ui="zafiro"] .grp-vi{font-size:13px}
+}

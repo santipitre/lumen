@@ -1,0 +1,76 @@
+/* ============================================================
+   Lumen · Zafiro Lumen para conciliacion-pami.html (OPT-IN, solo oscuro)
+   Va después de lumen-zafiro.css y lumen-zafiro-modulos.css (que ya remapean --glass, --border, --border-a,
+   --pyralis-* y dan estilo a .topbar).
+   El ámbar del módulo (--pyralis-firefly) pasa al azul Zafiro. NO se tocan los colores que significan algo:
+   validado/pendiente/transmitido/sin registro (--ok --warn --info --danger), dudoso (violeta), fila «arreglado»
+   (verde), fila «visto» (celeste), «observación» y el resaltado de N° de turno marcados (ámbar de marca).
+   ============================================================ */
+html[data-ui="zafiro"]{ --pyralis-firefly:var(--z-acc-ink); --pyralis-firefly-dim:rgba(94,151,255,.12); --pyralis-firefly-ring:rgba(94,151,255,.30); }
+
+html[data-ui="zafiro"] :is(h1.page,.drop-title,.drop-title,.kpi-val,.kpi-val .cnt,.modal-head h3,.cmp-col h4,.grp-name,.drop-status .cnt,.tb-crumb){ font-family:var(--z-font); }
+html[data-ui="zafiro"] h1.page{ font-weight:800; letter-spacing:.06em; }
+html[data-ui="zafiro"] .tb-crumb{ font-weight:800; }
+html[data-ui="zafiro"] .ses-chip{ font-family:var(--z-font); border-color:var(--z-line-strong); background:var(--z-card-hi); }
+html[data-ui="zafiro"] .tb-back{ border-radius:12px; font-family:var(--z-font); background:var(--z-card-hi); border-color:var(--z-line); color:var(--z-ink2); }
+html[data-ui="zafiro"] .tb-back:hover{ color:var(--z-acc-ink); border-color:var(--z-acc); }
+
+/* Configuración, KPIs, zonas de carga: vidrio */
+html[data-ui="zafiro"] :is(.cfg,.kpi){
+  border-color:var(--z-line); border-radius:18px;
+  background:linear-gradient(180deg,var(--z-sheen),transparent 46%),var(--z-card); box-shadow:var(--z-raise);
+}
+html[data-ui="zafiro"] .kpi.active{ border-color:var(--z-acc); box-shadow:var(--z-raise),0 0 0 1px var(--z-line-strong) inset; }
+html[data-ui="zafiro"] .drop{ border-radius:18px; border-color:var(--z-line-strong); background:rgba(94,151,255,.04); }
+html[data-ui="zafiro"] .drop.dragover{ background:rgba(94,151,255,.12); box-shadow:0 0 0 2px var(--z-line-strong) inset; }
+html[data-ui="zafiro"] .drop.loaded{ border-color:var(--ok); background:rgba(16,185,129,.06); }
+html[data-ui="zafiro"] .drop.err{ border-color:var(--danger); background:rgba(248,113,113,.06); }
+
+/* Botones y campos */
+html[data-ui="zafiro"] .btn{ border-radius:12px; font-family:var(--z-font); }
+html[data-ui="zafiro"] .btn-primary{ background:linear-gradient(135deg,#2A63D8,var(--z-acc)); color:#fff; border:1px solid var(--z-line-strong); }
+html[data-ui="zafiro"] .btn-ghost{ background:var(--z-card-hi); border-color:var(--z-line); color:var(--z-ink); }
+html[data-ui="zafiro"] .btn-ghost:hover{ border-color:var(--z-acc); color:var(--z-acc-ink); }
+html[data-ui="zafiro"] .mini-btn,html[data-ui="zafiro"] .link-btn{ border-radius:10px; background:var(--z-card-hi); border-color:var(--z-line); }
+html[data-ui="zafiro"] .mini-btn:hover,html[data-ui="zafiro"] .link-btn:hover{ border-color:var(--z-acc); color:var(--z-acc-ink); }
+html[data-ui="zafiro"] :is(.cfg input,.filters input,.filters select,.obs-sel,select.est-filter,.hl-bar textarea,#obs-input){
+  background:var(--z-card-hi); border:1px solid var(--z-line); border-radius:10px; color:var(--z-ink); font-family:var(--z-font);
+}
+html[data-ui="zafiro"] :is(.cfg input,.filters input,.filters select,.obs-sel,select.est-filter,.hl-bar textarea,#obs-input):focus{
+  border-color:var(--z-acc); outline:none; box-shadow:0 0 0 4px rgba(94,151,255,.22);
+}
+html[data-ui="zafiro"] .obs-sel.set{ border-color:var(--warn); color:var(--warn); }
+html[data-ui="zafiro"] select.est-filter.set{ border-color:var(--z-acc); color:var(--z-acc-ink); }
+
+/* Chips de estado */
+html[data-ui="zafiro"] .chip{ border-radius:999px; font-family:var(--z-font); background:var(--z-card-hi); border-color:var(--z-line); }
+html[data-ui="zafiro"] .chip:hover{ border-color:var(--z-acc); }
+html[data-ui="zafiro"] .chip.active{ background:rgba(94,151,255,.16); border-color:var(--z-acc); color:var(--z-acc-ink); }
+html[data-ui="zafiro"] .chip.active .chip-n{ background:rgba(94,151,255,.30); color:var(--z-acc-ink); }
+html[data-ui="zafiro"] .grp-n{ background:rgba(94,151,255,.22); color:var(--z-acc-ink); }
+
+/* Tabla: encabezados y separadores OPACOS (son pegajosos; los tokens translúcidos dejarían ver las filas) */
+html[data-ui="zafiro"] .tbl-wrap{ border-color:var(--z-line); border-radius:16px; }
+html[data-ui="zafiro"] table.recon th{ background:#14204A; border-bottom-color:var(--z-line); font-family:var(--z-font); }
+html[data-ui="zafiro"] table.recon td{ border-bottom-color:rgba(165,198,255,.10); }
+html[data-ui="zafiro"] table.recon tr:hover td{ background:rgba(94,151,255,.07); }
+html[data-ui="zafiro"] table.recon th.sortable:hover,html[data-ui="zafiro"] table.recon th.sortable.active{ color:var(--z-acc-ink); }
+html[data-ui="zafiro"] tr.grp-head td{ background:#182650; border-top-color:var(--z-line-strong); border-bottom-color:var(--z-line); }
+/* Las filas con significado conservan sus colores (arreglado verde, visto celeste, turno marcado ámbar) */
+html[data-ui="zafiro"] .ar-box,html[data-ui="zafiro"] .vi-box{ background:var(--z-card-hi); border-color:var(--z-line-strong); }
+html[data-ui="zafiro"] .ar-check input:checked + .ar-box{ background:var(--ok); border-color:var(--ok); }
+html[data-ui="zafiro"] .vi-check input:checked + .vi-box{ background:rgba(96,165,250,.18); border-color:var(--info); }
+html[data-ui="zafiro"] :is(.ar-check input:focus-visible + .ar-box,.vi-check input:focus-visible + .vi-box){ outline-color:var(--z-acc); }
+
+/* Barras informativas */
+html[data-ui="zafiro"] .restored-bar{ border-radius:14px; border-color:var(--z-line-strong); background:var(--z-card); color:var(--z-ink2); }
+html[data-ui="zafiro"] .hl-bar{ border-radius:14px; }
+
+/* Modales y aviso */
+html[data-ui="zafiro"] .ov{ background:rgba(3,6,16,.78); }
+html[data-ui="zafiro"][data-fx="on"] .ov{ -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); }
+html[data-ui="zafiro"] .modal{ background:var(--z-elev); border-color:var(--z-line); border-radius:20px; box-shadow:0 30px 70px -24px rgba(0,0,20,.8); }
+html[data-ui="zafiro"] :is(.modal-head,.alts,.modal-foot,.cmp-col + .cmp-col){ border-color:var(--z-line); }
+html[data-ui="zafiro"] .alt-row{ border-color:var(--z-line); border-radius:12px; background:var(--z-card); }
+html[data-ui="zafiro"] .toast{ background:var(--z-elev); border-color:var(--z-line-strong); border-radius:14px; }
+html[data-ui="zafiro"] .btn-open{ background:rgba(94,151,255,.15); color:var(--z-acc-ink); border-color:var(--z-line-strong); }
