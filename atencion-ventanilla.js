@@ -22,7 +22,8 @@ var ocupado = {};                   // ids con una acción en curso (evita doble
 var confirmando = '';               // id de «No se presentó» esperando confirmación
 var confTimer = null, toastT = null;
 
-function $(id){ return document.getElementById(id); }
+var app = document.getElementById('app');   // todo lo que se ve vive acá: se puede mover a una ventana flotante
+function $(id){ return app.querySelector('#' + id); }
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function hhmm(ms){ return new Date(ms).toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit', hour12:false }); }
 function minutos(ms){ return Math.max(0, Math.floor((C.ahora() - ms) / 60000)); }
@@ -39,8 +40,8 @@ var ICON = {
 
 function toast(msg){
   var n = document.createElement('div'); n.className = 'toast'; n.setAttribute('role', 'alert'); n.textContent = msg;
-  var v = document.querySelector('.toast'); if (v) v.remove();
-  document.body.appendChild(n); clearTimeout(toastT); toastT = setTimeout(function () { n.remove(); }, 5000);
+  var v = app.querySelector('.toast'); if (v) v.remove();
+  app.appendChild(n); clearTimeout(toastT); toastT = setTimeout(function () { n.remove(); }, 5000);
 }
 function fallo(e){ toast(C.mensaje(e)); render(); }
 
@@ -63,6 +64,12 @@ function render(){
 
   $('stat').innerHTML = '<b>' + esp.length + '</b> en espera' + (llam.length ? ' · <b>' + llam.length + '</b> llamando' : '');
 
+  /* barra de la ventana achicada: lo más importante en una línea */
+  var mias = llam.filter(function (t) { return t.puesto === puesto; });
+  var hayNuevo = Object.keys(nuevos).length > 0;
+  $('barInfo').textContent = (hayNuevo ? 'NUEVO · ' : '') + (mias.length ? 'Llamando ' + mias[0].codigo : (esp.length ? 'Próximo ' + esp[0].codigo + ' · ' + esp.length + ' en espera' : 'Sin nadie en espera')) + (puesto ? ' · V' + puesto : '');
+  app.querySelector('.top').classList.toggle('pulso', hayNuevo);
+
   /* llamando: los de mi ventanilla primero */
   llam.sort(function (a, b) { return (b.puesto === puesto) - (a.puesto === puesto) || a.llamadoEn - b.llamadoEn; });
   $('llamando').innerHTML = llam.length ? llam.map(function (t) {
@@ -82,7 +89,7 @@ function render(){
   $('filtros').innerHTML =
     '<button class="fil" data-fil="*" aria-pressed="' + (filtro === '*') + '">Todas <b>' + esp.length + '</b></button>' +
     C.MOTIVOS.map(function (m) {
-      return '<button class="fil" data-fil="' + esc(m.letra) + '" aria-pressed="' + (filtro === m.letra) + '" title="' + esc(m.nombre) + '"><i>' + esc(m.letra) + '</i>' + esc(m.nombre) + ' <b>' + (cuenta[m.letra] || 0) + '</b></button>';
+      return '<button class="fil" data-fil="' + esc(m.letra) + '" aria-pressed="' + (filtro === m.letra) + '" title="' + esc(m.nombre) + '"><i>' + esc(m.letra) + '</i><span class="fn">' + esc(m.nombre) + '</span> <b>' + (cuenta[m.letra] || 0) + '</b></button>';
     }).join('');
 
   /* cola */
@@ -91,7 +98,7 @@ function render(){
     var min = minutos(t.ts), largo = min >= ESPERA_AVISO_MIN, busy = ocupado[t.id] ? ' disabled' : '';
     return '<article class="row' + (largo ? ' largo' : '') + (nuevos[t.id] ? ' nuevo' : '') + '">' +
       '<div class="cod">' + esc(t.codigo) + (nuevos[t.id] ? '<em>NUEVO</em>' : '') + '</div>' +
-      '<div class="lleg"><b>' + esc(hhmm(t.ts)) + '</b><span class="esp">' + (largo ? ICON.reloj : '') + esc(hace(min)) + '</span></div>' +
+      '<div class="lleg"><b>' + esc(hhmm(t.ts)) + '</b><span class="esp">' + (largo ? ICON.reloj : '') + esc(hace(min)) + '</span>' + (t.prueba ? '<span class="ptag ptmini">PRUEBA</span>' : '') + '</div>' +
       '<div class="mot">' + esc(C.motivo(t.letra).nombre) + pruebaTag(t) + '</div>' +
       '<div class="obs">' + obsHtml(t) + '</div>' +
       '<div class="act"><button class="btn primary" data-act="llamar" data-id="' + esc(t.id) + '"' + busy + '>' + ICON.voz + 'Llamar</button></div></article>';
@@ -155,13 +162,107 @@ C.alEstado(function (s) {
   m.querySelector('span').textContent = s.online ? 'En línea' : 'Sin conexión';
 });
 
+/* ---------- vista compacta y ventana flotante ----------
+   Una página web no puede quedar «encima» de otros programas por sí sola. Hay dos caminos reales:
+   1) Picture-in-Picture de documento (Chrome/Edge 116+): una ventana chica que queda SIEMPRE arriba.
+   2) Si el navegador no lo tiene: una ventana emergente chica (se mueve, se minimiza y se cierra,
+      pero puede quedar detrás de otra ventana). */
+var QS = {}; (location.search || '').replace(/^\?/, '').split('&').forEach(function (p) { var k = p.split('='); if (k[0]) QS[k[0]] = decodeURIComponent(k[1] || ''); });
+var popup = QS.flot === '1';          // esta pestaña ES la ventana emergente
+var pip = null;                       // ventana de Picture-in-Picture abierta (si hay)
+var mini = false, minim = false, delta = null;
+var POS_KEY = 'lumen.at.pos';
+
+function flotante(){ return !!pip || popup; }
+function ventana(){ return pip || window; }
+function aplicar(){
+  var cl = app.ownerDocument.documentElement.classList;
+  cl.toggle('mini', mini); cl.toggle('flot', flotante()); cl.toggle('min', minim && flotante());
+  $('btnFlotar').hidden = !(mini && !flotante());
+  $('btnMin').hidden = !flotante();
+  $('btnMin').setAttribute('aria-label', minim ? 'Agrandar la ventana' : 'Achicar la ventana');
+  $('btnMin').innerHTML = minim
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 15l7-7 7 7"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"/></svg>';
+  var admin = C.rol() === 'admin';
+  $('btnVista').hidden = !(admin && !flotante());
+  $('btnVista').textContent = mini ? 'Vista completa' : 'Vista compacta';
+}
+function achicar(){
+  minim = !minim; aplicar();
+  var w = ventana();
+  try {
+    if (minim){ delta = [360 - w.innerWidth, 84 - w.innerHeight]; w.resizeBy(delta[0], delta[1]); }
+    else if (delta){ w.resizeBy(-delta[0], -delta[1]); delta = null; }
+  } catch (_) {}
+}
+function abrirPopup(){
+  var pos = null; try { pos = JSON.parse(localStorage.getItem(POS_KEY)); } catch (_) {}
+  var W = (pos && pos.w) || 380, H = (pos && pos.h) || 560;
+  var X = pos ? pos.x : Math.max(0, (screen.availWidth || 1200) - W - 24), Y = pos ? pos.y : 80;
+  var w = window.open('atencion-ventanilla.html?flot=1', 'lumenVentanilla', 'popup=yes,width=' + W + ',height=' + H + ',left=' + X + ',top=' + Y);
+  if (!w) toast('El navegador bloqueó la ventana. Permití las ventanas emergentes para este sitio.');
+}
+function abrirFlotante(){
+  if (!mini){ mini = true; aplicar(); }
+  if (window.documentPictureInPicture && window.documentPictureInPicture.requestWindow){
+    window.documentPictureInPicture.requestWindow({ width: 380, height: 560 }).then(function (w) {
+      var esperas = [];
+      /* copiamos los estilos como <style> (no dependen de la red); si el navegador no deja leerlos, enlazamos el archivo */
+      Array.prototype.forEach.call(document.styleSheets, function (hoja) {
+        try {
+          var base = (hoja.href || location.href).replace(/[^\/]*$/, '');
+          var css = Array.prototype.map.call(hoja.cssRules, function (r) { return r.cssText; }).join('\n')
+            .replace(/url\(\s*(['"]?)(?!data:|https?:|\/|#)/g, 'url($1' + base);
+          var st = w.document.createElement('style'); st.textContent = css; w.document.head.appendChild(st);
+        } catch (_) {
+          if (!hoja.href) return;
+          var n = w.document.createElement('link'); n.rel = 'stylesheet'; n.href = hoja.href;
+          esperas.push(new Promise(function (ok) { n.onload = n.onerror = ok; }));
+          w.document.head.appendChild(n);
+        }
+      });
+      w.document.title = 'Turnos · Ventanilla';
+      /* esperamos a que carguen los estilos para no mostrar la ventana «pelada» */
+      Promise.race([Promise.all(esperas), new Promise(function (ok) { setTimeout(ok, 2000); })]).then(function () {
+        pip = w;
+        w.document.body.appendChild(app);
+        document.getElementById('flotaAviso').hidden = false;
+        w.addEventListener('pagehide', traer);
+        aplicar(); render();
+      });
+    }, function () { abrirPopup(); });
+  } else abrirPopup();
+}
+function traer(){
+  if (!pip) return;
+  pip = null; minim = false; delta = null;
+  document.body.insertBefore(app, document.body.firstChild);
+  document.getElementById('flotaAviso').hidden = true;
+  aplicar(); render();
+}
+$('btnFlotar').addEventListener('click', abrirFlotante);
+$('btnMin').addEventListener('click', achicar);
+$('btnVista').addEventListener('click', function () { mini = !mini; aplicar(); render(); });
+document.getElementById('btnTraer').addEventListener('click', function () { if (pip) pip.close(); });
+/* si la sesión vence mientras flota, el aviso de ingreso sale en la pestaña principal: se la devolvemos */
+new MutationObserver(function () { if (pip && document.querySelector('.gate:not([hidden])')) pip.close(); }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
+/* la ventana emergente recuerda dónde la dejaron */
+if (popup){
+  setInterval(function () {
+    try { localStorage.setItem(POS_KEY, JSON.stringify({ x: window.screenX, y: window.screenY, w: minim && delta ? window.outerWidth - delta[0] : window.outerWidth, h: minim && delta ? window.outerHeight - delta[1] : window.outerHeight })); } catch (_) {}
+  }, 2000);
+}
+
 C.suscribir(render);
 reloj();
 setInterval(function () { reloj(); render(); }, 20000);   // actualiza «hace N min» y el cambio de día
 window.GateAT.arrancar({ permitidos: ['ventanilla', 'admin'], prueba: false, listo: function () {
   puesto = leerPuesto();
   if (puesto && Number(puesto) > C.puestos()) puesto = '';
-  pintarPuesto(); render();
+  /* pantalla completa: solo administrador y recepción (la recepción usa la tablet); ventanilla siempre compacta */
+  mini = C.rol() === 'ventanilla' || popup || QS.mini === '1';
+  aplicar(); pintarPuesto(); render();
   if (!puesto) elegirPuesto(true);
 } });
 })();

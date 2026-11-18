@@ -178,3 +178,100 @@ main{flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,30%) min
   .puesto{order:4; margin:.4rem 0 0 .6rem; min-height:2.6rem; padding:0 .8rem}
   .mode{order:5; margin:.4rem 0 0 .6rem}
 }
+
+/* ============================================================
+   Vista compacta (personal de ventanilla) y ventana flotante
+   - Se activa con html.mini; html.flot = dentro de ventana flotante; html.min = achicada a una barra.
+   - Independiente de media queries: tiene que verse igual en una ventana de ~380 px sobre un monitor grande.
+   ============================================================ */
+.winbtns{display:flex; align-items:center}
+.winbtns > * + *{margin-left:.5rem}
+.wbtn{min-height:2.6rem; padding:0 .8rem; border-radius:.7rem; border:2px solid var(--z-line-strong); background:var(--z-card); color:var(--z-ink); font-size:.85rem; font-weight:700; display:inline-flex; align-items:center; justify-content:center; white-space:nowrap}
+.wbtn svg{width:1.15rem; height:1.15rem; flex:none}
+.wbtn svg + span{margin-left:.45rem}
+.wbtn.ico{min-width:2.6rem; padding:0}
+.wbtn:active{background:var(--z-card-hi)}
+.barinfo{display:none}
+.aviso{position:fixed; top:0; right:0; bottom:0; left:0; z-index:40; background:var(--z-bg); background-image:var(--z-bgimg); display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:2rem}
+.aviso h3{margin:0 0 .4rem; font-size:1.7rem}
+.aviso p{margin:0 0 1.2rem; font-size:1.1rem; color:var(--z-ink2)}
+@keyframes pulso{0%{background-color:var(--z-elev)}50%{background-color:#1d3a78}100%{background-color:var(--z-elev)}}
+
+html.mini{font-size:14px}
+html.mini .top{flex-wrap:wrap; padding:.45rem .6rem; min-height:0}
+html.mini .top > * + *{margin-left:.5rem}
+html.mini .brand{margin-left:0; flex:none}
+html.mini .brand > div,html.mini .clock,html.mini .spacer{display:none}
+html.mini .mark{width:2.2rem; height:2.2rem}
+html.mini .puesto{order:1; flex:1 1 55%; min-width:0; min-height:2.6rem; padding:0 .8rem; justify-content:center}
+html.mini .puesto .pl,html.mini .puesto .pc{display:none}
+html.mini .winbtns{order:2}
+html.mini .wbtn span{display:none}
+html.mini .wbtn svg + span{display:none}
+html.mini .stat{order:3; flex:1 1 45%; min-width:0; font-size:.95rem; margin:.35rem 0 0 0; white-space:normal}
+html.mini .stat b{font-size:1.2rem}
+html.mini .mode{order:4; margin-top:.35rem; font-size:.75rem; padding:.25rem .6rem}
+html.mini .top.pulso{animation:pulso 1.2s ease-in-out infinite}
+html.mini .brand{order:0}
+
+html.mini main{display:flex; flex-direction:column; gap:.5rem; padding:.5rem .6rem}
+html.mini .calling{flex:none; max-height:52%}
+html.mini .calling h2{display:none}
+html.mini .callist{flex:none; max-height:100%}
+html.mini .callist > * + *{margin-top:.5rem}
+html.mini .call{padding:.6rem .7rem; border-width:2px}
+html.mini .call > * + *{margin-top:.3rem}
+html.mini .call .cod{font-size:2.5rem; letter-spacing:1px}
+html.mini .call .dest{font-size:1rem}
+html.mini .call .dest svg{width:1.1rem; height:1.1rem; margin-right:.4rem}
+html.mini .call .dest b{font-size:1.3rem}
+html.mini .call .dest em{font-size:.65rem; margin-left:.5rem}
+html.mini .call .cm{font-size:.85rem}
+html.mini .cobs{font-size:.85rem}
+html.mini .nadie{padding:.6rem .8rem; font-size:.9rem}
+html.mini .nadie svg{width:1.3rem; height:1.3rem; margin-right:.5rem}
+html.mini .btn{min-height:2.5rem; padding:0 .7rem; font-size:.85rem; border-radius:.65rem}
+html.mini .btn svg{width:1.1rem; height:1.1rem; margin-right:.35rem}
+html.mini .btnrow{margin:-.2rem}
+html.mini .btnrow > *{margin:.2rem}
+
+html.mini .queue{flex:1; min-height:0}
+html.mini .filtros{margin:-.15rem -.15rem .4rem}
+html.mini .fil{margin:.15rem; min-height:2.3rem; padding:0 .55rem; font-size:.8rem; border-width:2px}
+html.mini .fil i{width:1.4rem; height:1.4rem; margin-right:.3rem; font-size:.8rem}
+html.mini .fil b{margin-left:.3rem; min-width:1.3rem; height:1.3rem; font-size:.75rem}
+html.mini .fil .fn{display:none}
+html.mini .fil[data-fil="*"]{padding:0 .65rem}
+html.mini .thead{display:none}
+html.mini .rows > * + *{margin-top:.4rem}
+html.mini .row{grid-template-columns:auto minmax(0,1fr) auto; grid-template-areas:"cod lleg act" "obs obs obs"; gap:.15rem .6rem; padding:.45rem .6rem .45rem .5rem; min-height:0; border-left-width:.35rem}
+html.mini .row .cod{grid-area:cod; font-size:1.6rem}
+html.mini .row .cod em{font-size:.55rem}
+html.mini .lleg{grid-area:lleg}
+html.mini .lleg b{font-size:.95rem}
+html.mini .esp{font-size:.8rem}
+html.mini .mot{display:none}
+html.mini .obs{grid-area:obs; font-size:.85rem}
+html.mini .obs .sin{display:none}
+html.mini .obs-t svg{width:1rem; height:1rem; margin-right:.4rem}
+html.mini .act{grid-area:act}
+html.mini .vacio{padding:1.2rem .8rem}
+html.mini .vacio svg{width:2.2rem; height:2.2rem}
+html.mini .vacio h3{font-size:1.1rem; margin:.5rem 0 .2rem}
+html.mini .vacio p{font-size:.85rem}
+html.mini .pbox{padding:1rem}
+html.mini .pbox h3{font-size:1.2rem}
+html.mini .pbox p{font-size:.85rem; margin-bottom:.8rem}
+html.mini .pbtn{min-height:3.4rem; font-size:1.5rem}
+html.mini .toast{font-size:.85rem; padding:.6rem .9rem; bottom:.6rem}
+
+/* achicada a una barra */
+html.mini.min main,html.mini.min .stat,html.mini.min .mode,html.mini.min .puesto{display:none}
+html.mini.min .top{flex-wrap:nowrap; padding:.4rem .6rem}
+html.mini.min .barinfo{display:block; order:1; flex:1 1 0; min-width:0; font-size:.95rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+
+.ptmini{display:none}
+html.mini .lleg .ptmini{display:inline-block; margin:.2rem 0 0 0; align-self:flex-start}
+
+html.mini #btnFlotar span{display:inline}
+html.mini #btnFlotar{padding:0 .7rem}
