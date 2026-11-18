@@ -1,0 +1,25 @@
+/* ============================================================
+   Lumen · Atención temprana — piezas comunes a las 3 pantallas
+   (pantalla de acceso por rol y aviso de falta de conexión).
+   Usa los tokens --z-* que define cada hoja de estilos de página.
+   Sin light-dark(), color-mix(), CSS anidado, inset: ni :is().
+   ============================================================ */
+.gate{position:fixed; top:0; right:0; bottom:0; left:0; z-index:200; display:flex; align-items:center; justify-content:center; padding:20px;
+  background-color:#070D1F; background-image:radial-gradient(130% 55% at 50% -22%,rgba(130,175,255,.24),transparent 62%),radial-gradient(800px 560px at -8% 110%,rgba(40,90,210,.20),transparent 60%)}
+.gate[hidden]{display:none}
+.gcard{width:min(460px,100%); text-align:center; background:#0E1838; border:1px solid rgba(165,198,255,.38); border-radius:20px; padding:30px 26px;
+  box-shadow:0 1px 0 rgba(190,215,255,.14) inset,0 14px 34px -12px rgba(0,0,12,.75); color:#E9EFFF; font-family:'Plus Jakarta Sans','Inter',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif}
+.gico{width:64px; height:64px; margin:0 auto 14px; border-radius:50%; display:grid; place-items:center; background:rgba(94,151,255,.14); border:1px solid rgba(94,151,255,.45); color:#9DBFFF}
+.gico svg{width:32px; height:32px}
+.gcard h2{margin:0 0 8px; font-size:24px; letter-spacing:-.3px; line-height:1.2}
+.gcard p{margin:0 0 20px; font-size:17px; line-height:1.4; color:#BFCAEA}
+.gbtns{display:flex; flex-wrap:wrap; justify-content:center; margin:-5px}
+.gbtn{margin:5px; min-height:52px; padding:0 22px; border-radius:14px; border:2px solid rgba(165,198,255,.38); background:transparent; color:#E9EFFF;
+  font:inherit; font-size:17px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; text-decoration:none}
+.gbtn.primary{background:#5E97FF; border-color:#5E97FF; color:#06122E}
+.gbtn:focus-visible{outline:3px solid #9DBFFF; outline-offset:2px}
+
+.connbar{position:fixed; top:0; left:0; right:0; z-index:150; display:flex; align-items:center; justify-content:center; padding:7px 14px;
+  background:#3a2a05; border-bottom:2px solid #EBB53F; color:#FFD98A; font:600 15px/1.2 'Plus Jakarta Sans','Inter',system-ui,sans-serif}
+.connbar[hidden]{display:none}
+.connbar svg{width:20px; height:20px; margin-right:9px; flex:none}

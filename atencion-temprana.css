@@ -345,3 +345,55 @@ main{flex:1; min-height:0; display:grid; grid-template-columns:392px 1fr; gap:16
   .item .pedido{padding:0 10px; font-size:15px}
 }
 @media (prefers-reduced-motion:reduce){.caret,.spinner{animation-duration:0s}}
+
+/* ---------- Lista de espera (botón del encabezado + hoja) ---------- */
+.qbtn{display:flex; align-items:center; min-height:48px; padding:0 14px; border-radius:999px; border:2px solid var(--z-line-strong); background:var(--z-card); color:var(--z-ink); font-weight:700; font-size:16px; white-space:nowrap; flex:none}
+.qbtn svg{width:24px; height:24px; margin-right:8px}
+.qbtn b{margin-left:10px; min-width:30px; height:30px; padding:0 8px; border-radius:999px; display:inline-grid; place-items:center; background:var(--z-card-hi); font-size:17px; font-variant-numeric:tabular-nums}
+.qbtn.has{border-color:var(--z-acc)}
+.qbtn.has b{background:var(--z-acc); color:var(--z-on-acc)}
+.qbtn:active{background:var(--z-card-press)}
+.sheet.cola{width:min(680px,100%); display:flex; flex-direction:column; overflow:hidden; max-height:min(90vh,820px); max-height:min(90dvh,820px)}
+.sheet.cola #colaBody{display:flex; flex-direction:column; min-height:0; overflow:hidden}
+.chead{display:flex; align-items:center; flex:none}
+.chead h3{flex:1}
+.cclose{min-height:48px; font-size:16px; padding:0 18px}
+.csum{margin:8px 0 4px; font-size:17px; color:var(--z-ink2); flex:none}
+.csum b{color:var(--z-ink)}
+.clbl{margin:12px 0 6px; font-size:13px; font-weight:700; color:var(--z-ink3); text-transform:uppercase; letter-spacing:.8px; flex:none}
+.clist{list-style:none; margin:0; padding:0; overflow-y:auto; -webkit-overflow-scrolling:touch; min-height:0}
+.crow{display:flex; align-items:center; padding:9px 12px; margin-bottom:6px; border-radius:12px; border:1px solid var(--z-line); background:var(--z-card)}
+.crow.mio{border-color:var(--z-acc); background:var(--z-card-hi)}
+.crow.call{border-color:var(--z-ok-line); background:var(--z-ok-bg)}
+.cpos{flex:none; width:34px; text-align:center; font-weight:700; font-size:16px; color:var(--z-ink3); font-variant-numeric:tabular-nums}
+.cpos svg{width:24px; height:24px; color:var(--z-ok)}
+.ccod{flex:none; width:96px; font-size:26px; font-weight:700; letter-spacing:1px; color:var(--z-acc-ink); font-variant-numeric:tabular-nums}
+.crow.call .ccod{color:var(--z-ok)}
+.cmid{flex:1; min-width:0; display:flex; flex-direction:column; padding:0 10px}
+.cmot{font-size:15px; font-weight:600; color:var(--z-ink2)}
+.cobs{font-size:14px; color:var(--z-ink3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.cend{flex:none; text-align:right; display:flex; flex-direction:column; font-size:13px; color:var(--z-ink3)}
+.cend b{font-size:17px; color:var(--z-ink); font-variant-numeric:tabular-nums}
+.cend b.cv{color:var(--z-ok); font-size:16px}
+.cvacio{display:flex; align-items:center; justify-content:center; padding:26px 10px; font-size:18px; color:var(--z-ink2)}
+.cvacio svg{width:28px; height:28px; margin-right:10px; color:var(--z-ok)}
+.tk-ahead{max-width:100%}
+.ah{display:inline-flex; align-items:center; padding:10px 16px; border-radius:14px; border:2px solid var(--z-line-strong); background:var(--z-card); font-size:19px; font-weight:600; color:var(--z-ink2); text-align:left}
+.ah svg{width:26px; height:26px; margin-right:10px; flex:none}
+.ah b{color:var(--z-ink); font-size:1.15em; margin:0 .15em; font-variant-numeric:tabular-nums}
+.ah.call,.ah.ok{border-color:var(--z-ok-line); background:var(--z-ok-bg); color:var(--z-ok)}
+.ah.call b{color:var(--z-ink)}
+.verr{margin-top:4px; padding:10px 14px; border-radius:12px; border:2px solid var(--z-bad-line); background:var(--z-bad-bg); color:var(--z-danger); font-size:16px; font-weight:600; line-height:1.3}
+.verr::before{content:'⚠ '}
+@media (max-width:700px){
+  .qbtn{padding:0 10px; min-height:44px}
+  .qbtn .qtxt{display:none}
+  .qbtn svg{margin-right:4px}
+  .qbtn b{margin-left:4px}
+  .ccod{width:76px; font-size:21px}
+  .cpos{width:26px}
+  .cmid{padding:0 8px}
+  .cmot{font-size:14px}
+  .ah{font-size:16px; padding:8px 12px}
+  .sheet.cola{padding:12px}
+}

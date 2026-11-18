@@ -169,7 +169,7 @@ function tecla(k){
 function limpiar(mantenerPantalla){
   abortar('cancel');
   clearInterval(S.tick);
-  S.dni = ''; S.data = null; S.tab = 'hoy'; S.ticket = null; S.vobs = ''; cerrarVent();
+  S.dni = ''; S.data = null; S.tab = 'hoy'; S.ticket = null; S.vobs = ''; S.vsending = false; cerrarVent();
   if (!mantenerPantalla) setPhase('idle');
   else { S.phase = 'idle'; document.body.classList.remove('has-result'); render(); }
   renderDni();
@@ -292,8 +292,9 @@ function renderVent(){
     b.innerHTML = '<div class="tk"><div class="tk-l">Número para ventanilla</div><div class="tk-n">' + esc(t.codigo) + '</div>' +
       '<div class="tk-m">' + esc(C.motivo(t.letra).nombre) + ' · llegada ' + esc(hhmm(t.ts)) + ' hs</div>' +
       (t.obs ? '<div class="tk-o">“' + esc(t.obs) + '”</div>' : '') +
+      '<div class="tk-ahead" id="tkAhead" aria-live="polite">' + aheadHtml(t) + '</div>' +
       '<p>Pedile al paciente que espere en ventanilla: lo van a llamar por este número.</p>' +
-      '<div class="btnrow"><button class="btn primary" data-vact="listo">Listo · Siguiente paciente</button></div></div>';
+      '<div class="btnrow"><button class="btn ghost" data-vact="lista">Ver lista de espera</button><button class="btn primary" data-vact="listo">Listo · Siguiente paciente</button></div></div>';
     return;
   }
   b.innerHTML = '<h3 id="ventTitle">Atención en ventanilla</h3>' +
@@ -308,10 +309,67 @@ function renderVent(){
     '<div class="btnrow"><button class="btn ghost" data-vact="cancel">Cancelar</button><button class="btn primary" data-vact="ok">Generar número</button></div>';
 }
 function generarVent(){
+  if (S.vsending) return;
   var ta = $('ventObs'); if (ta) S.vobs = ta.value;
-  S.ticket = window.ColaAT.emitir(S.vmot, S.vobs);
-  renderVent(); render();
+  S.vsending = true; S.verr = '';
+  var ok = document.querySelector('[data-vact="ok"]'); if (ok){ ok.disabled = true; ok.textContent = 'Generando…'; }
+  window.ColaAT.emitir(S.vmot, S.vobs).then(function (t) {
+    S.vsending = false; S.ticket = t; renderVent(); render(); pintarCola();
+  }, function (e) {
+    S.vsending = false; renderVent();
+    var m = e && e.code === 'RED'
+      ? 'No se pudo confirmar si se generó. Mirá «En espera» antes de volver a intentar para no duplicar el número.'
+      : window.ColaAT.mensaje(e);
+    var box = document.createElement('div'); box.className = 'verr'; box.setAttribute('role', 'alert'); box.textContent = m;
+    var row = document.querySelector('#ventBody .btnrow'); if (row) row.parentNode.insertBefore(box, row);
+  });
 }
+/* ---------- lista de espera (cuántos números hay delante) ---------- */
+function hace(min){ return min < 1 ? 'recién' : (min < 60 ? min + ' min' : Math.floor(min / 60) + ' h ' + (min % 60) + ' min'); }
+function aheadHtml(t){
+  var C = window.ColaAT, lista = C.listar(), mio = null;
+  for (var i = 0; i < lista.length; i++) if (lista[i].id === t.id) mio = lista[i];
+  if (!mio) return '<span class="ah ok">' + ICON.check + '<span>Ya no está en la lista (atendido o retirado)</span></span>';
+  if (mio.estado === 'llamando') return '<span class="ah call">' + ICON.queue + '<span>Lo están llamando · <b>Ventanilla ' + esc(mio.puesto) + '</b></span></span>';
+  var d = C.delante(t.id);
+  if (!d) return '';
+  var txt = d.total === 0 ? 'Es el <b>próximo</b> en la lista' : 'Hay <b>' + d.total + '</b> ' + (d.total === 1 ? 'número' : 'números') + ' antes' + (d.misma && d.misma !== d.total ? ' (' + d.misma + ' de la letra ' + esc(d.letra) + ')' : '');
+  return '<span class="ah">' + ICON.queue + '<span>' + txt + '</span></span>';
+}
+function pintarCola(){
+  var C = window.ColaAT, lista = C.listar();
+  var esp = lista.filter(function (t) { return t.estado === 'espera'; });
+  var llam = lista.filter(function (t) { return t.estado === 'llamando'; });
+  var q = $('qcount'); if (q) q.textContent = C.listo() ? esp.length : '–';
+  var bt = $('btnCola'); if (bt) bt.classList.toggle('has', esp.length > 0);
+  var a = $('tkAhead'); if (a && S.ticket) a.innerHTML = aheadHtml(S.ticket);
+  var b = $('colaBody'); if (!b || $('colaOv').hidden) return;
+  var now = C.ahora();
+  function fila(t, pos){
+    var min = Math.max(0, Math.floor((now - t.ts) / 60000));
+    var mio = S.ticket && S.ticket.id === t.id;
+    return '<li class="crow' + (mio ? ' mio' : '') + (t.estado === 'llamando' ? ' call' : '') + '">' +
+      '<span class="cpos">' + (t.estado === 'llamando' ? ICON.queue : pos) + '</span>' +
+      '<span class="ccod">' + esc(t.codigo) + '</span>' +
+      '<span class="cmid"><span class="cmot">' + esc(C.motivo(t.letra).nombre) + (t.prueba ? ' · PRUEBA' : '') + (mio ? ' · es el de este paciente' : '') + '</span>' +
+      (t.obs ? '<span class="cobs">' + esc(t.obs) + '</span>' : '') + '</span>' +
+      '<span class="cend">' + (t.estado === 'llamando' ? '<b class="cv">Ventanilla ' + esc(t.puesto) + '</b>' : '<b>' + esc(hhmm(t.ts)) + '</b><span>' + esc(hace(min)) + '</span>') + '</span></li>';
+  }
+  var max = esp.length ? Math.max.apply(null, esp.map(function (t) { return Math.floor((now - t.ts) / 60000); })) : 0;
+  b.innerHTML = '<div class="chead"><h3 id="colaTitle">Lista de espera</h3><button class="btn ghost cclose" data-cact="cerrar">Cerrar</button></div>' +
+    '<p class="csum"><b>' + esp.length + '</b> ' + (esp.length === 1 ? 'persona esperando' : 'personas esperando') + (esp.length ? ' · la que más espera: <b>' + esc(hace(max)) + '</b>' : '') + '</p>' +
+    (llam.length ? '<div class="clbl">Llamados ahora</div><ul class="clist">' + llam.map(function (t) { return fila(t, ''); }).join('') + '</ul>' : '') +
+    '<div class="clbl">En espera · por orden de llegada</div>' +
+    (esp.length ? '<ul class="clist">' + esp.map(function (t, i) { return fila(t, i + 1); }).join('') + '</ul>'
+                : '<div class="cvacio">' + ICON.check + '<span>No hay nadie esperando.</span></div>');
+}
+function abrirCola(){ $('colaOv').hidden = false; window.ColaAT.refrescar().then(null, function () {}); pintarCola(); }
+function cerrarCola(){ $('colaOv').hidden = true; $('colaBody').innerHTML = ''; }
+$('btnCola').addEventListener('click', abrirCola);
+$('colaOv').addEventListener('click', function (e) {
+  if (e.target === $('colaOv')) return cerrarCola();
+  if (e.target.closest('[data-cact="cerrar"]')) cerrarCola();
+});
 $('ventOv').addEventListener('click', function (e) {
   if (e.target === $('ventOv')) return cerrarVent();
   var m = e.target.closest('[data-mot]');
@@ -324,6 +382,7 @@ $('ventOv').addEventListener('click', function (e) {
   if (a.dataset.vact === 'cancel') return cerrarVent();
   if (a.dataset.vact === 'ok') return generarVent();
   if (a.dataset.vact === 'listo') return limpiar(false);
+  if (a.dataset.vact === 'lista') return abrirCola();
 });
 $('ventOv').addEventListener('input', function (e) {
   if (e.target.id !== 'ventObs') return;
@@ -408,6 +467,7 @@ $('results').addEventListener('click', function (e) {
   if (t.dataset.pedido !== undefined) return abrirPedido(t.dataset.pedido, t.dataset.t);
 });
 document.addEventListener('keydown', function (e) {
+  if (!$('colaOv').hidden){ if (e.key === 'Escape') cerrarCola(); return; }
   if (!$('ventOv').hidden){ if (e.key === 'Escape') cerrarVent(); return; }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (!$('pedidoOv').hidden){ if (e.key === 'Escape') cerrarPedido(); return; }
@@ -503,7 +563,7 @@ document.addEventListener('visibilitychange', function () { if (document.visibil
 
 /* ---------- inicio ---------- */
 $('modeBadge').className = 'mode ' + (CONFIG.mode === 'demo' ? 'demo' : 'live');
-$('modeBadge').innerHTML = CONFIG.mode === 'demo' ? '<i></i><span class="mfull">MODO DEMO · datos ficticios</span><span class="mshort">DEMO</span>' : '<i></i><span class="mfull">Conectado al HIS</span><span class="mshort">HIS</span>';
+$('modeBadge').innerHTML = CONFIG.mode === 'demo' ? '<i></i><span class="mfull">DEMO · pacientes ficticios</span><span class="mshort">DEMO</span>' : '<i></i><span class="mfull">Conectado al HIS</span><span class="mshort">HIS</span>';
 reloj(); setInterval(reloj, 15000);
 if (CONFIG.mode === 'demo'){
   $('demoChips').innerHTML = [['12345678','incompleto'],['23456789','todo ok'],['34567890','sin turno'],['45678901','2 turnos']]
@@ -515,4 +575,7 @@ if (CONFIG.mode === 'demo'){
   });
 }
 renderDni(); render(); initScan();
+window.ColaAT.suscribir(pintarCola);
+setInterval(function () { if (!$('colaOv').hidden) pintarCola(); }, 20000);   // «hace N min» sin esperar un cambio
+window.GateAT.arrancar({ permitidos: ['recepcion', 'admin'], prueba: CONFIG.mode === 'demo', listo: function () { pintarCola(); } });
 })();
