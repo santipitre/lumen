@@ -1,0 +1,48 @@
+/* Zafiro · letra más grande en harefield (generado: x1.2 hasta 20px, x1.12 arriba; solo pantallas >= 900px) */
+@media (min-width:900px){
+html[data-ui="zafiro"] .tb-crumb{font-size:18px}
+html[data-ui="zafiro"] .ses-chip{font-size:13px}
+html[data-ui="zafiro"] .tb-back{font-size:13px}
+html[data-ui="zafiro"] h1.page{font-size:29px}
+html[data-ui="zafiro"] .page-sub{font-size:15px}
+html[data-ui="zafiro"] .restored-bar{font-size:15px}
+html[data-ui="zafiro"] .link-btn{font-size:13px}
+html[data-ui="zafiro"] .mesbar label{font-size:13px}
+html[data-ui="zafiro"] .mes-ctl button{font-size:17px}
+html[data-ui="zafiro"] .mes-ctl select{font-size:20px}
+html[data-ui="zafiro"] .mes-hint{font-size:14px}
+html[data-ui="zafiro"] .drop-title{font-size:18px}
+html[data-ui="zafiro"] .drop-tag{font-size:12px}
+html[data-ui="zafiro"] .drop-sub{font-size:14px}
+html[data-ui="zafiro"] .btn{font-size:14px}
+html[data-ui="zafiro"] .review-head h2{font-size:19px}
+html[data-ui="zafiro"] .review-sub{font-size:14px}
+html[data-ui="zafiro"] .review-tog{font-size:14px}
+html[data-ui="zafiro"] .tab{font-size:18px}
+html[data-ui="zafiro"] .tabs input[type=search]{font-size:15px}
+html[data-ui="zafiro"] .empty{font-size:16px}
+html[data-ui="zafiro"] .toast{font-size:16px}
+}
+/* tabla de liquidación y detalle: solo en pantallas anchas */
+@media (min-width:1600px){
+html[data-ui="zafiro"] .drop-status{font-size:14px}
+html[data-ui="zafiro"] .drop-status .cnt{font-size:24px}
+html[data-ui="zafiro"] .drop-status .fn{font-size:13px}
+html[data-ui="zafiro"] .review-n{font-size:18px}
+html[data-ui="zafiro"] .rv-grp h3{font-size:13px}
+html[data-ui="zafiro"] .rv-item{font-size:15px}
+html[data-ui="zafiro"] .rv-item .how{font-size:14px}
+html[data-ui="zafiro"] code{font-size:14px}
+html[data-ui="zafiro"] .ledger{font-size:15px}
+html[data-ui="zafiro"] .ledger .who b{font-size:22px}
+html[data-ui="zafiro"] .ledger .who span{font-size:14px}
+html[data-ui="zafiro"] .ledger .v.big{font-size:25px}
+html[data-ui="zafiro"] .split-note{font-size:13px}
+html[data-ui="zafiro"] .tab-n{font-size:13px}
+html[data-ui="zafiro"] table.liq{font-size:14px}
+html[data-ui="zafiro"] table.liq th{font-size:12px}
+html[data-ui="zafiro"] .why{font-size:13px}
+html[data-ui="zafiro"] .mv{font-size:13px}
+html[data-ui="zafiro"] [style*="font-size:11px"],html[data-ui="zafiro"] [style*="font-size: 11px"]{font-size:13px !important}
+html[data-ui="zafiro"] [style*="font-size:12.5px"],html[data-ui="zafiro"] [style*="font-size: 12.5px"]{font-size:15px !important}
+}

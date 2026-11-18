@@ -1,0 +1,28 @@
+/* Zafiro · letra más grande en diagrama (generado: x1.2 hasta 20px, x1.12 arriba; solo pantallas >= 900px) */
+@media screen and (min-width:900px){
+html[data-ui="zafiro"] .btn.sm{font-size:14px}
+html[data-ui="zafiro"] .card h4{font-size:13px}
+html[data-ui="zafiro"] details.how{font-size:16px}
+html[data-ui="zafiro"] .lg{font-size:16px}
+html[data-ui="zafiro"] .lgt{font-size:13px}
+html[data-ui="zafiro"] tr.gh th{font-size:16px}
+html[data-ui="zafiro"] .lstate{font-size:14px}
+html[data-ui="zafiro"] .lres{font-size:14px}
+html[data-ui="zafiro"] .lic label{font-size:13px}
+html[data-ui="zafiro"] #stat{font-size:14px}
+html[data-ui="zafiro"] .title{font-size:14px}
+html[data-ui="zafiro"] .dlg p{font-size:17px}
+html[data-ui="zafiro"] .dlg textarea{font-size:16px}
+html[data-ui="zafiro"] .inst{font-size:14px}
+html[data-ui="zafiro"] .hd h1{font-size:24px}
+}
+/* registro y firmas: solo en pantallas anchas */
+@media screen and (min-width:1600px){
+html[data-ui="zafiro"] .wrow .sent{font-size:14px}
+html[data-ui="zafiro"] .refs{font-size:12px}
+html[data-ui="zafiro"] .sigrow div{font-size:13px}
+html[data-ui="zafiro"] .regt{font-size:14px}
+html[data-ui="zafiro"] .regt th{font-size:13px}
+html[data-ui="zafiro"] .rchip{font-size:14px}
+html[data-ui="zafiro"] .hgt{font-size:13px}
+}

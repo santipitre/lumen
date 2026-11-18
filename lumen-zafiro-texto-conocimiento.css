@@ -1,0 +1,18 @@
+/* Zafiro · letra más grande en conocimiento (generado: x1.2 hasta 20px, x1.12 arriba; solo pantallas >= 900px) */
+@media (min-width:900px){
+html[data-ui="zafiro"] body{font-size:16.8px}
+html[data-ui="zafiro"] h1{font-size:29px}
+html[data-ui="zafiro"] .tab .n{font-size:13px}
+html[data-ui="zafiro"] .cat{font-size:14px}
+html[data-ui="zafiro"] .card .pie{font-size:14px}
+html[data-ui="zafiro"] .btn.chico{font-size:14px}
+html[data-ui="zafiro"] .form label{font-size:16px}
+html[data-ui="zafiro"] .aviso{font-size:16px}
+html[data-ui="zafiro"] .reemplaza{font-size:16px}
+html[data-ui="zafiro"] .orig{font-size:16px}
+html[data-ui="zafiro"] .pend .meta{font-size:14px}
+html[data-ui="zafiro"] .hueco .m{font-size:14px}
+html[data-ui="zafiro"] .tag{font-size:13px}
+/* estilos en línea */
+
+}

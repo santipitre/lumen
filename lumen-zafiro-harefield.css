@@ -1,0 +1,69 @@
+/* ============================================================
+   Lumen · Zafiro Lumen para harefield.html (OPT-IN, solo oscuro)
+   Va después de lumen-zafiro.css y lumen-zafiro-modulos.css.
+   El naranja era el acento del módulo: pasa al azul Zafiro en TODO el cromo (botones, zonas de carga, foco).
+   EXCEPCIÓN deliberada: el naranja se queda SOLO como color de identidad de «HAREFIELD» frente a «FINAMED» (azul),
+   porque el reparto del mes se lee por esos dos colores (pestaña H, barra de reparto, libro mayor H).
+   Estados (ok / aviso / peligro), «movido a mano» (ámbar) y los puntos de revisión no se tocan.
+   ============================================================ */
+html[data-ui="zafiro"]{
+  --acc:var(--z-acc-ink); --acc-soft:var(--z-acc-ink); --acc-dim:rgba(94,151,255,.14); --acc-ring:rgba(94,151,255,.30);
+  --h-ent:#FB923C; --h-ent-dim:rgba(251,146,60,.14);
+}
+html[data-ui="zafiro"] :is(h1.page,.tb-crumb,.drop-title,.drop-status .cnt,.tab,.ledger .who b,.ledger .v.big,.review-head h2,.review-n,.mes-ctl select){ font-family:var(--z-font); }
+html[data-ui="zafiro"] h1.page{ font-weight:800; letter-spacing:.06em; }
+html[data-ui="zafiro"] .tb-crumb{ font-weight:800; }
+html[data-ui="zafiro"] .ses-chip{ font-family:var(--z-font); border-color:var(--z-line-strong); background:var(--z-card-hi); }
+html[data-ui="zafiro"] .tb-back{ border-radius:12px; font-family:var(--z-font); background:var(--z-card-hi); border-color:var(--z-line); color:var(--z-ink2); }
+html[data-ui="zafiro"] .tb-back:hover,html[data-ui="zafiro"] .tb-back:focus-visible{ color:var(--z-acc-ink); border-color:var(--z-acc); }
+html[data-ui="zafiro"] .restored-bar{ border-radius:14px; border-color:var(--z-line-strong); background:rgba(94,151,255,.08); color:var(--z-acc-ink); }
+html[data-ui="zafiro"] .link-btn,html[data-ui="zafiro"] .mv{ border-radius:10px; background:var(--z-card-hi); border-color:var(--z-line); }
+html[data-ui="zafiro"] .mv.undo{ color:var(--warn); border-color:rgba(251,191,36,.4); }
+
+/* Vidrio */
+html[data-ui="zafiro"] :is(.split,.empty){
+  border-color:var(--z-line); border-radius:16px;
+  background:linear-gradient(180deg,var(--z-sheen),transparent 46%),var(--z-card); box-shadow:var(--z-raise);
+}
+html[data-ui="zafiro"] .empty{ border-style:dashed; }
+html[data-ui="zafiro"] .mes-ctl{ border-radius:12px; background:var(--z-card-hi); border-color:var(--z-line); }
+html[data-ui="zafiro"] .mes-ctl select{ border-left-color:var(--z-line); border-right-color:var(--z-line); }
+html[data-ui="zafiro"] .mes-ctl select option{ background:var(--z-elev); }
+
+/* Zonas de carga */
+html[data-ui="zafiro"] .drop{ border-radius:18px; border-color:var(--z-line-strong); background:rgba(94,151,255,.04); }
+html[data-ui="zafiro"] .drop:hover,html[data-ui="zafiro"] .drop:focus-within{ background:rgba(94,151,255,.08); }
+html[data-ui="zafiro"] .drop.dragover{ background:rgba(94,151,255,.12); box-shadow:0 0 0 2px var(--z-line-strong) inset; }
+html[data-ui="zafiro"] .drop.loaded{ border-color:rgba(16,185,129,.55); background:rgba(16,185,129,.05); }
+html[data-ui="zafiro"] .drop.err{ border-color:var(--danger); background:rgba(248,113,113,.06); }
+html[data-ui="zafiro"] .drop-tag{ border-color:var(--z-line); }
+
+/* Botones y campos */
+html[data-ui="zafiro"] .btn{ border-radius:12px; font-family:var(--z-font); }
+html[data-ui="zafiro"] .btn-ghost{ background:var(--z-card-hi); border-color:var(--z-line); color:var(--z-ink); }
+html[data-ui="zafiro"] .btn-ghost:hover:not(:disabled),html[data-ui="zafiro"] .btn-ghost:focus-visible{ border-color:var(--z-acc); color:var(--z-acc-ink); }
+html[data-ui="zafiro"] .tabs input[type=search]{ background:var(--z-card-hi); border:1px solid var(--z-line); border-radius:10px; color:var(--z-ink); font-family:var(--z-font); }
+html[data-ui="zafiro"] .tabs input[type=search]:focus{ border-color:var(--z-acc); outline:none; box-shadow:0 0 0 4px rgba(94,151,255,.22); }
+
+/* Revisar antes de cerrar: se mantiene el ámbar de «atención» */
+html[data-ui="zafiro"] .review{ border-radius:16px; }
+html[data-ui="zafiro"] .rv-item{ border-bottom-color:rgba(165,198,255,.14); }
+html[data-ui="zafiro"] code{ background:rgba(165,198,255,.14); }
+
+/* Pestañas: H conserva su naranja de identidad, F su azul */
+html[data-ui="zafiro"] .tab{ border-radius:12px; background:var(--z-card-hi); border-color:var(--z-line); }
+html[data-ui="zafiro"] .tab.active.h{ background:var(--h-ent-dim); border-color:var(--h-ent); color:var(--h-ent); }
+html[data-ui="zafiro"] .tab.active.h .tab-n{ background:rgba(251,146,60,.28); }
+html[data-ui="zafiro"] .tab.active.f{ background:var(--fin-dim); border-color:var(--fin); color:var(--fin); }
+html[data-ui="zafiro"] .ledger.h .who b{ color:var(--h-ent); }
+html[data-ui="zafiro"] .split-bar{ background:rgba(165,198,255,.14); }
+html[data-ui="zafiro"] .split-bar .h{ background:linear-gradient(90deg,#C2410C,var(--h-ent)); }
+
+/* Tabla: encabezado y pie OPACOS (son pegajosos) */
+html[data-ui="zafiro"] .tbl-wrap{ border-color:var(--z-line); border-radius:16px; background:rgba(14,24,56,.45); }
+html[data-ui="zafiro"] table.liq th{ background:#14204A; border-bottom-color:var(--z-line); font-family:var(--z-font); color:var(--z-ink2); }
+html[data-ui="zafiro"] table.liq td{ border-bottom-color:rgba(165,198,255,.10); }
+html[data-ui="zafiro"] table.liq tr:hover td{ background:rgba(94,151,255,.07); }
+html[data-ui="zafiro"] table.liq tr.first td{ border-top-color:rgba(165,198,255,.2); }
+html[data-ui="zafiro"] table.liq tfoot td{ background:#14204A; border-top-color:var(--z-line-strong); }
+html[data-ui="zafiro"] .toast{ background:var(--z-elev); border-color:var(--z-line-strong); border-radius:14px; }

@@ -1,0 +1,72 @@
+/* ============================================================
+   Lumen · Zafiro Lumen para validacion-pami.html (OPT-IN, solo oscuro)
+   Va después de lumen-zafiro.css y lumen-zafiro-modulos.css (que ya remapean --glass, --border, --border-a,
+   --pyralis-* y dan estilo a .topbar).
+   El ámbar del módulo (--pyralis-firefly) pasa al azul Zafiro. NO se tocan: estados (validada verde,
+   rechazada rojo, «re-ver» azul), el botón institucional azul de PAMI (.ib.go), los puntos del semáforo de
+   ventanas, el aviso de copia vieja (#ver-nueva, ámbar de advertencia) ni los colores de beneficio/dudoso.
+   ============================================================ */
+html[data-ui="zafiro"]{
+  --pyralis-firefly:var(--z-acc-ink); --pyralis-firefly-soft:var(--z-acc-ink);
+  --pyralis-firefly-dim:rgba(94,151,255,.14); --pyralis-firefly-ring:rgba(94,151,255,.30);
+}
+html[data-ui="zafiro"] :is(h1.page,.drop h3,.stat b,.tb-crumb,#dlg .dl-h){ font-family:var(--z-font); }
+html[data-ui="zafiro"] h1.page{ font-weight:800; letter-spacing:.06em; }
+html[data-ui="zafiro"] .tb-crumb{ font-weight:800; }
+html[data-ui="zafiro"] .ses-chip{ font-family:var(--z-font); border-color:var(--z-line-strong); background:var(--z-card-hi); }
+html[data-ui="zafiro"] .tb-back{ border-radius:12px; font-family:var(--z-font); background:var(--z-card-hi); border-color:var(--z-line); color:var(--z-ink2); }
+html[data-ui="zafiro"] .tb-back:hover{ color:var(--z-acc-ink); border-color:var(--z-acc); }
+
+/* Vidrio */
+html[data-ui="zafiro"] :is(.cfg,.stat,.modo){
+  border-color:var(--z-line); border-radius:16px;
+  background:linear-gradient(180deg,var(--z-sheen),transparent 46%),var(--z-card); box-shadow:var(--z-raise);
+}
+html[data-ui="zafiro"] .modo.auto{ border-color:rgba(16,185,129,.4); background:rgba(16,185,129,.07); }
+html[data-ui="zafiro"] .drop{ border-radius:18px; border-color:var(--z-line-strong); background:rgba(94,151,255,.04); }
+html[data-ui="zafiro"] .drop.dragover{ background:rgba(94,151,255,.12); box-shadow:0 0 0 2px var(--z-line-strong) inset; }
+html[data-ui="zafiro"] .drop.loaded{ border-color:var(--ok); background:rgba(16,185,129,.06); }
+html[data-ui="zafiro"] .sesdat{ border-radius:14px; }
+html[data-ui="zafiro"] .vent .v{ background:var(--z-card); border-color:var(--z-line); }
+html[data-ui="zafiro"] .vent .v.on{ border-color:rgba(16,185,129,.45); background:rgba(16,185,129,.08); }
+html[data-ui="zafiro"] .vent .v.off{ border-color:rgba(248,113,113,.4); background:rgba(248,113,113,.07); }
+
+/* Botones y campos */
+html[data-ui="zafiro"] .btn{ border-radius:12px; font-family:var(--z-font); }
+html[data-ui="zafiro"] .btn-primary{ background:linear-gradient(135deg,#2A63D8,var(--z-acc)); color:#fff; border:1px solid var(--z-line-strong); }
+html[data-ui="zafiro"] .btn-ghost{ background:var(--z-card-hi); border-color:var(--z-line); color:var(--z-ink); }
+html[data-ui="zafiro"] .btn-ghost:hover{ border-color:var(--z-acc); color:var(--z-acc-ink); }
+html[data-ui="zafiro"] .ib{ border-radius:10px; background:var(--z-card-hi); border-color:var(--z-line); font-family:var(--z-font); }
+html[data-ui="zafiro"] .ib:hover{ border-color:var(--z-acc); color:var(--z-acc-ink); }
+html[data-ui="zafiro"] .ib.go{ background:linear-gradient(135deg,#1E3A8A,#0F2A6B); color:#EAF2FF; border-color:rgba(96,165,250,.45); }
+html[data-ui="zafiro"] .ib.go:hover{ background:linear-gradient(135deg,#2E4FA8,#173785); border-color:#60A5FA; color:#fff; }
+html[data-ui="zafiro"] .ib.ok:hover{ border-color:var(--ok); color:#6ee7b7; }
+html[data-ui="zafiro"] .ib.no:hover{ border-color:var(--danger); color:#fca5a5; }
+html[data-ui="zafiro"] :is(.cfg input,.cfg select,.sel-f,.search input,#dlg .dl-in){
+  background:var(--z-card-hi); border:1px solid var(--z-line); border-radius:10px; color:var(--z-ink); font-family:var(--z-font);
+}
+html[data-ui="zafiro"] :is(.cfg input,.cfg select,.sel-f,.search input,#dlg .dl-in):focus{
+  border-color:var(--z-acc); outline:none; box-shadow:0 0 0 4px rgba(94,151,255,.22);
+}
+html[data-ui="zafiro"] .sel-f.on{ border-color:var(--z-acc); color:var(--z-acc-ink); }
+
+/* Chips de filtro */
+html[data-ui="zafiro"] .chip{ border-radius:999px; font-family:var(--z-font); background:var(--z-card-hi); border-color:var(--z-line); }
+html[data-ui="zafiro"] .chip:hover{ border-color:var(--z-acc); }
+html[data-ui="zafiro"] .chip.on{ background:rgba(94,151,255,.16); border-color:var(--z-acc); color:var(--z-acc-ink); }
+
+/* Tabla: encabezado OPACO (es pegajoso); la fila activa y el hover pasan al azul */
+html[data-ui="zafiro"] .tbl-wrap{ border-color:var(--z-line); border-radius:16px; background:rgba(14,24,56,.45); }
+html[data-ui="zafiro"] thead th{ background:#14204A; border-bottom-color:var(--z-line); font-family:var(--z-font); color:var(--z-ink2); }
+html[data-ui="zafiro"] thead th.ord-col:hover,html[data-ui="zafiro"] thead th.ord-col.on{ color:var(--z-acc-ink); }
+html[data-ui="zafiro"] tbody td{ border-bottom-color:rgba(165,198,255,.10); }
+html[data-ui="zafiro"] tbody tr:hover{ background:rgba(94,151,255,.07); }
+html[data-ui="zafiro"] tbody tr.act{ background:rgba(94,151,255,.14); box-shadow:inset 3px 0 0 var(--z-acc); }
+
+/* Diálogo propio, lupa y avisos */
+html[data-ui="zafiro"] #dlg-bg{ background:rgba(3,6,16,.72); }
+html[data-ui="zafiro"][data-fx="on"] #dlg-bg{ -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); }
+html[data-ui="zafiro"] :is(#dlg,#lupa){ background:var(--z-elev); border-color:var(--z-line-strong); border-radius:18px; box-shadow:0 30px 70px -24px rgba(0,0,20,.8); }
+html[data-ui="zafiro"] #toast{ background:var(--z-elev); border-color:var(--z-line-strong); border-radius:14px; }
+html[data-ui="zafiro"] #toast.ok{ border-color:rgba(16,185,129,.6); }
+html[data-ui="zafiro"] #toast.err{ border-color:rgba(248,113,113,.6); }

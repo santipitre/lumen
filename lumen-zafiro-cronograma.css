@@ -1,0 +1,81 @@
+/* ============================================================
+   Lumen · Zafiro Lumen para cronograma.html (OPT-IN, solo oscuro, SOLO EN PANTALLA)
+   Va después de lumen-zafiro.css y lumen-zafiro-modulos.css.
+   - El cian del módulo (--app-accent) y el ámbar (--pyralis-firefly) pasan al azul Zafiro.
+   - La marca (luciérnaga del isotipo «Lumen») NO se toca. Los tres tipos de feriado (inamovible ámbar,
+     trasladable azul, turístico cian) y los colores por internado del tablero son semánticos: se mantienen.
+   - IMPRESIÓN: esta página imprime en papel claro con su propio @media print. El bloque final devuelve
+     los tokens originales al imprimir para que el PDF no cambie.
+   ============================================================ */
+@media screen{
+html[data-ui="zafiro"]{
+  --app-accent:var(--z-acc); --app-accent-soft:var(--z-acc-ink);
+  --app-accent-dim:rgba(94,151,255,.14); --app-accent-ring:rgba(94,151,255,.32);
+  --pyralis-firefly:var(--z-acc); --pyralis-firefly-soft:var(--z-acc-ink);
+  --pyralis-firefly-dim:rgba(94,151,255,.14); --pyralis-firefly-ring:rgba(94,151,255,.32);
+}
+html[data-ui="zafiro"] .topbar{ background:var(--z-elev); border-bottom:1px solid var(--z-line); }
+html[data-ui="zafiro"] .lumen-crumbs a:hover{ color:var(--z-acc-ink); }
+html[data-ui="zafiro"] :is(.title-input,.tab,.btn,.input,.edit-status,.h2,.field label,.mc-horario){ font-family:var(--z-font); }
+
+/* Vidrio */
+html[data-ui="zafiro"] :is(.controls,.roster,.editbar,.mod-catalog){
+  border:1px solid var(--z-line); border-radius:16px;
+  background:linear-gradient(180deg,var(--z-sheen),transparent 46%),var(--z-card); box-shadow:var(--z-raise);
+}
+html[data-ui="zafiro"] .editbar.editing{ border-color:var(--z-line-strong); background:rgba(94,151,255,.10); }
+
+/* Botones y campos */
+html[data-ui="zafiro"] .btn{ border-radius:12px; }
+html[data-ui="zafiro"] .btn-primary{ background:linear-gradient(135deg,#2A63D8,var(--z-acc)); color:#fff; border:1px solid var(--z-line-strong); }
+html[data-ui="zafiro"] .btn-primary:hover{ background:linear-gradient(135deg,#3A72E6,#6FA3FF); box-shadow:0 8px 22px -8px rgba(94,151,255,.7); }
+html[data-ui="zafiro"] .btn-ghost{ background:var(--z-card-hi); border:1px solid var(--z-line); color:var(--z-ink2); }
+html[data-ui="zafiro"] .btn-ghost:hover{ background:var(--z-card-hi); border-color:var(--z-acc); color:var(--z-ink); }
+html[data-ui="zafiro"] .btn-accent:hover{ background:rgba(94,151,255,.22); border-color:var(--z-acc); }
+html[data-ui="zafiro"] :is(.input,.notes-area,.add-input,.mc-horario,.mb-times select){ border-radius:10px; }
+html[data-ui="zafiro"] :is(.input,.notes-area,.mb-times select){ background:var(--z-card-hi); border-color:var(--z-line); }
+html[data-ui="zafiro"] :is(.input,.notes-area,.add-input,.mc-horario):focus{ border-color:var(--z-acc); box-shadow:0 0 0 4px rgba(94,151,255,.22); }
+html[data-ui="zafiro"] .add-input{ border-color:var(--z-line-strong); }
+html[data-ui="zafiro"] .add-input:focus{ background:var(--z-card-hi); }
+
+/* Pestañas */
+html[data-ui="zafiro"] .tabs{ border-bottom-color:var(--z-line); }
+html[data-ui="zafiro"] .tab.active{ color:var(--z-acc-ink); border-bottom-color:var(--z-acc); }
+
+/* Calendario: cabeceras y primera columna OPACAS (son pegajosas) */
+html[data-ui="zafiro"] .grid-wrap{ border:1px solid var(--z-line-strong); border-radius:16px; box-shadow:var(--z-raise); }
+html[data-ui="zafiro"] thead th{ background:#14204A; border-bottom-color:var(--z-line-strong); border-left-color:var(--z-line); }
+html[data-ui="zafiro"] th.weekend{ background:#182A5E; }
+html[data-ui="zafiro"] .row-label{ background:#14204A; border-right-color:var(--z-line-strong); border-top-color:var(--z-line); }
+html[data-ui="zafiro"] td.cell{ border-left-color:var(--z-line); border-top-color:var(--z-line); }
+html[data-ui="zafiro"] td.cell.filled{ background:rgba(94,151,255,.10); box-shadow:inset 3px 0 0 var(--z-acc); }
+html[data-ui="zafiro"] td.cell.na{ background:repeating-linear-gradient(45deg,transparent,transparent 7px,rgba(165,198,255,.04) 7px,rgba(165,198,255,.04) 14px); }
+html[data-ui="zafiro"] .chip{ background:var(--z-card-hi); border-color:var(--z-line); border-radius:8px; }
+html[data-ui="zafiro"] .cov-bar{ background:var(--z-card-hi); }
+
+/* Feriados: los tres tipos conservan su color propio */
+html[data-ui="zafiro"] .hol-table thead th{ background:#14204A; border-bottom-color:var(--z-line-strong); }
+html[data-ui="zafiro"] .hol-table td{ border-top-color:var(--z-line); }
+html[data-ui="zafiro"] .hol-table tbody tr:nth-child(even) td{ background:rgba(165,198,255,.04); }
+html[data-ui="zafiro"] .badge-inam{ background:rgba(245,158,11,.12); border-color:rgba(245,158,11,.3); color:#FCD34D; }
+html[data-ui="zafiro"] .badge-turi{ background:rgba(6,182,212,.12); border-color:rgba(6,182,212,.3); color:#22D3EE; }
+
+/* Tablero de módulos (los colores por internado vienen del JS: no se tocan) */
+html[data-ui="zafiro"] .mod-board{ background:var(--z-elev); border-color:var(--z-line-strong); border-radius:16px; }
+html[data-ui="zafiro"] .mod-col.weekend{ background:rgba(94,151,255,.06); }
+html[data-ui="zafiro"] .mod-card{ background:var(--z-card-hi); border-color:var(--z-line); }
+html[data-ui="zafiro"] .toast{ background:var(--z-elev); border-color:var(--z-line-strong); border-radius:14px; }
+}
+/* Al imprimir, se devuelven los tokens originales de la página (papel claro, sin sorpresas) */
+@media print{
+  html[data-ui="zafiro"]{
+    --pyralis-bg:#0A0F14; --pyralis-bg-elevated:#0E1521; --pyralis-bg-input:#1A2332; --pyralis-bg-hover:#1F2937;
+    --pyralis-border:#1F2937; --pyralis-border-strong:#2D3748;
+    --pyralis-firefly:#F59E0B; --pyralis-firefly-soft:#FCD34D; --pyralis-firefly-dim:rgba(245,158,11,.12); --pyralis-firefly-ring:rgba(245,158,11,.30);
+    --pyralis-text:#F1F5F9; --pyralis-text-muted:#94A3B8; --pyralis-text-dim:#64748B;
+    --app-accent:#06B6D4; --app-accent-soft:#22D3EE; --app-accent-dim:rgba(6,182,212,.12); --app-accent-ring:rgba(6,182,212,.30);
+  }
+  html[data-ui="zafiro"],html[data-ui="zafiro"] body{ background:#fff !important; color:#0f172a !important; }
+  html[data-ui="zafiro"] body::before,html[data-ui="zafiro"] body::after,html[data-ui="zafiro"] .z-fondo{ display:none !important; }
+  html[data-ui="zafiro"] .topbar{ background:#fff !important; border-bottom:none !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; box-shadow:none !important; }
+}

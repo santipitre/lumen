@@ -1,0 +1,53 @@
+/* Zafiro · letra más grande en validacion (generado: x1.2 hasta 20px, x1.12 arriba; solo pantallas >= 900px) */
+@media (min-width:900px){
+html[data-ui="zafiro"] .tb-crumb{font-size:18px}
+html[data-ui="zafiro"] .ses-chip{font-size:13px}
+html[data-ui="zafiro"] .tb-back{font-size:13px}
+html[data-ui="zafiro"] h1.page{font-size:29px}
+html[data-ui="zafiro"] .page-sub{font-size:16px}
+html[data-ui="zafiro"] .btn{font-size:14px}
+html[data-ui="zafiro"] .drop h3{font-size:20px}
+html[data-ui="zafiro"] .drop p{font-size:16px}
+html[data-ui="zafiro"] .cfg label{font-size:13px}
+html[data-ui="zafiro"] .cfg input,
+html[data-ui="zafiro"] .cfg select{font-size:17px}
+html[data-ui="zafiro"] .cfg .hint{font-size:15px}
+html[data-ui="zafiro"] .chip{font-size:14px}
+html[data-ui="zafiro"] .sel-f{font-size:16px}
+html[data-ui="zafiro"] .search input{font-size:17px}
+html[data-ui="zafiro"] .empty{font-size:17px}
+html[data-ui="zafiro"] #ver-nueva{font-size:16px}
+html[data-ui="zafiro"] #ver-nueva button{font-size:14px}
+html[data-ui="zafiro"] #dlg .dl-h{font-size:20px}
+html[data-ui="zafiro"] #dlg .dl-b{font-size:17px}
+html[data-ui="zafiro"] #dlg .dl-in{font-size:17px}
+html[data-ui="zafiro"] .modo{font-size:16px}
+html[data-ui="zafiro"] #toast{font-size:16px}
+}
+/* tabla, estados y lupa: solo en pantallas anchas, donde la tabla completa entra */
+@media (min-width:1600px){
+html[data-ui="zafiro"] .sesdat{font-size:16px}
+html[data-ui="zafiro"] .sesdat .sd-btn{font-size:13px}
+html[data-ui="zafiro"] .stat b{font-size:26px}
+html[data-ui="zafiro"] .stat span{font-size:13px}
+html[data-ui="zafiro"] table{font-size:17px}
+html[data-ui="zafiro"] thead th{font-size:14px}
+html[data-ui="zafiro"] thead th.ord-col .car{font-size:12px}
+html[data-ui="zafiro"] .hab{font-size:13px}
+html[data-ui="zafiro"] .mono{font-size:17px}
+html[data-ui="zafiro"] .nom{font-size:17px}
+html[data-ui="zafiro"] .pract{font-size:16px}
+html[data-ui="zafiro"] .rng{font-size:16px}
+html[data-ui="zafiro"] .est{font-size:13px}
+html[data-ui="zafiro"] .motivo{font-size:13px}
+html[data-ui="zafiro"] .ib{font-size:15px}
+html[data-ui="zafiro"] .ib.go{font-size:15px}
+html[data-ui="zafiro"] #lupa .lz-t{font-size:12px}
+html[data-ui="zafiro"] #lupa .lz-big{font-size:26px}
+html[data-ui="zafiro"] #lupa .lz-sub{font-size:18px}
+html[data-ui="zafiro"] #lupa .lz-li{font-size:18px}
+html[data-ui="zafiro"] #lupa .lz-x{font-size:17px}
+html[data-ui="zafiro"] .vent .v{font-size:14px}
+html[data-ui="zafiro"] .vent .v-ayuda{font-size:14px}
+
+}

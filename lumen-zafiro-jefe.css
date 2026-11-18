@@ -1,0 +1,53 @@
+/* ============================================================
+   Lumen · Zafiro Lumen para jefe.html (OPT-IN, solo oscuro)
+   Va después de lumen-zafiro.css y lumen-zafiro-modulos.css (que ya remapean --glass, --border, --text,
+   --muted, --blue, --cyan…). Pantalla de TV con paneles que rotan: NO lleva letra más grande, porque
+   cada panel está pensado para entrar sin scroll.
+   - El verde de marca (logo, títulos de tarjeta, puntos de la barra, botones, PIN) pasa al azul Zafiro.
+   - Se conservan: el verde como estado «bien» (equipos operativos, tendencia que baja, deltas positivos, EN VIVO,
+     dinero), el rojo/ámbar de alertas, el violeta de simulación y el verde azulado (#22DBAE) como color de DATOS.
+   ============================================================ */
+html[data-ui="zafiro"]{ --cyan:#22DBAE; --border-g:rgba(94,151,255,.30); --jf-acc:var(--z-acc-ink); }
+html[data-ui="zafiro"] body{ background:transparent; font-family:var(--z-font); }
+html[data-ui="zafiro"] :is(.login-logo,.login-title,.login-input,.login-btn,.top-logo,.top-panel-name,.top-clock,.card-title,.moda-name,.funnel-stage-name,.vs-mod,.spark-label,.sim-title,.empty-text){ font-family:var(--z-font); }
+
+/* Ingreso con PIN */
+html[data-ui="zafiro"] #login-overlay{ background:radial-gradient(ellipse at center,rgba(42,99,216,.28) 0%,var(--z-bg) 75%); }
+html[data-ui="zafiro"][data-fx="on"] #login-overlay{ -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); }
+html[data-ui="zafiro"] .login-card{ background:var(--z-elev); border:1px solid var(--z-line-strong); border-radius:20px; box-shadow:0 30px 80px rgba(0,0,20,.7); }
+html[data-ui="zafiro"] .login-logo{ color:var(--jf-acc); font-weight:800; }
+html[data-ui="zafiro"] .login-input{ background:var(--z-card-hi); border:1px solid var(--z-line); border-radius:12px; }
+html[data-ui="zafiro"] .login-input:focus{ border-color:var(--z-acc); box-shadow:0 0 0 4px rgba(94,151,255,.22); }
+html[data-ui="zafiro"] .login-btn{ background:linear-gradient(135deg,#2A63D8,var(--z-acc)); color:#fff; border-radius:12px; }
+
+/* Barra superior */
+html[data-ui="zafiro"] .topbar{ border-bottom-color:var(--z-line); }
+html[data-ui="zafiro"] .top-logo{ color:var(--jf-acc); font-weight:800; }
+html[data-ui="zafiro"] .top-panel-name{ color:var(--jf-acc); }
+html[data-ui="zafiro"] .top-dot.active{ background:var(--z-acc); box-shadow:0 0 12px rgba(94,151,255,.6); }
+html[data-ui="zafiro"] .top-btn{ border-radius:10px; background:var(--z-card-hi); border-color:var(--z-line); font-family:var(--z-font); }
+html[data-ui="zafiro"] .top-btn:hover{ border-color:var(--z-acc); color:var(--z-acc-ink); }
+html[data-ui="zafiro"] .top-btn.danger:hover{ border-color:var(--red); color:var(--red); }
+
+/* Vidrio */
+html[data-ui="zafiro"] :is(.card,.kpi-hero,.moda-card,.funnel-step,.sim-card,.sm-tile){
+  border-color:var(--z-line); border-radius:16px;
+  background:linear-gradient(180deg,var(--z-sheen),transparent 46%),var(--z-card); box-shadow:var(--z-raise);
+}
+html[data-ui="zafiro"] .funnel-step.bottleneck{ border-color:var(--border-r); background:rgba(248,113,113,.07); }
+html[data-ui="zafiro"] .moda-card:hover{ border-color:var(--z-line-strong); }
+html[data-ui="zafiro"] .equipo-row{ background:rgba(7,13,31,.45); border-color:var(--z-line); border-radius:10px; }
+html[data-ui="zafiro"] .equipo-row.oos{ border-color:var(--border-r); background:rgba(248,113,113,.07); }
+html[data-ui="zafiro"] .card-title{ color:var(--jf-acc); }
+html[data-ui="zafiro"] .card-title::before{ background:var(--z-acc); }
+html[data-ui="zafiro"] .progress-wrap{ background:rgba(165,198,255,.14); }
+html[data-ui="zafiro"] .insight-box{ background:linear-gradient(90deg,rgba(94,151,255,.12),rgba(94,151,255,.03)); border:1px solid var(--z-line-strong); border-left:4px solid var(--z-acc); border-radius:12px; }
+html[data-ui="zafiro"] .insight-text strong{ color:var(--jf-acc); }
+
+/* Títulos y etiquetas de panel: cromo → azul; los números de datos siguen en verde azulado */
+html[data-ui="zafiro"] :is(.moda-name,.funnel-stage-name,.vs-mod,.spark-label){ color:var(--jf-acc); }
+html[data-ui="zafiro"] .vs-table th{ border-bottom-color:var(--z-line); }
+html[data-ui="zafiro"] .vs-table td,html[data-ui="zafiro"] .spark-row{ border-bottom-color:rgba(165,198,255,.12); }
+html[data-ui="zafiro"] .sim-impact{ border-top-color:var(--z-line); }
+html[data-ui="zafiro"] .funnel-step::after{ color:var(--z-line-strong); }
+html[data-ui="zafiro"] .panel::-webkit-scrollbar-thumb{ background:var(--z-line-strong); }

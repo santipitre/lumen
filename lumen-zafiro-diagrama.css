@@ -1,0 +1,95 @@
+/* ============================================================
+   Lumen · Zafiro Lumen para diagrama-mes.html (OPT-IN, solo oscuro, SOLO EN PANTALLA)
+   Va después de lumen-zafiro.css y lumen-zafiro-modulos.css.
+   Esta página usa sus propias variables (--card, --line, --txt, --mut, --lime…): se remapean acá.
+   El verde lima (acento) pasa al azul Zafiro. NO se tocan: los colores de los turnos
+   (M azul · T marrón · N violeta · D amarillo · F · L ámbar · X), los estados pendiente/rechazado,
+   el verde de «confirmado», el verde de WhatsApp y los feriados (rojizo).
+   IMPRESIÓN: la página imprime en papel claro con su propio @media print; el bloque final devuelve
+   las variables originales al imprimir para que el cronograma impreso no cambie.
+   ============================================================ */
+@media screen{
+html[data-ui="zafiro"]{
+  --bg:var(--z-bg); --card:var(--z-elev); --card2:#14204A; --line:rgba(165,198,255,.20);
+  --txt:var(--z-ink); --mut:var(--z-ink3);
+  --lime:var(--z-acc-ink);
+}
+html[data-ui="zafiro"] body{ background:transparent; font-family:var(--z-font); }
+html[data-ui="zafiro"] :is(.btn,.lg,.pill,input,textarea,select,.title,.inst,.hd h1,.card h4){ font-family:var(--z-font); }
+html[data-ui="zafiro"] .hd h1{ font-weight:800; letter-spacing:.04em; }
+html[data-ui="zafiro"] .inst{ color:var(--z-acc-ink); }
+
+/* Botones y píldora */
+html[data-ui="zafiro"] .pill{ background:linear-gradient(135deg,#2A63D8,var(--z-acc)); border-color:var(--z-line-strong); color:#fff; }
+html[data-ui="zafiro"] .btn{ background:var(--z-card-hi); border-color:var(--z-line); border-radius:12px; color:var(--z-ink); }
+html[data-ui="zafiro"] .btn:hover{ border-color:var(--z-acc); }
+html[data-ui="zafiro"] .btn.pri{ background:linear-gradient(135deg,#2A63D8,var(--z-acc)); border-color:var(--z-line-strong); color:#fff; }
+html[data-ui="zafiro"] .btn.danger:hover{ border-color:var(--red); }
+html[data-ui="zafiro"] .btn.conf:hover{ border-color:var(--green); }
+html[data-ui="zafiro"] .btn.conf.on{ background:#12382b; border-color:var(--green); color:#8ff0cc; }
+html[data-ui="zafiro"] a.btn.wapp{ background:#25d366; border-color:#25d366; color:#06240f; }
+html[data-ui="zafiro"] .x{ border-radius:10px; border-color:var(--z-line); color:var(--z-ink2); }
+html[data-ui="zafiro"] .x:hover{ border-color:var(--red); color:#f0a0a3; }
+html[data-ui="zafiro"] .x.wa:hover{ border-color:#25d366; color:#7fe3a5; }
+html[data-ui="zafiro"] .pool a{ color:var(--z-acc-ink); }
+
+/* Vidrio */
+html[data-ui="zafiro"] .card,html[data-ui="zafiro"] details.how,html[data-ui="zafiro"] .mlist{
+  border-radius:16px; border:1px solid var(--z-line);
+  background:linear-gradient(180deg,var(--z-sheen),transparent 46%),var(--z-card); box-shadow:var(--z-raise);
+}
+html[data-ui="zafiro"] details.how{ border-style:dashed; border-color:var(--z-line-strong); color:var(--z-ink2); }
+html[data-ui="zafiro"] details.how summary{ color:var(--z-ink); }
+html[data-ui="zafiro"] .lic{ background:var(--z-card-hi); border-color:var(--z-line); border-radius:14px; }
+html[data-ui="zafiro"] .lic.conf{ border-color:#2f7d5b; }
+html[data-ui="zafiro"] :is(input,textarea,select){ background:var(--z-card-hi); border:1px solid var(--z-line); border-radius:10px; color:var(--z-ink); }
+html[data-ui="zafiro"] :is(input,textarea,select):focus{ outline:none; border-color:var(--z-acc); box-shadow:0 0 0 4px rgba(94,151,255,.22); }
+html[data-ui="zafiro"] .nmi:hover,html[data-ui="zafiro"] .nmi:focus{ background:var(--z-card-hi); border-color:var(--z-line); }
+
+/* Leyenda / pincel */
+html[data-ui="zafiro"] .lg{ background:var(--z-card-hi); border-color:var(--z-line); border-radius:12px; }
+html[data-ui="zafiro"] .lg:hover{ border-color:var(--z-acc); }
+html[data-ui="zafiro"] .lg.on{ border-color:var(--z-acc); box-shadow:0 0 0 1px var(--z-acc) inset; }
+
+/* Grilla: la columna de nombres y los grupos son pegajosos → OPACOS */
+html[data-ui="zafiro"] .gridwrap{ border-color:var(--z-line); border-radius:16px; background:var(--z-elev); }
+html[data-ui="zafiro"] .grid .nm,html[data-ui="zafiro"] tr.gh th,html[data-ui="zafiro"] tr.ad td:first-child{ background:var(--z-elev); }
+html[data-ui="zafiro"] .grid .nm{ border-right-color:var(--z-line); }
+html[data-ui="zafiro"] .dh.we{ background:#14204A; }
+html[data-ui="zafiro"] .dh b{ color:var(--z-ink2); }
+html[data-ui="zafiro"] .dh.fer{ background:#3a1822; }
+html[data-ui="zafiro"] .dh.fer b{ color:#ff8f94; }
+html[data-ui="zafiro"] .dh.hoy b{ color:var(--z-acc-ink); }
+html[data-ui="zafiro"] td.c{ border-bottom-color:rgba(165,198,255,.10); }
+html[data-ui="zafiro"] td.c.we{ background:rgba(94,151,255,.06); }
+html[data-ui="zafiro"] td.c.fer{ background:#26121a; }
+html[data-ui="zafiro"] td.c:hover{ background:rgba(94,151,255,.14); }
+html[data-ui="zafiro"] tfoot td{ border-top-color:rgba(165,198,255,.10); }
+html[data-ui="zafiro"] .regt td{ border-bottom-color:rgba(165,198,255,.10); }
+html[data-ui="zafiro"] .rchip{ background:var(--z-card-hi); }
+
+/* Vista celular */
+html[data-ui="zafiro"] .mrow{ border-bottom-color:rgba(165,198,255,.10); }
+html[data-ui="zafiro"] .mrow:active{ background:rgba(94,151,255,.14); }
+html[data-ui="zafiro"] .mrow.we{ background:rgba(94,151,255,.06); }
+html[data-ui="zafiro"] .mrow.fer{ background:#26121a; }
+html[data-ui="zafiro"] .mrow.hoy .md b{ color:var(--z-acc-ink); }
+html[data-ui="zafiro"] .mbar{ background:rgba(14,24,56,.96); border-top-color:var(--z-line); }
+html[data-ui="zafiro"] .mcg span,html[data-ui="zafiro"] .mcg b{ border-bottom-color:rgba(165,198,255,.10); }
+html[data-ui="zafiro"] .mcg .we{ background:rgba(94,151,255,.06); }
+html[data-ui="zafiro"] .mcg .fer{ background:#26121a; }
+
+/* Diálogos */
+html[data-ui="zafiro"] .ov{ background:rgba(3,6,16,.72); }
+html[data-ui="zafiro"][data-fx="on"] .ov{ -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); }
+html[data-ui="zafiro"] .dlg{ background:var(--z-elev); border-color:var(--z-line-strong); border-radius:18px; box-shadow:0 30px 70px -24px rgba(0,0,20,.8); }
+}
+/* Al imprimir se devuelven las variables originales (papel claro, sin sorpresas) */
+@media print{
+  html[data-ui="zafiro"]{
+    --bg:#0a0f1d; --card:#0e1525; --card2:#121b2e; --line:#1f2b44; --txt:#e7ecf6; --mut:#8b98b3;
+    --lime:#a3e635; --amber:#f5a524; --red:#e5484d; --green:#2dd4a0;
+  }
+  html[data-ui="zafiro"],html[data-ui="zafiro"] body{ background:#fff !important; color:#000 !important; }
+  html[data-ui="zafiro"] body::before,html[data-ui="zafiro"] body::after,html[data-ui="zafiro"] .z-fondo{ display:none !important; }
+}

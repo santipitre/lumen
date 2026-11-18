@@ -1,0 +1,35 @@
+/* ============================================================
+   Lumen · Zafiro Lumen para conocimiento.html — Base de procesos (OPT-IN, solo oscuro)
+   Va después de lumen-zafiro.css y lumen-zafiro-modulos.css.
+   El verde azulado del módulo (--kb-acc) pasa al azul Zafiro. Se conservan el ámbar del aviso,
+   el rojo de «Rechazar / Archivar / sin contenido» y los puntos de la marca.
+   ============================================================ */
+html[data-ui="zafiro"]{
+  --kb-acc:var(--z-acc-ink); --kb-acc-dim:rgba(94,151,255,.14); --kb-acc-ring:rgba(94,151,255,.32);
+}
+html[data-ui="zafiro"] body{ font-family:var(--z-font); background:transparent; }
+html[data-ui="zafiro"] h1{ font-family:var(--z-font); font-weight:800; letter-spacing:.04em; }
+html[data-ui="zafiro"] :is(.tab,.btn,input,select,textarea,.cat,.tag){ font-family:var(--z-font); }
+html[data-ui="zafiro"] .tabs{ border-bottom-color:var(--z-line); }
+html[data-ui="zafiro"] .tab[aria-selected="true"]{ color:var(--z-acc-ink); border-bottom-color:var(--z-acc); }
+
+/* Vidrio */
+html[data-ui="zafiro"] :is(.card,.pend,.hueco){
+  border-color:var(--z-line); border-radius:16px;
+  background:linear-gradient(180deg,var(--z-sheen),transparent 46%),var(--z-card); box-shadow:var(--z-raise);
+}
+html[data-ui="zafiro"] .card.destacada{ border-color:var(--z-acc); box-shadow:0 0 0 3px rgba(94,151,255,.22); }
+html[data-ui="zafiro"] .reemplaza{ border-left-color:var(--z-acc); background:rgba(94,151,255,.12); border-radius:10px; }
+html[data-ui="zafiro"] .aviso{ border-radius:12px; }
+html[data-ui="zafiro"] .orig{ border-left-color:var(--z-line-strong); }
+html[data-ui="zafiro"] .tag{ border-color:var(--z-line); }
+html[data-ui="zafiro"] .tag.no{ color:var(--kb-danger); border-color:var(--kb-danger); }
+
+/* Botones y campos */
+html[data-ui="zafiro"] .btn{ background:linear-gradient(135deg,#2A63D8,var(--z-acc)); color:#fff; border:1px solid var(--z-line-strong); border-radius:12px; }
+html[data-ui="zafiro"] .btn.sec{ background:var(--z-card-hi); color:var(--z-ink); border:1px solid var(--z-line); }
+html[data-ui="zafiro"] .btn.sec:hover{ border-color:var(--z-acc); }
+html[data-ui="zafiro"] .btn.peligro{ background:transparent; color:var(--kb-danger); border:1px solid var(--kb-danger); }
+html[data-ui="zafiro"] :is(input,select,textarea){ background:var(--z-card-hi); border:1px solid var(--z-line); border-radius:10px; color:var(--z-ink); }
+html[data-ui="zafiro"] :is(input,select,textarea):focus{ border-color:var(--z-acc); outline:none; box-shadow:0 0 0 4px rgba(94,151,255,.22); }
+html[data-ui="zafiro"] .toast{ background:var(--z-elev); border-color:var(--z-line-strong); border-radius:14px; }

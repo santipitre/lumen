@@ -1,0 +1,33 @@
+/* Zafiro · letra más grande en cronograma (generado: x1.2 hasta 20px, x1.12 arriba; solo pantallas >= 900px) */
+@media screen and (min-width:900px){
+html[data-ui="zafiro"] .lumen-crumbs{font-size:16px}
+html[data-ui="zafiro"] .btn{font-size:16px}
+html[data-ui="zafiro"] .field label{font-size:12px}
+html[data-ui="zafiro"] .input{font-size:17px}
+html[data-ui="zafiro"] .roster-hint{font-size:13px}
+html[data-ui="zafiro"] .notes-area{font-size:17px}
+html[data-ui="zafiro"] .footer-note{font-size:13px}
+html[data-ui="zafiro"] .footer-note kbd{font-size:12px}
+html[data-ui="zafiro"] .tab{font-size:17px}
+html[data-ui="zafiro"] .toast{font-size:16px}
+html[data-ui="zafiro"] .edit-status{font-size:16px}
+}
+/* calendario y feriados: solo en pantallas anchas, para no romper el calendario sin scroll horizontal */
+@media screen and (min-width:1600px){
+html[data-ui="zafiro"] .day-name{font-size:17px}
+html[data-ui="zafiro"] .day-date{font-size:13px}
+html[data-ui="zafiro"] .row-label .t-name{font-size:16px}
+html[data-ui="zafiro"] .row-label .t-tag{font-size:12px}
+html[data-ui="zafiro"] .cell-time{font-size:13px}
+html[data-ui="zafiro"] .na-label{font-size:14px}
+html[data-ui="zafiro"] .chip{font-size:16px}
+html[data-ui="zafiro"] .chip .x{font-size:18px}
+html[data-ui="zafiro"] .add-input{font-size:14px}
+html[data-ui="zafiro"] .hol-table thead th{font-size:12px}
+html[data-ui="zafiro"] .hol-date .dnum{font-size:17px}
+html[data-ui="zafiro"] .hol-date .dwk{font-size:13px}
+html[data-ui="zafiro"] .hol-name{font-size:16px}
+html[data-ui="zafiro"] .hol-name .note{font-size:13px}
+html[data-ui="zafiro"] .hol-badge{font-size:12px}
+html[data-ui="zafiro"] .hol-del{font-size:19px}
+}
