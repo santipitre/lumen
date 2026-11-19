@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Dictom — Dictado radiológico inteligente · by Pyralis</title>
-<meta name="description" content="Dictom transforma tu dictado en informes radiológicos completos en formato ACR. Entrenado con corpus institucional real. Una solución de Pyralis." />
+<title>DICTOM by SPITRELLA — Dictado radiológico inteligente</title>
+<meta name="description" content="Dictom transforma tu dictado en informes radiológicos completos en formato ACR. Entrenado con corpus institucional real. Una solución de SPITRELLA." />
 <meta name="theme-color" content="#0A0F14" />
 <meta property="og:title" content="Dictom — Dictado radiológico inteligente" />
-<meta property="og:description" content="De la voz al informe en segundos. Una solución de Pyralis." />
+<meta property="og:description" content="De la voz al informe en segundos. Una solución de SPITRELLA." />
 <meta property="og:type" content="website" />
 <!-- Favicons Dictom (archivos físicos para bookmarks/PWA install) -->
 <link rel="manifest" href="manifest.json" />
@@ -56,7 +56,7 @@
 <!-- Dictom Auth: login + licencias (Supabase compartido con Lumen) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="spcd-supabase.js?v=4420ca43"></script>
-<script src="dictom-auth.js?v=2f309994" defer></script>
+<script src="dictom-auth.js?v=6d85efd0" defer></script>
 <style>
   :root {
     /* Paleta Dictom by Pyralis */
@@ -411,7 +411,7 @@
   <div class="max-w-[1800px] mx-auto px-6 py-4 flex items-center justify-between">
     <div class="flex items-center" style="gap: 18px;">
       <!-- Monograma D + luciérnaga con neón animado -->
-      <svg class="firefly-svg" width="48" height="48" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dictom by Pyralis" style="flex-shrink:0;">
+      <svg class="firefly-svg" width="48" height="48" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="DICTOM by SPITRELLA" style="flex-shrink:0;">
         <rect x="3" y="3" width="54" height="54" rx="13" fill="#0A0F14" stroke="#1F2937" stroke-width="0.8"/>
         <path d="M18 14 L18 46 L32 46 Q 46 46, 46 30 Q 46 14, 32 14 Z" fill="none" stroke="#F1F5F9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
         <circle cx="33" cy="30" r="9" fill="none" stroke="#F59E0B" stroke-width="0.6" opacity="0.4"/>
@@ -421,12 +421,12 @@
       <!-- Lockup textual con tracking corregido y "o" luciérnaga -->
       <div style="display: flex; flex-direction: column; gap: 4px;">
         <div style="display: inline-flex; align-items: center; gap: 10px;">
-          <span class="dictom-wordmark" style="font-size: 26px;">Dict<span class="firefly-o">o</span>m</span>
+          <span class="dictom-wordmark" style="font-size: 26px;">DICT<span class="firefly-o">O</span>M</span>
           <span style="font-size: 9px; font-weight: 500; padding: 3px 8px; border-radius: 4px; background: rgba(245, 158, 11, 0.12); border: 0.5px solid rgba(245, 158, 11, 0.3); color: #FCD34D; letter-spacing: 0.06em; text-transform: uppercase;" title="Modo ACR estricto: léxico controlado, RADS obligatorios, comunicación crítica activa">ACR estricto</span>
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
           <span style="font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: #64748B; font-family: 'Inter', sans-serif;">— by —</span>
-          <span style="font-size: 13px; font-weight: 500; color: #94A3B8; letter-spacing: -0.01em; font-family: 'Inter', sans-serif;">Pyralis</span>
+          <span style="font-size: 13px; font-weight: 500; color: #94A3B8; letter-spacing: 0.04em; font-family: 'Inter', sans-serif;">SPITRELLA</span>
           <span style="color: #2D3748; margin: 0 2px;">·</span>
           <span style="font-size: 11px; color: #94A3B8; font-family: 'Inter', sans-serif;">Dictado radiológico inteligente</span>
         </div>
@@ -811,9 +811,9 @@
         <path d="M18 14 L18 46 L32 46 Q 46 46, 46 30 Q 46 14, 32 14 Z" fill="none" stroke="#F1F5F9" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
         <circle cx="33" cy="30" r="5" fill="#F59E0B"/>
       </svg>
-      <span style="font-family: 'Inter', system-ui, sans-serif; font-size: 13px; color: #F1F5F9; font-weight: 500; letter-spacing: -0.02em;">Dict<span style="color:#F59E0B;">o</span>m</span>
+      <span style="font-family: 'Inter', system-ui, sans-serif; font-size: 13px; color: #F1F5F9; font-weight: 500; letter-spacing: 0.02em;">DICT<span style="color:#F59E0B;">O</span>M</span>
       <span style="font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: #64748B; margin: 0 4px;">by</span>
-      <span style="font-family: 'Inter', system-ui, sans-serif; font-size: 12px; color: #94A3B8; font-weight: 500;">Pyralis</span>
+      <span style="font-family: 'Inter', system-ui, sans-serif; font-size: 12px; color: #94A3B8; font-weight: 500; letter-spacing: 0.04em;">SPITRELLA</span>
     </div>
     <p style="font-size: 11px; color: #64748B; font-family: 'Inter', system-ui, sans-serif; font-style: italic;">De la voz al informe en segundos · 2026</p>
   </div>
@@ -836,7 +836,7 @@
     <label class="block text-xs font-semibold text-slate-600 mb-1">API Key</label>
     <input id="cfgApiKey" type="password" placeholder="Pegar la API key acá"
       class="w-full mb-1 px-3 py-2 text-sm border border-slate-300 rounded-md font-mono" />
-    <p class="text-[10px] text-slate-500 mb-3">Tu API key se guarda solo en este navegador. No se envía a ningún servidor de Dictom ni de Pyralis.</p>
+    <p class="text-[10px] text-slate-500 mb-3">Tu API key se guarda solo en este navegador. No se envía a ningún servidor de Dictom ni de SPITRELLA.</p>
 
     <label class="block text-xs font-semibold text-slate-600 mb-1">Centro / Clínica</label>
     <input id="cfgCentro" type="text" placeholder="Nombre de la institución"
@@ -12409,9 +12409,9 @@ const PYRALIS_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2
   <circle cx="34" cy="32" r="9" fill="none" stroke="#F59E0B" stroke-width="0.5" opacity="0.4"/>
   <circle cx="34" cy="32" r="4" fill="#F59E0B"/>
   <circle cx="34" cy="32" r="1.8" fill="#FEF3C7"/>
-  <text x="78" y="32" font-family="Inter, system-ui, sans-serif" font-weight="500" font-size="24" fill="#0A0F14" letter-spacing="-0.6">Dictom</text>
+  <text x="78" y="32" font-family="Inter, system-ui, sans-serif" font-weight="500" font-size="24" fill="#0A0F14" letter-spacing="0">DICTOM</text>
   <text x="78" y="48" font-family="Inter, system-ui, sans-serif" font-weight="400" font-size="9" fill="#64748B" letter-spacing="2">— BY —</text>
-  <text x="138" y="48" font-family="Inter, system-ui, sans-serif" font-weight="500" font-size="11" fill="#64748B" letter-spacing="-0.2">Pyralis</text>
+  <text x="138" y="48" font-family="Inter, system-ui, sans-serif" font-weight="500" font-size="11" fill="#64748B" letter-spacing="1">SPITRELLA</text>
 </svg>`;
 
 // Cache del PNG generado (no re-renderear cada descarga)
@@ -12681,7 +12681,7 @@ async function descargarDOCX() {
   }
 
   const doc = new Document({
-    creator: 'Dictom by Pyralis',
+    creator: 'DICTOM by SPITRELLA',
     title: 'Informe radiológico',
     styles: { default: { document: { run: { font: 'Cambria', size: 22 } } } },
     sections: [{
@@ -13272,7 +13272,7 @@ renderAttachmentUI();
     } else {
       add('campoHallazgos', 'Hallazgos');
     }
-    add('campoImpresion', 'Conclusión');
+    // La conclusión la genera la IA: no se dicta, así que no va en la lista de la mini
     return out;
   }
 
@@ -13286,6 +13286,10 @@ renderAttachmentUI();
 
   function actualizarSelect() {
     var lista = campos();
+    if (lista.length && !lista.some(function (c) { return c.id === state.activeField; })) {
+      var pref = lista.filter(function (c) { return c.id === 'campoHallazgos' || /^Hallazgos/.test(c.label); })[0] || lista[0];
+      elegirCampo(pref.id);
+    }
     var firma = lista.map(function (c) { return c.id + ':' + c.label; }).join('|');
     if (ui.sel.dataset.firma !== firma) {
       ui.sel.dataset.firma = firma;

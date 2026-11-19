@@ -1,5 +1,5 @@
 /* ============================================================
-   DICTOM AUTH — by Pyralis
+   DICTOM AUTH — by SPITRELLA
    ============================================================
    Sistema de login + control de licencias para Dictom.
    Reusa el proyecto Supabase de Lumen.
@@ -27,6 +27,25 @@
   // ── ESTADO ────────────────────────────────────────────────
   let currentUser = null;
   let currentLicencia = null;
+  const DEVICE_KEY = 'dictom_equipo_id';
+
+  // Identificador de ESTE navegador en ESTE equipo. El servidor sólo guarda su hash.
+  function deviceId() {
+    try {
+      let d = localStorage.getItem(DEVICE_KEY);
+      if (d && d.length >= 16) return d;
+      d = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+        : 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+      localStorage.setItem(DEVICE_KEY, d);
+      return d;
+    } catch (e) {
+      return 'sin-almacenamiento-' + Date.now();   // sin localStorage no se puede autorizar el equipo
+    }
+  }
+  async function estadoAcceso() {
+    const rows = await sbRpc('dictom_acceso_estado', { p_usuario_id: currentUser.id, p_device: deviceId() });
+    return (rows && rows[0]) || null;
+  }
 
   // ── HEADERS ───────────────────────────────────────────────
   function sbHeaders() {
@@ -370,8 +389,8 @@
         <div class="dictom-logo">
           ${LOGO_SVG}
           <div style="text-align:center;">
-            <div class="dictom-wordmark">Dict<span class="o">o</span>m</div>
-            <div class="dictom-sub">by Pyralis</div>
+            <div class="dictom-wordmark">DICT<span class="o">O</span>M</div>
+            <div class="dictom-sub">by SPITRELLA</div>
           </div>
         </div>
         <div class="dictom-divider"></div>
@@ -388,7 +407,7 @@
           <div class="dictom-error" id="dictom-error"></div>
         </form>
       </div>
-      <div class="dictom-version">DICTOM · v1.0 · 2026</div>
+      <div class="dictom-version">DICTOM by SPITRELLA</div>
     `;
     document.body.appendChild(overlay);
 
@@ -419,9 +438,69 @@
           <button class="dictom-btn-ghost" type="button" onclick="window.DictomAuth.logout()">← Cerrar sesión</button>
         </div>
       </div>
-      <div class="dictom-version">DICTOM · v1.0 · 2026</div>
+      <div class="dictom-version">DICTOM by SPITRELLA</div>
     `;
     document.body.appendChild(overlay);
+  }
+
+  function bloqueoCard(motivo, icono, titulo, htmlMsg) {
+    let overlay = document.getElementById('dictom-overlay');
+    if (overlay) overlay.remove();
+    overlay = document.createElement('div');
+    overlay.id = 'dictom-overlay';
+    overlay.className = 'dictom-overlay';
+    overlay.setAttribute('data-motivo', motivo);
+    overlay.innerHTML = `
+      <div class="dictom-card">
+        <div class="dictom-paywall-icon">${icono}</div>
+        <div class="dictom-paywall-title">${titulo}</div>
+        <div class="dictom-paywall-msg">${htmlMsg}</div>
+        <button class="dictom-btn-primary" type="button" onclick="location.href='app.html'">← Volver a Lumen</button>
+        <div style="margin-top:14px; text-align:center;">
+          <button class="dictom-btn-ghost" type="button" onclick="window.DictomAuth.logout()">← Cerrar sesión</button>
+        </div>
+      </div>
+      <div class="dictom-version">DICTOM by SPITRELLA</div>
+    `;
+    document.body.appendChild(overlay);
+  }
+
+  // Equipo no autorizado: se manda la solicitud al administrador y la pantalla se destraba sola cuando la aprueba.
+  async function renderEquipoBloqueado() {
+    let cod = (currentLicencia && currentLicencia.codigo_equipo) || '', est = 'pendiente', fallo = false;
+    try {
+      const r = await sbRpc('dictom_pedir_equipo', { p_device: deviceId(), p_navegador: (navigator.userAgent || '').slice(0, 200) });
+      const x = Array.isArray(r) ? r[0] : r;
+      if (x) { cod = x.codigo || cod; est = x.estado || est; }
+    } catch (e) { fallo = true; }
+    const nom = escapeHtml((currentUser && currentUser.nombre) || '');
+    const codHtml = cod ? '<div style="margin:14px 0 4px; text-align:center;"><span style="display:inline-block; padding:8px 16px; border:0.5px solid #F59E0B; border-radius:8px; color:#FCD34D; letter-spacing:4px; font-size:20px; font-weight:600;">' + escapeHtml(cod) + '</span></div>' : '';
+    const cuerpo = est === 'revocado'
+      ? 'Hola ' + nom + '.<br>Este equipo fue dado de baja para usar Dictom. Si es un error, pedile al administrador que lo autorice de nuevo.' + codHtml
+      : 'Hola ' + nom + '.<br>Dictom sólo funciona en los equipos que autoriza el administrador, y este todavía no lo está.' +
+        (fallo ? '<br>No se pudo enviar la solicitud: revisá la conexión.' : '<br>La solicitud ya está enviada. Pasale este código al administrador: esta pantalla se actualiza sola cuando lo autorice.') + codHtml;
+    bloqueoCard('equipo', '🖥️', 'Este equipo no está autorizado', cuerpo);
+  }
+
+  function renderRedBloqueada() {
+    const ip = currentLicencia && currentLicencia.ip;
+    bloqueoCard('red', '🌐', 'Dictom no está habilitado desde esta red',
+      'Hola ' + escapeHtml((currentUser && currentUser.nombre) || '') + '.<br>Dictom sólo se puede usar desde las redes autorizadas por el administrador.' +
+      (ip ? '<br>Tu conexión actual sale por la IP <b>' + escapeHtml(ip) + '</b>.' : '') +
+      '<br>Si estás en tu puesto de trabajo y ves este cartel, avisale al administrador.');
+  }
+
+  function renderSinConexion() {
+    bloqueoCard('conexion', '📡', 'No se pudo verificar tu acceso',
+      'Dictom necesita confirmar con el servidor que tu usuario, este equipo y el horario están habilitados. Revisá la conexión: se reintenta solo.' +
+      '<br><button class="dictom-btn-ghost" type="button" onclick="location.reload()" style="margin-top:12px;">Reintentar ahora</button>');
+  }
+
+  async function renderBloqueo(motivo) {
+    if (motivo === 'horario') renderFueraDeHorario();
+    else if (motivo === 'equipo') await renderEquipoBloqueado();
+    else if (motivo === 'red') renderRedBloqueada();
+    else renderSinConexion();
   }
 
   let ingresoHecho = false, vigilTimer = null, avisoCierreDe = null;
@@ -441,8 +520,8 @@
       try {
         let srv = null;
         try {
-          const rows = await sbRpc('dictom_licencia_estado', { p_usuario_id: currentUser.id });
-          if (rows && rows[0]) { srv = rows[0]; currentLicencia = srv; }
+          srv = await estadoAcceso();
+          if (srv) currentLicencia = srv;
         } catch (e) { /* sin conexión: sigue con lo último que se sabe */ }
         if (srv && srv.vigente === false) {
           clearInterval(vigilTimer); vigilTimer = null;
@@ -450,16 +529,21 @@
           avisarBloqueo();
           return;
         }
-        const dentro = srv ? srv.en_horario !== false : enHorarioLocal(currentLicencia);
         const ov = document.getElementById('dictom-overlay');
-        const bloqueado = !!(ov && ov.getAttribute('data-motivo') === 'horario');
-        if (!dentro && !bloqueado) { renderFueraDeHorario(); avisarBloqueo(); return; }
-        if (dentro && bloqueado) {
+        const actual = ov ? ov.getAttribute('data-motivo') : null;
+        let motivo;
+        if (srv) motivo = srv.motivo || null;
+        else {
+          if (actual && actual !== 'horario') return;   // sin conexión no se levanta un bloqueo de equipo o red
+          motivo = (currentLicencia && enHorarioLocal(currentLicencia)) ? null : (currentLicencia ? 'horario' : null);
+        }
+        if (motivo && motivo !== actual) { await renderBloqueo(motivo); avisarBloqueo(); return; }
+        if (!motivo && actual) {
           if (!ingresoHecho) { location.reload(); return; }
           ov.remove();
           return;
         }
-        if (dentro) {
+        if (!motivo) {
           const m = minutosParaCierre(currentLicencia);
           if (m !== null && m <= 5) {
             const clave = String(currentLicencia.hora_hasta) + '|' + new Date().toDateString();
@@ -496,7 +580,7 @@
           </button>
         </div>
       </div>
-      <div class="dictom-version">DICTOM · v1.0 · 2026</div>
+      <div class="dictom-version">DICTOM by SPITRELLA</div>
     `;
     document.body.appendChild(overlay);
   }
@@ -796,12 +880,206 @@
           </tbody>
         </table>
         </div>
+
+        <div class="dictom-admin-newuser" style="margin-top:20px;">
+          <h3>Equipos</h3>
+          <div class="hor-ayuda" style="margin:0 0 10px;">Dictom sólo abre en los equipos que autorices. Cuando alguien entra desde un equipo nuevo, aparece acá como «Pendiente» con un código: confirmá que es el puesto que esperabas y autorizalo. La autorización vale para ese navegador de esa PC (si borran los datos del navegador hay que autorizarlo de nuevo). Vos (administrador) no tenés restricción.</div>
+          <div class="dictom-admin-tablewrap">
+          <table class="dictom-admin-table">
+            <thead><tr><th>Equipo</th><th>Código</th><th>Estado</th><th>Uso</th><th>Pidió</th><th>IP</th><th>Último uso</th><th></th></tr></thead>
+            <tbody id="eq-tbody"><tr><td colspan="8" style="text-align:center; color:#94A3B8;">Cargando...</td></tr></tbody>
+          </table>
+          </div>
+        </div>
+
+        <div class="dictom-admin-newuser">
+          <h3>Redes permitidas (IP)</h3>
+          <div class="hor-ayuda" style="margin:0 0 10px;">Opcional. Si cargás alguna IP, Dictom sólo funciona desde esas conexiones (todas las PC del hospital comparten la misma IP pública, así que esto limita por lugar, no por máquina). Sin ninguna cargada no se controla la IP.</div>
+          <div class="row" style="grid-template-columns:1fr 1fr auto auto;">
+            <input id="red-ip" autocomplete="off" placeholder="IP, ej. 200.45.10.20" style="background:#0A0F14; border:0.5px solid #1F2937; border-radius:6px; padding:8px 10px; color:#F1F5F9; font-family:inherit;">
+            <input id="red-et" autocomplete="off" placeholder="Nombre (ej. Hospital Italiano)" style="background:#0A0F14; border:0.5px solid #1F2937; border-radius:6px; padding:8px 10px; color:#F1F5F9; font-family:inherit;">
+            <button class="dictom-btn-ghost" id="red-mia" type="button" style="white-space:nowrap;">Usar la IP desde la que estoy</button>
+            <button class="dictom-btn-primary" id="red-add" type="button" style="margin:0; padding:8px 14px; font-size:11px; width:auto; white-space:nowrap;">Agregar</button>
+          </div>
+          <div class="dictom-error" id="red-error" style="margin-top:8px;"></div>
+          <div class="dictom-admin-tablewrap" style="margin-top:8px;">
+          <table class="dictom-admin-table">
+            <thead><tr><th>IP / rango</th><th>Nombre</th><th>Cargada</th><th></th></tr></thead>
+            <tbody id="red-tbody"><tr><td colspan="4" style="text-align:center; color:#94A3B8;">Cargando...</td></tr></tbody>
+          </table>
+          </div>
+        </div>
       </div>
     `;
     document.body.appendChild(overlay);
+    document.getElementById('red-add').addEventListener('click', adminAgregarRed);
+    document.getElementById('red-mia').addEventListener('click', adminMiIp);
     document.getElementById('dictom-admin-close').addEventListener('click', () => overlay.remove());
     document.getElementById('adm-create').addEventListener('click', adminCreateUser);
     await reloadAdminTable();
+    await Promise.all([reloadAdminEquipos(), reloadAdminRedes()]);
+  }
+
+  let usuariosAdmin = [];
+
+  function navCorto(ua) {
+    const u = String(ua || '');
+    const b = /Edg\//.test(u) ? 'Edge' : /Chrome\//.test(u) ? 'Chrome' : /Firefox\//.test(u) ? 'Firefox' : /Safari\//.test(u) ? 'Safari' : 'Navegador';
+    const o = /Windows/.test(u) ? 'Windows' : /Mac OS/.test(u) ? 'Mac' : /Android/.test(u) ? 'Android' : /Linux/.test(u) ? 'Linux' : '';
+    return b + (o ? ' · ' + o : '');
+  }
+
+  async function reloadAdminEquipos() {
+    const tb = document.getElementById('eq-tbody');
+    if (!tb) return;
+    try {
+      const rows = await sbRpc('dictom_equipos_listar', {});
+      const porId = {};
+      (rows || []).forEach(function (r) { porId[r.id] = r; });
+      if (!rows || !rows.length) {
+        tb.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#94A3B8;">Todavía ningún equipo pidió acceso.</td></tr>';
+        return;
+      }
+      tb.innerHTML = rows.map(function (r) {
+        const badge = r.estado === 'autorizado' ? '<span class="badge ok">Autorizado</span>'
+          : r.estado === 'pendiente' ? '<span class="badge pro">Pendiente</span>' : '<span class="badge expired">Revocado</span>';
+        const uso = r.estado === 'autorizado' ? (r.usuario_nombre ? 'Sólo ' + escapeHtml(r.usuario_nombre) : 'Cualquier usuario con licencia') : '—';
+        const acciones = (r.estado === 'autorizado'
+          ? '<button data-eq="editar" data-id="' + r.id + '">Cambiar</button><button data-eq="revocar" data-id="' + r.id + '">Revocar</button>'
+          : '<button data-eq="autorizar" data-id="' + r.id + '">Autorizar</button>' + (r.estado === 'pendiente' ? '<button data-eq="revocar" data-id="' + r.id + '">Rechazar</button>' : ''));
+        return '<tr>' +
+          '<td>' + (r.etiqueta ? escapeHtml(r.etiqueta) : '<span style="color:#94A3B8">Sin nombre</span>') + '<div style="font-size:11px; color:#94A3B8;">' + escapeHtml(navCorto(r.navegador)) + '</div></td>' +
+          '<td><code>' + escapeHtml(r.codigo) + '</code></td><td>' + badge + '</td><td>' + uso + '</td>' +
+          '<td>' + escapeHtml(r.solicitante || '') + '</td><td><code>' + escapeHtml(r.ip_ultima || '—') + '</code></td>' +
+          '<td>' + (r.ultimo_uso ? escapeHtml(fmtFecha(r.ultimo_uso)) : '—') + '</td>' +
+          '<td><div class="dictom-admin-row-actions">' + acciones + '</div></td></tr>';
+      }).join('');
+      tb.querySelectorAll('button').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+          const id = btn.getAttribute('data-id'), act = btn.getAttribute('data-eq');
+          try {
+            if (act === 'revocar') {
+              const r = porId[id] || {};
+              const rechazo = r.estado === 'pendiente';
+              if (!(await confirmarUI(rechazo ? '¿Rechazar la solicitud de este equipo?' : '¿Revocar este equipo? Dictom se bloquea ahí en menos de un minuto.',
+                { titulo: rechazo ? 'Rechazar equipo' : 'Revocar equipo', aceptar: rechazo ? 'Rechazar' : 'Revocar', peligro: true }))) return;
+              await sbRpc('dictom_equipo_resolver', { p_id: id, p_accion: 'revocar' });
+            } else {
+              const ok = await abrirEquipoModal(porId[id]);
+              if (!ok) return;
+            }
+            await reloadAdminEquipos();
+          } catch (e) { avisarUI('Error: ' + e.message, 'Error'); }
+        });
+      });
+    } catch (e) {
+      tb.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#EF4444;">Error: ' + escapeHtml(e.message) + '</td></tr>';
+    }
+  }
+
+  function abrirEquipoModal(r) {
+    return new Promise(function (resolve) {
+      if (!r) { resolve(false); return; }
+      const ov = document.createElement('div');
+      ov.className = 'dictom-overlay';
+      ov.id = 'dictom-equipo-overlay';
+      const inp = 'width:100%; box-sizing:border-box; background:#0A0F14; border:0.5px solid #1F2937; border-radius:6px; padding:9px 10px; color:#F1F5F9; font-family:inherit; font-size:14px;';
+      const opts = ['<option value="">Cualquier usuario con licencia</option>'].concat((usuariosAdmin || []).map(function (u) {
+        return '<option value="' + escapeHtml(u.id) + '"' + (u.id === r.usuario_id ? ' selected' : '') + '>' + escapeHtml(u.email || u.username) + ' — ' + escapeHtml(u.nombre || '') + '</option>';
+      })).join('');
+      ov.innerHTML =
+        '<div class="dictom-card dictom-admin-card" style="max-width:560px;">' +
+          '<div class="dictom-wordmark" style="font-size:18px;">Autorizar equipo</div>' +
+          '<div class="dictom-sub" style="margin:2px 0 10px;">Código ' + escapeHtml(r.codigo) + ' · ' + escapeHtml(navCorto(r.navegador)) + ' · IP ' + escapeHtml(r.ip_ultima || '—') + '</div>' +
+          '<div class="hor-lbl">Nombre del equipo</div>' +
+          '<input id="eq-nombre" maxlength="80" autocomplete="off" placeholder="Ej: Sala TC 1" value="' + escapeHtml(r.etiqueta || '') + '" style="' + inp + '">' +
+          '<div class="hor-lbl" style="margin-top:14px;">Quién puede usarlo</div>' +
+          '<select id="eq-usuario" style="' + inp + '">' + opts + '</select>' +
+          '<div class="dictom-error" id="eq-error" style="margin-top:8px;"></div>' +
+          '<div style="display:flex; gap:8px; justify-content:flex-end; margin-top:18px;">' +
+            '<button class="dictom-btn-ghost" id="eq-cancel" type="button">Cancelar</button>' +
+            '<button class="dictom-btn-primary" id="eq-save" type="button" style="margin:0; width:auto; padding:10px 20px;">Autorizar</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(ov);
+      const cerrar = function (v) { document.removeEventListener('keydown', onKey, true); ov.remove(); resolve(v); };
+      function onKey(ev) { if (ev.key === 'Escape') { ev.stopPropagation(); cerrar(false); } }
+      document.addEventListener('keydown', onKey, true);
+      ov.querySelector('#eq-cancel').addEventListener('click', function () { cerrar(false); });
+      setTimeout(function () { const i = ov.querySelector('#eq-nombre'); if (i) i.focus(); }, 50);
+      ov.querySelector('#eq-save').addEventListener('click', async function () {
+        const err = ov.querySelector('#eq-error'), btn = ov.querySelector('#eq-save');
+        err.classList.remove('visible');
+        const nombre = ov.querySelector('#eq-nombre').value.trim();
+        if (nombre.length < 2) { err.textContent = 'Poné un nombre para el equipo (ej. Sala TC 1).'; err.classList.add('visible'); return; }
+        try {
+          btn.disabled = true;
+          await sbRpc('dictom_equipo_resolver', { p_id: r.id, p_accion: 'autorizar', p_etiqueta: nombre, p_usuario_id: ov.querySelector('#eq-usuario').value || null });
+          cerrar(true);
+        } catch (ex) {
+          err.textContent = ex.message; err.classList.add('visible'); btn.disabled = false;
+        }
+      });
+    });
+  }
+
+  async function reloadAdminRedes() {
+    const tb = document.getElementById('red-tbody');
+    if (!tb) return;
+    try {
+      const rows = await sbRpc('dictom_redes_listar', {});
+      if (!rows || !rows.length) {
+        tb.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#94A3B8;">Sin redes cargadas: no se controla la IP.</td></tr>';
+        return;
+      }
+      tb.innerHTML = rows.map(function (r) {
+        return '<tr><td><code>' + escapeHtml(r.red) + '</code></td><td>' + escapeHtml(r.etiqueta || '') + '</td><td>' + escapeHtml(fmtFecha(r.creado_en)) +
+          '</td><td><div class="dictom-admin-row-actions"><button data-id="' + r.id + '">Quitar</button></div></td></tr>';
+      }).join('');
+      tb.querySelectorAll('button').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+          try {
+            const unica = rows.length === 1;
+            if (!(await confirmarUI(unica ? 'Es la última red cargada: si la quitás, Dictom deja de controlar la IP y vuelve a abrir desde cualquier conexión. ¿Quitarla?' : '¿Quitar esta red?',
+              { titulo: 'Quitar red', aceptar: 'Quitar', peligro: true }))) return;
+            await sbRpc('dictom_red_quitar', { p_id: btn.getAttribute('data-id') });
+            await reloadAdminRedes();
+          } catch (e) { avisarUI('Error: ' + e.message, 'Error'); }
+        });
+      });
+    } catch (e) {
+      tb.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#EF4444;">Error: ' + escapeHtml(e.message) + '</td></tr>';
+    }
+  }
+
+  async function adminMiIp() {
+    const err = document.getElementById('red-error');
+    err.classList.remove('visible');
+    try {
+      const ip = await sbRpc('dictom_mi_ip', {});
+      const v = Array.isArray(ip) ? ip[0] : ip;
+      if (!v) throw new Error('El servidor no pudo ver tu IP.');
+      document.getElementById('red-ip').value = v;
+    } catch (ex) { err.textContent = ex.message; err.classList.add('visible'); }
+  }
+
+  async function adminAgregarRed() {
+    const ip = document.getElementById('red-ip').value.trim();
+    const et = document.getElementById('red-et').value.trim();
+    const err = document.getElementById('red-error');
+    const btn = document.getElementById('red-add');
+    err.classList.remove('visible');
+    try {
+      if (!ip) throw new Error('Cargá la IP (o usá «Usar la IP desde la que estoy»).');
+      const hay = document.querySelectorAll('#red-tbody button').length;
+      if (!hay && !(await confirmarUI('Al cargar la primera red, Dictom sólo va a funcionar desde las IP de esta lista (vos quedás exento como administrador). ¿Seguir?', { titulo: 'Limitar por red', aceptar: 'Limitar' }))) return;
+      btn.disabled = true;
+      await sbRpc('dictom_red_agregar', { p_red: ip, p_etiqueta: et });
+      document.getElementById('red-ip').value = '';
+      document.getElementById('red-et').value = '';
+      await reloadAdminRedes();
+    } catch (ex) { err.textContent = ex.message; err.classList.add('visible'); }
+    finally { btn.disabled = false; }
   }
 
   async function reloadAdminTable() {
@@ -814,6 +1092,7 @@
       const hmap = {}, porId = {};
       (hors || []).forEach(function (h) { hmap[h.usuario_id] = h; });
       (rows || []).forEach(function (r) { porId[r.id] = r; });
+      usuariosAdmin = rows || [];
       if (!rows || rows.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#94A3B8;">Sin radiólogos cargados todavía.</td></tr>';
         return;
@@ -1170,22 +1449,17 @@
     const u = lumenSession();
     if (!u) { location.replace('app.html'); return; }   // sin sesión de Lumen: al ingreso
     currentUser = { id: u.id, username: u.username, nombre: u.nombre || u.username, rol: u.rol, productos: u.productos };
-    try {
-      let licRows;
-      try {
-        licRows = await sbRpc('dictom_licencia_estado', { p_usuario_id: u.id });
-      } catch (e1) {
-        // base sin la función de horario: cae a la licencia simple, sin restricción horaria
-        licRows = await sbRpc('licencia_dictom_activa', { p_usuario_id: u.id });
-        if (licRows && licRows[0]) licRows[0].en_horario = true;
-      }
-      currentLicencia = (licRows && licRows[0]) || { vigente: false, plan: null, dias_restantes: 0 };
-    } catch (e) {
-      currentLicencia = { vigente: false, plan: null, dias_restantes: 0 };   // sin conexión: no se habilita
+    let est = null;
+    try { est = await estadoAcceso(); } catch (e) { est = null; }
+    if (!est) {   // sin respuesta del servidor no se habilita nada
+      renderSinConexion();
+      vigilarHorario();
+      return;
     }
-    if (!currentLicencia.vigente) { renderPaywall(currentUser.nombre); return; }
-    if (currentLicencia.en_horario === false) {
-      renderFueraDeHorario();
+    currentLicencia = est;
+    if (!est.vigente) { renderPaywall(currentUser.nombre); return; }
+    if (est.permitido === false) {
+      await renderBloqueo(est.motivo);
       vigilarHorario();
       return;
     }
