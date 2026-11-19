@@ -834,8 +834,13 @@
 <div id="settingsModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
   <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl">
     <h3 class="text-lg font-bold text-slate-800 mb-1">Configuración</h3>
-    <p class="text-xs text-slate-500 mb-5">Configurá tu API key y preferencias.</p>
+    <p class="text-xs text-slate-500 mb-5">Preferencias de DICTOM.</p>
 
+    <div class="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-md">
+      <p class="text-xs font-semibold text-emerald-800">IA incluida</p>
+      <p class="text-[11px] text-emerald-700 mt-0.5">DICTOM genera los informes con la IA de SPITRELLA. No necesitás cargar ninguna API key.</p>
+    </div>
+    <div class="hidden" aria-hidden="true">
     <label class="block text-xs font-semibold text-slate-600 mb-1">Proveedor de IA</label>
     <select id="cfgProvider" class="w-full mb-2 px-3 py-2 text-sm border border-slate-300 rounded-md">
       <option value="gemini">Google Gemini — GRATIS (recomendado para probar)</option>
@@ -848,6 +853,7 @@
     <input id="cfgApiKey" type="password" placeholder="Pegar la API key acá"
       class="w-full mb-1 px-3 py-2 text-sm border border-slate-300 rounded-md font-mono" />
     <p class="text-[10px] text-slate-500 mb-3">Tu API key se guarda solo en este navegador. No se envía a ningún servidor de Dictom ni de SPITRELLA.</p>
+    </div>
 
     <label class="block text-xs font-semibold text-slate-600 mb-1">Centro / Clínica</label>
     <input id="cfgCentro" type="text" placeholder="Nombre de la institución"
@@ -10191,7 +10197,7 @@ function usoLog(evento, extra) {
   try {
     if (!window.DictomAuth || typeof window.DictomAuth.registrarUso !== 'function') return;
     const mods = (typeof getSelectedModalidades === 'function') ? getSelectedModalidades() : [];
-    window.DictomAuth.registrarUso(evento, Object.assign({ modalidades: mods, proveedor: (state.config && state.config.provider) || null }, extra || {}));
+    window.DictomAuth.registrarUso(evento, Object.assign({ modalidades: mods, proveedor: 'claude' }, extra || {}));
   } catch (_) { /* el registro nunca debe molestar al médico */ }
 }
 function loadConfig() {
@@ -10260,13 +10266,8 @@ $('btnSaveSettings').addEventListener('click', () => {
   toast('Configuración guardada');
 });
 function updateConnectionIndicator() {
-  if (state.config.apiKey) {
-    $('connectionDot').className = 'w-2 h-2 rounded-full bg-emerald-400';
-    $('connectionText').textContent = 'IA conectada';
-  } else {
-    $('connectionDot').className = 'w-2 h-2 rounded-full bg-amber-400';
-    $('connectionText').textContent = 'Configurar API key';
-  }
+  $('connectionDot').className = 'w-2 h-2 rounded-full bg-emerald-400';
+  $('connectionText').textContent = 'IA incluida';
 }
 
 // ------------------ CAMPO ACTIVO PARA DICTADO (sigue al foco del usuario) ------------------
@@ -11368,11 +11369,6 @@ $('btnNuevoInforme').addEventListener('click', () => limpiarTodoElInforme());
 
 // ------------------ GENERAR CON IA ------------------
 async function generarConIA() {
-  if (!state.config.apiKey) {
-    toast('Configurá tu API key primero (botón Configuración)', false);
-    $('btnSettings').click();
-    return;
-  }
   const mods = getSelectedModalidades();
   if (!mods.length) { toast('Seleccioná al menos una modalidad', false); return; }
   const mod = mods[0]; // mantén compatibilidad con código que asume 1 modalidad
@@ -11856,10 +11852,60 @@ Le saluda muy atentamente.-
 async function callAI(prompt, attachments) {
   // Normalizar: aceptar array, objeto único o null
   const atts = Array.isArray(attachments) ? attachments : (attachments ? [attachments] : []);
-  const prov = state.config.provider || 'gemini';
-  if (prov === 'openai') return callOpenAI(prompt, atts);
-  if (prov === 'gemini') return callGemini(prompt, atts);
-  return callClaude(prompt, atts);
+  // Todos los usuarios autorizados generan con la IA del administrador, vía servidor (sin API key propia).
+  return callServidor(prompt, atts);
+}
+
+const DICTOM_IA_MOTIVOS = {
+  sesion: 'Tu sesión venció. Volvé a ingresar a Lumen y reintentá.',
+  licencia: 'Tu licencia de DICTOM no está vigente.',
+  equipo: 'Este equipo/navegador no está autorizado para usar DICTOM.',
+  red: 'Esta red no está autorizada para usar DICTOM.',
+  horario: 'Estás fuera de tu horario habilitado para DICTOM.',
+  cupo: 'Llegaste al tope de informes por hora. Probá de nuevo en un rato.',
+  sin_clave: 'La IA todavía no está configurada en el servidor. Avisale al administrador.',
+  clave_invalida: 'La IA del servidor no está disponible en este momento. Avisale al administrador.',
+  proveedor_saturado: 'La IA está con mucha demanda en este momento. Esperá unos minutos y reintentá.',
+  proveedor_rechazo: 'La IA rechazó el pedido (posible falta de saldo del administrador o archivo no válido).',
+  tiempo: 'La IA tardó demasiado en responder. Reintentá.',
+  tamano: 'Los archivos adjuntos son demasiado pesados. Probá con menos o más livianos.',
+  pedido: 'El pedido a la IA no es válido.'
+};
+async function callServidor(prompt, attachments) {
+  const content = [];
+  for (const attachment of attachments) {
+    if (attachment.kind === 'image') {
+      content.push({ type: 'image', source: { type: 'base64', media_type: attachment.mediaType, data: attachment.base64 } });
+    } else if (attachment.kind === 'pdf') {
+      content.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: attachment.base64 } });
+    } else if (attachment.kind === 'text') {
+      content.push({ type: 'text', text: `INFORME PREVIO ADJUNTO "${attachment.name}" (texto):\n` + attachment.textContent + '\n\n---\n' });
+    }
+  }
+  content.push({ type: 'text', text: prompt });
+  let device = '';
+  try { device = localStorage.getItem('dictom_equipo_id') || ''; } catch (e) {}
+  const h0 = (typeof window.getSBHeaders === 'function') ? await window.getSBHeaders() : null;
+  if (!h0) throw new Error(DICTOM_IA_MOTIVOS.sesion);
+  // Sólo los encabezados que la función admite en CORS (getSBHeaders agrega 'Prefer', que bloquea el pedido).
+  const hdrs = { 'apikey': h0.apikey, 'Authorization': h0.Authorization, 'Content-Type': 'application/json' };
+  let res;
+  try {
+    res = await fetch('https://erjdncsnomwymjiaslpx.supabase.co/functions/v1/dictom-ia', {
+      method: 'POST',
+      headers: hdrs,
+      body: JSON.stringify({ device, content })
+    });
+  } catch (e) {
+    throw new Error('No se pudo conectar con el servidor de IA. Revisá tu conexión y reintentá.');
+  }
+  let d = null;
+  try { d = await res.json(); } catch (e) {}
+  if (!res.ok || !d || d.ok !== true) {
+    const m = d && d.motivo;
+    throw new Error(DICTOM_IA_MOTIVOS[m] || ('No se pudo generar el informe (' + (m || 'error') + ').'));
+  }
+  return d.texto || '';
 }
 
 async function callGemini(prompt, attachments) {
