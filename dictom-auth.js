@@ -507,7 +507,7 @@
           <div class="rl">${escapeHtml(currentUser.rol)} · ${escapeHtml(currentUser.username)}</div>
           <div class="lic ${licClass}">${licText}</div>
         </div>
-        ${currentUser.rol === 'admin' ? '<button id="dictom-menu-admin">Panel admin</button>' : ''}
+        ${currentUser.rol === 'admin' ? '<button id="dictom-menu-admin">Panel admin</button><button id="dictom-menu-uso">Uso de Dictom</button>' : ''}
         <button id="dictom-menu-lumen" onclick="location.href='app.html'">← Volver a Lumen</button>
         <button id="dictom-menu-logout">Cerrar sesión</button>
       </div>
@@ -527,12 +527,14 @@
 
     const adminBtn = document.getElementById('dictom-menu-admin');
     if (adminBtn) adminBtn.addEventListener('click', openAdminPanel);
+    const usoBtn = document.getElementById('dictom-menu-uso');
+    if (usoBtn) usoBtn.addEventListener('click', openUsoPanel);
   }
 
   // ── ADMIN PANEL ───────────────────────────────────────────
   async function openAdminPanel() {
     if (!currentUser || currentUser.rol !== 'admin') {
-      alert('Sólo admin puede acceder.');
+      avisarUI('Sólo admin puede acceder.', 'Acceso restringido');
       return;
     }
 
@@ -623,12 +625,12 @@
             } else if (act === 'unlimited') {
               await sbRpc('otorgar_licencia_dictom', { p_usuario_id: id, p_plan: 'unlimited', p_dias: 36500, p_notas: 'Licencia permanente' });
             } else if (act === 'revoke') {
-              if (!confirm('¿Revocar licencia?')) return;
+              if (!(await confirmarUI('¿Revocar licencia?', { titulo: 'Revocar licencia', aceptar: 'Revocar', peligro: true }))) return;
               await sbRpc('revocar_licencia_dictom', { p_usuario_id: id });
             }
             await reloadAdminTable();
           } catch (e) {
-            alert('Error: ' + e.message);
+            avisarUI('Error: ' + e.message, 'Error');
           }
         });
       });
@@ -657,6 +659,236 @@
       err.textContent = e.message;
       err.classList.add('visible');
     }
+  }
+
+  // ── CARTELES (usan los de la página; si no están, los nativos) ─────────────
+  function confirmarUI(msg, o) {
+    return (typeof window.confirmar === 'function') ? window.confirmar(msg, o) : Promise.resolve(window.confirm(msg));
+  }
+  function avisarUI(msg, titulo) {
+    if (typeof window.avisar === 'function') return window.avisar(msg, titulo);
+    window.alert(msg);
+    return Promise.resolve(true);
+  }
+
+  // ── REGISTRO DE USO ───────────────────────────────────────
+  // Solo cuenta eventos (informe IA / normal / copiado / exportado / mini). Nunca manda texto clínico ni datos de pacientes.
+  function registrarUso(evento, d) {
+    if (!currentUser) return;
+    d = d || {};
+    const mods = Array.isArray(d.modalidades) ? d.modalidades.map(String).slice(0, 12) : [];
+    const num = (v) => (typeof v === 'number' && isFinite(v)) ? Math.round(v) : null;
+    sbRpc('dictom_registrar_uso', {
+      p_evento: evento,
+      p_modalidades: mods,
+      p_proveedor: d.proveedor ? String(d.proveedor).slice(0, 20) : null,
+      p_palabras: num(d.palabras),
+      p_duracion_ms: num(d.duracion_ms)
+    }).catch(function (e) {
+      // La función no devuelve contenido: el error de "parsear vacío" no es un error real
+      if (e && /JSON|Unexpected end/i.test(String(e.message))) return;
+      console.warn('[dictom] uso no registrado:', e && e.message);
+    });
+  }
+
+  // ── TABLERO DE USO (solo admin; la base lo exige con auth_es_admin) ──────────
+  const TZ = 'America/Argentina/Buenos_Aires';
+  let usoDias = 30;
+
+  function fmtFecha(ts) {
+    if (!ts) return '—';
+    try {
+      return new Date(ts).toLocaleString('es-AR', { timeZone: TZ, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+    } catch (e) { return String(ts); }
+  }
+  function fmtDia(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+    return m ? (m[3] + '/' + m[2]) : String(iso || '');
+  }
+  function haceCuanto(ts) {
+    if (!ts) return '';
+    const s = Math.max(0, (Date.now() - new Date(ts).getTime()) / 1000);
+    if (s < 90) return 'hace un momento';
+    const m = Math.round(s / 60);
+    if (m < 60) return 'hace ' + m + ' min';
+    const h = Math.round(m / 60);
+    if (h < 36) return 'hace ' + h + ' h';
+    return 'hace ' + Math.round(h / 24) + ' días';
+  }
+
+  function graficoDias(serie) {
+    const W = 760, H = 200, pl = 34, pr = 8, pt = 10, pb = 28;
+    const iw = W - pl - pr, ih = H - pt - pb;
+    const max = Math.max(1, ...serie.map(x => x.ia + x.normal));
+    const tope = max <= 4 ? 4 : Math.ceil(max / 4) * 4;
+    const bw = iw / serie.length;
+    const ancho = Math.max(2, Math.min(26, bw * 0.7));
+    let g = '';
+    for (let i = 0; i <= 4; i++) {
+      const y = pt + ih - (ih * i / 4);
+      g += '<line x1="' + pl + '" x2="' + (W - pr) + '" y1="' + y + '" y2="' + y + '" class="gl"/>' +
+           '<text x="' + (pl - 6) + '" y="' + (y + 4) + '" text-anchor="end" class="ax">' + Math.round(tope * i / 4) + '</text>';
+    }
+    serie.forEach(function (x, i) {
+      const bx = pl + bw * i + (bw - ancho) / 2;
+      const hNo = ih * x.normal / tope, hIa = ih * x.ia / tope;
+      const yNo = pt + ih - hNo, yIa = yNo - hIa;
+      g += '<g><title>' + fmtDia(x.dia) + ': ' + x.ia + ' con IA, ' + x.normal + ' normal</title>' +
+           (x.normal ? '<rect x="' + bx + '" y="' + yNo + '" width="' + ancho + '" height="' + hNo + '" rx="2" class="b-no"/>' : '') +
+           (x.ia ? '<rect x="' + bx + '" y="' + yIa + '" width="' + ancho + '" height="' + hIa + '" rx="2" class="b-ia"/>' : '') +
+           '<rect x="' + (pl + bw * i) + '" y="' + pt + '" width="' + bw + '" height="' + ih + '" fill="transparent"/></g>';
+    });
+    const paso = Math.max(1, Math.ceil(serie.length / 7));
+    serie.forEach(function (x, i) {
+      if (i % paso !== 0 && i !== serie.length - 1) return;
+      g += '<text x="' + (pl + bw * i + bw / 2) + '" y="' + (H - 8) + '" text-anchor="middle" class="ax">' + fmtDia(x.dia) + '</text>';
+    });
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="uso-svg" role="img" aria-label="Informes generados por día">' + g + '</svg>';
+  }
+
+  function injectUsoStyles() {
+    if (document.getElementById('dictom-uso-styles')) return;
+    const st = document.createElement('style');
+    st.id = 'dictom-uso-styles';
+    st.textContent = `
+    .uso-card{box-sizing:border-box;width:100%;max-width:1000px;max-height:calc(100vh - 48px);overflow:auto;padding:24px;border-radius:18px;
+      background:var(--z-elev,#0E1521);color:var(--z-ink,#E2E8F0);border:1px solid var(--z-line-strong,rgba(245,158,11,.4));
+      font-family:var(--z-font,inherit);box-shadow:0 24px 60px rgba(0,0,0,.55)}
+    .uso-top{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;margin-bottom:16px}
+    .uso-tit{font-size:22px;font-weight:800;margin:0}
+    .uso-sub{font-size:13.5px;color:var(--z-ink3,#94A3B8);margin-top:4px}
+    .uso-acc{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .uso-btn{font:inherit;font-size:14.5px;font-weight:700;min-height:40px;padding:8px 14px;border-radius:11px;cursor:pointer;
+      border:1.5px solid var(--z-line-strong,rgba(245,158,11,.5));background:var(--z-card-hi,rgba(245,158,11,.12));color:var(--z-acc-ink,#FCD34D)}
+    .uso-btn:hover{border-color:var(--z-acc,#F59E0B)}
+    .uso-btn[aria-pressed="true"]{background:var(--z-acc,#F59E0B);color:#fff;border-color:transparent}
+    .uso-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:12px}
+    .uso-kpi{padding:14px 16px;border-radius:14px;background:var(--z-card-hi,rgba(245,158,11,.1));border:1px solid var(--z-line,rgba(245,158,11,.25))}
+    .uso-kpi .n{font-size:32px;font-weight:800;line-height:1.1}
+    .uso-kpi .n.chico{font-size:19px;line-height:1.35}
+    .uso-kpi .l{font-size:13px;color:var(--z-ink3,#94A3B8);margin-top:4px}
+    .uso-mini{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+    .uso-chip{font-size:13.5px;padding:6px 12px;border-radius:999px;border:1px solid var(--z-line,rgba(245,158,11,.25));color:var(--z-ink,#E2E8F0)}
+    .uso-chip b{font-weight:800}
+    .uso-sec{margin:0 0 8px;font-size:15px;font-weight:800}
+    .uso-box{padding:14px;border-radius:14px;border:1px solid var(--z-line,rgba(245,158,11,.25));margin-bottom:16px}
+    .uso-svg{width:100%;height:auto;display:block}
+    .uso-svg .gl{stroke:var(--z-line,rgba(148,163,184,.25));stroke-width:1}
+    .uso-svg .ax{fill:var(--z-ink3,#94A3B8);font-size:11.5px}
+    .uso-svg .b-ia{fill:var(--z-acc,#F59E0B)}
+    .uso-svg .b-no{fill:var(--z-ink3,#94A3B8)}
+    .uso-leyenda{display:flex;gap:16px;font-size:13px;color:var(--z-ink3,#94A3B8);margin-top:6px}
+    .uso-leyenda i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+    .uso-cols{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px}
+    .uso-tabla{width:100%;border-collapse:collapse;font-size:14.5px}
+    .uso-tabla th{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--z-ink3,#94A3B8);text-align:right;padding:6px 8px;border-bottom:1px solid var(--z-line,rgba(245,158,11,.25))}
+    .uso-tabla th:first-child,.uso-tabla td:first-child{text-align:left}
+    .uso-tabla td{padding:9px 8px;text-align:right;border-bottom:1px solid var(--z-line,rgba(245,158,11,.15))}
+    .uso-tabla td small{display:block;color:var(--z-ink3,#94A3B8);font-size:12px}
+    .uso-mod{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:14.5px}
+    .uso-mod .nm{flex:0 0 96px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .uso-mod .bar{flex:1;height:12px;border-radius:6px;background:var(--z-card-hi,rgba(245,158,11,.12));overflow:hidden}
+    .uso-mod .bar i{display:block;height:100%;background:var(--z-acc,#F59E0B);border-radius:6px}
+    .uso-mod .ct{flex:0 0 34px;text-align:right;font-weight:800}
+    .uso-vacio{padding:26px 8px;text-align:center;color:var(--z-ink3,#94A3B8);font-size:15px}
+    .uso-nota{font-size:12.5px;color:var(--z-ink3,#94A3B8);margin-top:4px}
+    @media (max-width:760px){.uso-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.uso-cols{grid-template-columns:1fr}}
+    `;
+    document.head.appendChild(st);
+  }
+
+  function renderUso(box, r) {
+    const nada = !r.primer_registro;
+    let html = '';
+    html += '<div class="uso-kpis">' +
+      '<div class="uso-kpi"><div class="n">' + (r.informes || 0) + '</div><div class="l">Informes generados (últimos ' + r.dias + ' días)</div></div>' +
+      '<div class="uso-kpi"><div class="n">' + (r.hoy || 0) + '</div><div class="l">Informes hoy</div></div>' +
+      '<div class="uso-kpi"><div class="n chico">' + escapeHtml(fmtFecha(r.ultimo_informe)) + '</div><div class="l">Último informe' + (r.ultimo_informe ? ' · ' + escapeHtml(haceCuanto(r.ultimo_informe)) : '') + '</div></div>' +
+      '<div class="uso-kpi"><div class="n">' + (r.usuarios_activos || 0) + '</div><div class="l">Usuarios activos</div></div>' +
+      '</div>';
+    html += '<div class="uso-mini">' +
+      '<span class="uso-chip">Con IA <b>' + (r.ia || 0) + '</b></span>' +
+      '<span class="uso-chip">Normal local <b>' + (r.normal || 0) + '</b></span>' +
+      '<span class="uso-chip">Copiados <b>' + (r.copiados || 0) + '</b></span>' +
+      '<span class="uso-chip">Exportados / impresos <b>' + (r.exportados || 0) + '</b></span>' +
+      '<span class="uso-chip">Errores de IA <b>' + (r.errores_ia || 0) + '</b></span>' +
+      '<span class="uso-chip">Mini abierta <b>' + (r.mini || 0) + '</b></span>' +
+      '</div>';
+    if (nada) {
+      html += '<div class="uso-box"><div class="uso-vacio">Todavía no hay registros. El conteo empieza con el próximo informe que se genere en Dictom.</div></div>';
+    } else {
+      html += '<div class="uso-box"><h3 class="uso-sec">Informes por día</h3>' + graficoDias(r.por_dia || []) +
+        '<div class="uso-leyenda"><span><i style="background:var(--z-acc,#F59E0B)"></i>Con IA</span><span><i style="background:var(--z-ink3,#94A3B8)"></i>Normal local</span></div></div>';
+      const us = r.por_usuario || [];
+      const mo = r.por_modalidad || [];
+      const mx = Math.max(1, ...mo.map(m => m.informes));
+      html += '<div class="uso-cols"><div class="uso-box"><h3 class="uso-sec">Por usuario</h3>' +
+        (us.length ? '<table class="uso-tabla"><thead><tr><th>Usuario</th><th>Informes</th><th>IA</th><th>Normal</th><th>Copiados</th><th>Último uso</th></tr></thead><tbody>' +
+          us.map(u => '<tr><td>' + escapeHtml(u.nombre) + '<small>' + escapeHtml(u.username) + '</small></td><td><b>' + u.informes + '</b></td><td>' + u.ia + '</td><td>' + u.normal + '</td><td>' + u.copiados + '</td><td>' + escapeHtml(fmtFecha(u.ultimo)) + '</td></tr>').join('') +
+          '</tbody></table>' : '<div class="uso-vacio">Sin uso en este período.</div>') +
+        '</div><div class="uso-box"><h3 class="uso-sec">Por modalidad</h3>' +
+        (mo.length ? mo.map(m => '<div class="uso-mod"><span class="nm" title="' + escapeHtml(m.modalidad) + '">' + escapeHtml(m.modalidad) + '</span><span class="bar"><i style="width:' + Math.max(4, Math.round(100 * m.informes / mx)) + '%"></i></span><span class="ct">' + m.informes + '</span></div>').join('') : '<div class="uso-vacio">Sin datos.</div>') +
+        '</div></div>';
+    }
+    html += '<div class="uso-nota">' + (r.primer_registro ? 'Hay registro desde el ' + escapeHtml(fmtFecha(r.primer_registro)) + '. Antes de esa fecha Dictom no guardaba nada de uso. ' : '') +
+      'Solo se cuentan eventos: no se guarda texto clínico, ni datos de pacientes, ni el contenido de los informes. Horario de Argentina.</div>';
+    box.innerHTML = html;
+  }
+
+  async function cargarUso(box, dias) {
+    usoDias = dias;
+    document.querySelectorAll('#dictom-uso-overlay [data-dias]').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(Number(b.getAttribute('data-dias')) === dias));
+    });
+    box.innerHTML = '<div class="uso-vacio">Cargando…</div>';
+    try {
+      const r = await sbRpc('dictom_uso_resumen', { p_dias: dias });
+      renderUso(box, r || {});
+    } catch (e) {
+      const sinPermiso = /SIN_PERMISO|permission|42501/i.test(String(e.message));
+      box.innerHTML = '<div class="uso-vacio" style="color:#FCA5A5">' + (sinPermiso ? 'Solo el administrador puede ver este tablero.' : 'No se pudo cargar: ' + escapeHtml(e.message)) + '</div>';
+    }
+  }
+
+  async function openUsoPanel() {
+    if (!currentUser || currentUser.rol !== 'admin') {
+      avisarUI('Solo el administrador puede ver el uso de Dictom.', 'Acceso restringido');
+      return;
+    }
+    const menu = document.getElementById('dictom-menu');
+    if (menu) menu.classList.remove('open');
+    injectStyles();
+    injectUsoStyles();
+    let overlay = document.getElementById('dictom-uso-overlay');
+    if (overlay) overlay.remove();
+    overlay = document.createElement('div');
+    overlay.id = 'dictom-uso-overlay';
+    overlay.className = 'dictom-overlay';
+    overlay.innerHTML =
+      '<div class="uso-card" role="dialog" aria-modal="true" aria-labelledby="uso-tit">' +
+        '<div class="uso-top"><div><h2 class="uso-tit" id="uso-tit">Uso de Dictom</h2>' +
+        '<div class="uso-sub">Solo visible para administradores</div></div>' +
+        '<div class="uso-acc">' +
+          '<button class="uso-btn" data-dias="7" aria-pressed="false">7 días</button>' +
+          '<button class="uso-btn" data-dias="30" aria-pressed="false">30 días</button>' +
+          '<button class="uso-btn" data-dias="90" aria-pressed="false">90 días</button>' +
+          '<button class="uso-btn" id="uso-refrescar" title="Volver a consultar">Actualizar</button>' +
+          '<button class="uso-btn" id="uso-cerrar">Cerrar</button>' +
+        '</div></div>' +
+        '<div id="uso-cuerpo"></div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+    const cuerpo = document.getElementById('uso-cuerpo');
+    const cerrar = function () { overlay.remove(); document.removeEventListener('keydown', onKey, true); };
+    const onKey = function (e) { if (e.key === 'Escape') cerrar(); };
+    document.addEventListener('keydown', onKey, true);
+    document.getElementById('uso-cerrar').addEventListener('click', cerrar);
+    overlay.addEventListener('mousedown', function (e) { if (e.target === overlay) cerrar(); });
+    document.getElementById('uso-refrescar').addEventListener('click', function () { cargarUso(cuerpo, usoDias); });
+    overlay.querySelectorAll('[data-dias]').forEach(function (b) {
+      b.addEventListener('click', function () { cargarUso(cuerpo, Number(b.getAttribute('data-dias'))); });
+    });
+    await cargarUso(cuerpo, usoDias);
   }
 
   // ── LOGOUT ────────────────────────────────────────────────
@@ -705,7 +937,9 @@
     logout: logout,
     getCurrentUser: () => currentUser,
     getLicencia: () => currentLicencia,
-    openAdminPanel: openAdminPanel
+    openAdminPanel: openAdminPanel,
+    openUsoPanel: openUsoPanel,
+    registrarUso: registrarUso
   };
 
   // Auto-init al DOM ready

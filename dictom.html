@@ -56,7 +56,7 @@
 <!-- Dictom Auth: login + licencias (Supabase compartido con Lumen) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="spcd-supabase.js?v=4420ca43"></script>
-<script src="dictom-auth.js?v=20261111-dic" defer></script>
+<script src="dictom-auth.js?v=a37ed35f" defer></script>
 <style>
   :root {
     /* Paleta Dictom by Pyralis */
@@ -10052,7 +10052,7 @@ function toast(msg, ok = true) {
 // Uso: if (!(await confirmar('mensaje', { titulo, aceptar, cancelar, peligro }))) return;
 // Si la mini ventana flotante está abierta, el cartel aparece también ahí (el médico no mira la página completa).
 function confirmar(msg, opts) {
-  const o = Object.assign({ titulo: 'Confirmar', aceptar: 'Aceptar', cancelar: 'Cancelar', peligro: false }, opts || {});
+  const o = Object.assign({ titulo: 'Confirmar', aceptar: 'Aceptar', cancelar: 'Cancelar', peligro: false, soloAceptar: false }, opts || {});
   return new Promise(resolve => {
     const root = document.documentElement;
     const cs = getComputedStyle(root);
@@ -10141,15 +10141,17 @@ function confirmar(msg, opts) {
       ba.type = 'button'; ba.className = 'dcf-btn ok' + (o.peligro ? ' peligro' : ''); ba.textContent = o.aceptar;
       bc.addEventListener('click', () => fin(false));
       ba.addEventListener('click', () => fin(true));
-      bs.appendChild(bc); bs.appendChild(ba);
+      if (!o.soloAceptar) bs.appendChild(bc);
+      bs.appendChild(ba);
       card.appendChild(tit); card.appendChild(p); card.appendChild(bs);
       ov.appendChild(card);
       // un clic en el fondo oscuro cancela
-      ov.addEventListener('mousedown', e => { if (e.target === ov) fin(false); });
+      ov.addEventListener('mousedown', e => { if (e.target === ov) fin(!!o.soloAceptar); });
       const kd = e => {
-        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); fin(false); }
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); fin(!!o.soloAceptar); }
         else if (e.key === 'Tab') {
           e.preventDefault();
+          if (o.soloAceptar) { ba.focus(); return; }
           const a = d.activeElement;
           (a === bc ? ba : bc).focus();
         }
@@ -10161,8 +10163,25 @@ function confirmar(msg, opts) {
 
     // Foco: en la ventana donde está mirando el médico. En acciones destructivas, arranca en Cancelar.
     const foco = (md && md.hasFocus && md.hasFocus()) ? nodos[1] : nodos[0];
-    try { (o.peligro ? foco.bc : foco.ba).focus(); } catch (_) {}
+    try { ((o.peligro && !o.soloAceptar) ? foco.bc : foco.ba).focus(); } catch (_) {}
   });
+}
+// Aviso con un solo botón (reemplaza a window.alert)
+function avisar(msg, titulo) {
+  return confirmar(msg, { titulo: titulo || 'Aviso', aceptar: 'Entendido', soloAceptar: true });
+}
+
+// ------------------ REGISTRO DE USO (solo cuenta eventos; NUNCA texto clínico ni datos de pacientes) ------------------
+function usoPalabras(t) {
+  t = String(t || '').trim();
+  return (!t || t === '__NORMAL_TOTAL__') ? 0 : t.split(/\s+/).filter(Boolean).length;
+}
+function usoLog(evento, extra) {
+  try {
+    if (!window.DictomAuth || typeof window.DictomAuth.registrarUso !== 'function') return;
+    const mods = (typeof getSelectedModalidades === 'function') ? getSelectedModalidades() : [];
+    window.DictomAuth.registrarUso(evento, Object.assign({ modalidades: mods, proveedor: (state.config && state.config.provider) || null }, extra || {}));
+  } catch (_) { /* el registro nunca debe molestar al médico */ }
 }
 function loadConfig() {
   try { state.config = JSON.parse(localStorage.getItem('informesIA_config') || '{}'); }
@@ -11368,6 +11387,7 @@ async function generarConIA() {
   $('reportPreview').innerHTML = '<div class="text-center mt-20"><div class="inline-block w-8 h-8 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin"></div><p class="mt-3 text-sm text-slate-500">Procesando con IA...</p></div>';
 
   const prompt = buildPrompt(datos, tpl);
+  const t0IA = Date.now();
 
   try {
     let informe = await callAI(prompt, datos.attachments);
@@ -11380,8 +11400,10 @@ async function generarConIA() {
     parseAndFillSections(informe);
     $('aiStatus').textContent = 'Informe generado';
     toast('Informe generado con éxito');
+    usoLog('informe_ia', { palabras: usoPalabras(datos.hallazgosDictados), duracion_ms: Date.now() - t0IA });
   } catch (err) {
     console.error(err);
+    usoLog('error_ia', { duracion_ms: Date.now() - t0IA });
     const esCuota = /429|quota|exceeded/i.test(err.message);
     const esSobrecarga = err.code === 503 || /503|UNAVAILABLE|sobrecarg|high demand|overloaded/i.test(err.message);
     let mensajeAmigable;
@@ -11520,6 +11542,7 @@ async function generarInformeNormalLocal() {
   parseAndFillSections(bloque);
   $('aiStatus').textContent = 'Normal local · sin IA';
   toast('Informe NORMAL generado localmente. Sin IA, sin costo, sin internet. Revisalo antes de firmar.');
+  usoLog('informe_normal', { proveedor: 'local', palabras: usoPalabras(hayDictado) });
 }
 
 $('btnInformeNormal').addEventListener('click', generarInformeNormalLocal);
@@ -12362,6 +12385,7 @@ $('btnCopiar').addEventListener('click', async () => {
     document.body.removeChild(ta);
     toast('Informe copiado');
   }
+  usoLog('informe_copiado');
   // ─── Auto-aprendizaje: este es el informe "firmado", lo usamos como verdad ───
   try { triggerLearningFromCurrentForm(); } catch(e) { console.warn('Learning failed:', e); }
 });
@@ -12841,6 +12865,7 @@ document.querySelectorAll('.dl-option').forEach(btn => {
   btn.addEventListener('click', () => {
     const fmt = btn.dataset.format;
     $('descargarMenu').classList.add('hidden');
+    usoLog('informe_exportado');
     if (fmt === 'docx') descargarDOCX();
     else if (fmt === 'pdf') descargarPDF();
     else descargarTXT();
@@ -12853,6 +12878,7 @@ $('btnImprimir').addEventListener('click', () => {
     toast('No hay informe para imprimir', false);
     return;
   }
+  usoLog('informe_exportado');
   const w = window.open('', '_blank');
   w.document.write(`<html><head><title>Informe Radiológico</title>
     <style>body{font-family:Georgia,serif;max-width:780px;margin:40px auto;white-space:pre-wrap;line-height:1.6;font-size:13px}</style>
@@ -13330,6 +13356,7 @@ renderAttachmentUI();
       } catch (e2) { mensaje('No se pudo copiar: ' + e2.message, false); return; }
     }
     mensaje('Informe copiado — pegalo en el PACS/RIS', true);
+    if (typeof usoLog === 'function') usoLog('informe_copiado');
     // Igual que el botón Copiar de la página: el informe copiado cuenta como "firmado" para el auto-aprendizaje
     try { if (typeof triggerLearningFromCurrentForm === 'function') triggerLearningFromCurrentForm(); }
     catch (e3) { console.warn('Learning failed:', e3); }
@@ -13432,6 +13459,7 @@ renderAttachmentUI();
     construir();
     ponerBanner();
     actualizarBoton(true);
+    if (typeof usoLog === 'function') usoLog('mini_abierta');
 
     // Reaccionar al instante a lo que cambia en la página principal
     ['liveTranscript', 'aiStatus', 'btnMic', 'micLabel', 'campoActivoLabel', 'hallazgosMulti'].forEach(function (id) { observar(g(id), sync); });
