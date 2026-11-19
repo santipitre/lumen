@@ -56,7 +56,7 @@
 <!-- Dictom Auth: login + licencias (Supabase compartido con Lumen) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="spcd-supabase.js?v=4420ca43"></script>
-<script src="dictom-auth.js?v=6b3e4ce4" defer></script>
+<script src="dictom-auth.js?v=2f309994" defer></script>
 <style>
   :root {
     /* Paleta Dictom by Pyralis */
@@ -11127,6 +11127,14 @@ $('btnMic').addEventListener('click', () => {
     catch (e) { console.warn(e); }
   }
 });
+// Fuera del horario habilitado (lo avisa dictom-auth.js): se corta el dictado y se cierra la mini; el texto queda en pantalla.
+window.__dictomDetener = function () {
+  try { if (state.recognizing && state.recognition) { state.recognizing = false; state.recognition.stop(); updateMicButton(false); } } catch (_) {}
+};
+window.addEventListener('dictom-bloqueado', function () {
+  window.__dictomDetener();
+  try { if (typeof window.__dictomCerrarMini === 'function') window.__dictomCerrarMini(); } catch (_) {}
+});
 
 // ------------------ LIMPIAR ------------------
 // ------------------ ADJUNTO DE INFORME PREVIO ------------------
@@ -13160,6 +13168,7 @@ renderAttachmentUI();
   var observers = [];
   // La página usa esto para mostrar sus carteles de confirmación también en la mini
   window.__dictomMiniDoc = function () { return (miniWin && !miniWin.closed && ui) ? ui.doc : null; };
+  window.__dictomCerrarMini = function () { if (miniWin) cerrar(); };
 
   // Colores del tema vigente (Zafiro si está activo en la página; si no, paleta Pyralis)
   function tokens() {

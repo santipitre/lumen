@@ -272,7 +272,9 @@
     .dictom-user-menu .menu-info .lic.red { color: #EF4444; }
 
     /* Admin panel */
-    .dictom-admin-card { max-width: 720px; }
+    .dictom-admin-card { max-width: 1120px; }
+    .dictom-admin-tablewrap { overflow-x: auto; }
+    .dictom-admin-table .hor-txt { font-size: 12px; color: #CBD5E1; min-width: 150px; }
     .dictom-admin-table {
       width: 100%; border-collapse: collapse;
       font-size: 12px; margin-top: 16px;
@@ -305,7 +307,7 @@
     .dictom-admin-table .badge.pro { background: rgba(245,158,11,0.15); color: #FCD34D; }
     .dictom-admin-table .badge.unlimited { background: rgba(168,85,247,0.15); color: #C084FC; }
 
-    .dictom-admin-row-actions { display: flex; gap: 6px; }
+    .dictom-admin-row-actions { display: flex; flex-wrap: wrap; gap: 6px; }
     .dictom-admin-row-actions button {
       padding: 4px 10px; font-size: 11px;
       background: transparent; border: 0.5px solid #1F2937;
@@ -320,7 +322,18 @@
       border-radius: 8px; padding: 16px; margin-bottom: 16px;
     }
     .dictom-admin-newuser h3 { font-size: 13px; color: #FCD34D; margin: 0 0 12px; letter-spacing: 1px; text-transform: uppercase; }
-    .dictom-admin-newuser .row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; }
+    .dictom-admin-newuser .row { display: grid; grid-template-columns: 1.6fr 1fr auto; gap: 8px; }
+    .hor-box { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-end; margin-top: 14px; }
+    .hor-lbl { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #94A3B8; margin-bottom: 6px; }
+    .hor-dias { display: flex; gap: 6px; }
+    .hor-dias label { position: relative; cursor: pointer; }
+    .hor-dias input { position: absolute; opacity: 0; pointer-events: none; }
+    .hor-dias span { display: inline-flex; width: 36px; height: 36px; align-items: center; justify-content: center; border-radius: 8px; border: 0.5px solid #1F2937; background: #0A0F14; color: #94A3B8; font-size: 13px; font-weight: 600; user-select: none; }
+    .hor-dias input:checked + span { background: rgba(245,158,11,0.18); border-color: #F59E0B; color: #FCD34D; }
+    .hor-dias input:focus-visible + span { outline: 2px solid #F59E0B; outline-offset: 2px; }
+    .hor-hs { display: flex; gap: 8px; align-items: center; color: #94A3B8; font-size: 13px; }
+    .hor-hs input { background: #0A0F14; border: 0.5px solid #1F2937; border-radius: 6px; padding: 7px 10px; color: #F1F5F9; font-family: inherit; font-size: 14px; color-scheme: dark; }
+    .hor-ayuda { margin-top: 10px; font-size: 12px; color: #94A3B8; line-height: 1.5; }
 
     .dictom-version {
       position: fixed; bottom: 16px; left: 50%;
@@ -381,6 +394,84 @@
 
     document.getElementById('dictom-login-form').addEventListener('submit', handleLogin);
     setTimeout(() => document.getElementById('dictom-user').focus(), 100);
+  }
+
+  // ── PANTALLA: FUERA DE HORARIO ────────────────────────────
+  function renderFueraDeHorario() {
+    let overlay = document.getElementById('dictom-overlay');
+    if (overlay) overlay.remove();
+    overlay = document.createElement('div');
+    overlay.id = 'dictom-overlay';
+    overlay.className = 'dictom-overlay';
+    overlay.setAttribute('data-motivo', 'horario');
+    const l = currentLicencia || {};
+    overlay.innerHTML = `
+      <div class="dictom-card">
+        <div class="dictom-paywall-icon">⏰</div>
+        <div class="dictom-paywall-title">Dictom no está habilitado en este horario</div>
+        <div class="dictom-paywall-msg">
+          Hola ${escapeHtml((currentUser && currentUser.nombre) || '')}.<br>
+          Tu acceso a Dictom es: <b>${escapeHtml(fmtHorario(l.dias_semana, l.hora_desde, l.hora_hasta))}</b> (hora de Argentina).<br>
+          Volvé a entrar dentro de ese horario, o pedile al administrador que lo cambie. Lo que ya tenés en pantalla no se borra.
+        </div>
+        <button class="dictom-btn-primary" type="button" onclick="location.href='app.html'">← Volver a Lumen</button>
+        <div style="margin-top:14px; text-align:center;">
+          <button class="dictom-btn-ghost" type="button" onclick="window.DictomAuth.logout()">← Cerrar sesión</button>
+        </div>
+      </div>
+      <div class="dictom-version">DICTOM · v1.0 · 2026</div>
+    `;
+    document.body.appendChild(overlay);
+  }
+
+  let ingresoHecho = false, vigilTimer = null, avisoCierreDe = null;
+
+  function avisarBloqueo() {
+    try { window.dispatchEvent(new CustomEvent('dictom-bloqueado')); } catch (e) {}
+  }
+
+  // Cada 20 s le pregunta a la base si sigue dentro del horario (manda la hora del servidor, no la del equipo).
+  // Sin conexión usa la hora de Argentina calculada en el equipo con el último horario conocido.
+  let tickEnCurso = false;
+  function vigilarHorario() {
+    if (vigilTimer) return;
+    vigilTimer = setInterval(async function () {
+      if (!currentUser || tickEnCurso) return;
+      tickEnCurso = true;
+      try {
+        let srv = null;
+        try {
+          const rows = await sbRpc('dictom_licencia_estado', { p_usuario_id: currentUser.id });
+          if (rows && rows[0]) { srv = rows[0]; currentLicencia = srv; }
+        } catch (e) { /* sin conexión: sigue con lo último que se sabe */ }
+        if (srv && srv.vigente === false) {
+          clearInterval(vigilTimer); vigilTimer = null;
+          renderPaywall(currentUser.nombre);
+          avisarBloqueo();
+          return;
+        }
+        const dentro = srv ? srv.en_horario !== false : enHorarioLocal(currentLicencia);
+        const ov = document.getElementById('dictom-overlay');
+        const bloqueado = !!(ov && ov.getAttribute('data-motivo') === 'horario');
+        if (!dentro && !bloqueado) { renderFueraDeHorario(); avisarBloqueo(); return; }
+        if (dentro && bloqueado) {
+          if (!ingresoHecho) { location.reload(); return; }
+          ov.remove();
+          return;
+        }
+        if (dentro) {
+          const m = minutosParaCierre(currentLicencia);
+          if (m !== null && m <= 5) {
+            const clave = String(currentLicencia.hora_hasta) + '|' + new Date().toDateString();
+            if (avisoCierreDe !== clave) {
+              avisoCierreDe = clave;
+              const msg = 'Tu horario de Dictom termina a las ' + currentLicencia.hora_hasta + ' (en ' + m + ' min). Copiá tu informe antes.';
+              try { if (typeof window.toast === 'function') window.toast(msg, false); else avisarUI(msg, 'Se acaba tu horario'); } catch (e) {}
+            }
+          }
+        }
+      } finally { tickEnCurso = false; }
+    }, 20000);
   }
 
   // ── PANTALLA: PAYWALL ─────────────────────────────────────
@@ -532,6 +623,132 @@
   }
 
   // ── ADMIN PANEL ───────────────────────────────────────────
+  // ── HORARIO DE ACCESO ─────────────────────────────────────
+  // dias: 1=lunes … 7=domingo (ISO). null = todos. Horas "HH:MM" en hora de Argentina; null = todo el día.
+  // Si la hora de fin es menor que la de inicio la franja cruza la medianoche (el día habilitado es el del inicio).
+  const TZ_AR = 'America/Argentina/Buenos_Aires';
+  const DIAS_CORTO = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+  const DIAS_LARGO = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+  const DIAS_ABREV = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+  function horarioCampos(p, dias, desde, hasta) {
+    const sel = (Array.isArray(dias) && dias.length) ? dias.map(Number) : [1, 2, 3, 4, 5, 6, 7];
+    const chk = DIAS_CORTO.map(function (l, i) {
+      return '<label title="' + DIAS_LARGO[i] + '"><input type="checkbox" class="' + p + '-dia" value="' + (i + 1) + '"' +
+             (sel.indexOf(i + 1) >= 0 ? ' checked' : '') + ' aria-label="' + DIAS_LARGO[i] + '"><span>' + l + '</span></label>';
+    }).join('');
+    return '<div class="hor-box">' +
+      '<div><div class="hor-lbl">Días habilitados</div><div class="hor-dias">' + chk + '</div></div>' +
+      '<div><div class="hor-lbl">Horario (hora de Argentina)</div><div class="hor-hs"><span>de</span>' +
+        '<input type="time" id="' + p + '-desde" value="' + escapeHtml(desde || '') + '"><span>a</span>' +
+        '<input type="time" id="' + p + '-hasta" value="' + escapeHtml(hasta || '') + '"></div></div>' +
+      '</div>' +
+      '<div class="hor-ayuda">Sin horas = todo el día. Los 7 días tildados = sin restricción de días. ' +
+      'Si la hora de fin es menor que la de inicio, la franja cruza la medianoche (ej. de 20:00 a 08:00).</div>';
+  }
+
+  function leerHorario(root, p) {
+    const dias = Array.prototype.map.call(root.querySelectorAll('.' + p + '-dia:checked'), function (x) { return Number(x.value); });
+    const d = (root.querySelector('#' + p + '-desde').value || '').trim();
+    const h = (root.querySelector('#' + p + '-hasta').value || '').trim();
+    if (!dias.length) throw new Error('Tildá al menos un día.');
+    if ((d && !h) || (!d && h)) throw new Error('Cargá la hora de inicio y la de fin, o dejá las dos vacías.');
+    if (d && d === h) throw new Error('La hora de inicio y la de fin no pueden ser iguales.');
+    return { dias: dias.length === 7 ? null : dias, desde: d || null, hasta: h || null };
+  }
+
+  function fmtDias(dias) {
+    const a = (Array.isArray(dias) ? dias.map(Number) : []).filter(function (x) { return x >= 1 && x <= 7; }).sort(function (x, y) { return x - y; });
+    if (!a.length || a.length === 7) return 'Todos los días';
+    const tramos = [];
+    for (let i = 0; i < a.length;) {
+      let j = i;
+      while (j + 1 < a.length && a[j + 1] === a[j] + 1) j++;
+      tramos.push(j - i >= 2 ? DIAS_ABREV[a[i] - 1] + ' a ' + DIAS_ABREV[a[j] - 1]
+                             : a.slice(i, j + 1).map(function (x) { return DIAS_ABREV[x - 1]; }).join(', '));
+      i = j + 1;
+    }
+    return tramos.join(', ');
+  }
+
+  function fmtHorario(dias, desde, hasta) {
+    const sinDias = !Array.isArray(dias) || !dias.length || dias.length === 7;
+    if (sinDias && !desde) return 'Sin restricción';
+    return fmtDias(dias) + ' · ' + (desde ? desde + ' a ' + hasta : 'todo el día');
+  }
+
+  function aMin(hhmm) { const m = /^(\d{1,2}):(\d{2})/.exec(String(hhmm || '')); return m ? Number(m[1]) * 60 + Number(m[2]) : null; }
+
+  function partesAR(fecha) {
+    const f = new Intl.DateTimeFormat('en-GB', { timeZone: TZ_AR, weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+    const o = {};
+    f.formatToParts(fecha).forEach(function (x) { o[x.type] = x.value; });
+    return { dow: { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 }[o.weekday], min: Number(o.hour) * 60 + Number(o.minute) };
+  }
+
+  // Mismo cálculo que dictom_en_horario() en la base. El administrador no tiene restricción.
+  function enHorarioLocal(lic, fecha) {
+    if (!lic || lic.exento) return true;
+    const dias = (Array.isArray(lic.dias_semana) && lic.dias_semana.length) ? lic.dias_semana.map(Number) : null;
+    const d = aMin(lic.hora_desde), h = aMin(lic.hora_hasta);
+    if (!dias && d === null) return true;
+    const p = partesAR(fecha || new Date());
+    const prev = p.dow === 1 ? 7 : p.dow - 1;
+    const okDia = function (x) { return !dias || dias.indexOf(x) >= 0; };
+    if (d === null || h === null) return okDia(p.dow);
+    if (d < h) return okDia(p.dow) && p.min >= d && p.min < h;
+    return (okDia(p.dow) && p.min >= d) || (okDia(prev) && p.min < h);
+  }
+
+  function minutosParaCierre(lic, fecha) {
+    const d = aMin(lic && lic.hora_desde), h = aMin(lic && lic.hora_hasta);
+    if (!lic || lic.exento || d === null || h === null) return null;
+    const p = partesAR(fecha || new Date());
+    const m = d < h ? h - p.min : (p.min >= d ? 1440 - p.min + h : h - p.min);
+    return m > 0 ? m : null;
+  }
+
+  function abrirHorarioModal(r, h) {
+    return new Promise(function (resolve) {
+      if (!r) { resolve(); return; }
+      const ov = document.createElement('div');
+      ov.className = 'dictom-overlay';
+      ov.id = 'dictom-horario-overlay';
+      ov.innerHTML =
+        '<div class="dictom-card dictom-admin-card" style="max-width:660px;">' +
+          '<div class="dictom-wordmark" style="font-size:18px;">Horario de acceso</div>' +
+          '<div class="dictom-sub" style="margin:2px 0 6px;">' + escapeHtml(r.email || r.username) + '</div>' +
+          horarioCampos('hor', h.dias_semana, h.hora_desde, h.hora_hasta) +
+          '<div class="dictom-error" id="hor-error" style="margin-top:8px;"></div>' +
+          '<div style="display:flex; gap:8px; justify-content:flex-end; margin-top:18px;">' +
+            '<button class="dictom-btn-ghost" id="hor-cancel" type="button">Cancelar</button>' +
+            '<button class="dictom-btn-primary" id="hor-save" type="button" style="margin:0; width:auto; padding:10px 20px;">Guardar</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(ov);
+      const cerrar = function () { document.removeEventListener('keydown', onKey, true); ov.remove(); resolve(); };
+      function onKey(ev) { if (ev.key === 'Escape') { ev.stopPropagation(); cerrar(); } }
+      document.addEventListener('keydown', onKey, true);
+      ov.querySelector('#hor-cancel').addEventListener('click', cerrar);
+      ov.querySelector('#hor-save').addEventListener('click', async function () {
+        const err = ov.querySelector('#hor-error');
+        const btn = ov.querySelector('#hor-save');
+        err.classList.remove('visible');
+        try {
+          const hh = leerHorario(ov, 'hor');
+          btn.disabled = true;
+          await sbRpc('dictom_fijar_horario', { p_usuario_id: r.id, p_dias: hh.dias, p_desde: hh.desde, p_hasta: hh.hasta });
+          cerrar();
+          await reloadAdminTable();
+        } catch (ex) {
+          err.textContent = ex.message;
+          err.classList.add('visible');
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+
   async function openAdminPanel() {
     if (!currentUser || currentUser.rol !== 'admin') {
       avisarUI('Sólo admin puede acceder.', 'Acceso restringido');
@@ -559,23 +776,26 @@
         <div class="dictom-admin-newuser">
           <h3>Dar acceso a Dictom con el correo institucional (trial 90 días)</h3>
           <div class="row">
-            <input class="dictom-field" id="adm-email" type="email" autocomplete="off" placeholder="Correo institucional (nombre@fuesmen.edu.ar)" style="background:#0A0F14; border:0.5px solid #1F2937; border-radius:6px; padding:8px 10px; color:#F1F5F9; font-family:inherit;">
+            <input class="dictom-field" id="adm-email" type="email" autocomplete="off" placeholder="Correo institucional" title="nombre@fuesmen.edu.ar" style="background:#0A0F14; border:0.5px solid #1F2937; border-radius:6px; padding:8px 10px; color:#F1F5F9; font-family:inherit;">
             <input class="dictom-field" id="adm-nombre" placeholder="Nombre completo (si es nuevo)" style="background:#0A0F14; border:0.5px solid #1F2937; border-radius:6px; padding:8px 10px; color:#F1F5F9; font-family:inherit;">
-            <button class="dictom-btn-primary" id="adm-create" style="margin:0; padding:8px 14px; font-size:11px;">Dar acceso</button>
+            <button class="dictom-btn-primary" id="adm-create" style="margin:0; padding:8px 14px; font-size:11px; width:auto; white-space:nowrap;">Dar acceso</button>
           </div>
+          ${horarioCampos('adm', null, '', '')}
           <div style="margin-top:8px; font-size:12px; color:#94A3B8;">Entra desde Lumen con «Entrar con Microsoft», usando ese mismo correo. No lleva PIN.</div>
           <div class="dictom-error" id="adm-error" style="margin-top:8px;"></div>
         </div>
+        <div class="dictom-admin-tablewrap">
         <table class="dictom-admin-table">
           <thead>
             <tr>
-              <th>Correo institucional</th><th>Nombre</th><th>Plan</th><th>Estado</th><th>Días</th><th>Último ingreso</th><th></th>
+              <th>Correo institucional</th><th>Nombre</th><th>Plan</th><th>Estado</th><th>Días</th><th>Horario de acceso</th><th>Último ingreso</th><th></th>
             </tr>
           </thead>
           <tbody id="adm-tbody">
-            <tr><td colspan="7" style="text-align:center; color:#94A3B8;">Cargando...</td></tr>
+            <tr><td colspan="8" style="text-align:center; color:#94A3B8;">Cargando...</td></tr>
           </tbody>
         </table>
+        </div>
       </div>
     `;
     document.body.appendChild(overlay);
@@ -587,9 +807,15 @@
   async function reloadAdminTable() {
     const tbody = document.getElementById('adm-tbody');
     try {
-      const rows = await sbRpc('dictom_listar_usuarios', {});
+      const [rows, hors] = await Promise.all([
+        sbRpc('dictom_listar_usuarios', {}),
+        sbRpc('dictom_horarios', {}).catch(function () { return []; })
+      ]);
+      const hmap = {}, porId = {};
+      (hors || []).forEach(function (h) { hmap[h.usuario_id] = h; });
+      (rows || []).forEach(function (r) { porId[r.id] = r; });
       if (!rows || rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#94A3B8;">Sin radiólogos cargados todavía.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#94A3B8;">Sin radiólogos cargados todavía.</td></tr>';
         return;
       }
       tbody.innerHTML = rows.map(r => {
@@ -597,6 +823,8 @@
         const stateBadge = r.vigente
           ? '<span class="badge ok">Vigente</span>'
           : '<span class="badge expired">Expirada</span>';
+        const h = hmap[r.id] || {};
+        const horTxt = r.rol === 'admin' ? 'Sin restricción (administrador)' : fmtHorario(h.dias_semana, h.hora_desde, h.hora_hasta);
         return `
           <tr>
             <td><code>${escapeHtml(r.email || r.username)}</code></td>
@@ -604,13 +832,15 @@
             <td>${planBadge}</td>
             <td>${stateBadge}</td>
             <td>${r.dias_restantes || 0}</td>
+            <td class="hor-txt">${escapeHtml(horTxt)}</td>
             <td>${r.ultimo_ingreso ? escapeHtml(fmtFecha(r.ultimo_ingreso)) : '<span style="color:#94A3B8">Todavía no entró</span>'}</td>
-            <td class="dictom-admin-row-actions">
+            <td><div class="dictom-admin-row-actions">
+              <button data-act="horario" data-id="${r.id}">Horario</button>
               <button data-act="renew" data-id="${r.id}">+30d</button>
               <button data-act="renew365" data-id="${r.id}">+1 año</button>
               <button data-act="unlimited" data-id="${r.id}">∞</button>
               <button data-act="revoke" data-id="${r.id}">Revocar</button>
-            </td>
+            </div></td>
           </tr>`;
       }).join('');
 
@@ -619,7 +849,10 @@
           const id = btn.getAttribute('data-id');
           const act = btn.getAttribute('data-act');
           try {
-            if (act === 'renew') {
+            if (act === 'horario') {
+              await abrirHorarioModal(porId[id], hmap[id] || {});
+              return;
+            } else if (act === 'renew') {
               await sbRpc('otorgar_licencia_dictom', { p_usuario_id: id, p_plan: 'pro', p_dias: 30, p_notas: 'Renovado +30d desde panel' });
             } else if (act === 'renew365') {
               await sbRpc('otorgar_licencia_dictom', { p_usuario_id: id, p_plan: 'pro', p_dias: 365, p_notas: 'Renovado +1 año desde panel' });
@@ -636,7 +869,7 @@
         });
       });
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#EF4444;">Error: ${escapeHtml(e.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:#EF4444;">Error: ${escapeHtml(e.message)}</td></tr>`;
     }
   }
 
@@ -649,16 +882,24 @@
     try {
       if (!e) throw new Error('Cargá el correo institucional.');
       if (!/^[a-z0-9._%+-]+@fuesmen\.edu\.ar$/.test(e)) throw new Error('Tiene que ser el correo institucional (@fuesmen.edu.ar).');
+      const hor = leerHorario(document, 'adm');
       btn.disabled = true;
-      const r = await sbRpc('dictom_dar_acceso_email', { p_email: e, p_nombre: n, p_dias_trial: 90 });
+      const r = await sbRpc('dictom_dar_acceso', {
+        p_email: e, p_nombre: n, p_dias_trial: 90,
+        p_dias_semana: hor.dias, p_hora_desde: hor.desde, p_hora_hasta: hor.hasta
+      });
       const res = Array.isArray(r) ? r[0] : r;
       document.getElementById('adm-email').value = '';
       document.getElementById('adm-nombre').value = '';
+      document.querySelectorAll('.adm-dia').forEach(function (c) { c.checked = true; });
+      document.getElementById('adm-desde').value = '';
+      document.getElementById('adm-hasta').value = '';
       await reloadAdminTable();
       avisarUI(
         (res && res.nuevo === false
           ? e + ' ya era usuario de Lumen: quedó con Dictom habilitado.'
           : 'Alta hecha para ' + e + '.') +
+        ' Acceso: ' + fmtHorario(hor.dias, hor.desde, hor.hasta) + '.' +
         ' Tiene que entrar a Lumen con «Entrar con Microsoft» usando ese correo.',
         'Acceso otorgado');
     } catch (ex) {
@@ -930,13 +1171,27 @@
     if (!u) { location.replace('app.html'); return; }   // sin sesión de Lumen: al ingreso
     currentUser = { id: u.id, username: u.username, nombre: u.nombre || u.username, rol: u.rol, productos: u.productos };
     try {
-      const licRows = await sbRpc('licencia_dictom_activa', { p_usuario_id: u.id });
+      let licRows;
+      try {
+        licRows = await sbRpc('dictom_licencia_estado', { p_usuario_id: u.id });
+      } catch (e1) {
+        // base sin la función de horario: cae a la licencia simple, sin restricción horaria
+        licRows = await sbRpc('licencia_dictom_activa', { p_usuario_id: u.id });
+        if (licRows && licRows[0]) licRows[0].en_horario = true;
+      }
       currentLicencia = (licRows && licRows[0]) || { vigente: false, plan: null, dias_restantes: 0 };
     } catch (e) {
       currentLicencia = { vigente: false, plan: null, dias_restantes: 0 };   // sin conexión: no se habilita
     }
     if (!currentLicencia.vigente) { renderPaywall(currentUser.nombre); return; }
+    if (currentLicencia.en_horario === false) {
+      renderFueraDeHorario();
+      vigilarHorario();
+      return;
+    }
+    ingresoHecho = true;
     onLoginSuccess();
+    if (!currentLicencia.exento) vigilarHorario();
   }
 
   // ── API PÚBLICA ───────────────────────────────────────────
@@ -947,7 +1202,9 @@
     getLicencia: () => currentLicencia,
     openAdminPanel: openAdminPanel,
     openUsoPanel: openUsoPanel,
-    registrarUso: registrarUso
+    registrarUso: registrarUso,
+    _enHorario: enHorarioLocal,
+    _fmtHorario: fmtHorario
   };
 
   // Auto-init al DOM ready
