@@ -557,23 +557,23 @@
           <button class="dictom-btn-ghost" id="dictom-admin-close">Cerrar</button>
         </div>
         <div class="dictom-admin-newuser">
-          <h3>Crear nuevo radiólogo (trial 90 días)</h3>
+          <h3>Dar acceso a Dictom con el correo institucional (trial 90 días)</h3>
           <div class="row">
-            <input class="dictom-field" id="adm-username" placeholder="Usuario (ej: JDOE)" style="background:#0A0F14; border:0.5px solid #1F2937; border-radius:6px; padding:8px 10px; color:#F1F5F9; font-family:inherit;">
-            <input class="dictom-field" id="adm-pin" placeholder="PIN 4-6 dígitos" inputmode="numeric" maxlength="6" style="background:#0A0F14; border:0.5px solid #1F2937; border-radius:6px; padding:8px 10px; color:#F1F5F9; font-family:inherit;">
-            <input class="dictom-field" id="adm-nombre" placeholder="Nombre completo" style="background:#0A0F14; border:0.5px solid #1F2937; border-radius:6px; padding:8px 10px; color:#F1F5F9; font-family:inherit;">
-            <button class="dictom-btn-primary" id="adm-create" style="margin:0; padding:8px 14px; font-size:11px;">Crear</button>
+            <input class="dictom-field" id="adm-email" type="email" autocomplete="off" placeholder="Correo institucional (nombre@fuesmen.edu.ar)" style="background:#0A0F14; border:0.5px solid #1F2937; border-radius:6px; padding:8px 10px; color:#F1F5F9; font-family:inherit;">
+            <input class="dictom-field" id="adm-nombre" placeholder="Nombre completo (si es nuevo)" style="background:#0A0F14; border:0.5px solid #1F2937; border-radius:6px; padding:8px 10px; color:#F1F5F9; font-family:inherit;">
+            <button class="dictom-btn-primary" id="adm-create" style="margin:0; padding:8px 14px; font-size:11px;">Dar acceso</button>
           </div>
+          <div style="margin-top:8px; font-size:12px; color:#94A3B8;">Entra desde Lumen con «Entrar con Microsoft», usando ese mismo correo. No lleva PIN.</div>
           <div class="dictom-error" id="adm-error" style="margin-top:8px;"></div>
         </div>
         <table class="dictom-admin-table">
           <thead>
             <tr>
-              <th>Usuario</th><th>Nombre</th><th>Plan</th><th>Estado</th><th>Días</th><th></th>
+              <th>Correo institucional</th><th>Nombre</th><th>Plan</th><th>Estado</th><th>Días</th><th>Último ingreso</th><th></th>
             </tr>
           </thead>
           <tbody id="adm-tbody">
-            <tr><td colspan="6" style="text-align:center; color:#94A3B8;">Cargando...</td></tr>
+            <tr><td colspan="7" style="text-align:center; color:#94A3B8;">Cargando...</td></tr>
           </tbody>
         </table>
       </div>
@@ -587,9 +587,9 @@
   async function reloadAdminTable() {
     const tbody = document.getElementById('adm-tbody');
     try {
-      const rows = await sbRpc('listar_usuarios_dictom', {});
+      const rows = await sbRpc('dictom_listar_usuarios', {});
       if (!rows || rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#94A3B8;">Sin radiólogos cargados todavía.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#94A3B8;">Sin radiólogos cargados todavía.</td></tr>';
         return;
       }
       tbody.innerHTML = rows.map(r => {
@@ -599,11 +599,12 @@
           : '<span class="badge expired">Expirada</span>';
         return `
           <tr>
-            <td><code>${escapeHtml(r.username)}</code></td>
+            <td><code>${escapeHtml(r.email || r.username)}</code></td>
             <td>${escapeHtml(r.nombre)}</td>
             <td>${planBadge}</td>
             <td>${stateBadge}</td>
             <td>${r.dias_restantes || 0}</td>
+            <td>${r.ultimo_ingreso ? escapeHtml(fmtFecha(r.ultimo_ingreso)) : '<span style="color:#94A3B8">Todavía no entró</span>'}</td>
             <td class="dictom-admin-row-actions">
               <button data-act="renew" data-id="${r.id}">+30d</button>
               <button data-act="renew365" data-id="${r.id}">+1 año</button>
@@ -635,29 +636,36 @@
         });
       });
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#EF4444;">Error: ${escapeHtml(e.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#EF4444;">Error: ${escapeHtml(e.message)}</td></tr>`;
     }
   }
 
   async function adminCreateUser() {
-    const u = document.getElementById('adm-username').value.trim().toUpperCase();
-    const p = document.getElementById('adm-pin').value.trim();
+    const e = document.getElementById('adm-email').value.trim().toLowerCase();
     const n = document.getElementById('adm-nombre').value.trim();
     const err = document.getElementById('adm-error');
+    const btn = document.getElementById('adm-create');
     err.classList.remove('visible');
     try {
-      if (!u || !p || !n) throw new Error('Completá todos los campos.');
-      if (!/^\d{4,6}$/.test(p)) throw new Error('PIN debe ser 4-6 dígitos.');
-      await sbRpc('crear_usuario_dictom', {
-        p_username: u, p_pin: p, p_nombre: n, p_dias_trial: 90
-      });
-      document.getElementById('adm-username').value = '';
-      document.getElementById('adm-pin').value = '';
+      if (!e) throw new Error('Cargá el correo institucional.');
+      if (!/^[a-z0-9._%+-]+@fuesmen\.edu\.ar$/.test(e)) throw new Error('Tiene que ser el correo institucional (@fuesmen.edu.ar).');
+      btn.disabled = true;
+      const r = await sbRpc('dictom_dar_acceso_email', { p_email: e, p_nombre: n, p_dias_trial: 90 });
+      const res = Array.isArray(r) ? r[0] : r;
+      document.getElementById('adm-email').value = '';
       document.getElementById('adm-nombre').value = '';
       await reloadAdminTable();
-    } catch (e) {
-      err.textContent = e.message;
+      avisarUI(
+        (res && res.nuevo === false
+          ? e + ' ya era usuario de Lumen: quedó con Dictom habilitado.'
+          : 'Alta hecha para ' + e + '.') +
+        ' Tiene que entrar a Lumen con «Entrar con Microsoft» usando ese correo.',
+        'Acceso otorgado');
+    } catch (ex) {
+      err.textContent = ex.message;
       err.classList.add('visible');
+    } finally {
+      btn.disabled = false;
     }
   }
 
