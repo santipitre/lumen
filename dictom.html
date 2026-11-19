@@ -10047,6 +10047,123 @@ function toast(msg, ok = true) {
   setTimeout(() => t.classList.add('hidden'), 3000);
   t.classList.remove('hidden');
 }
+
+// ------------------ CARTELES DE CONFIRMACIÓN (reemplazan a window.confirm, con el diseño de la página) ------------------
+// Uso: if (!(await confirmar('mensaje', { titulo, aceptar, cancelar, peligro }))) return;
+// Si la mini ventana flotante está abierta, el cartel aparece también ahí (el médico no mira la página completa).
+function confirmar(msg, opts) {
+  const o = Object.assign({ titulo: 'Confirmar', aceptar: 'Aceptar', cancelar: 'Cancelar', peligro: false }, opts || {});
+  return new Promise(resolve => {
+    const root = document.documentElement;
+    const cs = getComputedStyle(root);
+    const v = (n, d) => (cs.getPropertyValue(n).trim() || d);
+    const zaf = root.getAttribute('data-ui') === 'zafiro';
+    const T = zaf ? {
+      font: "'Plus Jakarta Sans','Inter',system-ui,-apple-system,'Segoe UI',sans-serif",
+      elev: v('--z-elev', '#0E1838'), ink: v('--z-ink', '#E9EFFF'), ink3: v('--z-ink3', '#A8B5DA'),
+      acc: v('--z-acc', '#5E97FF'), accInk: v('--z-acc-ink', '#9DBFFF'),
+      line: v('--z-line', 'rgba(165,198,255,.18)'), lineStrong: v('--z-line-strong', 'rgba(165,198,255,.38)'),
+      card: v('--z-card-hi', 'rgba(165,198,255,.13)'),
+      cta: 'linear-gradient(135deg,#2A63D8,' + v('--z-acc', '#5E97FF') + ')'
+    } : {
+      font: 'Inter,system-ui,-apple-system,"Segoe UI",sans-serif',
+      elev: '#0E1521', ink: '#E2E8F0', ink3: '#94A3B8', acc: '#F59E0B', accInk: '#FCD34D',
+      line: 'rgba(245,158,11,.4)', lineStrong: 'rgba(245,158,11,.55)', card: 'rgba(245,158,11,.12)',
+      cta: 'linear-gradient(90deg,#F97316,#EA580C)'
+    };
+    const peligroBg = 'linear-gradient(135deg,#EF4444,#B91C1C)';
+    const CSS = [
+      '.dcf-ov{position:fixed;left:0;top:0;right:0;bottom:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(2,6,14,.72);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);font-family:' + T.font + '}',
+      '.dcf-card{box-sizing:border-box;width:100%;max-width:440px;max-height:100%;overflow:auto;padding:22px 22px 20px;border-radius:18px;background:' + T.elev + ';color:' + T.ink + ';border:1px solid ' + T.lineStrong + ';box-shadow:0 24px 60px rgba(0,0,0,.6)}',
+      '.dcf-card.peligro{border-color:rgba(239,68,68,.6)}',
+      '.dcf-tit{display:flex;align-items:center;gap:10px;margin:0 0 10px;font-size:19px;font-weight:800;line-height:1.25;color:' + T.ink + '}',
+      '.dcf-ico{flex:none;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:' + T.card + ';color:' + T.accInk + ';border:1px solid ' + T.line + '}',
+      '.dcf-card.peligro .dcf-ico{background:rgba(239,68,68,.16);color:#FCA5A5;border-color:rgba(239,68,68,.45)}',
+      '.dcf-msg{margin:0 0 20px;font-size:16px;line-height:1.5;white-space:pre-line;color:' + T.ink + ';opacity:.9}',
+      '.dcf-btns{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}',
+      '.dcf-btn{font:inherit;font-size:16px;font-weight:700;min-height:46px;padding:10px 20px;border-radius:12px;cursor:pointer;border:1.5px solid ' + T.lineStrong + ';background:' + T.card + ';color:' + T.accInk + '}',
+      '.dcf-btn:hover{border-color:' + T.acc + '}',
+      '.dcf-btn.ok{color:#fff;border-color:transparent;background:' + T.cta + '}',
+      '.dcf-btn.ok.peligro{background:' + peligroBg + '}',
+      '.dcf-btn:focus{outline:3px solid ' + T.acc + ';outline-offset:2px}',
+      '.dcf-btn.ok.peligro:focus{outline-color:#FCA5A5}'
+    ].join('\n');
+
+    const docs = [document];
+    let md = null;
+    try { md = (typeof window.__dictomMiniDoc === 'function') ? window.__dictomMiniDoc() : null; } catch (_) { md = null; }
+    if (md) docs.push(md);
+    const previo = document.activeElement;
+    const nodos = [];
+    let cerrado = false;
+
+    function fin(r) {
+      if (cerrado) return;
+      cerrado = true;
+      nodos.forEach(n => {
+        try { n.doc.removeEventListener('keydown', n.kd, true); n.ov.remove(); n.st.remove(); } catch (_) {}
+      });
+      try { if (previo && previo.focus) previo.focus(); } catch (_) {}
+      resolve(r);
+    }
+
+    docs.forEach(d => {
+      const st = d.createElement('style');
+      st.textContent = CSS;
+      d.head.appendChild(st);
+      const ov = d.createElement('div');
+      ov.className = 'dcf-ov';
+      const card = d.createElement('div');
+      card.className = 'dcf-card' + (o.peligro ? ' peligro' : '');
+      card.setAttribute('role', 'alertdialog');
+      card.setAttribute('aria-modal', 'true');
+      const tit = d.createElement('h3');
+      tit.className = 'dcf-tit';
+      tit.id = 'dcf-tit';
+      const ico = d.createElement('span');
+      ico.className = 'dcf-ico';
+      ico.setAttribute('aria-hidden', 'true');
+      ico.textContent = o.peligro ? '!' : '?';
+      ico.style.fontWeight = '800';
+      tit.appendChild(ico);
+      tit.appendChild(d.createTextNode(o.titulo));
+      const p = d.createElement('p');
+      p.className = 'dcf-msg';
+      p.id = 'dcf-msg';
+      p.textContent = String(msg == null ? '' : msg);
+      card.setAttribute('aria-labelledby', 'dcf-tit');
+      card.setAttribute('aria-describedby', 'dcf-msg');
+      const bs = d.createElement('div');
+      bs.className = 'dcf-btns';
+      const bc = d.createElement('button');
+      bc.type = 'button'; bc.className = 'dcf-btn'; bc.textContent = o.cancelar;
+      const ba = d.createElement('button');
+      ba.type = 'button'; ba.className = 'dcf-btn ok' + (o.peligro ? ' peligro' : ''); ba.textContent = o.aceptar;
+      bc.addEventListener('click', () => fin(false));
+      ba.addEventListener('click', () => fin(true));
+      bs.appendChild(bc); bs.appendChild(ba);
+      card.appendChild(tit); card.appendChild(p); card.appendChild(bs);
+      ov.appendChild(card);
+      // un clic en el fondo oscuro cancela
+      ov.addEventListener('mousedown', e => { if (e.target === ov) fin(false); });
+      const kd = e => {
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); fin(false); }
+        else if (e.key === 'Tab') {
+          e.preventDefault();
+          const a = d.activeElement;
+          (a === bc ? ba : bc).focus();
+        }
+      };
+      d.addEventListener('keydown', kd, true);
+      d.body.appendChild(ov);
+      nodos.push({ doc: d, ov, st, kd, bc, ba });
+    });
+
+    // Foco: en la ventana donde está mirando el médico. En acciones destructivas, arranca en Cancelar.
+    const foco = (md && md.hasFocus && md.hasFocus()) ? nodos[1] : nodos[0];
+    try { (o.peligro ? foco.bc : foco.ba).focus(); } catch (_) {}
+  });
+}
 function loadConfig() {
   try { state.config = JSON.parse(localStorage.getItem('informesIA_config') || '{}'); }
   catch { state.config = {}; }
@@ -10097,8 +10214,8 @@ $('inputImportLearned').addEventListener('change', (e) => {
   e.target.value = '';
   refreshLearnedDictStats();
 });
-$('btnResetLearned').addEventListener('click', () => {
-  if (!confirm('¿Vaciar el diccionario aprendido? Esto borra todas las correcciones que el sistema aprendió de tus dictados.')) return;
+$('btnResetLearned').addEventListener('click', async () => {
+  if (!(await confirmar('¿Vaciar el diccionario aprendido? Esto borra todas las correcciones que el sistema aprendió de tus dictados.', { titulo: 'Vaciar diccionario aprendido', aceptar: 'Vaciar', peligro: true }))) return;
   setLearnedDict({});
   refreshLearnedDictStats();
   toast('Diccionario aprendido vaciado.');
@@ -11184,9 +11301,9 @@ function renderAttachmentUI() {
 }
 
 // Limpieza unificada — usada por "Limpiar todo" (PASO 2) y "LIMPIAR TODO — Nuevo informe" (PASO 1)
-function limpiarTodoElInforme(opts = {}) {
+async function limpiarTodoElInforme(opts = {}) {
   const requireConfirm = opts.requireConfirm !== false;
-  if (requireConfirm && !confirm('¿Limpiar todos los campos y empezar un informe nuevo?')) return false;
+  if (requireConfirm && !(await confirmar('¿Limpiar todos los campos y empezar un informe nuevo?', { titulo: 'Nuevo informe', aceptar: 'Limpiar todo', peligro: true }))) return false;
   ['indicacionClinica','campoTecnica','campoComparacion','campoHallazgos','campoImpresion'].forEach(id => $(id).value = '');
   // Limpiar también las sub-areas multi-modalidad si existen
   if (typeof clearHallazgosMulti === 'function') clearHallazgosMulti();
@@ -11332,7 +11449,7 @@ $('btnGenerarIA').addEventListener('click', generarConIA);
 // completamente normal de las modalidades seleccionadas. No llama a la API.
 // Ideal para estudios de screening con baja tasa de hallazgos (RX preocupacionales,
 // mamografías de control, ecografías obstétricas normales, etc.).
-function generarInformeNormalLocal() {
+async function generarInformeNormalLocal() {
   const mods = getSelectedModalidades();
   if (!mods.length) { toast('Seleccioná al menos una modalidad', false); return; }
   const tpls = mods.map(m => ({ id: m, tpl: TEMPLATES[m] })).filter(x => x.tpl);
@@ -11341,14 +11458,14 @@ function generarInformeNormalLocal() {
   // Si el médico ya dictó algo, le preguntamos — el flujo "normal local" sobreescribe el dictado
   const hayDictado = (typeof getHallazgosCombinados === 'function' ? getHallazgosCombinados() : $('campoHallazgos').value || '').trim();
   if (hayDictado) {
-    if (!confirm('Detecté que dictaste hallazgos. ¿Generar igual el informe NORMAL local (sin IA) y descartar el dictado actual?\n\nSi querés que la IA procese tus hallazgos, usá "Generar informe con IA".')) {
+    if (!(await confirmar('Detecté que dictaste hallazgos. ¿Generar igual el informe NORMAL local (sin IA) y descartar el dictado actual?\n\nSi querés que la IA procese tus hallazgos, usá "Generar informe con IA".', { titulo: 'Hay hallazgos dictados', aceptar: 'Generar normal', peligro: true }))) {
       return;
     }
   }
 
   // Si hay adjuntos para comparación, también avisamos
   if (state.comparisonAttachments && state.comparisonAttachments.length) {
-    if (!confirm('Tenés ' + state.comparisonAttachments.length + ' archivo(s) adjunto(s) para comparación. El informe NORMAL local NO usa IA y por lo tanto NO compara con los previos. ¿Continuar igual?\n\nPara que compare contra los previos, usá "Generar informe con IA".')) {
+    if (!(await confirmar('Tenés ' + state.comparisonAttachments.length + ' archivo(s) adjunto(s) para comparación. El informe NORMAL local NO usa IA y por lo tanto NO compara con los previos. ¿Continuar igual?\n\nPara que compare contra los previos, usá "Generar informe con IA".', { titulo: 'Archivos adjuntos', aceptar: 'Continuar' }))) {
       return;
     }
   }
@@ -12146,12 +12263,12 @@ function cancelarEdicion() {
   toast('Cambios descartados');
 }
 
-function restaurarOriginalIA() {
+async function restaurarOriginalIA() {
   const preview = $('reportPreview');
   if (!preview.dataset.original) {
     toast('No hay versión original guardada', false); return;
   }
-  if (!confirm('¿Volver al informe original generado por la IA? Se perderán tus ediciones manuales.')) return;
+  if (!(await confirmar('¿Volver al informe original generado por la IA? Se perderán tus ediciones manuales.', { titulo: 'Volver al original de la IA', aceptar: 'Volver al original', peligro: true }))) return;
   preview.dataset.raw = preview.dataset.original;
   // Re-renderizar desde la versión con marcadores si existe
   const fuente = preview.dataset.rawConMarcadores || preview.dataset.original;
@@ -13015,6 +13132,8 @@ renderAttachmentUI();
   var PIP = 'documentPictureInPicture' in window;
   var miniWin = null, ui = null, timer = null, msgTimer = null, banner = null, onInput = null;
   var observers = [];
+  // La página usa esto para mostrar sus carteles de confirmación también en la mini
+  window.__dictomMiniDoc = function () { return (miniWin && !miniWin.closed && ui) ? ui.doc : null; };
 
   // Colores del tema vigente (Zafiro si está activo en la página; si no, paleta Pyralis)
   function tokens() {
