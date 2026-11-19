@@ -565,6 +565,11 @@
         <span class="section-tag">Paso 2</span> Dictado y hallazgos
       </h2>
       <div class="flex items-center gap-2">
+        <button id="btnMini" type="button" title="Abrir una ventana chica y siempre visible con los controles del dictado, para dictar mientras mirás las imágenes en otro programa"
+          style="display:flex;align-items:center;gap:6px;padding:8px 12px;font-size:13px;font-weight:600;border-radius:6px;background:rgba(245,158,11,0.12);color:#FCD34D;border:0.5px solid rgba(245,158,11,0.4);cursor:pointer;font-family:Inter,system-ui,sans-serif;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 9V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10c0 1.1.9 2 2 2h4"/><rect width="10" height="7" x="12" y="13" rx="2"/></svg>
+          <span id="miniLabel">Minimizar</span>
+        </button>
         <button id="btnMic" class="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold bg-red-500 hover:bg-red-600 text-white transition">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
           <span id="micLabel">Dictar</span>
@@ -12942,6 +12947,288 @@ renderAttachmentUI();
   document.body.style.background = '#0A0F14';
   document.body.style.color = '#E2E8F0';
 </script>
+
+<!-- ============================================================
+     MODO MINI — ventana flotante con los controles del dictado
+     Usa Document Picture-in-Picture (Chrome/Edge 116+): ventana chica,
+     movible, redimensionable y siempre encima de las demás aplicaciones.
+     Si el navegador no lo soporta, cae a una ventana emergente común.
+     El dictado sigue corriendo en ESTA página; la mini sólo lo controla.
+     ============================================================ -->
+<script id="dictom-mini">
+(function () {
+  'use strict';
+  var btn = document.getElementById('btnMini');
+  if (!btn) return;
+
+  var PIP = 'documentPictureInPicture' in window;
+  var miniWin = null, ui = null, timer = null, msgTimer = null, banner = null, onInput = null;
+  var observers = [];
+
+  var CSS = [
+    '*{box-sizing:border-box}',
+    'html,body{margin:0;height:100%;background:#0A0F14;color:#E2E8F0;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}',
+    'body{display:flex;flex-direction:column;gap:8px;padding:10px;overflow:hidden}',
+    '.row{display:flex;gap:8px;align-items:stretch}',
+    'button{font:inherit;font-weight:600;cursor:pointer;border:0;border-radius:8px}',
+    'button:disabled{opacity:.5;cursor:not-allowed}',
+    '#mic{flex:1;padding:12px;font-size:15px;background:#EF4444;color:#fff;display:flex;gap:8px;align-items:center;justify-content:center}',
+    '#mic.on{background:#B91C1C;animation:pulso 1.4s infinite}',
+    '@keyframes pulso{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.55)}50%{box-shadow:0 0 0 8px rgba(239,68,68,0)}}',
+    '.sec{padding:8px 10px;background:rgba(245,158,11,.12);color:#FCD34D;border:.5px solid rgba(245,158,11,.4);font-size:12px}',
+    '#campo{width:100%;padding:7px 8px;background:#111827;color:#FCD34D;border:.5px solid rgba(245,158,11,.4);border-radius:8px;font:inherit;font-size:12px}',
+    '#live{min-height:16px;font-size:12px;color:#FCD34D;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+    '#ta{flex:1;min-height:90px;width:100%;resize:none;padding:8px 10px;background:#0E1521;color:#E2E8F0;border:1px solid rgba(245,158,11,.35);border-radius:8px;font:14px/1.5 Georgia,"Times New Roman",serif;outline:none}',
+    '#ta:focus{border-color:#F59E0B}',
+    '#ia{flex:1;padding:10px;font-size:13px;color:#fff;background:linear-gradient(90deg,#F97316,#EA580C)}',
+    '#norm{flex:1;padding:10px;font-size:13px;color:#fff;background:linear-gradient(135deg,#059669,#10B981)}',
+    '#copy{flex:1}',
+    '#msg{min-height:16px;font-size:12px;font-weight:600}',
+    '#msg.ok{color:#6EE7B7}#msg.err{color:#FCA5A5}',
+    '#status{font-size:11px;color:#94A3B8}'
+  ].join('\n');
+
+  var HTML = [
+    '<div class="row">',
+    '<button id="mic" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg><span id="micLabel">Dictar</span></button>',
+    '<button id="expand" class="sec" type="button" title="Cerrar la mini y volver a la página completa">Abrir página</button>',
+    '</div>',
+    '<select id="campo" aria-label="Campo donde se dicta"></select>',
+    '<div id="live"></div>',
+    '<textarea id="ta" spellcheck="false" placeholder="Lo que dictes aparece acá. También podés escribir o corregir."></textarea>',
+    '<div class="row"><button id="ia" type="button">Generar con IA</button><button id="norm" type="button">Informe normal</button></div>',
+    '<div class="row"><button id="copy" class="sec" type="button">Copiar informe final</button></div>',
+    '<div id="msg"></div>',
+    '<div id="status">Listo</div>'
+  ].join('');
+
+  function g(id) { return document.getElementById(id); }
+
+  // Campos dictables que existen ahora mismo (cambian con 1 modalidad vs varias)
+  function campos() {
+    var out = [];
+    function add(id, label) { if (g(id)) out.push({ id: id, label: label }); }
+    add('indicacionClinica', 'Indicación clínica');
+    add('campoTecnica', 'Técnica');
+    add('campoComparacion', 'Comparación');
+    var multi = g('hallazgosMulti');
+    if (multi && !multi.classList.contains('hidden')) {
+      multi.querySelectorAll('textarea[data-modality-id]').forEach(function (ta) {
+        var m = ta.dataset.modalityId;
+        var tpl = (typeof TEMPLATES !== 'undefined') ? TEMPLATES[m] : null;
+        out.push({ id: ta.id, label: 'Hallazgos — ' + (tpl && tpl.nombre ? tpl.nombre : m) });
+      });
+    } else {
+      add('campoHallazgos', 'Hallazgos');
+    }
+    add('campoImpresion', 'Conclusión');
+    return out;
+  }
+
+  function elegirCampo(id) {
+    if (!g(id)) return;
+    state.activeField = id;
+    var lbl = g('campoActivoLabel');
+    var c = campos().filter(function (x) { return x.id === id; })[0];
+    if (lbl && c) lbl.textContent = c.label;
+  }
+
+  function actualizarSelect() {
+    var lista = campos();
+    var firma = lista.map(function (c) { return c.id + ':' + c.label; }).join('|');
+    if (ui.sel.dataset.firma !== firma) {
+      ui.sel.dataset.firma = firma;
+      ui.sel.innerHTML = '';
+      lista.forEach(function (c) {
+        var o = ui.doc.createElement('option');
+        o.value = c.id; o.textContent = c.label;
+        ui.sel.appendChild(o);
+      });
+    }
+    if (ui.sel.value !== state.activeField && lista.some(function (c) { return c.id === state.activeField; })) {
+      ui.sel.value = state.activeField;
+    }
+  }
+
+  function actualizarTexto() {
+    var t = g(state.activeField);
+    if (!t) return;
+    var ta = ui.ta;
+    if (ta.dataset.fid !== state.activeField) { ta.dataset.fid = state.activeField; ta.value = ''; }
+    if (ta.value !== t.value) {
+      ta.value = t.value;
+      try { ta.setSelectionRange(t.selectionStart, t.selectionEnd); } catch (_) {}
+      if (t.selectionStart === t.value.length) ta.scrollTop = ta.scrollHeight;
+    }
+  }
+
+  function sync() {
+    if (!miniWin || miniWin.closed) { cerrar(); return; }
+    if (!ui) return;
+    actualizarSelect();
+    actualizarTexto();
+    var on = !!state.recognizing;
+    ui.mic.classList.toggle('on', on);
+    ui.micLabel.textContent = on ? 'Detener' : 'Dictar';
+    var lt = g('liveTranscript');
+    ui.live.textContent = (lt && !lt.classList.contains('hidden')) ? lt.textContent : '';
+    var st = g('aiStatus');
+    var s = st ? st.textContent : '';
+    ui.status.textContent = s;
+    var busy = /^(Generando|Reintentando)/.test(s);
+    ui.ia.disabled = busy;
+    ui.norm.disabled = busy;
+  }
+
+  function mensaje(txt, ok) {
+    if (!ui) return;
+    ui.msg.textContent = txt;
+    ui.msg.className = (ok === false) ? 'err' : 'ok';
+    clearTimeout(msgTimer);
+    msgTimer = setTimeout(function () { if (ui) ui.msg.textContent = ''; }, 4000);
+  }
+
+  // Lo dictado se inserta donde esté el cursor del campo real: lo copiamos desde la mini
+  function copiarCursor() {
+    var t = g(state.activeField);
+    if (!t || !ui) return;
+    try { t.setSelectionRange(ui.ta.selectionStart, ui.ta.selectionEnd); } catch (_) {}
+  }
+
+  async function copiar() {
+    var prev = g('reportPreview');
+    var txt = ((prev && (prev.dataset.raw || prev.textContent)) || '').trim();
+    if (!txt || txt.indexOf('aparecerá el informe') !== -1) { mensaje('Todavía no hay informe para copiar', false); return; }
+    try {
+      await miniWin.navigator.clipboard.writeText(txt);
+    } catch (e) {
+      try {
+        var d = miniWin.document;
+        var tmp = d.createElement('textarea');
+        tmp.value = txt;
+        d.body.appendChild(tmp);
+        tmp.select();
+        d.execCommand('copy');
+        tmp.remove();
+      } catch (e2) { mensaje('No se pudo copiar: ' + e2.message, false); return; }
+    }
+    mensaje('Informe copiado — pegalo en el PACS/RIS', true);
+    // Igual que el botón Copiar de la página: el informe copiado cuenta como "firmado" para el auto-aprendizaje
+    try { if (typeof triggerLearningFromCurrentForm === 'function') triggerLearningFromCurrentForm(); }
+    catch (e3) { console.warn('Learning failed:', e3); }
+  }
+
+  function observar(el, fn, opts) {
+    if (!el) return;
+    var mo = new MutationObserver(fn);
+    mo.observe(el, opts || { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'] });
+    observers.push(mo);
+  }
+
+  function ponerBanner() {
+    banner = document.createElement('div');
+    banner.style.cssText = 'position:fixed;left:24px;bottom:24px;z-index:60;display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;background:#0E1521;border:1px solid rgba(245,158,11,.45);color:#FCD34D;font:600 12px Inter,system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.45)';
+    banner.innerHTML = '<span>Modo mini activo: el dictado se controla desde la ventana flotante</span>';
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = 'Cerrar mini';
+    b.style.cssText = 'padding:5px 10px;border-radius:6px;border:.5px solid rgba(245,158,11,.5);background:rgba(245,158,11,.14);color:#FCD34D;font:600 12px Inter,system-ui,sans-serif;cursor:pointer';
+    b.addEventListener('click', cerrar);
+    banner.appendChild(b);
+    document.body.appendChild(banner);
+  }
+
+  function actualizarBoton(abierta) {
+    var l = g('miniLabel');
+    if (l) l.textContent = abierta ? 'Cerrar mini' : 'Minimizar';
+  }
+
+  function cerrar() {
+    clearInterval(timer); timer = null;
+    clearTimeout(msgTimer);
+    observers.forEach(function (o) { o.disconnect(); });
+    observers = [];
+    if (onInput) { document.removeEventListener('input', onInput, true); onInput = null; }
+    var w = miniWin;
+    miniWin = null; ui = null;
+    try { if (w && !w.closed) w.close(); } catch (_) {}
+    if (banner) { banner.remove(); banner = null; }
+    actualizarBoton(false);
+  }
+
+  function construir() {
+    var d = miniWin.document;
+    d.title = 'Dictom — mini';
+    d.head.textContent = '';
+    var st = d.createElement('style');
+    st.textContent = CSS;
+    d.head.appendChild(st);
+    d.body.innerHTML = HTML;
+    ui = {
+      doc: d,
+      mic: d.getElementById('mic'), micLabel: d.getElementById('micLabel'),
+      sel: d.getElementById('campo'), live: d.getElementById('live'),
+      ta: d.getElementById('ta'), ia: d.getElementById('ia'), norm: d.getElementById('norm'),
+      copy: d.getElementById('copy'), expand: d.getElementById('expand'),
+      msg: d.getElementById('msg'), status: d.getElementById('status')
+    };
+
+    ui.mic.addEventListener('click', function () { g('btnMic').click(); setTimeout(sync, 150); });
+    ui.sel.addEventListener('change', function () { elegirCampo(ui.sel.value); sync(); });
+    ui.ta.addEventListener('input', function () {
+      var t = g(state.activeField);
+      if (!t) return;
+      t.value = ui.ta.value;
+      t.dispatchEvent(new Event('input'));
+      copiarCursor();
+    });
+    ['keyup', 'click', 'select', 'focus'].forEach(function (ev) { ui.ta.addEventListener(ev, copiarCursor); });
+    ui.ia.addEventListener('click', function () { g('btnGenerarIA').click(); setTimeout(sync, 150); });
+    ui.norm.addEventListener('click', function () { g('btnInformeNormal').click(); setTimeout(sync, 150); });
+    ui.copy.addEventListener('click', copiar);
+    ui.expand.addEventListener('click', function () { cerrar(); try { window.focus(); } catch (_) {} });
+    miniWin.addEventListener('pagehide', cerrar);
+  }
+
+  async function abrir() {
+    if (miniWin && !miniWin.closed) { cerrar(); return; }
+    try {
+      if (PIP) {
+        miniWin = await window.documentPictureInPicture.requestWindow({ width: 380, height: 520 });
+      } else {
+        miniWin = window.open('', 'dictomMini', 'popup=yes,width=380,height=520');
+        if (!miniWin) { toast('El navegador bloqueó la ventana. Permití ventanas emergentes para este sitio.', false); return; }
+        toast('Este navegador no tiene ventana flotante siempre visible: se abrió una ventana común (puede quedar detrás de otras). Para que quede encima usá Chrome o Edge actualizado.', false);
+      }
+    } catch (err) {
+      miniWin = null;
+      toast('No se pudo abrir la mini ventana: ' + (err && err.message ? err.message : err), false);
+      return;
+    }
+    construir();
+    ponerBanner();
+    actualizarBoton(true);
+
+    // Reaccionar al instante a lo que cambia en la página principal
+    ['liveTranscript', 'aiStatus', 'btnMic', 'micLabel', 'campoActivoLabel', 'hallazgosMulti'].forEach(function (id) { observar(g(id), sync); });
+    observar(g('toast'), function () {
+      var t = g('toast');
+      if (!t || t.classList.contains('hidden') || !t.textContent) return;
+      mensaje(t.textContent, t.className.indexOf('bg-red') === -1);
+    });
+    // El dictado actualiza el campo con value + un evento 'input' que NO burbujea: lo atrapamos en captura
+    onInput = function () { sync(); };
+    document.addEventListener('input', onInput, true);
+    // Red de seguridad para cambios de value sin evento (informe generado, limpiar, etc.)
+    timer = setInterval(sync, 1000);
+    sync();
+  }
+
+  btn.addEventListener('click', abrir);
+  window.addEventListener('pagehide', function () { if (miniWin) cerrar(); });
+})();
+</script>
+
 
 <!-- ============================================================
      CORPUS VOCABULARIO RADIOLÓGICO (auto-embebido)
