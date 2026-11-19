@@ -1,0 +1,113 @@
+/* ============================================================
+   Lumen · Zafiro Lumen para dictom.html — Dictado radiológico (OPT-IN, solo oscuro)
+   Va después de lumen-zafiro.css y lumen-zafiro-modulos.css.
+   - Todo cuelga de html[data-ui="zafiro"]; sin ese atributo no cambia nada.
+   - El ámbar de Dictom (luciérnaga) pasa al azul Zafiro. Se conservan: el rojo del
+     dictado en curso, el verde de «Informe normal», el resaltado ámbar de los
+     hallazgos dictados y el brillo del logo.
+   - Sin light-dark(), color-mix() ni CSS anidado (PC viejas del hospital).
+   ============================================================ */
+
+/* ---------- Variables Pyralis → Zafiro ---------- */
+html[data-ui="zafiro"]{
+  --pyralis-bg:var(--z-bg); --pyralis-bg-elevated:var(--z-elev);
+  --pyralis-bg-input:var(--z-card-hi); --pyralis-bg-hover:var(--z-line);
+  --pyralis-border:var(--z-line); --pyralis-border-strong:var(--z-line-strong);
+  --pyralis-firefly:var(--z-acc); --pyralis-firefly-soft:var(--z-acc-ink); --pyralis-firefly-glow:var(--z-ink);
+  --pyralis-firefly-dim:rgba(94,151,255,.14); --pyralis-firefly-ring:rgba(94,151,255,.32);
+  --pyralis-text:var(--z-ink); --pyralis-text-strong:var(--z-ink);
+  --pyralis-text-muted:var(--z-ink3); --pyralis-text-dim:var(--z-ink3);
+  --accent:var(--z-acc); --accent-light:var(--z-acc-ink);
+}
+
+/* ---------- Fondo y tipografía ---------- */
+html[data-ui="zafiro"]{
+  background-color:var(--z-bg) !important; background-image:var(--z-bgimg) !important;
+  background-attachment:fixed; background-repeat:no-repeat;
+}
+html[data-ui="zafiro"] body{ background:transparent !important; color:var(--z-ink) !important; font-family:var(--z-font); }
+html[data-ui="zafiro"] :is(textarea,input,select,button){ font-family:var(--z-font); }
+html[data-ui="zafiro"] textarea{ line-height:1.55; }
+/* el informe final es un documento: conserva la serif */
+html[data-ui="zafiro"] .report-output{ font-family:Georgia,'Times New Roman',serif; }
+
+/* ---------- Encabezado ---------- */
+html[data-ui="zafiro"] body > header{
+  background:rgba(7,13,31,.80) !important; border-bottom:1px solid var(--z-line) !important; box-shadow:none !important;
+}
+html[data-ui="zafiro"][data-fx="on"] body > header{ -webkit-backdrop-filter:blur(14px) saturate(1.3); backdrop-filter:blur(14px) saturate(1.3); }
+html[data-ui="zafiro"] body > header span[title^="Modo"]{
+  background:var(--z-card-hi) !important; border:1px solid var(--z-line-strong) !important; color:var(--z-acc-ink) !important; border-radius:999px !important;
+}
+html[data-ui="zafiro"] body > header :is([style*="color: #94A3B8"],[style*="color: #64748B"]){ color:var(--z-ink3) !important; }
+html[data-ui="zafiro"] body > header [style*="font-family: 'Inter'"]{ font-family:var(--z-font) !important; }
+html[data-ui="zafiro"] .dictom-wordmark{ font-family:var(--z-font); }
+
+/* ---------- Vidrio: los tres paneles ---------- */
+html[data-ui="zafiro"] main > section.bg-white{
+  background:linear-gradient(180deg,var(--z-sheen),transparent 46%),var(--z-card) !important;
+  border:1px solid var(--z-line) !important; border-radius:20px; box-shadow:var(--z-raise);
+}
+/* el resto de los «blancos» (desplegables, modales) son opacos */
+html[data-ui="zafiro"] .bg-white{ background:var(--z-elev) !important; }
+html[data-ui="zafiro"] .shadow-lg{ box-shadow:var(--z-raise); }
+html[data-ui="zafiro"] .section-tag{ border:1px solid var(--z-line); font-family:var(--z-font); }
+
+/* ---------- Campos ---------- */
+html[data-ui="zafiro"] :is(input[type="text"],input[type="password"],input[type="email"],input[type="number"],textarea,select){
+  background:var(--z-card-hi) !important; border:1px solid var(--z-line) !important; border-radius:12px; color:var(--z-ink) !important;
+}
+html[data-ui="zafiro"] :is(input,textarea,select):focus{
+  border-color:var(--z-acc) !important; box-shadow:0 0 0 4px rgba(94,151,255,.22) !important; outline:none !important;
+}
+html[data-ui="zafiro"] #dropZone{ background:transparent !important; border-color:var(--z-line-strong) !important; }
+html[data-ui="zafiro"] #dropZone textarea{ background:transparent !important; border:0 !important; border-radius:12px 12px 0 0; }
+
+/* Hallazgos por modalidad (contenedor generado con estilos en línea ámbar) */
+html[data-ui="zafiro"] #hallazgosMulti{
+  background:var(--z-card-hi) !important; border:1px solid var(--z-line-strong) !important; box-shadow:var(--z-raise) !important; border-radius:14px !important;
+}
+html[data-ui="zafiro"] #hallazgosMulti > div[style*="border-left"]{
+  background:linear-gradient(90deg,rgba(94,151,255,.20),rgba(94,151,255,.05) 60%,transparent) !important;
+  border-left:3px solid var(--z-acc) !important; border-bottom:1px solid var(--z-line) !important;
+}
+html[data-ui="zafiro"] #hallazgosMulti > div[style*="border-left"] > span:first-child{ color:var(--z-ink) !important; font-family:var(--z-font) !important; }
+html[data-ui="zafiro"] #hallazgosMulti > div[style*="border-left"] > span:last-child{ color:var(--z-ink3) !important; font-family:var(--z-font) !important; }
+html[data-ui="zafiro"] #hallazgosMulti > div[style*="height:1px"]{ background:linear-gradient(90deg,transparent,var(--z-line-strong),transparent) !important; }
+html[data-ui="zafiro"] #hallazgosMulti textarea{ background:transparent !important; border:0 !important; border-radius:0; font-family:var(--z-font) !important; color:var(--z-ink) !important; }
+html[data-ui="zafiro"] #hallazgosMulti textarea:focus{ box-shadow:inset 0 0 0 2px rgba(94,151,255,.40) !important; }
+
+/* ---------- Botones ---------- */
+/* Primarios (Generar con IA, Copiar, Guardar…): azul Zafiro, igual que .btn de los demás módulos */
+html[data-ui="zafiro"] :is(.bg-teal-500,.bg-teal-600,.bg-teal-700,.bg-emerald-600,.bg-emerald-700,.bg-orange-500,.bg-orange-600,#btnGenerarIA){
+  background:linear-gradient(135deg,#2A63D8,var(--z-acc)) !important; color:#fff !important;
+  border:1px solid var(--z-line-strong); border-radius:12px;
+}
+html[data-ui="zafiro"] :is(.bg-teal-500,.bg-teal-600,.bg-teal-700,.bg-emerald-600,.bg-emerald-700,.bg-orange-500,.bg-orange-600,#btnGenerarIA):hover{ filter:brightness(1.12); }
+html[data-ui="zafiro"] #btnGenerarIA{ border-radius:14px; box-shadow:var(--z-halo); }
+/* Secundarios */
+html[data-ui="zafiro"] :is(#btnSettings,#btnMini,#btnEditar,#btnRestaurarIA,.dictom-btn-sec){
+  background:var(--z-card-hi) !important; border:1px solid var(--z-line-strong) !important; color:var(--z-acc-ink) !important;
+  border-radius:12px !important; font-family:var(--z-font) !important;
+}
+html[data-ui="zafiro"] :is(#btnSettings,#btnMini,#btnEditar,#btnRestaurarIA,.dictom-btn-sec):hover{ border-color:var(--z-acc) !important; }
+html[data-ui="zafiro"] :is(#btnLimpiar,#btnNuevoInforme,#btnImprimir,#btnDescargar,#btnCancelSettings){ border:1px solid var(--z-line); border-radius:12px; }
+html[data-ui="zafiro"] #btnInformeNormal{ font-family:var(--z-font) !important; border-radius:14px !important; }
+/* Dictar: apagado en azul; dictando conserva el rojo base */
+html[data-ui="zafiro"] .btn-dictar:not(.mic-active){
+  background:var(--z-card-hi); border-color:var(--z-line-strong); color:var(--z-acc-ink); border-radius:14px; font-family:var(--z-font);
+}
+html[data-ui="zafiro"] .btn-dictar:not(.mic-active):hover{ border-color:var(--z-acc); }
+html[data-ui="zafiro"] .btn-dictar.mic-active{ border-radius:14px; font-family:var(--z-font); }
+
+/* ---------- Textos de apoyo ---------- */
+html[data-ui="zafiro"] .text-amber-600{ color:var(--z-warn) !important; }
+html[data-ui="zafiro"] .modalidad-option:hover{ background:rgba(94,151,255,.16); }
+html[data-ui="zafiro"] .modalidad-grupo{ color:var(--z-ink3); font-family:var(--z-font); }
+html[data-ui="zafiro"] #modalidadDropdown{ border-color:var(--z-line-strong) !important; border-radius:14px; box-shadow:var(--z-raise); }
+html[data-ui="zafiro"] #modalidadDropdown .sticky{ background:var(--z-elev) !important; border-color:var(--z-line) !important; }
+html[data-ui="zafiro"] .dl-option:hover{ background:var(--z-card-hi) !important; }
+
+/* ---------- Aviso ---------- */
+html[data-ui="zafiro"] #toast{ border:1px solid var(--z-line-strong); border-radius:14px; font-family:var(--z-font); }
+html[data-ui="zafiro"] #toast.bg-emerald-700{ background:#0B7A4B !important; color:#fff !important; }

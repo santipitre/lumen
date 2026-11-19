@@ -348,6 +348,60 @@
   /* Headers existentes con bg-gradient → mantener pero asegurar contraste */
   .text-white { color: var(--pyralis-text-strong) !important; }
 </style>
+<style id="dictom-estilos-v2">
+  /* ============================================================
+     Botón DICTAR: el estado "dictando" no se puede confundir
+     - apagado: botón sobrio con borde de acento
+     - dictando: rojo sólido, punto REC que parpadea, ecualizador en movimiento,
+       anillos que se expanden y el panel de dictado con borde rojo
+     ============================================================ */
+  .btn-dictar{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:10px;min-width:150px;padding:11px 20px;border-radius:12px;font:inherit;font-size:15px;font-weight:700;letter-spacing:.01em;cursor:pointer;color:#FCD34D;background:rgba(245,158,11,.12);border:1.5px solid rgba(245,158,11,.55);transition:background .2s,border-color .2s,color .2s,transform .12s}
+  .btn-dictar:hover{background:rgba(245,158,11,.22)}
+  .btn-dictar:active{transform:scale(.97)}
+  .btn-dictar .eq{display:none;align-items:center;gap:3px;height:20px}
+  .btn-dictar .eq i{display:block;width:4px;height:100%;border-radius:2px;background:currentColor;transform:scaleY(.25)}
+  .btn-dictar .eq i:nth-child(2){animation-delay:-.7s}
+  .btn-dictar .eq i:nth-child(3){animation-delay:-.5s}
+  .btn-dictar .eq i:nth-child(4){animation-delay:-.3s}
+  .btn-dictar .eq i:nth-child(5){animation-delay:-.1s}
+  .btn-dictar .rec-dot{display:none;width:10px;height:10px;border-radius:50%;background:#fff}
+  .btn-dictar.mic-active{color:#fff;background:linear-gradient(135deg,#EF4444,#B91C1C);border-color:#FCA5A5;animation:dictar-anillo 1.3s ease-out infinite}
+  .btn-dictar.mic-active:hover{background:linear-gradient(135deg,#F05252,#C42222)}
+  .btn-dictar.mic-active .ico-mic{display:none}
+  .btn-dictar.mic-active .eq{display:inline-flex}
+  .btn-dictar.mic-active .eq i{animation:dictar-barra .9s ease-in-out infinite}
+  .btn-dictar.mic-active .rec-dot{display:inline-block;animation:dictar-parpadeo 1s steps(2,start) infinite}
+  @keyframes dictar-anillo{0%{box-shadow:0 0 0 0 rgba(239,68,68,.75),0 0 0 0 rgba(239,68,68,.4)}70%{box-shadow:0 0 0 14px rgba(239,68,68,0),0 0 0 28px rgba(239,68,68,0)}100%{box-shadow:0 0 0 0 rgba(239,68,68,0),0 0 0 0 rgba(239,68,68,0)}}
+  @keyframes dictar-barra{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}
+  @keyframes dictar-parpadeo{50%{opacity:.15}}
+  body.dictando #seccionDictado{border-color:rgba(239,68,68,.8) !important;box-shadow:0 0 0 1px rgba(239,68,68,.4),0 0 30px -6px rgba(239,68,68,.5) !important}
+  @media (prefers-reduced-motion:reduce){
+    .btn-dictar.mic-active,.btn-dictar.mic-active .eq i,.btn-dictar.mic-active .rec-dot{animation:none}
+    .btn-dictar.mic-active .eq i{transform:scaleY(.7)}
+  }
+
+  /* Botones secundarios del encabezado (antes estilos en línea) */
+  .dictom-btn-sec{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;font-family:Inter,system-ui,sans-serif;font-size:14px;font-weight:600;border-radius:10px;cursor:pointer;color:#FCD34D;background:rgba(245,158,11,.12);border:.5px solid rgba(245,158,11,.4)}
+  .dictom-btn-sec:hover{background:rgba(245,158,11,.22)}
+
+  /* Lista desplegable de modalidades: nombres más grandes */
+  #modalidadToggle{font-size:16px !important}
+  #modalidadDisplay{font-size:16px}
+  #modalidadSearch{font-size:15px !important;padding:9px 10px !important}
+  #modalidadChips span{font-size:14px}
+  .modalidad-grupo{padding:12px 10px 4px;font-size:12.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#94A3B8}
+  .modalidad-option{font-size:16px;line-height:1.35;padding:9px 10px !important;gap:10px !important}
+  .modalidad-option:hover{background:rgba(245,158,11,.12)}
+  .modalidad-checkbox{width:18px;height:18px;flex:none}
+</style>
+
+<!-- Lumen · estilo Zafiro (opt-in): se enciende con ?estilo=zafiro, igual que el resto de los módulos. Dictom queda en oscuro. -->
+<meta name="lumen-zafiro" content="oscuro"/>
+<link rel="stylesheet" href="lumen-zafiro.css?v=02faf2b3"/>
+<link rel="stylesheet" href="lumen-zafiro-modulos.css?v=82769b05"/>
+<link rel="stylesheet" href="lumen-zafiro-dictom.css?v=965ef5cb"/>
+<link rel="stylesheet" href="lumen-zafiro-texto-dictom.css?v=6defe31d"/>
+<script src="lumen-zafiro.js?v=5bb8d397"></script>
 </head>
 <body class="bg-slate-50 min-h-screen" style="background: var(--pyralis-bg); color: var(--pyralis-text);">
 
@@ -559,19 +613,20 @@
   </section>
 
   <!-- =========== COLUMNA CENTRAL: Dictado y campos =========== -->
-  <section class="col-span-5 bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+  <section id="seccionDictado" class="col-span-5 bg-white rounded-xl shadow-sm border border-slate-200 p-5">
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2">
         <span class="section-tag">Paso 2</span> Dictado y hallazgos
       </h2>
       <div class="flex items-center gap-2">
-        <button id="btnMini" type="button" title="Abrir una ventana chica y siempre visible con los controles del dictado, para dictar mientras mirás las imágenes en otro programa"
-          style="display:flex;align-items:center;gap:6px;padding:8px 12px;font-size:13px;font-weight:600;border-radius:6px;background:rgba(245,158,11,0.12);color:#FCD34D;border:0.5px solid rgba(245,158,11,0.4);cursor:pointer;font-family:Inter,system-ui,sans-serif;">
+        <button id="btnMini" type="button" class="dictom-btn-sec" title="Abrir una ventana chica y siempre visible con los controles del dictado, para dictar mientras mirás las imágenes en otro programa">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 9V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10c0 1.1.9 2 2 2h4"/><rect width="10" height="7" x="12" y="13" rx="2"/></svg>
           <span id="miniLabel">Minimizar</span>
         </button>
-        <button id="btnMic" class="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold bg-red-500 hover:bg-red-600 text-white transition">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        <button id="btnMic" type="button" class="btn-dictar" aria-pressed="false" title="Iniciar o detener el dictado por voz">
+          <span class="rec-dot" aria-hidden="true"></span>
+          <svg class="ico-mic" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg>
+          <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
           <span id="micLabel">Dictar</span>
         </button>
       </div>
@@ -10914,18 +10969,14 @@ function initSpeech() {
 }
 function updateMicButton(active) {
   const btn = $('btnMic');
-  if (active) {
-    btn.classList.add('mic-active');
-    btn.classList.remove('bg-red-500','hover:bg-red-600');
-    btn.classList.add('bg-red-600');
-    $('micLabel').textContent = 'Detener';
-  } else {
-    btn.classList.remove('mic-active');
-    btn.classList.add('bg-red-500','hover:bg-red-600');
-    btn.classList.remove('bg-red-600');
-    $('micLabel').textContent = 'Dictar';
-    $('liveTranscript').classList.add('hidden');
-  }
+  btn.classList.toggle('mic-active', !!active);
+  btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+  document.body.classList.toggle('dictando', !!active);
+  $('micLabel').textContent = active ? 'Dictando — Detener' : 'Dictar';
+  // La pestaña avisa si se está dictando (útil cuando la página queda detrás de otro programa)
+  window.__dictomTitulo = window.__dictomTitulo || document.title;
+  document.title = (active ? '● Dictando — ' : '') + window.__dictomTitulo;
+  if (!active) $('liveTranscript').classList.add('hidden');
 }
 $('btnMic').addEventListener('click', () => {
   if (!state.recognition) state.recognition = initSpeech();
@@ -12723,18 +12774,18 @@ $('btnImprimir').addEventListener('click', () => {
     for (const g of catalogo) {
       const matches = g.items.filter(it => !q || it.label.toLowerCase().includes(q) || it.id.includes(q));
       if (!matches.length) continue;
-      html.push('<div class="px-2 pt-2 pb-1 text-[10px] uppercase tracking-wider font-semibold text-slate-500">' + g.grupo + '</div>');
+      html.push('<div class="modalidad-grupo">' + g.grupo + '</div>');
       for (const it of matches) {
         const checked = sel.has(it.id);
         html.push(
-          '<label class="flex items-center gap-2 px-2 py-1.5 text-sm cursor-pointer rounded hover:bg-slate-50 modalidad-option" data-id="' + it.id + '">' +
+          '<label class="flex items-center cursor-pointer rounded modalidad-option" data-id="' + it.id + '">' +
           '<input type="checkbox" class="modalidad-checkbox accent-teal-600" data-id="' + it.id + '" ' + (checked ? 'checked' : '') + '>' +
           '<span class="text-slate-700">' + it.label + '</span>' +
           '</label>'
         );
       }
     }
-    if (!html.length) html.push('<div class="px-3 py-4 text-xs text-slate-400 text-center">Sin coincidencias</div>');
+    if (!html.length) html.push('<div class="px-3 py-4 text-sm text-slate-400 text-center">Sin coincidencias</div>');
     optionsEl.innerHTML = html.join('');
   }
 
@@ -12965,32 +13016,72 @@ renderAttachmentUI();
   var miniWin = null, ui = null, timer = null, msgTimer = null, banner = null, onInput = null;
   var observers = [];
 
-  var CSS = [
-    '*{box-sizing:border-box}',
-    'html,body{margin:0;height:100%;background:#0A0F14;color:#E2E8F0;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}',
-    'body{display:flex;flex-direction:column;gap:8px;padding:10px;overflow:hidden}',
-    '.row{display:flex;gap:8px;align-items:stretch}',
-    'button{font:inherit;font-weight:600;cursor:pointer;border:0;border-radius:8px}',
-    'button:disabled{opacity:.5;cursor:not-allowed}',
-    '#mic{flex:1;padding:12px;font-size:15px;background:#EF4444;color:#fff;display:flex;gap:8px;align-items:center;justify-content:center}',
-    '#mic.on{background:#B91C1C;animation:pulso 1.4s infinite}',
-    '@keyframes pulso{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.55)}50%{box-shadow:0 0 0 8px rgba(239,68,68,0)}}',
-    '.sec{padding:8px 10px;background:rgba(245,158,11,.12);color:#FCD34D;border:.5px solid rgba(245,158,11,.4);font-size:12px}',
-    '#campo{width:100%;padding:7px 8px;background:#111827;color:#FCD34D;border:.5px solid rgba(245,158,11,.4);border-radius:8px;font:inherit;font-size:12px}',
-    '#live{min-height:16px;font-size:12px;color:#FCD34D;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-    '#ta{flex:1;min-height:90px;width:100%;resize:none;padding:8px 10px;background:#0E1521;color:#E2E8F0;border:1px solid rgba(245,158,11,.35);border-radius:8px;font:14px/1.5 Georgia,"Times New Roman",serif;outline:none}',
-    '#ta:focus{border-color:#F59E0B}',
-    '#ia{flex:1;padding:10px;font-size:13px;color:#fff;background:linear-gradient(90deg,#F97316,#EA580C)}',
-    '#norm{flex:1;padding:10px;font-size:13px;color:#fff;background:linear-gradient(135deg,#059669,#10B981)}',
-    '#copy{flex:1}',
-    '#msg{min-height:16px;font-size:12px;font-weight:600}',
-    '#msg.ok{color:#6EE7B7}#msg.err{color:#FCA5A5}',
-    '#status{font-size:11px;color:#94A3B8}'
-  ].join('\n');
+  // Colores del tema vigente (Zafiro si está activo en la página; si no, paleta Pyralis)
+  function tokens() {
+    var root = document.documentElement;
+    var cs = getComputedStyle(root);
+    function v(n, d) { var x = cs.getPropertyValue(n).trim(); return x || d; }
+    if (root.getAttribute('data-ui') === 'zafiro') {
+      return {
+        z: true, font: "'Plus Jakarta Sans','Inter',system-ui,-apple-system,'Segoe UI',sans-serif",
+        bg: v('--z-bg', '#070D1F'), elev: v('--z-elev', '#0E1838'), ink: v('--z-ink', '#E9EFFF'), ink3: v('--z-ink3', '#A8B5DA'),
+        acc: v('--z-acc', '#5E97FF'), accInk: v('--z-acc-ink', '#9DBFFF'),
+        line: v('--z-line', 'rgba(165,198,255,.18)'), lineStrong: v('--z-line-strong', 'rgba(165,198,255,.38)'),
+        card: v('--z-card-hi', 'rgba(165,198,255,.13)'), sec: 'rgba(94,151,255,.14)',
+        cta: 'linear-gradient(135deg,#2A63D8,' + v('--z-acc', '#5E97FF') + ')'
+      };
+    }
+    return {
+      z: false, font: 'Inter,system-ui,-apple-system,"Segoe UI",sans-serif',
+      bg: '#0A0F14', elev: '#0E1521', ink: '#E2E8F0', ink3: '#94A3B8', acc: '#F59E0B', accInk: '#FCD34D',
+      line: 'rgba(245,158,11,.4)', lineStrong: 'rgba(245,158,11,.55)', card: 'rgba(245,158,11,.12)', sec: 'rgba(245,158,11,.12)',
+      cta: 'linear-gradient(90deg,#F97316,#EA580C)'
+    };
+  }
+
+  function css(t) {
+    return [
+      ':root{--bg:' + t.bg + ';--elev:' + t.elev + ';--ink:' + t.ink + ';--ink3:' + t.ink3 + ';--acc:' + t.acc + ';--acc-ink:' + t.accInk + ';--line:' + t.line + ';--line-strong:' + t.lineStrong + ';--card:' + t.card + ';--sec:' + t.sec + '}',
+      '*{box-sizing:border-box}',
+      'html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:' + t.font + '}',
+      'body{display:flex;flex-direction:column;gap:10px;padding:12px;overflow:hidden}',
+      'body.dictando{box-shadow:inset 0 0 0 3px #EF4444}',
+      '.row{display:flex;gap:8px;align-items:stretch}',
+      'button{font:inherit;font-weight:700;cursor:pointer;border:0;border-radius:12px}',
+      'button:disabled{opacity:.5;cursor:not-allowed}',
+      '#mic{flex:1;padding:14px 12px;font-size:17px;display:flex;gap:10px;align-items:center;justify-content:center;background:var(--card);color:var(--acc-ink);border:1.5px solid var(--line-strong)}',
+      '#mic:hover{border-color:var(--acc)}',
+      '#mic.on{background:linear-gradient(135deg,#EF4444,#B91C1C);color:#fff;border-color:#FCA5A5;animation:anillo 1.3s ease-out infinite}',
+      '#mic .eq{display:none;align-items:center;gap:3px;height:22px}',
+      '#mic .eq i{display:block;width:4px;height:100%;border-radius:2px;background:currentColor;transform:scaleY(.25)}',
+      '#mic.on .eq{display:inline-flex}',
+      '#mic.on .ico{display:none}',
+      '#mic.on .eq i{animation:barra .9s ease-in-out infinite}',
+      '#mic .eq i:nth-child(2){animation-delay:-.7s}#mic .eq i:nth-child(3){animation-delay:-.5s}#mic .eq i:nth-child(4){animation-delay:-.3s}#mic .eq i:nth-child(5){animation-delay:-.1s}',
+      '#mic .punto{display:none;width:10px;height:10px;border-radius:50%;background:#fff}',
+      '#mic.on .punto{display:inline-block;animation:parpadeo 1s steps(2,start) infinite}',
+      '@keyframes anillo{0%{box-shadow:0 0 0 0 rgba(239,68,68,.75)}70%{box-shadow:0 0 0 14px rgba(239,68,68,0)}100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}}',
+      '@keyframes barra{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}',
+      '@keyframes parpadeo{50%{opacity:.15}}',
+      '@media (prefers-reduced-motion:reduce){#mic.on,#mic.on .eq i,#mic.on .punto{animation:none}#mic.on .eq i{transform:scaleY(.7)}}',
+      '.sec{padding:10px 12px;background:var(--sec);color:var(--acc-ink);border:1px solid var(--line);font-size:14px}',
+      '#campo{width:100%;padding:11px 12px;background:var(--card);color:var(--ink);border:1px solid var(--line-strong);border-radius:12px;font:inherit;font-size:17px;font-weight:600}',
+      '#campo option{font-size:17px;background:var(--elev);color:var(--ink)}',
+      '#live{min-height:20px;font-size:14px;color:var(--acc-ink);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+      '#ta{flex:1;min-height:90px;width:100%;resize:none;padding:10px 12px;background:var(--card);color:var(--ink);border:1px solid var(--line-strong);border-radius:12px;font:16px/1.5 ' + t.font + ';outline:none}',
+      '#ta:focus{border-color:var(--acc)}',
+      '#ia{flex:1;padding:12px;font-size:15px;color:#fff;background:' + t.cta + '}',
+      '#norm{flex:1;padding:12px;font-size:15px;color:#fff;background:linear-gradient(135deg,#059669,#10B981)}',
+      '#copy{flex:1}',
+      '#msg{min-height:20px;font-size:14px;font-weight:600}',
+      '#msg.ok{color:#6EE7B7}#msg.err{color:#FCA5A5}',
+      '#status{font-size:12.5px;color:var(--ink3)}'
+    ].join('\n');
+  }
 
   var HTML = [
     '<div class="row">',
-    '<button id="mic" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg><span id="micLabel">Dictar</span></button>',
+    '<button id="mic" type="button"><span class="punto"></span><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg><span class="eq"><i></i><i></i><i></i><i></i><i></i></span><span id="micLabel">Dictar</span></button>',
     '<button id="expand" class="sec" type="button" title="Cerrar la mini y volver a la página completa">Abrir página</button>',
     '</div>',
     '<select id="campo" aria-label="Campo donde se dicta"></select>',
@@ -13069,7 +13160,8 @@ renderAttachmentUI();
     actualizarTexto();
     var on = !!state.recognizing;
     ui.mic.classList.toggle('on', on);
-    ui.micLabel.textContent = on ? 'Detener' : 'Dictar';
+    ui.doc.body.classList.toggle('dictando', on);
+    ui.micLabel.textContent = on ? 'Dictando — Detener' : 'Dictar';
     var lt = g('liveTranscript');
     ui.live.textContent = (lt && !lt.classList.contains('hidden')) ? lt.textContent : '';
     var st = g('aiStatus');
@@ -13160,9 +13252,16 @@ renderAttachmentUI();
     var d = miniWin.document;
     d.title = 'Dictom — mini';
     d.head.textContent = '';
+    var t = tokens();
     var st = d.createElement('style');
-    st.textContent = CSS;
+    st.textContent = css(t);
     d.head.appendChild(st);
+    if (t.z) {
+      var lk = d.createElement('link');
+      lk.rel = 'stylesheet';
+      lk.href = 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap';
+      d.head.appendChild(lk);
+    }
     d.body.innerHTML = HTML;
     ui = {
       doc: d,
@@ -13194,9 +13293,9 @@ renderAttachmentUI();
     if (miniWin && !miniWin.closed) { cerrar(); return; }
     try {
       if (PIP) {
-        miniWin = await window.documentPictureInPicture.requestWindow({ width: 380, height: 520 });
+        miniWin = await window.documentPictureInPicture.requestWindow({ width: 400, height: 560 });
       } else {
-        miniWin = window.open('', 'dictomMini', 'popup=yes,width=380,height=520');
+        miniWin = window.open('', 'dictomMini', 'popup=yes,width=400,height=560');
         if (!miniWin) { toast('El navegador bloqueó la ventana. Permití ventanas emergentes para este sitio.', false); return; }
         toast('Este navegador no tiene ventana flotante siempre visible: se abrió una ventana común (puede quedar detrás de otras). Para que quede encima usá Chrome o Edge actualizado.', false);
       }

@@ -1,0 +1,24 @@
+/* ============================================================
+   Lumen · Zafiro Lumen · letra más grande para dictom.html (solo ≥900px, solo con Zafiro)
+   Mismo criterio que el resto de los módulos: ×1.2 hasta 20px, mínimo 12px.
+   Dictom usa clases Tailwind (se generan en el navegador), por eso las reglas van a mano
+   y no desde gentexto.py. Si cambia el HTML con tamaños nuevos, hay que sumarlos acá.
+   Las listas desplegables ya tienen su tamaño propio (.modalidad-*): no se tocan.
+   ============================================================ */
+@media (min-width:900px){
+  html[data-ui="zafiro"] .text-xs{ font-size:14.4px !important; line-height:1.5 !important; }
+  html[data-ui="zafiro"] .text-sm{ font-size:16.8px !important; line-height:1.5 !important; }
+  html[data-ui="zafiro"] .text-lg{ font-size:20px !important; }
+  html[data-ui="zafiro"] .text-\[10px\]{ font-size:12px !important; }
+  html[data-ui="zafiro"] .text-\[11px\]{ font-size:13.2px !important; }
+  html[data-ui="zafiro"] .section-tag{ font-size:12px !important; }
+  html[data-ui="zafiro"] .btn-dictar{ font-size:17px; }
+  html[data-ui="zafiro"] .dictom-btn-sec{ font-size:15.6px; }
+  /* tamaños en línea del HTML y de lo que genera el JS */
+  html[data-ui="zafiro"] :is([style*="font-size:9px"],[style*="font-size: 9px"]){ font-size:12px !important; }
+  html[data-ui="zafiro"] :is([style*="font-size:10px"],[style*="font-size: 10px"]){ font-size:12px !important; }
+  html[data-ui="zafiro"] :is([style*="font-size:11px"],[style*="font-size: 11px"]){ font-size:13.2px !important; }
+  html[data-ui="zafiro"] :is([style*="font-size:12px"],[style*="font-size: 12px"]){ font-size:14.4px !important; }
+  html[data-ui="zafiro"] :is([style*="font-size:13px"],[style*="font-size: 13px"]){ font-size:15.6px !important; }
+  html[data-ui="zafiro"] :is([style*="font-size:14px"],[style*="font-size: 14px"]){ font-size:16.8px !important; }
+}
