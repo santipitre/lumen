@@ -393,6 +393,17 @@
   .modalidad-option{font-size:16px;line-height:1.35;padding:9px 10px !important;gap:10px !important}
   .modalidad-option:hover{background:rgba(245,158,11,.12)}
   .modalidad-checkbox{width:18px;height:18px;flex:none}
+
+  /* Botón VENTANA FLOTANTE: violeta, para distinguirlo de Dictar (azul) y de los secundarios */
+  html body #btnMini.dictom-btn-flotante{
+    background:rgba(167,139,250,.16) !important; border:1px solid rgba(167,139,250,.6) !important; color:#D8CCFF !important;
+    font-weight:700 !important; letter-spacing:.01em;
+  }
+  html body #btnMini.dictom-btn-flotante:hover{ background:rgba(167,139,250,.28) !important; border-color:#A78BFA !important; }
+  html[data-ui="zafiro"][data-tema="light"] body #btnMini.dictom-btn-flotante{
+    background:rgba(109,40,217,.10) !important; border-color:rgba(109,40,217,.5) !important; color:#5B21B6 !important;
+  }
+  html[data-ui="zafiro"][data-tema="light"] body #btnMini.dictom-btn-flotante:hover{ background:rgba(109,40,217,.18) !important; border-color:#6D28D9 !important; }
 </style>
 
 <!-- Lumen · estilo Zafiro (opt-in): se enciende con ?estilo=zafiro, igual que el resto de los módulos. Dictom queda en oscuro. -->
@@ -619,9 +630,9 @@
         <span class="section-tag">Paso 2</span> Dictado y hallazgos
       </h2>
       <div class="flex items-center gap-2">
-        <button id="btnMini" type="button" class="dictom-btn-sec" title="Abrir una ventana chica y siempre visible con los controles del dictado, para dictar mientras mirás las imágenes en otro programa">
+        <button id="btnMini" type="button" class="dictom-btn-sec dictom-btn-flotante" title="Abrir una ventana chica y siempre visible con los controles del dictado, para dictar mientras mirás las imágenes en otro programa">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 9V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10c0 1.1.9 2 2 2h4"/><rect width="10" height="7" x="12" y="13" rx="2"/></svg>
-          <span id="miniLabel">Minimizar</span>
+          <span id="miniLabel">Ventana flotante</span>
         </button>
         <button id="btnMic" type="button" class="btn-dictar" aria-pressed="false" title="Iniciar o detener el dictado por voz">
           <span class="rec-dot" aria-hidden="true"></span>
@@ -13385,10 +13396,10 @@ renderAttachmentUI();
   function ponerBanner() {
     banner = document.createElement('div');
     banner.style.cssText = 'position:fixed;left:24px;bottom:24px;z-index:60;display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;background:#0E1521;border:1px solid rgba(245,158,11,.45);color:#FCD34D;font:600 12px Inter,system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.45)';
-    banner.innerHTML = '<span>Modo mini activo: el dictado se controla desde la ventana flotante</span>';
+    banner.innerHTML = '<span>Ventana flotante activa: el dictado se controla desde ahí</span>';
     var b = document.createElement('button');
     b.type = 'button';
-    b.textContent = 'Cerrar mini';
+    b.textContent = 'Cerrar flotante';
     b.style.cssText = 'padding:5px 10px;border-radius:6px;border:.5px solid rgba(245,158,11,.5);background:rgba(245,158,11,.14);color:#FCD34D;font:600 12px Inter,system-ui,sans-serif;cursor:pointer';
     b.addEventListener('click', cerrar);
     banner.appendChild(b);
@@ -13397,7 +13408,7 @@ renderAttachmentUI();
 
   function actualizarBoton(abierta) {
     var l = g('miniLabel');
-    if (l) l.textContent = abierta ? 'Cerrar mini' : 'Minimizar';
+    if (l) l.textContent = abierta ? 'Cerrar flotante' : 'Ventana flotante';
   }
 
   function cerrar() {
