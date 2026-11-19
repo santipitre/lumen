@@ -13075,11 +13075,17 @@ renderAttachmentUI();
       '#copy{flex:1}',
       '#msg{min-height:20px;font-size:14px;font-weight:600}',
       '#msg.ok{color:#6EE7B7}#msg.err{color:#FCA5A5}',
-      '#status{font-size:12.5px;color:var(--ink3)}'
+      '#status{font-size:12.5px;color:var(--ink3)}',
+      '#cab{display:flex;align-items:center;justify-content:center;gap:9px;padding:0 0 2px;font-size:14px;font-weight:800;letter-spacing:.16em;color:var(--acc-ink);text-transform:uppercase;user-select:none}',
+      '#cab .luz{width:9px;height:9px;border-radius:50%;background:var(--ink3)}',
+      'body.dictando #cab{color:#FCA5A5}',
+      'body.dictando #cab .luz{background:#EF4444;animation:parpadeo 1s steps(2,start) infinite}',
+      '@media (prefers-reduced-motion:reduce){body.dictando #cab .luz{animation:none}}'
     ].join('\n');
   }
 
   var HTML = [
+    '<div id="cab"><span class="luz"></span>DICTADO FLOTANTE</div>',
     '<div class="row">',
     '<button id="mic" type="button"><span class="punto"></span><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg><span class="eq"><i></i><i></i><i></i><i></i><i></i></span><span id="micLabel">Dictar</span></button>',
     '<button id="expand" class="sec" type="button" title="Cerrar la mini y volver a la página completa">Abrir página</button>',
@@ -13250,7 +13256,7 @@ renderAttachmentUI();
 
   function construir() {
     var d = miniWin.document;
-    d.title = 'Dictom — mini';
+    d.title = 'DICTADO FLOTANTE';
     d.head.textContent = '';
     var t = tokens();
     var st = d.createElement('style');
