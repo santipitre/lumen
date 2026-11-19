@@ -42,6 +42,23 @@
       return 'sin-almacenamiento-' + Date.now();   // sin localStorage no se puede autorizar el equipo
     }
   }
+  // Sólo Google Chrome. Chrome real se anuncia como «Google Chrome» en userAgentData; Edge, Brave, Opera,
+  // Firefox y Safari no (Edge dice «Microsoft Edge»). Es un control del navegador, no del servidor.
+  function esChrome() {
+    try {
+      const b = (navigator.userAgentData && navigator.userAgentData.brands) || [];
+      return b.some(function (x) { return x && x.brand === 'Google Chrome'; });
+    } catch (e) { return false; }
+  }
+  function navegadorActual() {
+    try {
+      const b = (navigator.userAgentData && navigator.userAgentData.brands) || [];
+      const x = b.filter(function (y) { return y && y.brand && !/Not.?A.?Brand|Chromium/i.test(y.brand); })[0];
+      if (x) return x.brand;
+    } catch (e) {}
+    const u = navigator.userAgent || '';
+    return /Firefox\//.test(u) ? 'Firefox' : /Edg\//.test(u) ? 'Microsoft Edge' : /OPR\//.test(u) ? 'Opera' : /Safari\//.test(u) && !/Chrome\//.test(u) ? 'Safari' : 'este navegador';
+  }
   async function estadoAcceso() {
     const rows = await sbRpc('dictom_acceso_estado', { p_usuario_id: currentUser.id, p_device: deviceId() });
     return (rows && rows[0]) || null;
@@ -480,6 +497,11 @@
       : 'Hola ' + nom + '.<br>Dictom sólo funciona en los equipos que autoriza el administrador, y este todavía no lo está.' +
         (fallo ? '<br>No se pudo enviar la solicitud: revisá la conexión.' : '<br>La solicitud ya está enviada. Pasale este código al administrador: esta pantalla se actualiza sola cuando lo autorice.') + codHtml;
     bloqueoCard('equipo', '🖥️', 'Este equipo no está autorizado', cuerpo);
+  }
+
+  function renderNavegadorBloqueado() {
+    bloqueoCard('navegador', '🧭', 'Dictom sólo funciona en Google Chrome',
+      'Hola ' + escapeHtml((currentUser && currentUser.nombre) || '') + '.<br>Estás usando <b>' + escapeHtml(navegadorActual()) + '</b>. Abrí Lumen desde Google Chrome para usar Dictom.');
   }
 
   function renderRedBloqueada() {
@@ -1449,6 +1471,7 @@
     const u = lumenSession();
     if (!u) { location.replace('app.html'); return; }   // sin sesión de Lumen: al ingreso
     currentUser = { id: u.id, username: u.username, nombre: u.nombre || u.username, rol: u.rol, productos: u.productos };
+    if (currentUser.rol !== 'admin' && !esChrome()) { renderNavegadorBloqueado(); return; }   // ni siquiera pide autorización de equipo
     let est = null;
     try { est = await estadoAcceso(); } catch (e) { est = null; }
     if (!est) {   // sin respuesta del servidor no se habilita nada

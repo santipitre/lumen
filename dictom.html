@@ -56,7 +56,7 @@
 <!-- Dictom Auth: login + licencias (Supabase compartido con Lumen) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="spcd-supabase.js?v=4420ca43"></script>
-<script src="dictom-auth.js?v=6d85efd0" defer></script>
+<script src="dictom-auth.js?v=5fd5a24d" defer></script>
 <style>
   :root {
     /* Paleta Dictom by Pyralis */
@@ -13230,6 +13230,8 @@ renderAttachmentUI();
       '@keyframes parpadeo{50%{opacity:.15}}',
       '@media (prefers-reduced-motion:reduce){#mic.on,#mic.on .eq i,#mic.on .punto{animation:none}#mic.on .eq i{transform:scaleY(.7)}}',
       '.sec{padding:10px 12px;background:var(--sec);color:var(--acc-ink);border:1px solid var(--line);font-size:14px}',
+      '#expand{background:rgba(139,92,246,.24);border:1px solid rgba(139,92,246,.75);color:var(--ink);font-weight:700}',
+      '#expand:hover{background:rgba(139,92,246,.38)}',
       '#campo{width:100%;padding:11px 12px;background:var(--card);color:var(--ink);border:1px solid var(--line-strong);border-radius:12px;font:inherit;font-size:17px;font-weight:600}',
       '#campo option{font-size:17px;background:var(--elev);color:var(--ink)}',
       '#live{min-height:20px;font-size:14px;color:var(--acc-ink);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
@@ -13253,7 +13255,7 @@ renderAttachmentUI();
     '<div id="cab"><span class="luz"></span>DICTADO FLOTANTE</div>',
     '<div class="row">',
     '<button id="mic" type="button"><span class="punto"></span><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg><span class="eq"><i></i><i></i><i></i><i></i><i></i></span><span id="micLabel">Dictar</span></button>',
-    '<button id="expand" class="sec" type="button" title="Cerrar la mini y volver a la página completa">Abrir página</button>',
+    '<button id="expand" class="sec" type="button" title="Cerrar la ventana flotante y volver a la página completa">Volver a página</button>',
     '</div>',
     '<select id="campo" aria-label="Campo donde se dicta"></select>',
     '<div id="live"></div>',
