@@ -2995,15 +2995,15 @@ atDrop.renderCuenta = function(){
   const lbl=k=>{ const p=k.split('-'); return MES[(+p[1])-1] + (multi?" '"+p[0].slice(2):''); };
   let th, rows, foot;
   if(this.mes){
-    th='<th>Cuenta</th><th class="sel">Turnos</th><th>Estudios</th>';
-    rows=arr.map((o,i)=>'<tr class="at-cuenta-row" data-i="'+i+'" title="Ver los turnos de esta cuenta"><td>'+tiEsc(o.name)+'</td><td class="sel tot">'+tiNum(vm(o,this.mes))+'</td><td>'+tiNum(o.lm[this.mes]||0)+'</td></tr>').join('');
-    foot='<tr class="suma"><td>Total FINAMED</td><td class="sel">'+tiNum(tot.mes[this.mes]?tot.mes[this.mes].size:0)+'</td><td>'+tiNum(tot.lm[this.mes]||0)+'</td></tr>';
+    th='<th>Cuenta</th><th>Estudios</th><th class="sel">Turnos</th>';
+    rows=arr.map((o,i)=>'<tr class="at-cuenta-row" data-i="'+i+'" title="Ver los turnos de esta cuenta"><td>'+tiEsc(o.name)+'</td><td>'+tiNum(o.lm[this.mes]||0)+'</td><td class="sel tot">'+tiNum(vm(o,this.mes))+'</td></tr>').join('');
+    foot='<tr class="suma"><td>Total FINAMED</td><td>'+tiNum(tot.lm[this.mes]||0)+'</td><td class="sel">'+tiNum(tot.mes[this.mes]?tot.mes[this.mes].size:0)+'</td></tr>';
   } else {
-    th='<th>Cuenta</th>'+keys.map(k=>'<th>'+lbl(k)+'</th>').join('')+'<th class="tot">Total</th><th>Estudios</th>';
-    rows=arr.map((o,i)=>'<tr class="at-cuenta-row" data-i="'+i+'" title="Ver los turnos de esta cuenta"><td>'+tiEsc(o.name)+'</td>'+
+    th='<th>Cuenta</th><th class="tot">Total estudios</th>'+keys.map(k=>'<th>'+lbl(k)+'</th>').join('')+'<th class="tot">Total turnos</th>';
+    rows=arr.map((o,i)=>'<tr class="at-cuenta-row" data-i="'+i+'" title="Ver los turnos de esta cuenta"><td>'+tiEsc(o.name)+'</td><td class="tot">'+tiNum(o.l)+'</td>'+
       keys.map(k=>{ const v=vm(o,k); return '<td'+(v?'':' class="cero"')+'>'+tiNum(v)+'</td>'; }).join('')+
-      '<td class="tot">'+tiNum(o.all.size)+'</td><td>'+tiNum(o.l)+'</td></tr>').join('');
-    foot='<tr class="suma"><td>Total FINAMED</td>'+keys.map(k=>'<td>'+tiNum(tot.mes[k]?tot.mes[k].size:0)+'</td>').join('')+'<td>'+tiNum(tot.all.size)+'</td><td>'+tiNum(tot.l)+'</td></tr>';
+      '<td class="tot">'+tiNum(o.all.size)+'</td></tr>').join('');
+    foot='<tr class="suma"><td>Total FINAMED</td><td>'+tiNum(tot.l)+'</td>'+keys.map(k=>'<td>'+tiNum(tot.mes[k]?tot.mes[k].size:0)+'</td>').join('')+'<td>'+tiNum(tot.all.size)+'</td></tr>';
   }
   cont.innerHTML=head+'<div class="at-cuenta-st">Turnos únicos por cuenta'+(ml?' · solo '+ml:' y por mes')+' · clic en una cuenta para ver sus turnos</div>'+
     '<table><thead><tr>'+th+'</tr></thead><tbody>'+rows+foot+'</tbody></table>';
