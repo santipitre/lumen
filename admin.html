@@ -287,8 +287,8 @@
     /* Badge "Automatizado" en las tarjetas del sector Ausentes */
     .au-exclusive .kpi-card .kpi-auto-badge { position:absolute; left:20px; bottom:12px; margin:0; }
     .au-exclusive .kpi-card.tiene-badge { padding-bottom:44px; }
-    #au-detail-overlay .ti-detail-body td.ti-col-aseg { color:#FB7185; }
-    #au-detail-overlay .ti-detail-body tr:hover td { background:rgba(248,113,113,.07); }
+    #au-detail-overlay .ti-detail-body td.ti-col-aseg, #at-detail-overlay .ti-detail-body td.ti-col-aseg { color:#FB7185; }
+    #au-detail-overlay .ti-detail-body tr:hover td, #at-detail-overlay .ti-detail-body tr:hover td { background:rgba(248,113,113,.07); }
 
     /* ── Ausentes · Historial acumulado ── */
     .au-hist { margin-top:18px; padding:18px 20px 14px; border:1px solid rgba(248,113,113,.28); border-radius:12px;
@@ -407,12 +407,12 @@
     }
     .ti-drop-clear:hover { background:rgba(248,113,113,.22); }
     /* ── Modal de detalle local (líneas leídas del Excel subido) ── */
-    #ti-detail-overlay, #au-detail-overlay, #au-hist-overlay, #tc-detail-overlay {
+    #ti-detail-overlay, #au-detail-overlay, #at-detail-overlay, #au-hist-overlay, #tc-detail-overlay {
       display:none; position:fixed; inset:0; z-index:1200;
       background:rgba(0,0,0,.66); backdrop-filter:blur(4px);
       align-items:center; justify-content:center; padding:24px;
     }
-    #ti-detail-overlay.open, #au-detail-overlay.open, #au-hist-overlay.open, #tc-detail-overlay.open { display:flex; }
+    #ti-detail-overlay.open, #au-detail-overlay.open, #at-detail-overlay.open, #au-hist-overlay.open, #tc-detail-overlay.open { display:flex; }
     .ti-detail-box {
       background:#0c1420; border:1px solid var(--border); border-radius:12px;
       width:min(1100px,96vw); max-height:88vh; display:flex; flex-direction:column;
@@ -452,7 +452,7 @@
       font-size:10.5px; font-weight:700; letter-spacing:.2px; vertical-align:middle;
       background:rgba(245,158,11,.14); color:var(--amber); border:1px solid rgba(245,158,11,.3);
     }
-    #au-detail-overlay .ti-detail-body .ti-mult { background:rgba(251,113,133,.14); color:#FB7185; border-color:rgba(251,113,133,.32); }
+    #au-detail-overlay .ti-detail-body .ti-mult, #at-detail-overlay .ti-detail-body .ti-mult { background:rgba(251,113,133,.14); color:#FB7185; border-color:rgba(251,113,133,.32); }
     .ti-detail-foot { padding:10px 20px; border-top:1px solid var(--border); font-size:11px; color:var(--muted); }
     /* ── Recuadro destacado: Tomografías realizadas INSSJYP · AMB ── */
     .tc-hero {
@@ -1302,6 +1302,41 @@
         Cada mes incluye solo los Excel cargados, así que puede estar incompleto. "Quitar" el Excel no borra el historial.</div>
     </div>
    </section>
+
+   <!-- ══════ SECTOR EXCLUSIVO · AUSENTES / TODOS LOS TRÁMITES (gama roja, mismo estilo) ══════ -->
+   <section class="ti-exclusive au-exclusive at-exclusive">
+    <div class="ti-exclusive-head">
+      <div class="ti-ic">🚫</div>
+      <div>
+        <div class="ti-tt">Ausentes · Todos los trámites</div>
+        <div class="ti-st">Turnos no presentados · por aseguradora · con trámite completo o incompleto</div>
+      </div>
+    </div>
+
+    <div class="ti-hero-row fade-in">
+      <div class="kpi-card red ti-hero" onclick="atCardClick('TOTAL')"><div class="kpi-icon">🚫</div><div class="kpi-label">Total ausentes</div><div class="kpi-val" id="at-total">—</div><div class="kpi-sub" id="at-total-sub">turnos únicos</div><div class="ti-meses" id="at-total-meses"></div><div class="kpi-hint">ver detalle →</div></div>
+
+      <div class="kpi-card ti-drop au-drop" id="at-dropzone" onclick="atDrop.pick()" title="Click o arrastrá el Excel acá para alimentar los cuadros">
+        <input type="file" id="at-file-input" accept=".xlsx,.xlsm,.xls,.csv" style="display:none" onchange="atDrop.onInput(event)">
+        <div class="ti-drop-inner">
+          <div class="ti-drop-icon" id="at-drop-icon">📥</div>
+          <div class="ti-drop-title" id="at-drop-title">Subí el Excel</div>
+          <div class="ti-drop-sub" id="at-drop-sub">Click o arrastrá el archivo acá</div>
+          <button class="ti-drop-clear" id="at-drop-clear" style="display:none" onclick="event.stopPropagation(); atDrop.clear()">✕ quitar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ti-aseg-grid fade-in">
+      <div class="kpi-card au-c1" onclick="atCardClick('FINAMED')"><div class="kpi-icon">🏢</div><div class="kpi-label">FINAMED</div><div class="kpi-val" id="at-FINAMED">—</div><div class="kpi-sub" id="at-FINAMED-sub">ausentes</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card au-c2" onclick="atCardClick('PAMI')"><div class="kpi-icon">🏢</div><div class="kpi-label">PAMI (INSSJYP)</div><div class="kpi-val" id="at-PAMI">—</div><div class="kpi-sub" id="at-PAMI-sub">ausentes</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card au-c3" onclick="atCardClick('HAREFIELD')"><div class="kpi-icon">🏢</div><div class="kpi-label">Harefield</div><div class="kpi-val" id="at-HAREFIELD">—</div><div class="kpi-sub" id="at-HAREFIELD-sub">ausentes</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card au-c4" onclick="atCardClick('OSOTRAS')"><div class="kpi-icon">🏢</div><div class="kpi-label">Otras OS / Prepagas</div><div class="kpi-val" id="at-OSOTRAS">—</div><div class="kpi-sub" id="at-OSOTRAS-sub">ausentes</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card au-c5" onclick="atCardClick('PARTICULAR')"><div class="kpi-icon">🧾</div><div class="kpi-label">Particular</div><div class="kpi-val" id="at-PARTICULAR">—</div><div class="kpi-sub" id="at-PARTICULAR-sub">ausentes</div><div class="kpi-hint">ver detalle →</div></div>
+    </div>
+
+    <div id="at-meta" style="color:var(--muted);font-size:11px;margin-top:2px"></div>
+   </section>
   </div>
 
   <!-- TABS Resumen / Derivantes / Detalle removidas -->
@@ -1648,6 +1683,28 @@
     </div>
     <div class="ti-detail-body" id="au-detail-body"></div>
     <div class="ti-detail-foot" id="au-detail-foot"></div>
+  </div>
+</div>
+
+<!-- ══════ MODAL DETALLE LOCAL (Ausentes · Todos los trámites) ══════ -->
+<div id="at-detail-overlay" onclick="if(event.target===this) atDrop.closeDetail()">
+  <div class="ti-detail-box">
+    <div class="ti-detail-head">
+      <div class="ti-detail-bar" id="at-detail-bar"></div>
+      <div>
+        <div class="ti-detail-title" id="at-detail-title">Detalle</div>
+        <div class="ti-detail-count" id="at-detail-count"></div>
+      </div>
+      <div class="ti-detail-actions">
+        <button class="ti-btn" onclick="atDrop.exportCurrent()">⬇ Exportar a Excel</button>
+        <button class="ti-btn ghost" onclick="atDrop.closeDetail()">✕ Cerrar</button>
+      </div>
+    </div>
+    <div class="ti-detail-search">
+      <input type="text" id="at-detail-search" placeholder="Buscar en el detalle…" oninput="atDrop.filterDetail(this.value)">
+    </div>
+    <div class="ti-detail-body" id="at-detail-body"></div>
+    <div class="ti-detail-foot" id="at-detail-foot"></div>
   </div>
 </div>
 
@@ -2805,6 +2862,45 @@ async function auReparar(){
 
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>{ try{ auDrop.setup(); }catch(e){ console.warn('[auDrop] setup',e); } });
 else { try{ auDrop.setup(); }catch(e){ console.warn('[auDrop] setup',e); } }
+
+/* ══════════════════════════════════════════════════════════════════════
+   AUSENTES · TODOS LOS TRÁMITES  (sector propio, gama roja, mismo estilo)
+   ----------------------------------------------------------------------
+   Mismo motor que tiDrop/auDrop clonado por prototipo, con estado propio
+   (prefijo de IDs 'at-', base IndexedDB 'lumen_at'). Cuenta TODOS los turnos
+   ausentes por aseguradora, sin mirar si el trámite está completo o no.
+   Diferencias con "Ausentes · Trámites Completos":
+     · sin bot de devolución ni historial de Supabase (es solo lectura),
+     · duplicados por "N° Turno" (la clave por defecto del motor). No se usa
+       "Fecha Turno": dos pacientes distintos pueden compartir fecha y hora
+       (en el Turno-2096 son 5 casos) y se contarían como uno.
+   Criterio de "ausente": Estado = AUS (si el Excel trae esa columna).
+══════════════════════════════════════════════════════════════════════ */
+const atDrop = Object.create(tiDrop);
+Object.assign(atDrop, {
+  PFX:'at', STORE:'lumen_at', TAG:'atDrop',
+  XPFX:'Lumen_AUS_TODOS_', XTITLE:'AUSENTES · TODOS LOS TRÁMITES', SUBTXT:'ausentes', MESTXT:'Ausentes por mes', UNIDAD:'ausentes',
+  // estado propio (no compartir referencias con tiDrop ni auDrop)
+  active:false, rows:[], headers:[], colTurno:null, colAseg:null, colServ:null, colFecha:null, updatedAt:null,
+  fileName:'', rawRows:[], dedupRows:[], byBucket:{}, byTurnos:{},
+  detailKey:null, detailAll:[], detailLabel:'', detailTurnos:0, detailLineas:0, _detailN:null, _asegArr:[],
+  LABEL:{ TOTAL:'Total ausentes', FINAMED:'FINAMED', PAMI:'PAMI (INSSJYP)', HAREFIELD:'Harefield', OSOTRAS:'Otras OS / Prepagas', PARTICULAR:'Particular' },
+  COLOR:{ TOTAL:'var(--red)', FINAMED:'#FB7185', PAMI:'#F97316', HAREFIELD:'#E11D48', OSOTRAS:'#FCA5A5', PARTICULAR:'#DC2626' },
+  filterRows(rows){
+    if(!rows||!rows.length) return rows;
+    const kEstado=Object.keys(rows[0]).find(h=>this.normH(h)==='ESTADO');
+    if(!kEstado) return rows;
+    return rows.filter(r=>this.S(r[kEstado]).toUpperCase()==='AUS');
+  },
+  onClear(){ /* sector autónomo: sin fuente de respaldo */ }
+});
+
+function atCardClick(key){
+  if(typeof atDrop !== 'undefined' && atDrop.active) atDrop.openDetail(key);
+}
+
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>{ try{ atDrop.setup(); }catch(e){ console.warn('[atDrop] setup',e); } });
+else { try{ atDrop.setup(); }catch(e){ console.warn('[atDrop] setup',e); } }
 
 /* ══════════════════════════════════════════════════════════════════════
    AUSENTES · HISTORIAL ACUMULADO
