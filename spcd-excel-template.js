@@ -68,6 +68,7 @@
     if (root.__spcdExcelJSPromise) return root.__spcdExcelJSPromise;
     root.__spcdExcelJSPromise = new Promise((resolve, reject) => {
       const s = document.createElement('script');
+      s.integrity = 'sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz'; s.crossOrigin = 'anonymous';
       s.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
       s.onload = () => resolve(root.ExcelJS);
       s.onerror = () => reject(new Error('No se pudo cargar ExcelJS'));

@@ -13,6 +13,10 @@ var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'ag
 var PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/';
 var OCRJS = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 var OCRLANG = 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/spa/4.0.0_best_int';
+/* SRI de los scripts que se cargan de jsDelivr (el worker de pdf.js y los datos del OCR no admiten SRI) */
+var SRI = {};
+SRI[PDFJS + 'pdf.min.js'] = 'sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e';
+SRI[OCRJS] = 'sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F';
 var STOP = /^(horario|turno|referencia|licencias?|franco|cantidad|guardias?|observaciones?|firma)\b/;
 
 function trim(s){ return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
@@ -211,7 +215,7 @@ function desdeTokens(tokens, sampler, fuente){
 /* ===== navegador: carga de librerías y lectura de archivos ===== */
 function cargarScript(url){
   return new Promise(function(ok, ko){
-    var s = document.createElement('script'); s.src = url; s.onload = ok;
+    var s = document.createElement('script'); if(SRI[url]){ s.integrity = SRI[url]; s.crossOrigin = 'anonymous'; } s.src = url; s.onload = ok;
     s.onerror = function(){ ko(new Error('No se pudo cargar «' + url.split('/').pop().split('?')[0] + '». Revisá la conexión a internet.')); };
     document.head.appendChild(s);
   });

@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SPCD · Preview Excel Ejecutivo</title>
 <style>
@@ -275,7 +276,7 @@ await SpcdExcel.exportAndShare(wb, fileName, shareOpts);</pre>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js" integrity="sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz" crossorigin="anonymous"></script>
-  <script src="spcd-excel-template.js?v=54552c64"></script>
+  <script src="spcd-excel-template.js?v=271d5b21"></script>
   <script>
     /* Render paleta */
     (function() {

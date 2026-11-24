@@ -35,8 +35,6 @@ UPDATE = "--update-baseline" in sys.argv
 
 # URL (sin esquema) -> motivo por el que NO lleva SRI. Cualquier otra sin SRI falla.
 SRI_EXCEPCIONES = {
-    "docx@8.5.0/build/index.umd.min.js": "jsDelivr minifica al vuelo: hash inestable. Pendiente: alojarlo en el repo",
-    "xlsx-js-style@1.2.0/dist/xlsx-js-style.min.js": "URL devuelve 404 hoy (conciliacion-pami cae a XLSX plano). Pendiente: URL correcta",
 }
 SRI_HOSTS = ("cdn.jsdelivr.net", "cdnjs.cloudflare.com", "unpkg.com", "cdn.tailwindcss.com")
 
@@ -80,6 +78,33 @@ for p in HTMLS:
             continue
         if "integrity=" not in tag or "crossorigin" not in tag:
             err(f"[SRI] {rel(p)}: falta integrity/crossorigin -> {url}")
+
+# ── 2b: scripts que se cargan desde JS (createElement('script')) ───────────
+# Deben ir con versión exacta y con integrity cerca. (El worker de pdf.js y los datos del OCR no admiten SRI.)
+DYN = re.compile(r"""['"](https?://(?:cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com|unpkg\.com)/[^'"\s]+\.js)['"]""")
+for p in HTMLS + JSS:
+    t = leer(p)
+    en_tags = [(m.start(), m.end()) for m in TAG.finditer(t)]
+    for m in DYN.finditer(t):
+        if any(a <= m.start() < b for a, b in en_tags):
+            continue
+        url = m.group(1)
+        if re.search(r"@latest\b|@\d+(/|$)|@\d+\.\d+(/|$)", url):
+            err(f"[versión] {rel(p)}: carga dinámica sin versión exacta -> {url}")
+        ventana = t[max(0, m.start() - 300): m.end() + 700]
+        if "integrity" not in ventana and "SRI[" not in ventana:
+            err(f"[SRI] {rel(p)}: carga dinámica sin integrity -> {url}")
+
+# ── 2c: CSP básica en cada página (object-src, base-uri, form-action) ──────
+for p in HTMLS:
+    t = leer(p)
+    m = re.search(r'http-equiv="Content-Security-Policy"\s+content="([^"]*)"', t, re.I)
+    if not m:
+        err(f"[CSP] {rel(p)}: falta <meta http-equiv=\"Content-Security-Policy\"> (object-src/base-uri/form-action)")
+        continue
+    for d in ("object-src 'none'", "base-uri 'self'", "form-action 'self'"):
+        if d not in m.group(1):
+            err(f"[CSP] {rel(p)}: la CSP no tiene {d}")
 
 # ── 3: versionar.py --check ────────────────────────────────────────────────
 # En GitHub Actions se saltea: allá los .js/.css salen con fin de línea LF y en tu PC pueden tener CRLF,
