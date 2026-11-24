@@ -2574,7 +2574,7 @@ const tiDrop = {
       const wb=new ExcelJS.Workbook(); wb.creator='Lumen by SPITRELLA';
       const ws=wb.addWorksheet('Detalle', { views:[{ showGridLines:false }] });
       heads.forEach((h,i)=>{ const n=this.normH(h); let w=Math.min(34,Math.max(10,String(h).length+4));
-        if(h===this.colTurno)w=12; if(h===this.colAseg)w=30; if(n.includes('PACIENTE'))w=26; if(n.includes('PRESTACION')||n.includes('SERVICIO'))w=24;
+        if(h===this.colTurno)w=12; if(h===this.colAseg)w=30; if(n.includes('PACIENTE'))w=26; if(n.includes('PRESTACION')||n.includes('SERVICIO'))w=24; if(n==='ESTUDIO')w=44;
         ws.getColumn(i+1).width=w; });
 
       // Fila 1: logo + título
@@ -2940,6 +2940,17 @@ Object.assign(atDrop, {
     return aus;
   },
   setMes(k){ this.mes = (k && this.mes!==k) ? k : null; if(this.active) this.compute(); },
+  /* Columnas del detalle (y del Excel exportado) de este sector: solo estas, en este orden.
+     N° Turno · Aseguradora · Fecha Turno · Apellido Paterno · Nombres · Documento · Estudio.
+     Si el Excel no trae alguna, esa columna simplemente no aparece. */
+  COLS_VISTA:['APELLIDOPATERNO','NOMBRES','DOCUMENTO','ESTUDIO'],
+  orderedHeads(){
+    const hs=this.headers||[], out=[];
+    const add=h=>{ if(h && out.indexOf(h)<0) out.push(h); };
+    add(this.colTurno); add(this.colAseg); add(this.colFecha);
+    this.COLS_VISTA.forEach(n=>add(hs.find(x=>this.normH(x)===n)));
+    return out;
+  },
   onClear(){ /* sector autónomo: sin fuente de respaldo */ }
 });
 
