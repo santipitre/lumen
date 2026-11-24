@@ -2376,12 +2376,12 @@ REGLAS ESTRICTAS:
         const hay = `${r['Paciente']||''} ${r['Documento']||''} ${r['Nº Afiliado']||''}`.toUpperCase();
         return hay.includes(tNorm);
       }).slice(0, 20);
-      if (!matches.length) return { text: `<span class="cb-ai-chip">IA</span> No encontré turnos que coincidan con "${term}".` };
+      if (!matches.length) return { text: `<span class="cb-ai-chip">IA</span> No encontré turnos que coincidan con "${escapeHtml(term)}".` };
       let out = `<span class="cb-ai-chip">IA</span> Encontré ${matches.length} turno${matches.length>1?'s':''} (máx. 20):\n\n`;
       out += matches.map((r,i) => {
         const f = toDate(r['Turno Fecha']);
         const fstr = f ? f.toLocaleDateString('es-AR') : '—';
-        return `${i+1}. <b>${r['Paciente']||'—'}</b> — ${fstr} — ${r['Prestación']||r['Prestacion']||'—'} (${r['Estado']||'—'})`;
+        return `${i+1}. <b>${escapeHtml(r['Paciente']||'—')}</b> — ${fstr} — ${escapeHtml(r['Prestación']||r['Prestacion']||'—')} (${escapeHtml(r['Estado']||'—')})`;
       }).join('\n');
       return { text: out };
     }

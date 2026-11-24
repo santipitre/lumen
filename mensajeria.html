@@ -11,9 +11,9 @@
   <link rel="stylesheet" href="spcd-theme.css?v=d6e58273"/>
   <link rel="stylesheet" href="spcd-components.css?v=f7b2f276"/>
   <link rel="stylesheet" href="spcd-dialog.css?v=f6620a87"/>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
-  <script src="spcd-excel-template.js?v=541e71a8"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js" integrity="sha384-P7KKlGD3Ng66Ds7oTliLzTnol6DbK+k7PafNYXIBDQ4b5eFWtmqctplDVOxslglR" crossorigin="anonymous"></script>
+  <script src="spcd-excel-template.js?v=54552c64"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU" crossorigin="anonymous"></script>
 <style>
   :root {
     --sky:#38BDF8; --amber:#F59E0B; --red:#EF4444;
@@ -506,7 +506,7 @@
 
 
 <script src="spcd-bg.js?v=13886e5f"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/dist/umd/supabase.js" integrity="sha384-A97u3Qnt9GZHURO9YJZRe7VQgGUeFzcv6I1oIGnUTxQrCxnpQMwR0/G8F2zt9abZ" crossorigin="anonymous"></script>
 <script src="spcd-supabase.js?v=4420ca43"></script>
 <script src="spcd-dialog.js?v=ee2826f0"></script>
 
@@ -941,7 +941,7 @@ function mostrarQR(retiro){
     });
   } catch(e){
     console.error('QR error:', e);
-    target.innerHTML = `<div style="padding:30px;color:#0F172A;font-size:11px;">No se pudo generar QR.<br>Link directo:<br><a href="${url}" target="_blank" style="word-break:break-all;color:#0F172A;text-decoration:underline;">${url}</a></div>`;
+    target.innerHTML = `<div style="padding:30px;color:#0F172A;font-size:11px;">No se pudo generar QR.<br>Link directo:<br><a href="${url}" target="_blank" rel="noopener noreferrer" style="word-break:break-all;color:#0F172A;text-decoration:underline;">${url}</a></div>`;
   }
 
   abrirOverlay('ov-qr');

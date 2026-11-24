@@ -163,10 +163,10 @@ input[type=number].err{border-color:var(--red);box-shadow:0 0 0 2px rgba(248,113
 </div>
 
 <!-- SDK de Supabase con versión EXACTA (las demás páginas usan el rango @2). Va antes de spcd-supabase.js, que crea window.sbAuth. -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="spcd-supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js" integrity="sha384-0w2KAL2YHP6wKOkUDzkCDGgVvfmHnj02DHeQ6XcHOgTfFsGyonKOpShMH1x6nk9o" crossorigin="anonymous"></script>
+<script src="spcd-supabase.js?v=4420ca43"></script>
 <!-- Sólo se LEEN SLA_DEFAULT y SLA_APROBADO; el archivo no se modifica (D9 = A). -->
-<script src="medico-metricas.js"></script>
+<script src="medico-metricas.js?v=d31573db"></script>
 <script>
 (function () {
   'use strict';
@@ -503,6 +503,6 @@ input[type=number].err{border-color:var(--red);box-shadow:0 0 0 2px rgba(248,113
 })();
 </script>
 <script src="lumen-neuro.js?v=481a17c2" data-auto></script>
-<script src="chatbot.js?v=20261118-rol"></script>
+<script src="chatbot.js?v=af300af1"></script>
 </body>
 </html>

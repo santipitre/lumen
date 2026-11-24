@@ -1037,7 +1037,7 @@
 /* /IMG-SELECTOR */</style>
   <meta name="lumen-zafiro" content="oscuro"/>
   <link rel="stylesheet" href="lumen-zafiro.css?v=02faf2b3"/>
-  <link rel="stylesheet" href="lumen-zafiro-modulos.css?v=aed6a0f5"/>
+  <link rel="stylesheet" href="lumen-zafiro-modulos.css?v=82769b05"/>
   <link rel="stylesheet" href="lumen-zafiro-insignias.css?v=e8f08f16"/>
   <script src="lumen-zafiro.js?v=5bb8d397"></script>
 </head>
@@ -1466,7 +1466,7 @@
       <div style="font-weight:700; color:var(--amber); margin-bottom:8px;">📨 Cómo invitar un usuario nuevo (paso a paso)</div>
       <ol style="font-size:13px; line-height:1.8; color:var(--text); padding-left:20px; margin:0;">
         <li>Crear el usuario acá con <b>➕ Nuevo usuario</b> (cargar username, nombre, email, rol y permisos).</li>
-        <li>Ir al <a href="https://supabase.com/dashboard/project/erjdncsnomwymjiaslpx/auth/users" target="_blank" style="color:var(--blue);">Dashboard de Supabase → Authentication → Users</a>.</li>
+        <li>Ir al <a href="https://supabase.com/dashboard/project/erjdncsnomwymjiaslpx/auth/users" target="_blank" rel="noopener noreferrer" style="color:var(--blue);">Dashboard de Supabase → Authentication → Users</a>.</li>
         <li>Click en <b>Add user → Send invitation</b>. Pegar el email del usuario. Enviar.</li>
         <li>El usuario recibe el magic link, hace click y queda creado en <code>auth.users</code>.</li>
         <li>Volvé acá, hacé click en <b>🔗 Vincular auth</b> en la fila del usuario y pegá el <code>auth.users.id</code> que aparece en el Dashboard.</li>
@@ -1910,9 +1910,9 @@
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js" integrity="sha384-P7KKlGD3Ng66Ds7oTliLzTnol6DbK+k7PafNYXIBDQ4b5eFWtmqctplDVOxslglR" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js" integrity="sha384-DhxhYObIMeMNGyAG7iK11OHzBIKyEIeRL0ad1iFPAOwZB8iirUlTT0O/WJJUk8+o" crossorigin="anonymous"></script>
 <script src="spcd-utils.js?v=450ce2dc"></script>
 <script src="spcd-dialog.js?v=ee2826f0"></script>
 <script>
@@ -2140,7 +2140,7 @@ async function traerUltimaDataNube() {
 ══════════════════════════════════ */
 let _tiSig = '', _tiLast = 0;
 function tiNum(x){ return (Number(x)||0).toLocaleString('es-AR'); }
-function tiEsc(s){ return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function tiEsc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 async function cargarTramitesInc(force = true) {
   try {
@@ -2219,7 +2219,7 @@ function renderTramitesInc(p, generado) {
 const tiDrop = {
   /* Identidad del módulo (permite clonarlo con otro prefijo de IDs · ver auDrop) */
   PFX:'ti', STORE:'lumen_ti', TAG:'tiDrop',
-  XPFX:'Lumen_TI_', XTITLE:'TRÁMITES INCOMPLETOS', SUBTXT:'a recepcionar', MESTXT:'Trámites por mes', UNIDAD:'turnos',
+  XPFX:'Lumen_TI_', XTITLE:'REALIZADO + TRÁMITES INCOMPLETOS', SUBTXT:'a recepcionar', MESTXT:'Trámites por mes', UNIDAD:'turnos',
   P(sfx){ return this.PFX+'-'+sfx; },
   /* Hook: filtro extra sobre las filas del Excel (por defecto, ninguno) */
   filterRows(rows){ return rows; },
@@ -2725,7 +2725,7 @@ else { try{ tiDrop.setup(); }catch(e){ console.warn('[tiDrop] setup',e); } }
 const auDrop = Object.create(tiDrop);
 Object.assign(auDrop, {
   PFX:'au', STORE:'lumen_au', TAG:'auDrop',
-  XPFX:'Lumen_AUS_', XTITLE:'AUSENTES · TRÁMITES COMPLETOS', SUBTXT:'ausentes', MESTXT:'Ausentes por mes', UNIDAD:'ausentes',
+  XPFX:'Lumen_AUS_', XTITLE:'AUSENTES + TRÁMITES COMPLETOS', SUBTXT:'ausentes', MESTXT:'Ausentes por mes', UNIDAD:'ausentes',
   // estado propio (no compartir referencias con tiDrop)
   active:false, rows:[], headers:[], colTurno:null, colAseg:null, colServ:null, colFecha:null, updatedAt:null,
   fileName:'', rawRows:[], dedupRows:[], byBucket:{}, byTurnos:{},
@@ -2949,7 +2949,7 @@ else { try{ auDrop.setup(); }catch(e){ console.warn('[auDrop] setup',e); } }
 const atDrop = Object.create(tiDrop);
 Object.assign(atDrop, {
   PFX:'at', STORE:'lumen_at', TAG:'atDrop',
-  XPFX:'Lumen_AUS_TODOS_', XTITLE:'AUSENTES · TODOS LOS TRÁMITES', SUBTXT:'ausentes', MESTXT:'Ausentes por mes', UNIDAD:'ausentes',
+  XPFX:'Lumen_AUS_TODOS_', XTITLE:'AUSENTES + TODOS LOS TRÁMITES', SUBTXT:'ausentes', MESTXT:'Ausentes por mes', UNIDAD:'ausentes',
   // estado propio (no compartir referencias con tiDrop ni auDrop)
   active:false, rows:[], headers:[], colTurno:null, colAseg:null, colServ:null, colFecha:null, updatedAt:null,
   fileName:'', rawRows:[], dedupRows:[], byBucket:{}, byTurnos:{},
@@ -4080,7 +4080,7 @@ function buildRankByCount(containerId, dataObj, maxItems, color) {
   container.innerHTML = sorted.map(([label, count], i) => `
     <div class="rank-item">
       <div class="rank-num">${i+1}</div>
-      <div class="rank-label"><span title="${label}">${label.slice(0,28)}</span></div>
+      <div class="rank-label"><span title="${escapeHtml(label)}">${escapeHtml(label.slice(0,28))}</span></div>
       <div class="rank-bar-wrap"><div class="rank-bar" style="width:${(count/maxVal*100).toFixed(0)}%;background:${color}60"></div></div>
       <div class="rank-val" style="color:${color}">${count.toLocaleString()}</div>
     </div>`).join('');
@@ -4123,12 +4123,12 @@ function renderTablaDerivantes(data) {
     const topPrest   = Object.entries(prestCount).sort((a,b)=>b[1].length-a[1].length)[0]?.[0]||'—';
     return `<tr>
       <td style="color:var(--muted);font-family:'Rajdhani',sans-serif">${i+1}</td>
-      <td style="color:var(--cyan);font-weight:600">${med.slice(0,28)}</td>
-      <td style="color:var(--muted)">${matricula}</td>
-      <td>${inst.slice(0,22)}</td>
+      <td style="color:var(--cyan);font-weight:600">${escapeHtml(med.slice(0,28))}</td>
+      <td style="color:var(--muted)">${escapeHtml(matricula)}</td>
+      <td>${escapeHtml(inst.slice(0,22))}</td>
       <td style="font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;color:var(--blue)">${rows.length}</td>
       <td style="color:var(--amber)">${cosegTotal > 0 ? '$'+cosegTotal.toLocaleString('es-AR',{maximumFractionDigits:0}) : '—'}</td>
-      <td style="color:var(--muted)" title="${topPrest}">${topPrest.slice(0,30)}…</td>
+      <td style="color:var(--muted)" title="${escapeHtml(topPrest)}">${escapeHtml(topPrest.slice(0,30))}…</td>
     </tr>`;
   }).join('');
 }
@@ -4149,17 +4149,17 @@ function renderTabDetalle(data) {
     const coseg  = parseFloat(r['Coseguro'])||0;
     return `<tr>
       <td>${fecha ? fecha.toLocaleDateString('es-AR') : '—'}</td>
-      <td style="color:var(--muted)">${r['Turno N°']||'—'}</td>
-      <td>${(r['Paciente']||'').slice(0,20)}</td>
-      <td style="color:var(--muted)">${r['Tipo Turno']||'—'}</td>
-      <td><span class="badge ${cobCls}">${r['Tipo Cobertura']||'—'}</span></td>
-      <td>${(r['Aseguradora']||'—').slice(0,18)}</td>
-      <td style="color:var(--muted)">${r['Nº Afiliado']||'—'}</td>
-      <td style="color:var(--cyan)">${(r['Derivante']||'—').slice(0,20)}</td>
-      <td style="color:var(--muted)">${(r['Inst Derivante']||'—').slice(0,18)}</td>
-      <td style="color:var(--muted)">${r['Nº Referencia']||'—'}</td>
+      <td style="color:var(--muted)">${escapeHtml(r['Turno N°']||'—')}</td>
+      <td>${escapeHtml((r['Paciente']||'').slice(0,20))}</td>
+      <td style="color:var(--muted)">${escapeHtml(r['Tipo Turno']||'—')}</td>
+      <td><span class="badge ${cobCls}">${escapeHtml(r['Tipo Cobertura']||'—')}</span></td>
+      <td>${escapeHtml((r['Aseguradora']||'—').slice(0,18))}</td>
+      <td style="color:var(--muted)">${escapeHtml(r['Nº Afiliado']||'—')}</td>
+      <td style="color:var(--cyan)">${escapeHtml((r['Derivante']||'—').slice(0,20))}</td>
+      <td style="color:var(--muted)">${escapeHtml((r['Inst Derivante']||'—').slice(0,18))}</td>
+      <td style="color:var(--muted)">${escapeHtml(r['Nº Referencia']||'—')}</td>
       <td style="color:${coseg>0?'var(--amber)':'var(--muted)'}">${coseg>0?'$'+coseg.toLocaleString('es-AR'):'—'}</td>
-      <td><span class="badge ${estCls}">${r['Estado']||'—'}</span></td>
+      <td><span class="badge ${estCls}">${escapeHtml(r['Estado']||'—')}</span></td>
     </tr>`;
   }).join('');
 }
@@ -5224,7 +5224,7 @@ function buildRank(containerId, dataObj, maxItems, color) {
   container.innerHTML = sorted.map(([label,rows],i)=>`
     <div class="rank-item">
       <div class="rank-num">${i+1}</div>
-      <div class="rank-label"><span title="${label}">${label.slice(0,28)}</span></div>
+      <div class="rank-label"><span title="${escapeHtml(label)}">${escapeHtml(label.slice(0,28))}</span></div>
       <div class="rank-bar-wrap"><div class="rank-bar" style="width:${(rows.length/maxVal*100).toFixed(0)}%;background:${color}60"></div></div>
       <div class="rank-val" style="color:${color}">${rows.length}</div>
     </div>`).join('');
@@ -5572,33 +5572,33 @@ function renderModalTable(rows) {
                     r['Estado']==='SUS' ? 'color:var(--red)'  : 'color:var(--muted)';
     return `<tr>
       <td>${fechaStr}</td>
-      <td style="color:var(--muted)">${r['Turno N°'] || '—'}</td>
-      <td style="font-weight:600;color:var(--text)">${r['Paciente'] || '—'}</td>
-      <td style="color:var(--muted)">${r['Tipo Documento'] || '—'}</td>
-      <td style="font-family:'Rajdhani',sans-serif;font-size:13px">${r['Documento'] || '—'}</td>
-      <td style="color:var(--muted)">${r['Nº Afiliado'] || '—'}</td>
-      <td style="color:var(--muted)">${r['Sexo'] ? r['Sexo'].slice(0,1) : '—'}</td>
-      <td style="color:var(--muted)">${r['Edad'] || '—'}</td>
-      <td>${r['Localidad'] || '—'}</td>
-      <td>${(r['Aseguradora'] || '—').slice(0, 20)}</td>
-      <td style="color:var(--blue)">${r['Tipo Cobertura'] || '—'}</td>
-      <td style="color:var(--muted)">${r['Tipo Turno'] || '—'}</td>
-      <td style="color:var(--cyan)">${(r['Derivante'] || '—').slice(0, 22)}</td>
-      <td style="color:var(--muted)">${(r['Inst Derivante'] || '—').slice(0, 20)}</td>
-      <td style="color:var(--muted)">${(r['Operador'] || '—').slice(0, 15)}</td>
-      <td style="color:var(--muted)">${r['Matrícula'] || '—'}</td>
-      <td style="color:var(--green)">${r['Nº Referencia'] || '—'}</td>
+      <td style="color:var(--muted)">${escapeHtml(r['Turno N°'] || '—')}</td>
+      <td style="font-weight:600;color:var(--text)">${escapeHtml(r['Paciente'] || '—')}</td>
+      <td style="color:var(--muted)">${escapeHtml(r['Tipo Documento'] || '—')}</td>
+      <td style="font-family:'Rajdhani',sans-serif;font-size:13px">${escapeHtml(r['Documento'] || '—')}</td>
+      <td style="color:var(--muted)">${escapeHtml(r['Nº Afiliado'] || '—')}</td>
+      <td style="color:var(--muted)">${escapeHtml(r['Sexo'] ? r['Sexo'].slice(0,1) : '—')}</td>
+      <td style="color:var(--muted)">${escapeHtml(r['Edad'] || '—')}</td>
+      <td>${escapeHtml(r['Localidad'] || '—')}</td>
+      <td>${escapeHtml((r['Aseguradora'] || '—').slice(0, 20))}</td>
+      <td style="color:var(--blue)">${escapeHtml(r['Tipo Cobertura'] || '—')}</td>
+      <td style="color:var(--muted)">${escapeHtml(r['Tipo Turno'] || '—')}</td>
+      <td style="color:var(--cyan)">${escapeHtml((r['Derivante'] || '—').slice(0, 22))}</td>
+      <td style="color:var(--muted)">${escapeHtml((r['Inst Derivante'] || '—').slice(0, 20))}</td>
+      <td style="color:var(--muted)">${escapeHtml((r['Operador'] || '—').slice(0, 15))}</td>
+      <td style="color:var(--muted)">${escapeHtml(r['Matrícula'] || '—')}</td>
+      <td style="color:var(--green)">${escapeHtml(r['Nº Referencia'] || '—')}</td>
       <td style="color:var(--muted)">${(()=>{ const ff=r['F/ Facturación']??r['F/Facturación']??r['F/ Facturacion']??r['F/Facturacion']??''; const d=parseDate(ff); return d?d.toLocaleDateString('es-AR'):'—'; })()}</td>
-      <td style="color:var(--muted)" title="${r['Prestación']}">${(r['Prestación'] || '—').slice(0, 28)}…</td>
+      <td style="color:var(--muted)" title="${escapeHtml(r['Prestación'])}">${escapeHtml((r['Prestación'] || '—').slice(0, 28))}…</td>
       <td style="font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;color:${coseg>0?'var(--amber)':'var(--muted)'}">
         ${coseg > 0 ? '$' + coseg.toLocaleString('es-AR') : '—'}
       </td>
-      <td style="color:var(--muted)">${r['ID Aseguradora'] || '—'}</td>
-      <td style="color:var(--muted)">${(r['Cuenta'] || '—').slice(0,20)}</td>
+      <td style="color:var(--muted)">${escapeHtml(r['ID Aseguradora'] || '—')}</td>
+      <td style="color:var(--muted)">${escapeHtml((r['Cuenta'] || '—').slice(0,20))}</td>
       <td style="font-family:'Rajdhani',sans-serif;color:${parseFloat(r['Neto Unitario']||0)===0?'var(--red)':'var(--muted)'}">
         ${r['Neto Unitario'] != null ? '$'+Number(r['Neto Unitario']).toLocaleString('es-AR') : '—'}
       </td>
-      <td style="${estCls};font-weight:600">${r['Estado'] || '—'}</td>
+      <td style="${estCls};font-weight:600">${escapeHtml(r['Estado'] || '—')}</td>
     </tr>`;
   }).join('');
 }
@@ -6005,6 +6005,7 @@ async function repararTodo() {
    esta pantalla consulta cada 2 s y manda órdenes por bot_comandos.
 ══════════════════════════════════ */
 const BP = { bot:'derivante', id:null, prevId:null, timer:null, filtro:'todos', corrida:null, turnos:[], incluirOjo:false, esperaDesde:0, confirmando:false, aviso:'', loginEnviado:null, dec:{}, corr:{}, decBusy:0, detalle:null };
+const bpJs = s => bpEsc(String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));  // para usar dentro de onclick="fn('...')"
 const bpEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const BP_FIN = ['terminada','error','cancelada'];
 /* Un solo cálculo del porcentaje para el tablero y la tarjeta: el que manda el bot y, si es un bot viejo
@@ -6222,13 +6223,13 @@ function bpDetRender() {
         ${f('Nombre leído del sello', x.nombre_leido)}${f('Confianza de la lectura', x.confianza)}
         ${f('Derivante en el HIS', x.derivante_his)}${f('Detalle', x.detalle)}${f('⚠ OJO', x.ojo)}${f('Notas de la IA sobre el sello', x.notas)}</dl>
       ${bloq ? '' : `<div class="bp-det-in"><label for="bp-corr-in">¿La matrícula está mal leída? Escribí la correcta:</label>
-        <input id="bp-corr-in" inputmode="numeric" maxlength="8" placeholder="ej. 10218" value="${bpEsc(BP.corr[String(x.turno_n)] || '')}" onkeydown="if(event.key==='Enter')bpCorregir('${bpEsc(x.turno_n)}')">
-        <button class="bp-btn go" onclick="bpCorregir('${bpEsc(x.turno_n)}')">💾 Guardar y aprobar</button>
-        ${BP.corr[String(x.turno_n)] ? `<button class="bp-btn" onclick="bpQuitarCorreccion('${bpEsc(x.turno_n)}')">Quitar corrección</button>` : ''}
+        <input id="bp-corr-in" inputmode="numeric" maxlength="8" placeholder="ej. 10218" value="${bpEsc(BP.corr[String(x.turno_n)] || '')}" onkeydown="if(event.key==='Enter')bpCorregir('${bpJs(x.turno_n)}')">
+        <button class="bp-btn go" onclick="bpCorregir('${bpJs(x.turno_n)}')">💾 Guardar y aprobar</button>
+        ${BP.corr[String(x.turno_n)] ? `<button class="bp-btn" onclick="bpQuitarCorreccion('${bpJs(x.turno_n)}')">Quitar corrección</button>` : ''}
         <div class="bp-dim" style="flex-basis:100%;font-size:11.5px">El bot busca esa matrícula en el HIS (no crea derivantes) y la recuerda: si vuelve a ver esa misma matrícula mal leída o ese mismo médico, la corrige solo y la deja en OJO. Se aplica en «Aplicar» (o en la próxima corrida). Correcciones guardadas: ${Object.keys(BP.corr).length}.</div></div>`}
       <div class="bp-det-b">
-        ${bloq ? '' : `<button class="bp-btn go" ${bpPuedeOk(x) || d === 'ok' ? '' : 'disabled'} onclick="bpDecidir('${bpEsc(x.turno_n)}','ok')">${d === 'ok' ? '✓ Aprobado (quitar)' : '✓ Aprobar: listo para aplicar'}</button>
-        <button class="bp-btn stop" onclick="bpDecidir('${bpEsc(x.turno_n)}','error')">${d === 'error' ? '✗ En errores (quitar)' : '✗ Mandar a errores'}</button>`}
+        ${bloq ? '' : `<button class="bp-btn go" ${bpPuedeOk(x) || d === 'ok' ? '' : 'disabled'} onclick="bpDecidir('${bpJs(x.turno_n)}','ok')">${d === 'ok' ? '✓ Aprobado (quitar)' : '✓ Aprobar: listo para aplicar'}</button>
+        <button class="bp-btn stop" onclick="bpDecidir('${bpJs(x.turno_n)}','error')">${d === 'error' ? '✗ En errores (quitar)' : '✗ Mandar a errores'}</button>`}
         <button class="bp-btn" onclick="bpDetCerrar()">Cerrar</button></div></div>`;
   }
   ov.classList.add('open');
@@ -6356,13 +6357,13 @@ function bpRender() {
     || (f === 'rev' && e === 'REVISION') || (f === 'ojo' && x.ojo) || (f === 'err' && (e === 'ERROR' || e === 'BROWSER_CERRADO' || e === 'ERR_MAN')); });
   if (f === 'rev') vis.sort((a, b) => sello(b) - sello(a) || (a.orden || 0) - (b.orden || 0));
   const filas = vis.map(x => {
-    const e = bpEf(x), d = BP.dec[String(x.turno_n)] || '', bloq = x.estado === 'OK' || x.estado === 'YA_OK', tn = bpEsc(x.turno_n);
+    const e = bpEf(x), d = BP.dec[String(x.turno_n)] || '', bloq = x.estado === 'OK' || x.estado === 'YA_OK', tn = bpEsc(x.turno_n), tnj = bpJs(x.turno_n);
     const lbl = e === 'ERR_MAN' ? 'ERROR ✗' : (d === 'ok' && e === 'LISTO' ? 'LISTO ✓' : (e === 'BROWSER_CERRADO' ? 'ERROR' : e));
-    const acc = bloq ? '' : `<button class="bp-dec ok ${d === 'ok' ? 'on' : ''}" title="Está bien: pasar a listos para aplicar" ${bpPuedeOk(x) || d === 'ok' ? '' : 'disabled'} onclick="bpDecidir('${tn}','ok',event)">✓</button><button class="bp-dec no ${d === 'error' ? 'on' : ''}" title="No está bien: mandar a errores" onclick="bpDecidir('${tn}','error',event)">✗</button>`;
+    const acc = bloq ? '' : `<button class="bp-dec ok ${d === 'ok' ? 'on' : ''}" title="Está bien: pasar a listos para aplicar" ${bpPuedeOk(x) || d === 'ok' ? '' : 'disabled'} onclick="bpDecidir('${tnj}','ok',event)">✓</button><button class="bp-dec no ${d === 'error' ? 'on' : ''}" title="No está bien: mandar a errores" onclick="bpDecidir('${tnj}','error',event)">✗</button>`;
     return `<tr><td class="bp-tn" title="Clic: copia el N° de turno y lo busca en el HIS"><b>${tn}</b></td><td><span class="bp-st ${e === 'ERR_MAN' ? 'ERROR' : bpEsc(e)}">${bpEsc(lbl)}</span></td>
     <td>${bpEsc(x.matricula) || '<span class="bp-dim">—</span>'}${BP.corr[String(x.turno_n)] ? `<div class="bp-ojo" style="color:var(--cyan)">✎ ${bpEsc(BP.corr[String(x.turno_n)])}</div>` : ''}</td><td>${bpEsc(x.nombre_leido) || '<span class="bp-dim">—</span>'}${x.confianza ? ` <span class="bp-dim">(${bpEsc(x.confianza)})</span>` : ''}</td>
     <td>${bpEsc(x.derivante_his) || '<span class="bp-dim">—</span>'}</td>
-    <td class="bp-det-c" onclick="bpDetalle('${tn}')" title="Clic para ver la descripción completa"><div class="bp-clamp">${bpEsc(x.detalle)}</div>${x.ojo ? `<span class="bp-ojo">⚠ OJO: ${bpEsc(x.ojo)}</span>` : ''}</td><td class="bp-acc">${acc}</td></tr>`;
+    <td class="bp-det-c" onclick="bpDetalle('${tnj}')" title="Clic para ver la descripción completa"><div class="bp-clamp">${bpEsc(x.detalle)}</div>${x.ojo ? `<span class="bp-ojo">⚠ OJO: ${bpEsc(x.ojo)}</span>` : ''}</td><td class="bp-acc">${acc}</td></tr>`;
   }).join('');
   const msgTop = (c.estado === 'esperando_login' && c.clave_publica) ? '' : bpEsc(c.mensaje || '');
   const html = `${aviso}
@@ -6432,7 +6433,7 @@ function btRender(c, aviso) {
   const tarjetas = bots.map(b => {
     const pb = b.pend ? Math.round(100 * (b.hechos || 0) / b.pend) : (b.estado === 'sin_pendientes' || b.estado === 'listo' ? 100 : 0);
     const det = b.pend ? `${b.hechos || 0} de ${b.pend} · ${b.ok || 0} arreglados · ${b.err || 0} ${(b.err || 0) === 1 ? 'error' : 'errores'}` : (b.msg || '');
-    return `<div class="bt-bot ${bpEsc(b.estado)} ${f === b.tag ? 'on' : ''}" onclick="bpFiltro(BP.filtro==='${bpEsc(b.tag)}'?'todos':'${bpEsc(b.tag)}')" title="Clic: ver solo los turnos de este bot">
+    return `<div class="bt-bot ${bpEsc(b.estado)} ${f === b.tag ? 'on' : ''}" onclick="bpFiltro(BP.filtro==='${bpJs(b.tag)}'?'todos':'${bpJs(b.tag)}')" title="Clic: ver solo los turnos de este bot">
       <div class="bt-bot-h"><span>${bpEsc(b.label)}</span><span class="bt-bot-s">${bpEsc(BT_ST[b.estado] || b.estado)}</span></div>
       <div class="bt-bot-b"><i style="width:${pb}%"></i></div><div class="bt-bot-n">${bpEsc(det)}${b.pend && b.msg ? ' · ' + bpEsc(b.msg) : ''}</div></div>`;
   }).join('');
@@ -6584,7 +6585,7 @@ function emptyState(icon, text) {
 <script src="spcd-excel-template.js?v=54552c64"></script>
 
 <!-- Supabase SDK + cliente JWT (Fase 2.D.5 · panel Permisos) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/dist/umd/supabase.js" integrity="sha384-A97u3Qnt9GZHURO9YJZRe7VQgGUeFzcv6I1oIGnUTxQrCxnpQMwR0/G8F2zt9abZ" crossorigin="anonymous"></script>
 <script src="spcd-supabase.js?v=2026-05-16-v5"></script>
 
 <!-- ═══════════════════════════════════════════════════════════════════
@@ -6890,7 +6891,7 @@ async function cargarUsuariosPanel() {
     renderTablaUsuarios(usuarios);
   } catch (e) {
     console.error('[cargarUsuariosPanel]', e);
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:24px; color:var(--red);">❌ Error: ${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:24px; color:var(--red);">❌ Error: ${escapeHtml(e.message)}</td></tr>`;
   }
 }
 
@@ -7203,7 +7204,7 @@ async function confirmarVincularAuth() {
 }
 </script>
 
-<script src="chatbot.js?v=20261118-rol"></script>
+<script src="chatbot.js?v=af300af1"></script>
 <script src="spcd-sesion-barra.js?v=5025c14c"></script>
 </body>
 </html>

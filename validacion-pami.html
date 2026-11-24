@@ -7,8 +7,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Validación PAMI · LUMEN</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml"/>
-<link rel="stylesheet" href="spcd-theme.css"/>
-<link rel="stylesheet" href="spcd-components.css"/>
+<link rel="stylesheet" href="spcd-theme.css?v=d6e58273"/>
+<link rel="stylesheet" href="spcd-components.css?v=f7b2f276"/>
 <style>
   :root{
     --ok:#10B981; --warn:#FBBF24; --info:#60A5FA; --danger:#F87171; --dud:#A78BFA;
@@ -304,7 +304,7 @@
   <div class="modo" id="modo">
     <span class="dot"></span>
     <span id="modo-txt">Modo <b>copiar/pegar</b> — instalá el userscript de Tampermonkey para que PAMI se complete solo.
-      <a href="validacion-pami.user.js" id="lnk-us">Instalar userscript</a></span>
+      <a href="validacion-pami.user.js?v=c58dafe0" id="lnk-us">Instalar userscript</a></span>
   </div>
 
   <div class="vent" id="vent">
@@ -389,7 +389,7 @@
 <div id="toast"></div>
 
 <!-- cdnjs: es el CDN que ya usa el resto de Lumen. jsdelivr NO carga en la red de FUESMEN. -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════
    LUMEN · Validación PAMI
@@ -1093,7 +1093,7 @@ window.addEventListener('message', ev => {
     const viejo = d.ver && d.ver !== US_ESPERADO;
     $('modo-txt').innerHTML = 'Modo <b>automático</b> — el userscript está respondiendo' + v +
       (viejo ? ' <span style="color:var(--warn)">⚠ hay v' + US_ESPERADO +
-               ' — <a href="validacion-pami.user.js" style="color:var(--warn)">actualizalo</a></span>' : '');
+               ' — <a href="validacion-pami.user.js?v=c58dafe0" style="color:var(--warn)">actualizalo</a></span>' : '');
   }
   if (d.accion === 'presencia'){
     VENTANAS = { pami: !!d.pami, his: !!d.his, hisOk: !!d.hisOk };
@@ -1381,6 +1381,6 @@ pintarVentanas();
 })();
 </script>
 <script src="lumen-neuro.js?v=481a17c2" data-auto></script>
-<script src="chatbot.js?v=20261118-rol"></script>
+<script src="chatbot.js?v=af300af1"></script>
 </body>
 </html>

@@ -37,9 +37,9 @@
   <link rel="stylesheet" href="spcd-theme.css?v=d6e58273"/>
   <link rel="stylesheet" href="spcd-components.css?v=f7b2f276"/>
   <link rel="stylesheet" href="spcd-dialog.css?v=f6620a87"/>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js" integrity="sha384-P7KKlGD3Ng66Ds7oTliLzTnol6DbK+k7PafNYXIBDQ4b5eFWtmqctplDVOxslglR" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js" integrity="sha384-DhxhYObIMeMNGyAG7iK11OHzBIKyEIeRL0ad1iFPAOwZB8iirUlTT0O/WJJUk8+o" crossorigin="anonymous"></script>
   <style>
     /* Variables especificas del modulo operativo (las comunes vienen de spcd-theme.css) */
     :root {
@@ -1374,7 +1374,7 @@
 <script src="spcd-utils.js?v=2026-05-19-v2"></script>
 <script src="spcd-dialog.js?v=2026-05-16-v2"></script>
 <!-- Supabase SDK ANTES de spcd-supabase.js para que se inicialice sbAuth (Fase 2.C Etapa 3) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/dist/umd/supabase.js" integrity="sha384-A97u3Qnt9GZHURO9YJZRe7VQgGUeFzcv6I1oIGnUTxQrCxnpQMwR0/G8F2zt9abZ" crossorigin="anonymous"></script>
 <script src="spcd-supabase.js?v=2026-05-19-v2"></script>
 <script src="spcd-realtime.js?v=2026-05-16-v2"></script>
 <script>
@@ -2062,7 +2062,7 @@ function showDetail(type) {
           // Descripción = "Caja x100 unidad" o "unidad"
           let stockDesc, totalUnid;
           if (p.factor_caja > 1) {
-            stockDesc = `${p.nombre_caja || 'Caja x'+p.factor_caja} ${p.unidad_base || 'unidad'}`;
+            stockDesc = `${esc(p.nombre_caja || 'Caja x'+p.factor_caja)} ${esc(p.unidad_base || 'unidad')}`;
             totalUnid = `<span style="color:var(--muted);margin-left:6px">— ${p.stock_actual * p.factor_caja} unidades</span>`;
           } else {
             stockDesc = p.unidad_base || 'unidad';
@@ -2256,7 +2256,7 @@ function renderStockTable() {
       <td><strong>${esc(p.nombre)}</strong></td>
       <td><span class="tipo-badge ${tipoCls}">${p.tipo}</span></td>
       <td class="subcat-text">${esc(p.subcategoria || '-')}</td>
-      <td><strong>${p.stock_actual}</strong> ${p.factor_caja > 1 ? (p.nombre_caja || 'Caja x'+p.factor_caja) + ' ' + p.unidad_base + ' — ' + (p.stock_actual * p.factor_caja) + ' unid.' : p.unidad_base}</td>
+      <td><strong>${p.stock_actual}</strong> ${esc(p.factor_caja > 1 ? (p.nombre_caja || 'Caja x'+p.factor_caja) + ' ' + p.unidad_base + ' — ' + (p.stock_actual * p.factor_caja) + ' unid.' : p.unidad_base)}</td>
       <td style="font-size:11px; color:var(--muted)">${esc(p.stock_display)}</td>
       <td>${p.stock_minimo}</td>
       <td>${p.punto_reposicion}</td>
@@ -2909,7 +2909,7 @@ async function downloadIngresoExcel() {
 function populateProductSelect() {
   const sel = document.getElementById('mov-producto');
   sel.innerHTML = '<option value="">-- Seleccionar --</option>' +
-    productosAll.map(p => `<option value="${p.id}" data-lote="${p.requiere_lote}">${p.nombre} (${p.tipo})</option>`).join('');
+    productosAll.map(p => `<option value="${esc(p.id)}" data-lote="${esc(p.requiere_lote)}">${esc(p.nombre)} (${esc(p.tipo)})</option>`).join('');
 }
 
 function onMovTipoChange() {
@@ -4617,7 +4617,7 @@ function renderCatalogo(productos, containerId) {
     const tipoCls   = p.tipo === 'MED' ? 'tipo-med' : 'tipo-ins';
     const activoCls = p.activo ? 'estado-aprobado' : 'estado-rechazado';
     const activoTxt = p.activo ? 'ACTIVO' : 'INACTIVO';
-    const codigo    = p.stock_id_almacen ? `C\u00f3d: <strong>${p.stock_id_almacen}</strong> \u00b7 ` : '';
+    const codigo    = p.stock_id_almacen ? `C\u00f3d: <strong>${esc(p.stock_id_almacen)}</strong> \u00b7 ` : '';
     const factor    = p.factor_caja > 1 ? ` \u00b7 ${esc(p.nombre_caja || 'Caja')} x${p.factor_caja}` : '';
     const lote      = p.requiere_lote ? ' \u00b7 <span style="color:var(--cyan)">con lote</span>' : '';
 
@@ -5227,7 +5227,7 @@ function aplicarModoAccesoPostLogin() {
 <script src="spcd-bg.js?v=13886e5f"></script>
 <script src="spcd-share.js?v=865a3f49"></script>
 <script src="spcd-excel-template.js?v=54552c64"></script>
-<script src="chatbot.js?v=20261118-rol"></script>
+<script src="chatbot.js?v=af300af1"></script>
 <script src="spcd-sesion-barra.js?v=5025c14c"></script>
 </body>
 </html>

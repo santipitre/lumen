@@ -24,8 +24,8 @@
   <link rel="shortcut icon" href="favicon.ico?v=2026051701"/>
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2026051701"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet"/>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -903,9 +903,6 @@ function handleExcelUpload(ev, statusElId) {
         const ws = wb.Sheets[wb.SheetNames[0]];
         data = XLSX.utils.sheet_to_json(ws, { defval:'' });
       }
-      console.log('[jefe.html] Excel parseado:', data.length, 'filas');
-      console.log('[jefe.html] Columnas detectadas:', Object.keys(data[0]||{}));
-      console.log('[jefe.html] Primera fila ejemplo:', data[0]);
 
       await dbSave('spcd_data_full', data);
       try { localStorage.setItem('spcd_upload_date', new Date().toLocaleString('es-AR',{hour12:false})); } catch(e){}
@@ -915,18 +912,23 @@ function handleExcelUpload(ev, statusElId) {
       detectarContextoTemporal();
 
       const info = describirCarga(data);
-      if (status) status.innerHTML = `<span style="color:var(--green)">✓ ${info}</span>`;
+      if (status) status.innerHTML = `<span style="color:var(--green)">✓ ${esc(info)}</span>`;
       showToast('✓ ' + info, 'green', 6000);
       setTimeout(() => renderAll(), 250);
     } catch (err) {
       console.error('[jefe.html] Error parseando Excel:', err);
-      if (status) status.innerHTML = '<span style="color:var(--red)">✗ Error: ' + err.message + '</span>';
+      if (status) status.innerHTML = '<span style="color:var(--red)">✗ Error: ' + esc(err.message) + '</span>';
       showToast('✗ Error al procesar Excel: ' + err.message, 'red', 8000);
     }
     // Limpiar input para permitir re-subir el mismo archivo
     ev.target.value = '';
   };
   reader.readAsBinaryString(file);
+}
+
+/* Escape HTML (texto y atributos) para datos que vienen del Excel / almacenamiento local */
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 /* Toast feedback visible */
@@ -942,7 +944,7 @@ function showToast(text, color, duration=4000) {
   t.style.borderColor = colorMap[color] || 'var(--border-g)';
   t.style.borderLeftWidth = '4px';
   t.style.borderLeftStyle = 'solid';
-  t.innerHTML = text;
+  t.textContent = text;
   requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = 'translateY(0)'; });
   clearTimeout(t._timer);
   t._timer = setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateY(20px)'; }, duration);
@@ -1324,7 +1326,7 @@ function renderComando() {
     al.innerHTML = `<div style="text-align:center;padding:20px;color:var(--muted);font-size:11px;letter-spacing:1px">SIN ALERTAS · TODO EN ORDEN ✓</div>`;
   } else {
     al.innerHTML = allAlerts.map(a => `<div class="alert-item ${a.nivel==='warn'?'warn':''}">
-      ${a.time ? `<div class="a-time">${a.time}</div>` : ''}${a.text}
+      ${a.time ? `<div class="a-time">${esc(a.time)}</div>` : ''}${esc(a.text)}
     </div>`).join('');
   }
 
@@ -1333,7 +1335,7 @@ function renderComando() {
   if (crit.length) {
     document.getElementById('alert-bar').classList.add('show');
     document.getElementById('alert-bar-text').innerHTML =
-      `<strong>${crit.length} ALERTA${crit.length>1?'S':''} CRÍTICA${crit.length>1?'S':''}</strong>${crit[0].text}${crit.length>1?` · y ${crit.length-1} más`:''}`;
+      `<strong>${crit.length} ALERTA${crit.length>1?'S':''} CRÍTICA${crit.length>1?'S':''}</strong>${esc(crit[0].text)}${crit.length>1?` · y ${crit.length-1} más`:''}`;
   } else {
     document.getElementById('alert-bar').classList.remove('show');
   }
@@ -1502,8 +1504,8 @@ function renderDemorados() {
   }
   lista.innerHTML = ranks.map(r => `<div class="demorado-row">
     <div>
-      <div class="demorado-paciente">${r.paciente||'—'}</div>
-      <div class="demorado-etapa">${r.etapa} · ${r.prest}</div>
+      <div class="demorado-paciente">${esc(r.paciente)||'—'}</div>
+      <div class="demorado-etapa">${esc(r.etapa)} · ${esc(r.prest)}</div>
     </div>
     <div class="demorado-time">${Math.round(r.total)}<span style="font-size:11px;color:var(--muted)"> min</span></div>
   </div>`).join('');
@@ -1647,7 +1649,7 @@ function renderBenchmark() {
       const color = i<3 ? 'var(--green)' : i>=ranks.length-2 ? 'var(--red)' : 'var(--cyan)';
       return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(30,58,138,.18)">
         <span style="width:18px;text-align:right;font-family:'Rajdhani';font-weight:700;color:var(--muted);font-size:13px">${i+1}</span>
-        <span style="flex:1;font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.m}</span>
+        <span style="flex:1;font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.m)}</span>
         <span style="font-family:'Rajdhani';font-weight:700;font-size:14px;color:${color};width:60px;text-align:right">${x.avg.toFixed(1)}d</span>
         <span style="font-size:10px;color:var(--muted);width:40px;text-align:right">n=${x.n}</span>
       </div>`;
@@ -2013,6 +2015,6 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 <script src="spcd-sesion-barra.js?v=5025c14c"></script>
 <script src="lumen-neuro.js?v=481a17c2" data-auto></script>
-<script src="chatbot.js?v=20261118-rol"></script>
+<script src="chatbot.js?v=af300af1"></script>
 </body>
 </html>

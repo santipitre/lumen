@@ -203,7 +203,7 @@ async function cargarHistorial(mensajeroId, pin, nombre){
       borrarSesion();
       await cargarMensajeros();
       renderLogin(mensajeroId);
-      document.getElementById('login-msg').innerHTML = `<div class="alert alert-error">${mensaje}</div>`;
+      document.getElementById('login-msg').innerHTML = `<div class="alert alert-error">${escH(mensaje)}</div>`;
       return;
     }
     // OK
@@ -211,7 +211,7 @@ async function cargarHistorial(mensajeroId, pin, nombre){
     mensajeroActivo = { id: mensajeroId, pin, nombre: res.mensajero_nombre || nombre };
     renderHistorial(res.retiros || []);
   } catch(e){
-    document.getElementById('root').innerHTML = `<div class="alert alert-error">Error de conexión: ${e.message}</div>
+    document.getElementById('root').innerHTML = `<div class="alert alert-error">Error de conexión: ${escH(e.message)}</div>
       <button class="btn" onclick="location.reload()">Reintentar</button>`;
   }
 }
@@ -240,7 +240,7 @@ function renderHistorial(retiros){
 
   document.getElementById('root').innerHTML = `
     <div class="topbar-actions">
-      <div class="greeting">Hola <b>${mensajeroActivo.nombre}</b></div>
+      <div class="greeting">Hola <b>${escH(mensajeroActivo.nombre)}</b></div>
       <button class="btn-out" onclick="logout()">Salir</button>
     </div>
     <div class="stat-grid">
@@ -251,6 +251,8 @@ function renderHistorial(retiros){
     ${cards}
   `;
 }
+
+function escH(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 function logout(){
   borrarSesion();

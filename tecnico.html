@@ -624,11 +624,11 @@
 </div>
 
 <!-- SheetJS + Chart.js -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js" integrity="sha384-P7KKlGD3Ng66Ds7oTliLzTnol6DbK+k7PafNYXIBDQ4b5eFWtmqctplDVOxslglR" crossorigin="anonymous"></script>
 <script src="spcd-excel-template.js?v=54552c64"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-<script src="spcd-utils.js?v=7273575b"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js" integrity="sha384-DhxhYObIMeMNGyAG7iK11OHzBIKyEIeRL0ad1iFPAOwZB8iirUlTT0O/WJJUk8+o" crossorigin="anonymous"></script>
+<script src="spcd-utils.js?v=450ce2dc"></script>
 <script src="spcd-dialog.js?v=ee2826f0"></script>
 
 <script>
@@ -657,6 +657,10 @@
    STORAGE (IndexedDB)
 ════════════════════════════════════════ */
 /* SPCD_DB, SPCD_STORE, openDB, dbLoad, dbSave viven ahora en spcd-utils.js */
+/* Escape HTML para texto y atributos (datos que vienen del Excel o del almacenamiento local) */
+function escQ(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 
 /* ════════════════════════════════════════
    ESTADO GLOBAL
@@ -944,7 +948,7 @@ function renderRankList(containerId, dataObj, maxItems, color, suffix = '', intV
     return `
       <div class="rank-item">
         <div class="rank-num">${i+1}</div>
-        <div class="rank-label"><span title="${label}">${label}</span></div>
+        <div class="rank-label"><span title="${escQ(label)}">${escQ(label)}</span></div>
         <div class="rank-bar-wrap">
           <div class="rank-bar" style="width:${pct}%;background:${color}60"></div>
         </div>
@@ -1035,7 +1039,7 @@ function openTiempoOperadoresPage() {
         <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
           <div>
             <span style="font-family:'Rajdhani',sans-serif; font-size:11px; color:var(--muted); font-weight:700; margin-right:8px;">#${i+1}</span>
-            <span style="font-weight:700; font-size:14px; letter-spacing:1px; color:var(--text);">${r.tecnico}</span>
+            <span style="font-weight:700; font-size:14px; letter-spacing:1px; color:var(--text);">${escQ(r.tecnico)}</span>
           </div>
           <div style="font-family:'Rajdhani',sans-serif; font-size:18px; font-weight:700; color:var(--blue);">${r.avg.toFixed(1)} min</div>
         </div>
@@ -1132,7 +1136,7 @@ function openPromedioEstudiosPage() {
       const pct = (count / max) * 100;
       return `<div style="padding:9px 0; border-bottom:1px solid rgba(30,58,138,.25);">
         <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">
-          <span style="font-size:12px; color:var(--text); font-weight:600;">${label}</span>
+          <span style="font-size:12px; color:var(--text); font-weight:600;">${escQ(label)}</span>
           <span style="font-family:'Rajdhani',sans-serif; font-size:13px; color:${colorVar}; font-weight:700;">
             ${count.toLocaleString('es-AR')} <span style="color:var(--muted); font-size:10px; font-weight:500;">(${prom}/d&iacute;a)</span>
           </span>
@@ -1543,7 +1547,7 @@ function renderEquiposListado(equiposList) {
       : `style="width:26px; height:26px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; background:${bg}; border:1px solid ${br};"`;
 
     const motivoLine = (!activo && inactInfo && inactInfo.motivo)
-      ? `<div style="font-size:10.5px; color:var(--muted); margin-top:3px; font-style:italic; margin-left:36px;">💬 ${inactInfo.motivo.replace(/</g,'&lt;')}${inactInfo.usuario?` <span style="opacity:.7;">— ${inactInfo.usuario}</span>`:''}</div>`
+      ? `<div style="font-size:10.5px; color:var(--muted); margin-top:3px; font-style:italic; margin-left:36px;">💬 ${escQ(inactInfo.motivo)}${inactInfo.usuario?` <span style="opacity:.7;">— ${escQ(inactInfo.usuario)}</span>`:''}</div>`
       : '';
 
     const nameColor = activo ? 'var(--text)' : 'var(--red)';
@@ -1551,7 +1555,7 @@ function renderEquiposListado(equiposList) {
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <div style="display:flex; align-items:center; gap:10px;">
           <span ${iconAttr}>${icon}</span>
-          <span style="font-size:12px; color:${nameColor}; font-weight:600;">${eq}</span>
+          <span style="font-size:12px; color:${nameColor}; font-weight:600;">${escQ(eq)}</span>
         </div>
         ${label}
       </div>
@@ -1573,7 +1577,7 @@ function toggleEquipoActivo(eq) {
     const usuario = inactivos[eq].usuario || '';
     document.getElementById('reactivar-motivo-actual').innerHTML =
       motivoActual
-        ? `💬 Motivo actual: "${motivoActual.replace(/</g,'&lt;')}"${usuario?` — ${usuario}`:''}`
+        ? `💬 Motivo actual: "${escQ(motivoActual)}"${usuario?` — ${escQ(usuario)}`:''}`
         : '';
     document.getElementById('reactivar-modal-overlay').classList.add('open');
   } else {
@@ -1654,17 +1658,17 @@ function openEquiposHistorialModal() {
       const icon  = esDesact ? '🚫' : '✓';
       const label = esDesact ? 'DESACTIVACIÓN' : 'ACTIVACIÓN';
       const motivo = esDesact
-        ? (e.motivo ? `<div style="font-size:11px; color:#CBD5E1; margin-top:6px; line-height:1.55;">💬 ${String(e.motivo).replace(/</g,'&lt;')}</div>` : '')
-        : (e.motivoPrevio ? `<div style="font-size:11px; color:var(--muted); margin-top:6px; line-height:1.55; font-style:italic;">↩ Reactivado. Motivo previo: "${String(e.motivoPrevio).replace(/</g,'&lt;')}"</div>` : '');
+        ? (e.motivo ? `<div style="font-size:11px; color:#CBD5E1; margin-top:6px; line-height:1.55;">💬 ${escQ(e.motivo)}</div>` : '')
+        : (e.motivoPrevio ? `<div style="font-size:11px; color:var(--muted); margin-top:6px; line-height:1.55; font-style:italic;">↩ Reactivado. Motivo previo: "${escQ(e.motivoPrevio)}"</div>` : '');
       return `<div style="padding:12px 14px; background:${bg}; border-left:3px solid ${color}; border-radius:6px; margin-bottom:10px;">
         <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:6px;">
           <div>
             <span style="font-size:14px; margin-right:6px;">${icon}</span>
             <span style="font-family:'Rajdhani',sans-serif; font-size:11px; font-weight:700; letter-spacing:1.5px; color:${color};">${label}</span>
-            <span style="color:var(--text); font-size:12px; font-weight:700; margin-left:8px; word-break:break-word;">${e.equipo || ''}</span>
+            <span style="color:var(--text); font-size:12px; font-weight:700; margin-left:8px; word-break:break-word;">${escQ(e.equipo || '')}</span>
           </div>
           <div style="font-size:10px; color:var(--muted);">
-            ${fechaStr} · <span style="color:#93C5FD;">${e.usuario || '—'}</span>
+            ${fechaStr} · <span style="color:#93C5FD;">${escQ(e.usuario || '—')}</span>
           </div>
         </div>
         ${motivo}
@@ -1964,13 +1968,13 @@ function renderModalTable(rows) {
     const estCls = r['Estado']==='REA' ? 'color:var(--cyan)' : r['Estado']==='SUS' ? 'color:var(--red)' : 'color:var(--muted)';
     return '<tr>' +
       '<td>'+fechaStr+'</td>' +
-      '<td style="color:var(--muted)">'+(r['Turno N°']||'—')+'</td>' +
-      '<td style="font-weight:600">'+(r['Paciente']||'—')+'</td>' +
-      '<td style="color:var(--muted)">'+(r['Documento']||'—')+'</td>' +
-      '<td>'+(r['Prestación']||'—')+'</td>' +
-      '<td style="color:var(--amber)">'+(r['Equipo']||'—')+'</td>' +
-      '<td style="'+estCls+';font-weight:600">'+(r['Estado']||'—')+'</td>' +
-      '<td style="color:var(--blue)">'+(r['Duración']||'—')+'</td>' +
+      '<td style="color:var(--muted)">'+escQ(r['Turno N°']||'—')+'</td>' +
+      '<td style="font-weight:600">'+escQ(r['Paciente']||'—')+'</td>' +
+      '<td style="color:var(--muted)">'+escQ(r['Documento']||'—')+'</td>' +
+      '<td>'+escQ(r['Prestación']||'—')+'</td>' +
+      '<td style="color:var(--amber)">'+escQ(r['Equipo']||'—')+'</td>' +
+      '<td style="'+estCls+';font-weight:600">'+escQ(r['Estado']||'—')+'</td>' +
+      '<td style="color:var(--blue)">'+escQ(r['Duración']||'—')+'</td>' +
     '</tr>';
   }).join('');
 }
@@ -2168,6 +2172,6 @@ function groupBy(arr, keyFn) {
 <script src="spcd-bg.js?v=13886e5f"></script>
 <script src="spcd-share.js?v=865a3f49"></script>
 <script src="spcd-sesion-barra.js?v=5025c14c"></script>
-<script src="chatbot.js?v=20261118-rol"></script>
+<script src="chatbot.js?v=af300af1"></script>
 </body>
 </html>

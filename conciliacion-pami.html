@@ -6,9 +6,9 @@
 <title>Conciliación PAMI · LUMEN</title>
 <meta name="lumen-zafiro" content="oscuro"/>
 <link rel="icon" href="favicon.svg" type="image/svg+xml"/>
-<link rel="stylesheet" href="spcd-theme.css"/>
-<link rel="stylesheet" href="spcd-components.css"/>
-<link rel="stylesheet" href="spcd-dialog.css"/>
+<link rel="stylesheet" href="spcd-theme.css?v=d6e58273"/>
+<link rel="stylesheet" href="spcd-components.css?v=f7b2f276"/>
+<link rel="stylesheet" href="spcd-dialog.css?v=f6620a87"/>
 <style>
   :root{
     --ok:#10B981; --warn:#FBBF24; --info:#60A5FA; --danger:#F87171; --dud:#A78BFA;
@@ -415,15 +415,15 @@
 <div class="toast" id="toast"></div>
 
 <!-- Libs -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
 <!-- Lector .xls actual = XLSX (community). Guardamos su referencia antes de cargar el escritor con estilos. -->
 <script>window.__XLSX_READ = window.XLSX;</script>
 <!-- Escritor de Excel con estilos (encabezados, colores, filtros). NO reemplaza al lector. -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx-js-style.min.js"></script>
 <script>window.XLSXStyle = window.XLSX; window.XLSX = window.__XLSX_READ; /* restaurar lector original */</script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="spcd-supabase.js"></script>
-<script src="conciliacion-engine.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/dist/umd/supabase.js" integrity="sha384-A97u3Qnt9GZHURO9YJZRe7VQgGUeFzcv6I1oIGnUTxQrCxnpQMwR0/G8F2zt9abZ" crossorigin="anonymous"></script>
+<script src="spcd-supabase.js?v=4420ca43"></script>
+<script src="conciliacion-engine.js?v=4bef573d"></script>
 <script>
 /* ── URLs de los sistemas (para "Abrir en…", Fase 3 autocompleta) ── */
 const URL_FUESMEN = 'http://his.fuesmen.edu.ar:8180/his/servlet/hturno';
@@ -476,7 +476,7 @@ function showRestored(iso){ const el=document.getElementById('restored'); if(!el
     if(window.sbAuth&&window.sbAuth.auth){
       const {data}=await window.sbAuth.auth.getSession();
       if(data&&data.session&&data.session.user){
-        document.getElementById('ses').innerHTML='<b>'+(data.session.user.email||'sesión')+'</b>';
+        document.getElementById('ses').innerHTML='<b>'+esc(data.session.user.email||'sesión')+'</b>';
         return;
       }
     }
@@ -507,7 +507,7 @@ async function handleFuesmen(file){
     persistFiles();
     tryReconcile();
   }catch(err){zone.classList.remove('loaded');zone.classList.add('err');
-    st.innerHTML=`<span style="color:var(--danger)">✕ ${err.message}</span>`;}
+    st.innerHTML=`<span style="color:var(--danger)">✕ ${esc(err.message)}</span>`;}
 }
 
 async function handlePami(file){
@@ -537,7 +537,7 @@ async function handlePami(file){
     persistFiles();
     tryReconcile();
   }catch(err){zone.classList.remove('loaded');zone.classList.add('err');
-    st.innerHTML=`<span style="color:var(--danger)">✕ ${err.message}</span>`;}
+    st.innerHTML=`<span style="color:var(--danger)">✕ ${esc(err.message)}</span>`;}
 }
 
 function readCfg(){
@@ -705,7 +705,9 @@ function currentFiltered(){
   });
 }
 
-function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+/* Para usar dentro de onclick="fn('...')": escapa para JS y después para HTML (el navegador decodifica el atributo antes de ejecutar) */
+function jsq(s){return esc(String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"));}
 
 function fechaTime(it){ const d=it&&it.turno?it.turno.fecha:null;
   return (d instanceof Date && !isNaN(d)) ? d.getTime() : null; }
@@ -749,7 +751,7 @@ function toggleArreglado(nro,cb){
   toast(marcar?'✓ Movido a Arreglado':'Quitado de Arreglado');
 }
 
-const _cpIco=(v,t)=>v?`<span class="cp" title="Copiar ${t}" onclick="copiar('${esc(v)}')">⧉</span>`:'';
+const _cpIco=(v,t)=>v?`<span class="cp" title="Copiar ${t}" onclick="copiar('${jsq(v)}')">⧉</span>`:'';
 
 function rowHTML(it){
   const em=ESTADO_META[it.estado]||{c:'var(--muted)',lbl:it.estado};
@@ -768,14 +770,14 @@ function rowHTML(it){
   const _obs = SAVED_OBS[nro] || {tipo:'',texto:''};
   const _obsOpts = OBS_OPCIONES.map(o=>`<option value="${esc(o)}" ${_obs.tipo===o?'selected':''}>${esc(o)}</option>`).join('');
   const _obsCell = `<td class="nw">
-      <select class="obs-sel${_obs.tipo?' set':''}" onchange="setObs('${esc(nro)}',this)">
+      <select class="obs-sel${_obs.tipo?' set':''}" onchange="setObs('${jsq(nro)}',this)">
         <option value="">— obs —</option>
         ${_obsOpts}
         <option value="Otras" ${_obs.tipo==='Otras'?'selected':''}>Otras…</option>
       </select>
       <div class="obs-txt" title="${esc(_obs.texto)}">${_obs.tipo==='Otras'?esc(_obs.texto):''}</div>
     </td>`;
-  const _vistoCell = `<td class="nw col-visto" style="text-align:center"><label class="vi-check" title="${visto?'Visto — clic para desmarcar':'Marcar como visto (no saca la fila)'}"><input type="checkbox" ${visto?'checked':''} onchange="toggleVisto('${esc(nro)}',this)"><span class="vi-box">👁</span></label></td>`;
+  const _vistoCell = `<td class="nw col-visto" style="text-align:center"><label class="vi-check" title="${visto?'Visto — clic para desmarcar':'Marcar como visto (no saca la fila)'}"><input type="checkbox" ${visto?'checked':''} onchange="toggleVisto('${jsq(nro)}',this)"><span class="vi-box">👁</span></label></td>`;
   return `<tr class="${arreglado?'arreglado':''}${visto?' visto':''}" data-nro="${esc(nro)}">
     <td class="nw${hl?' hl-turno':''}">${hl?'🔖 ':''}${esc(nro)}${_cpIco(nro,'turno')}</td>
     <td class="cut" title="${esc(it.turno.nombre_raw)}">${esc(it.turno.nombre_raw)}</td>
@@ -783,7 +785,7 @@ function rowHTML(it){
     <td class="nw muted">${esc(afil||'—')}${_cpIco(afil,'afiliado')}</td>
     <td class="nw">${esc(it.turno.fecha_str)}</td>
     <td class="cut2" title="${esc(it.turno.estudios.join(' · '))}">${esc(estudio.slice(0,40))}${estMas}</td>
-    <td class="nw" style="text-align:center"><label class="ar-check" title="${arreglado?'Marcado como arreglado':'Marcar como arreglado'}"><input type="checkbox" ${arreglado?'checked':''} onchange="toggleArreglado('${esc(nro)}',this)"><span class="ar-box">✓</span></label></td>
+    <td class="nw" style="text-align:center"><label class="ar-check" title="${arreglado?'Marcado como arreglado':'Marcar como arreglado'}"><input type="checkbox" ${arreglado?'checked':''} onchange="toggleArreglado('${jsq(nro)}',this)"><span class="ar-box">✓</span></label></td>
     ${_vistoCell}
     ${_obsCell}
   </tr>`;
@@ -1239,6 +1241,6 @@ document.getElementById('in-backup').addEventListener('change',e=>{ if(e.target.
 })();
 </script>
 <script src="lumen-neuro.js?v=481a17c2" data-auto></script>
-<script src="chatbot.js?v=20261118-rol"></script>
+<script src="chatbot.js?v=af300af1"></script>
 </body>
 </html>
