@@ -1513,8 +1513,8 @@
     if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
     return new Promise((resolve, reject) => {
       const s = document.createElement('script');
-      s.integrity = 'sha384-P7KKlGD3Ng66Ds7oTliLzTnol6DbK+k7PafNYXIBDQ4b5eFWtmqctplDVOxslglR'; s.crossOrigin = 'anonymous';
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js';
+      s.integrity = 'sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz'; s.crossOrigin = 'anonymous';
+      s.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
       s.onload  = () => resolve(window.ExcelJS);
       s.onerror = () => reject(new Error('No se pudo cargar librería Excel'));
       document.head.appendChild(s);

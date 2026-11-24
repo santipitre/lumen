@@ -23,11 +23,12 @@ QUÉ PROTEGE (y qué no)
   y mientras existan, script-src necesita 'unsafe-inline'. Cuando se migren a
   addEventListener se puede sacar. No inventar protección que no hay.
 
-POR QUÉ 'unsafe-eval' SÓLO EN ALGUNAS PÁGINAS
-  ExcelJS 4.3.0 (cdnjs) usa eval al arrancar y sin 'unsafe-eval' NO carga (se rompen los
-  exports a Excel). Lo reciben sólo las páginas que cargan esa versión (directo o vía
-  chatbot.js). ExcelJS 4.4.0 (jsDelivr, spcd-excel-template.js) anda sin eval: si algún
-  día se unifica en 4.4.0 este permiso desaparece solo (la detección es por contenido).
+POR QUÉ 'unsafe-eval' YA NO ESTÁ (24/11/2026)
+  ExcelJS 4.3.0 (cdnjs) usa eval al arrancar y sin 'unsafe-eval' NO carga. Todo el repo
+  usa ahora ExcelJS 4.4.0 (jsDelivr, SRI fijado), que anda sin eval, así que ninguna
+  página lleva 'unsafe-eval'. La detección por contenido sigue activa: si alguien vuelve
+  a cargar 4.3.0 desde cdnjs, esa página recupera el permiso y el cambio se ve en el diff.
+  Las páginas con OCR (Tesseract) llevan 'wasm-unsafe-eval', que es otra cosa.
 """
 import re, sys, pathlib, subprocess
 
