@@ -1,0 +1,20 @@
+CSS de Tailwind de dictom.html (estatico, sin CDN)
+===================================================
+dictom.html carga dictom-tailwind.css (generado) en vez de cdn.tailwindcss.com.
+Fuentes que se escanean para armar el CSS: dictom.html, dictom-auth.js, lumen-zafiro.js, spcd-supabase.js
+(ver "content" en tools/tailwind/dictom.config.js).
+
+CUANDO REGENERAR
+  Cada vez que agregues una clase de Tailwind NUEVA (p-7, bg-sky-500, md:flex...) en esos archivos.
+  Si no regenerás, esa clase no tiene estilo.
+  Ojo: las clases armadas por partes en JS ("bg-" + color) no se detectan: escribilas completas.
+
+COMO REGENERAR (desde la carpeta lumen-repo, hace falta Node)
+  npx tailwindcss@3.4.19 -c tools/tailwind/dictom.config.js -i tools/tailwind/dictom.input.css -o dictom-tailwind.css --minify
+  python versionar.py dictom.html
+
+Despues commitear dictom-tailwind.css y dictom.html juntos.
+
+NOTA: el bloque window.tailwind.config con la paleta luciernaga que estaba inline en dictom.html
+nunca se aplicaba (se definia antes del script del CDN, que lo pisaba). El aspecto oscuro sale de
+los CSS propios. Por eso aca se usa el tema por defecto de Tailwind.

@@ -35,7 +35,6 @@ UPDATE = "--update-baseline" in sys.argv
 
 # URL (sin esquema) -> motivo por el que NO lleva SRI. Cualquier otra sin SRI falla.
 SRI_EXCEPCIONES = {
-    "cdn.tailwindcss.com": "Tailwind Play CDN genera el JS al vuelo: no hay hash estable (sólo dictom.html)",
     "docx@8.5.0/build/index.umd.min.js": "jsDelivr minifica al vuelo: hash inestable. Pendiente: alojarlo en el repo",
     "xlsx-js-style@1.2.0/dist/xlsx-js-style.min.js": "URL devuelve 404 hoy (conciliacion-pami cae a XLSX plano). Pendiente: URL correcta",
 }

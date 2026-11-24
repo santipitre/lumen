@@ -15,40 +15,7 @@
 <link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png?v=2026051701" />
 <link rel="shortcut icon" href="favicon.ico?v=2026051701" />
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2026051701" />
-<!-- Configurar Tailwind con paleta Pyralis ANTES de cargar el script -->
-<script>
-  window.tailwind = window.tailwind || {};
-  window.tailwind.config = {
-    theme: {
-      extend: {
-        colors: {
-          // Override teal y emerald de Tailwind para que usen luciérnaga
-          teal: {
-            50:  '#1A2332',  100: '#1F2937', 200: '#2D3748', 300: '#374151',
-            400: '#F59E0B',  500: '#F59E0B', 600: '#F59E0B', 700: '#F59E0B',
-            800: '#D97706',  900: '#92400E'
-          },
-          emerald: {
-            50:  '#1A2332',  100: '#1F2937', 200: '#2D3748',
-            300: '#F59E0B',  400: '#F59E0B', 500: '#F59E0B',
-            600: '#F59E0B',  700: '#F59E0B', 800: '#D97706'
-          },
-          slate: {
-            50:  '#0A0F14',  100: '#0E1521', 200: '#1A2332', 300: '#1F2937',
-            400: '#64748B',  500: '#94A3B8', 600: '#94A3B8',
-            700: '#E2E8F0',  800: '#F1F5F9', 900: '#F1F5F9'
-          },
-          gray: {
-            50:  '#0A0F14',  100: '#0E1521', 200: '#1A2332', 300: '#2D3748',
-            400: '#64748B',  500: '#94A3B8', 600: '#94A3B8',
-            700: '#E2E8F0',  800: '#F1F5F9', 900: '#F1F5F9'
-          }
-        }
-      }
-    }
-  };
-</script>
-<script src="https://cdn.tailwindcss.com"></script>
+<!-- Tailwind: CSS estatico (dictom-tailwind.css, cargado al final del head). Regenerar: tools/tailwind/LEEME.txt -->
 <!-- Generación de DOCX (Word) y PDF en el browser, sin backend -->
 <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
@@ -413,6 +380,7 @@
 <link rel="stylesheet" href="lumen-zafiro-dictom.css?v=965ef5cb"/>
 <link rel="stylesheet" href="lumen-zafiro-texto-dictom.css?v=6defe31d"/>
 <script src="lumen-zafiro.js?v=5bb8d397"></script>
+<link rel="stylesheet" href="dictom-tailwind.css?v=c81ff447"/>
 </head>
 <body class="bg-slate-50 min-h-screen" style="background: var(--pyralis-bg); color: var(--pyralis-text);">
 
