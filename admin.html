@@ -2741,10 +2741,10 @@ Object.assign(auDrop, {
     if(!kEstado) return rows;
     return rows.filter(r=>this.S(r[kEstado]).toUpperCase()==='AUS');
   },
-  /* Paso 1 de la carga: los duplicados se quitan por "Fecha Turno" (trae hora,
-     así que identifica el turno). Si el Excel no tiene esa columna, cae a N° Turno.
-     Si un mismo valor agrupara más de un N° Turno, el pie del sector lo avisa. */
-  dedupCol(){ return this.colFecha || this.colTurno; },
+  /* Paso 1 de la carga: los duplicados se quitan por "N° Turno" (la clave del bot, del modal
+     y del historial). NO por "Fecha Turno": dos pacientes distintos pueden compartir fecha y
+     hora (en el Turno-2096 son 5 casos: 244 contra 249 turnos reales) y se contarían como uno. */
+  dedupCol(){ return this.colTurno; },
   onClear(){ /* sector autónomo: sin fuente de respaldo */ }
 });
 
@@ -2759,7 +2759,7 @@ auDrop.TIPO_BOT = 'ausentes';   // clave con la que el bot escribe en la tabla `
 
 /* ¿Este turno ya lo devolvió el bot? REPARADOS viene de Supabase (cargarReparaciones)
    con claves "<tipo>:<N° Turno>". OJO: el cruce va SIEMPRE por N° Turno, aunque el
-   sector dedupe las filas por "Fecha Turno" — el bot trabaja con el número. */
+   sector dedupe las filas por otra clave — el bot trabaja con el número. */
 auDrop.estaArreglado = function(row){
   if (!REPARADOS || !REPARADOS.size || !this.colTurno) return false;
   const tn = this.S(row[this.colTurno]);
