@@ -289,6 +289,25 @@
     .au-exclusive .kpi-card.tiene-badge { padding-bottom:44px; }
     #au-detail-overlay .ti-detail-body td.ti-col-aseg, #at-detail-overlay .ti-detail-body td.ti-col-aseg { color:#FB7185; }
     #au-detail-overlay .ti-detail-body tr:hover td, #at-detail-overlay .ti-detail-body tr:hover td { background:rgba(248,113,113,.07); }
+    /* Ausentes · Todos los trámites: chips de mes que filtran + detalle de FINAMED por cuenta */
+    .at-exclusive .ti-mes-chip { cursor:pointer; transition:background .15s, border-color .15s, box-shadow .15s; user-select:none; }
+    .at-exclusive .ti-mes-chip:hover { border-color:var(--red); background:rgba(248,113,113,.2); }
+    .at-exclusive .ti-mes-chip.sel { background:rgba(248,113,113,.34); border-color:var(--red); box-shadow:0 0 0 1px var(--red) inset; }
+    .at-exclusive .ti-mes-chip.todos { background:transparent; border-style:dashed; }
+    .at-cuenta { margin-top:16px; padding:16px 18px 12px; border:1px solid rgba(248,113,113,.28); border-radius:12px; background:rgba(248,113,113,.04); overflow-x:auto; }
+    .at-cuenta-tt { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:14px; letter-spacing:2px; text-transform:uppercase; color:#FB7185; }
+    .at-cuenta-st { font-size:11px; color:var(--muted); margin:3px 0 10px; }
+    .at-cuenta table { width:100%; border-collapse:collapse; font-size:12.5px; }
+    .at-cuenta th { text-align:right; padding:6px 10px; color:var(--muted); font-size:10.5px; letter-spacing:1px; text-transform:uppercase; font-weight:600; white-space:nowrap; }
+    .at-cuenta th:first-child, .at-cuenta td:first-child { text-align:left; }
+    .at-cuenta td { text-align:right; padding:6px 10px; border-top:1px solid rgba(127,127,127,.2); white-space:nowrap; }
+    .at-cuenta td.cero { color:var(--muted); opacity:.55; }
+    .at-cuenta td.tot, .at-cuenta th.tot { font-weight:700; }
+    .at-cuenta tr.at-cuenta-row { cursor:pointer; }
+    .at-cuenta tr.at-cuenta-row:hover td { background:rgba(248,113,113,.10); }
+    .at-cuenta tr.at-cuenta-row:hover td:first-child { text-decoration:underline; }
+    .at-cuenta .sel { background:rgba(248,113,113,.14); }
+    .at-cuenta tr.suma td { border-top:1px solid rgba(248,113,113,.45); font-weight:700; }
 
     /* ── Ausentes · Historial acumulado ── */
     .au-hist { margin-top:18px; padding:18px 20px 14px; border:1px solid rgba(248,113,113,.28); border-radius:12px;
@@ -1336,6 +1355,9 @@
     </div>
 
     <div id="at-meta" style="color:var(--muted);font-size:11px;margin-top:2px"></div>
+
+    <!-- FINAMED · detalle por cuenta y mes (se arma con el Excel; respeta el mes elegido arriba) -->
+    <div class="at-cuenta" id="at-cuenta" style="display:none"></div>
    </section>
   </div>
 
@@ -2886,18 +2908,154 @@ Object.assign(atDrop, {
   detailKey:null, detailAll:[], detailLabel:'', detailTurnos:0, detailLineas:0, _detailN:null, _asegArr:[],
   LABEL:{ TOTAL:'Total ausentes', FINAMED:'FINAMED', PAMI:'PAMI (INSSJYP)', HAREFIELD:'Harefield', OSOTRAS:'Otras OS / Prepagas', PARTICULAR:'Particular' },
   COLOR:{ TOTAL:'var(--red)', FINAMED:'#FB7185', PAMI:'#F97316', HAREFIELD:'#E11D48', OSOTRAS:'#FCA5A5', PARTICULAR:'#DC2626' },
-  filterRows(rows){
-    if(!rows||!rows.length) return rows;
-    const kEstado=Object.keys(rows[0]).find(h=>this.normH(h)==='ESTADO');
-    if(!kEstado) return rows;
-    return rows.filter(r=>this.S(r[kEstado]).toUpperCase()==='AUS');
+  /* Filtro por mes: this.mes = 'YYYY-MM' (o null = todos). Las tarjetas, el detalle y el
+     Excel exportado salen del mes elegido; los chips de mes y la tabla por cuenta siguen
+     viendo TODOS los ausentes (this._allAus) para poder cambiar de mes. */
+  mes:null, _allAus:[], _keyOf:null, _mesKeys:[], colCuenta:null, _cuentaArr:[],
+  MESES_LARGO:['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'],
+  mesLabel(k){ const p=String(k||'').split('-'); return p.length===2 ? this.MESES_LARGO[(+p[1])-1]+' '+p[0] : ''; },
+  // Misma lectura de "Fecha Turno" que usa el chip de meses de tiDrop (detecta m/d vs d/m).
+  _mkKeyOf(rows){
+    if(!this.colFecha) return ()=>null;
+    const RX=/(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/, ISO=/(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/;
+    let dm=0, md=0;
+    rows.forEach(r=>{ const s=String(r[this.colFecha]==null?'':r[this.colFecha]); if(ISO.test(s)) return; const m=s.match(RX); if(m){ const a=+m[1], b=+m[2]; if(a>12&&b<=12) dm++; else if(b>12&&a<=12) md++; } });
+    const monthFirst = md>=dm;
+    return v=>{
+      if(v==null||v==='') return null;
+      if(typeof v==='number' && isFinite(v) && v>20000 && v<80000){ const d=new Date(Math.round((v-25569)*86400000)); if(!isNaN(d.getTime())) return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0'); }
+      const s=String(v);
+      let m=s.match(ISO); if(m){ const mo=+m[2]; if(mo>=1&&mo<=12) return m[1]+'-'+String(mo).padStart(2,'0'); }
+      m=s.match(RX); if(m){ const a=+m[1], b=+m[2]; let y=+m[3]; if(y<100) y+=2000; let mo; if(a>12&&b<=12) mo=b; else if(b>12&&a<=12) mo=a; else mo=monthFirst?a:b; if(mo>=1&&mo<=12) return String(y)+'-'+String(mo).padStart(2,'0'); }
+      return null;
+    };
   },
+  filterRows(rows){
+    if(!rows||!rows.length){ this._allAus=[]; return rows; }
+    const kEstado=Object.keys(rows[0]).find(h=>this.normH(h)==='ESTADO');
+    let aus = kEstado ? rows.filter(r=>this.S(r[kEstado]).toUpperCase()==='AUS') : rows;
+    this._allAus = aus;
+    this._keyOf = this._mkKeyOf(aus);
+    if(this.mes && this.colFecha) aus = aus.filter(r=>this._keyOf(r[this.colFecha])===this.mes);
+    return aus;
+  },
+  setMes(k){ this.mes = (k && this.mes!==k) ? k : null; if(this.active) this.compute(); },
   onClear(){ /* sector autónomo: sin fuente de respaldo */ }
 });
+
+/* Chips de mes (siempre todos los meses del Excel) · clic = filtrar, clic de nuevo = quitar el filtro */
+atDrop.renderMeses = function(){
+  const cont=document.getElementById(this.P('total-meses')); if(!cont) return;
+  if(!this.colFecha){ this._mesKeys=[]; cont.innerHTML='<div class="ti-meses-note">El Excel no tiene columna de fecha</div>'; return; }
+  const S=this.S.bind(this), KC=this.dedupColName||this.dedupCol()||this.colTurno;
+  const seen=new Set(), cnt={}; let sinFecha=0;
+  (this._allAus||[]).forEach(r=>{ const t=S(r[KC]).toUpperCase(); if(t){ if(seen.has(t)) return; seen.add(t); } const k=this._keyOf(r[this.colFecha]); if(k) cnt[k]=(cnt[k]||0)+1; else sinFecha++; });
+  const keys=Object.keys(cnt).sort(); this._mesKeys=keys;
+  if(!keys.length){ cont.innerHTML='<div class="ti-meses-note">No leí fechas válidas de "'+tiEsc(this.colFecha)+'"</div>'; return; }
+  const MES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const multi=new Set(keys.map(k=>k.split('-')[0])).size>1;
+  const lbl=k=>{ const p=k.split('-'); return MES[(+p[1])-1] + (multi?" '"+p[0].slice(2):''); };
+  cont.innerHTML='<div class="ti-meses-title">'+this.MESTXT+' · '+tiEsc(this.colFecha)+' · clic para filtrar</div>'+
+    '<div class="ti-meses-grid">'+
+    keys.map(k=>'<div class="ti-mes-chip'+(this.mes===k?' sel':'')+'" title="'+(this.mes===k?'Quitar el filtro':'Ver solo '+this.mesLabel(k))+'" onclick="event.stopPropagation(); atMes(\''+k+'\')"><span class="m">'+lbl(k)+'</span><span class="n">'+tiNum(cnt[k])+'</span></div>').join('')+
+    (this.mes?'<div class="ti-mes-chip todos" title="Volver a todos los meses" onclick="event.stopPropagation(); atMes(null)"><span class="m">✕ Todos</span></div>':'')+
+    '</div>'+
+    (sinFecha ? '<div class="ti-meses-note">'+tiNum(sinFecha)+' sin fecha válida</div>' : '');
+};
+
+/* FINAMED · turnos únicos por CUENTA y por mes. Sin mes elegido: una columna por mes + total.
+   Con mes elegido: solo ese mes (turnos y estudios). Clic en una cuenta = sus turnos. */
+atDrop.renderCuenta = function(){
+  const cont=document.getElementById(this.P('cuenta')); if(!cont) return;
+  if(!this.active){ cont.innerHTML=''; cont.style.display='none'; return; }
+  cont.style.display='';
+  this.colCuenta=(this.headers||[]).find(h=>this.normH(h)==='CUENTA')||null;
+  const ml=this.mes?this.mesLabel(this.mes):'';
+  const head='<div class="at-cuenta-tt">FINAMED · detalle por cuenta'+(ml?' · '+ml:'')+'</div>';
+  if(!this.colCuenta){ cont.innerHTML=head+'<div class="at-cuenta-st">El Excel no tiene columna "Cuenta".</div>'; this._cuentaArr=[]; return; }
+  const S=this.S.bind(this), KC=this.dedupColName||this.dedupCol()||this.colTurno;
+  const keys=this._mesKeys||[], g=new Map(), tot={all:new Set(), mes:{}, l:0, lm:{}}; let blank=0;
+  (this._allAus||[]).forEach(r=>{
+    if(this.bucket(r[this.colAseg])!=='FINAMED') return;
+    const name=S(r[this.colCuenta])||'—';
+    let o=g.get(name); if(!o){ o={name, all:new Set(), mes:{}, l:0, lm:{}}; g.set(name,o); }
+    const t=S(r[KC]).toUpperCase()||('#'+(blank++));
+    const mk=this.colFecha?this._keyOf(r[this.colFecha]):null;
+    o.l++; o.all.add(t); tot.l++; tot.all.add(t);
+    if(mk){ (o.mes[mk]=o.mes[mk]||new Set()).add(t); o.lm[mk]=(o.lm[mk]||0)+1; (tot.mes[mk]=tot.mes[mk]||new Set()).add(t); tot.lm[mk]=(tot.lm[mk]||0)+1; }
+  });
+  const vm=(o,k)=>o.mes[k]?o.mes[k].size:0;
+  let arr=Array.from(g.values());
+  if(this.mes){ arr=arr.filter(o=>vm(o,this.mes)>0).sort((a,b)=>vm(b,this.mes)-vm(a,this.mes)||a.name.localeCompare(b.name)); }
+  else { arr.sort((a,b)=>b.all.size-a.all.size||a.name.localeCompare(b.name)); }
+  this._cuentaArr=arr;
+  if(!arr.length){ cont.innerHTML=head+'<div class="at-cuenta-st">Sin ausentes de FINAMED'+(ml?' en '+ml:'')+'.</div>'; return; }
+  const MES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const multi=new Set(keys.map(k=>k.split('-')[0])).size>1;
+  const lbl=k=>{ const p=k.split('-'); return MES[(+p[1])-1] + (multi?" '"+p[0].slice(2):''); };
+  let th, rows, foot;
+  if(this.mes){
+    th='<th>Cuenta</th><th class="sel">Turnos</th><th>Estudios</th>';
+    rows=arr.map((o,i)=>'<tr class="at-cuenta-row" data-i="'+i+'" title="Ver los turnos de esta cuenta"><td>'+tiEsc(o.name)+'</td><td class="sel tot">'+tiNum(vm(o,this.mes))+'</td><td>'+tiNum(o.lm[this.mes]||0)+'</td></tr>').join('');
+    foot='<tr class="suma"><td>Total FINAMED</td><td class="sel">'+tiNum(tot.mes[this.mes]?tot.mes[this.mes].size:0)+'</td><td>'+tiNum(tot.lm[this.mes]||0)+'</td></tr>';
+  } else {
+    th='<th>Cuenta</th>'+keys.map(k=>'<th>'+lbl(k)+'</th>').join('')+'<th class="tot">Total</th><th>Estudios</th>';
+    rows=arr.map((o,i)=>'<tr class="at-cuenta-row" data-i="'+i+'" title="Ver los turnos de esta cuenta"><td>'+tiEsc(o.name)+'</td>'+
+      keys.map(k=>{ const v=vm(o,k); return '<td'+(v?'':' class="cero"')+'>'+tiNum(v)+'</td>'; }).join('')+
+      '<td class="tot">'+tiNum(o.all.size)+'</td><td>'+tiNum(o.l)+'</td></tr>').join('');
+    foot='<tr class="suma"><td>Total FINAMED</td>'+keys.map(k=>'<td>'+tiNum(tot.mes[k]?tot.mes[k].size:0)+'</td>').join('')+'<td>'+tiNum(tot.all.size)+'</td><td>'+tiNum(tot.l)+'</td></tr>';
+  }
+  cont.innerHTML=head+'<div class="at-cuenta-st">Turnos únicos por cuenta'+(ml?' · solo '+ml:' y por mes')+' · clic en una cuenta para ver sus turnos</div>'+
+    '<table><thead><tr>'+th+'</tr></thead><tbody>'+rows+foot+'</tbody></table>';
+  cont.onclick=(e)=>{ const tr=e.target.closest('tr[data-i]'); if(!tr) return; const o=this._cuentaArr[+tr.dataset.i]; if(o) this.openDetailCuenta(o.name); };
+};
+
+atDrop.openDetailCuenta = function(name){
+  if(!this.active||!this.colCuenta) return;
+  const S=this.S.bind(this);
+  const rows=(this.byBucket.FINAMED||[]).filter(r=>(S(r[this.colCuenta])||'—')===name);
+  if(!rows.length) return;
+  this.detailKey='CUENTA'; this.detailLabel='FINAMED · '+name+(this.mes?' · '+this.mesLabel(this.mes):'');
+  this.setDetailRows(rows, rows.length);
+  document.getElementById(this.P('detail-title')).textContent=this.detailLabel;
+  document.getElementById(this.P('detail-count')).textContent=tiNum(this.detailTurnos)+' turnos · '+tiNum(this.detailLineas)+' estudios';
+  document.getElementById(this.P('detail-bar')).style.background=this.COLOR.FINAMED;
+  const srch=document.getElementById(this.P('detail-search')); if(srch) srch.value='';
+  this.renderDetail(this.detailAll);
+  document.getElementById(this.P('detail-overlay')).classList.add('open');
+};
+
+atDrop.openDetail = function(key){
+  Object.getPrototypeOf(this).openDetail.call(this, key);
+  if(this.mes){
+    this.detailLabel=(this.detailLabel||'')+' · '+this.mesLabel(this.mes);
+    const t=document.getElementById(this.P('detail-title')); if(t) t.textContent=this.detailLabel;
+  }
+};
+
+atDrop.compute = function(){
+  Object.getPrototypeOf(this).compute.call(this);
+  const ml=this.mes?this.mesLabel(this.mes):'';
+  const sub=document.getElementById(this.P('total-sub')); if(sub && ml) sub.textContent+=' · '+ml;
+  const meta=document.getElementById(this.P('meta')); if(meta && ml) meta.textContent='Mostrando solo '+ml+' · '+meta.textContent;
+  this.renderCuenta();
+};
+
+atDrop.read = async function(file){
+  this.mes=null;   // archivo nuevo → vuelve a "todos los meses"
+  await Object.getPrototypeOf(this).read.call(this, file);
+};
+
+atDrop.clear = function(){
+  this.mes=null; this._allAus=[]; this._mesKeys=[];
+  Object.getPrototypeOf(this).clear.call(this);
+  ['total-meses','cuenta','meta'].forEach(k=>{ const e=document.getElementById(this.P(k)); if(e){ e.innerHTML=''; if(k==='cuenta') e.style.display='none'; } });
+};
 
 function atCardClick(key){
   if(typeof atDrop !== 'undefined' && atDrop.active) atDrop.openDetail(key);
 }
+function atMes(k){ if(typeof atDrop !== 'undefined') atDrop.setMes(k); }
 
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>{ try{ atDrop.setup(); }catch(e){ console.warn('[atDrop] setup',e); } });
 else { try{ atDrop.setup(); }catch(e){ console.warn('[atDrop] setup',e); } }
