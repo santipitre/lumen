@@ -287,15 +287,57 @@
     /* Badge "Automatizado" en las tarjetas del sector Ausentes */
     .au-exclusive .kpi-card .kpi-auto-badge { position:absolute; left:20px; bottom:12px; margin:0; }
     .au-exclusive .kpi-card.tiene-badge { padding-bottom:44px; }
-    #au-detail-overlay .ti-detail-body td.ti-col-aseg, #at-detail-overlay .ti-detail-body td.ti-col-aseg { color:#FB7185; }
-    #au-detail-overlay .ti-detail-body tr:hover td, #at-detail-overlay .ti-detail-body tr:hover td { background:rgba(248,113,113,.07); }
-    /* Ausentes · Todos los trámites: chips de mes que filtran + detalle de FINAMED por cuenta */
-    .at-exclusive .ti-mes-chip { cursor:pointer; transition:background .15s, border-color .15s, box-shadow .15s; user-select:none; }
-    .at-exclusive .ti-mes-chip:hover { border-color:var(--red); background:rgba(248,113,113,.2); }
-    .at-exclusive .ti-mes-chip.sel { background:rgba(248,113,113,.34); border-color:var(--red); box-shadow:0 0 0 1px var(--red) inset; }
+    #au-detail-overlay .ti-detail-body td.ti-col-aseg { color:#FB7185; }
+    #au-detail-overlay .ti-detail-body tr:hover td { background:rgba(248,113,113,.07); }
+    /* ── Ausentes · Todos los trámites · sector propio en VERDE-AGUA (el de Completos es rojo, Incompletos violeta) ── */
+    .ti-exclusive.at-exclusive {
+      --at:#2DD4BF;
+      margin-top:30px;
+      background:linear-gradient(180deg, rgba(45,212,191,.10), rgba(45,212,191,.02));
+      border-color:rgba(45,212,191,.42);
+      box-shadow:0 0 0 1px rgba(45,212,191,.08), 0 14px 44px rgba(45,212,191,.13);
+    }
+    .ti-exclusive.at-exclusive::before { height:4px; background:linear-gradient(90deg, var(--at), #38BDF8 55%, transparent); }
+    .at-exclusive .ti-exclusive-head { border-bottom-color:rgba(45,212,191,.28); }
+    .at-exclusive .ti-exclusive-head .ti-ic { filter:drop-shadow(0 0 8px rgba(45,212,191,.6)); }
+    .at-exclusive .ti-exclusive-head .ti-tt { color:var(--at); }
+    .at-exclusive .kpi-card.ti-hero { background:linear-gradient(135deg, rgba(45,212,191,.17), rgba(45,212,191,.03)); border-color:rgba(45,212,191,.45); }
+    .at-exclusive .kpi-card.ti-hero .kpi-val { color:var(--at); }
+    .at-exclusive .kpi-card.ti-hero::after { background:linear-gradient(90deg,var(--at),transparent); }
+    .at-exclusive .kpi-card.ti-hero:hover { border-color:var(--at); box-shadow:0 8px 28px rgba(45,212,191,.24); }
+    /* Etiquetas de alcance en la cabecera de cada sector de ausentes */
+    .at-badge, .au-badge {
+      font-family:var(--z-font,'Rajdhani',sans-serif); font-weight:700; font-size:11px; letter-spacing:1.4px; text-transform:uppercase;
+      white-space:nowrap; border-radius:999px; padding:6px 13px;
+    }
+    .at-badge { color:var(--at); background:rgba(45,212,191,.12); border:1px solid rgba(45,212,191,.5); }
+    .au-badge { color:#FCA5A5; background:rgba(248,113,113,.12); border:1px solid rgba(248,113,113,.5); }
+    /* Chips de mes (clic = filtrar) */
+    .at-exclusive .ti-mes-chip { background:rgba(45,212,191,.10); border-color:rgba(45,212,191,.28); cursor:pointer; transition:background .15s, border-color .15s, box-shadow .15s; user-select:none; }
+    .at-exclusive .ti-mes-chip .n { color:var(--at); }
+    .at-exclusive .ti-mes-chip:hover { border-color:var(--at); background:rgba(45,212,191,.22); }
+    .at-exclusive .ti-mes-chip.sel { background:rgba(45,212,191,.36); border-color:var(--at); box-shadow:0 0 0 1px var(--at) inset; }
     .at-exclusive .ti-mes-chip.todos { background:transparent; border-style:dashed; }
-    .at-cuenta { margin-top:16px; padding:16px 18px 12px; border:1px solid rgba(248,113,113,.28); border-radius:12px; background:rgba(248,113,113,.04); overflow-x:auto; }
-    .at-cuenta-tt { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:14px; letter-spacing:2px; text-transform:uppercase; color:#FB7185; }
+    /* Recuadro de carga */
+    .kpi-card.ti-drop.at-drop:hover { border-color:var(--at); background:rgba(45,212,191,.07); box-shadow:0 8px 28px rgba(45,212,191,.16); }
+    .kpi-card.ti-drop.at-drop.dragover { border-color:var(--at); border-style:solid; background:rgba(45,212,191,.15); box-shadow:0 0 0 2px rgba(45,212,191,.35) inset; }
+    .kpi-card.ti-drop.at-drop .ti-drop-title { color:var(--at); }
+    .kpi-card.ti-drop.at-drop.has-file .ti-drop-title { color:var(--at); }
+    .kpi-card.ti-drop.at-drop.has-file { border-color:rgba(45,212,191,.6); background:rgba(45,212,191,.08); }
+    /* Tarjetas por aseguradora: degradé dentro de la gama verde-agua / celeste */
+    .at-c1 .kpi-val { color:#22D3EE; }  .at-c1::after { background:linear-gradient(90deg,#22D3EE,transparent); }
+    .at-c1:hover { border-color:#22D3EE; box-shadow:0 8px 28px rgba(34,211,238,.2); }
+    .at-c2 .kpi-val { color:#38BDF8; }  .at-c2::after { background:linear-gradient(90deg,#38BDF8,transparent); }
+    .at-c2:hover { border-color:#38BDF8; box-shadow:0 8px 28px rgba(56,189,248,.2); }
+    .at-c3 .kpi-val { color:#2DD4BF; }  .at-c3::after { background:linear-gradient(90deg,#2DD4BF,transparent); }
+    .at-c3:hover { border-color:#2DD4BF; box-shadow:0 8px 28px rgba(45,212,191,.2); }
+    .at-c4 .kpi-val { color:#99F6E4; }  .at-c4::after { background:linear-gradient(90deg,#99F6E4,transparent); }
+    .at-c4:hover { border-color:#99F6E4; box-shadow:0 8px 28px rgba(153,246,228,.2); }
+    .at-c5 .kpi-val { color:#0EA5E9; }  .at-c5::after { background:linear-gradient(90deg,#0EA5E9,transparent); }
+    .at-c5:hover { border-color:#0EA5E9; box-shadow:0 8px 28px rgba(14,165,233,.24); }
+    /* FINAMED · detalle por cuenta y mes */
+    .at-cuenta { margin-top:16px; padding:16px 18px 12px; border:1px solid rgba(45,212,191,.3); border-radius:12px; background:rgba(45,212,191,.04); overflow-x:auto; }
+    .at-cuenta-tt { font-family:var(--z-font,'Rajdhani',sans-serif); font-weight:700; font-size:14px; letter-spacing:2px; text-transform:uppercase; color:var(--at); }
     .at-cuenta-st { font-size:11px; color:var(--muted); margin:3px 0 10px; }
     .at-cuenta table { width:100%; border-collapse:collapse; font-size:12.5px; }
     .at-cuenta th { text-align:right; padding:6px 10px; color:var(--muted); font-size:10.5px; letter-spacing:1px; text-transform:uppercase; font-weight:600; white-space:nowrap; }
@@ -304,10 +346,14 @@
     .at-cuenta td.cero { color:var(--muted); opacity:.55; }
     .at-cuenta td.tot, .at-cuenta th.tot { font-weight:700; }
     .at-cuenta tr.at-cuenta-row { cursor:pointer; }
-    .at-cuenta tr.at-cuenta-row:hover td { background:rgba(248,113,113,.10); }
+    .at-cuenta tr.at-cuenta-row:hover td { background:rgba(45,212,191,.10); }
     .at-cuenta tr.at-cuenta-row:hover td:first-child { text-decoration:underline; }
-    .at-cuenta .sel { background:rgba(248,113,113,.14); }
-    .at-cuenta tr.suma td { border-top:1px solid rgba(248,113,113,.45); font-weight:700; }
+    .at-cuenta .sel { background:rgba(45,212,191,.14); }
+    .at-cuenta tr.suma td { border-top:1px solid rgba(45,212,191,.5); font-weight:700; }
+    /* Detalle (modal) del sector nuevo */
+    #at-detail-overlay .ti-detail-body td.ti-col-aseg { color:#2DD4BF; }
+    #at-detail-overlay .ti-detail-body tr:hover td { background:rgba(45,212,191,.07); }
+    #at-detail-overlay .ti-detail-body .ti-mult { background:rgba(45,212,191,.14); color:#2DD4BF; border:1px solid rgba(45,212,191,.32); }
 
     /* ── Ausentes · Historial acumulado ── */
     .au-hist { margin-top:18px; padding:18px 20px 14px; border:1px solid rgba(248,113,113,.28); border-radius:12px;
@@ -471,7 +517,7 @@
       font-size:10.5px; font-weight:700; letter-spacing:.2px; vertical-align:middle;
       background:rgba(245,158,11,.14); color:var(--amber); border:1px solid rgba(245,158,11,.3);
     }
-    #au-detail-overlay .ti-detail-body .ti-mult, #at-detail-overlay .ti-detail-body .ti-mult { background:rgba(251,113,133,.14); color:#FB7185; border-color:rgba(251,113,133,.32); }
+    #au-detail-overlay .ti-detail-body .ti-mult { background:rgba(251,113,133,.14); color:#FB7185; border-color:rgba(251,113,133,.32); }
     .ti-detail-foot { padding:10px 20px; border-top:1px solid var(--border); font-size:11px; color:var(--muted); }
     /* ── Recuadro destacado: Tomografías realizadas INSSJYP · AMB ── */
     .tc-hero {
@@ -1271,6 +1317,7 @@
         <div class="ti-st">Turnos no presentados · por aseguradora</div>
       </div>
       <div class="au-head-actions">
+        <span class="au-badge">Solo trámites completos</span>
         <button class="btn-au-bot" onclick="auAbrirAuto()" title="FINAMED + Harefield + Otras OS/Prepagas juntas: ver el detalle y devolver las órdenes con el bot">⚡ Devolver automatizados</button>
       </div>
     </div>
@@ -1323,19 +1370,20 @@
    </section>
 
    <!-- ══════ SECTOR EXCLUSIVO · AUSENTES / TODOS LOS TRÁMITES (gama roja, mismo estilo) ══════ -->
-   <section class="ti-exclusive au-exclusive at-exclusive">
+   <section class="ti-exclusive at-exclusive">
     <div class="ti-exclusive-head">
-      <div class="ti-ic">🚫</div>
+      <div class="ti-ic">🗂️</div>
       <div>
         <div class="ti-tt">Ausentes · Todos los trámites</div>
         <div class="ti-st">Turnos no presentados · por aseguradora · con trámite completo o incompleto</div>
       </div>
+      <div class="au-head-actions"><span class="at-badge">Completos + incompletos</span></div>
     </div>
 
     <div class="ti-hero-row fade-in">
-      <div class="kpi-card red ti-hero" onclick="atCardClick('TOTAL')"><div class="kpi-icon">🚫</div><div class="kpi-label">Total ausentes</div><div class="kpi-val" id="at-total">—</div><div class="kpi-sub" id="at-total-sub">turnos únicos</div><div class="ti-meses" id="at-total-meses"></div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card ti-hero" onclick="atCardClick('TOTAL')"><div class="kpi-icon">🗂️</div><div class="kpi-label">Total ausentes</div><div class="kpi-val" id="at-total">—</div><div class="kpi-sub" id="at-total-sub">turnos únicos</div><div class="ti-meses" id="at-total-meses"></div><div class="kpi-hint">ver detalle →</div></div>
 
-      <div class="kpi-card ti-drop au-drop" id="at-dropzone" onclick="atDrop.pick()" title="Click o arrastrá el Excel acá para alimentar los cuadros">
+      <div class="kpi-card ti-drop at-drop" id="at-dropzone" onclick="atDrop.pick()" title="Click o arrastrá el Excel acá para alimentar los cuadros">
         <input type="file" id="at-file-input" accept=".xlsx,.xlsm,.xls,.csv" style="display:none" onchange="atDrop.onInput(event)">
         <div class="ti-drop-inner">
           <div class="ti-drop-icon" id="at-drop-icon">📥</div>
@@ -1347,11 +1395,11 @@
     </div>
 
     <div class="ti-aseg-grid fade-in">
-      <div class="kpi-card au-c1" onclick="atCardClick('FINAMED')"><div class="kpi-icon">🏢</div><div class="kpi-label">FINAMED</div><div class="kpi-val" id="at-FINAMED">—</div><div class="kpi-sub" id="at-FINAMED-sub">ausentes</div><div class="kpi-hint">ver detalle →</div></div>
-      <div class="kpi-card au-c2" onclick="atCardClick('PAMI')"><div class="kpi-icon">🏢</div><div class="kpi-label">PAMI (INSSJYP)</div><div class="kpi-val" id="at-PAMI">—</div><div class="kpi-sub" id="at-PAMI-sub">ausentes</div><div class="kpi-hint">ver detalle →</div></div>
-      <div class="kpi-card au-c3" onclick="atCardClick('HAREFIELD')"><div class="kpi-icon">🏢</div><div class="kpi-label">Harefield</div><div class="kpi-val" id="at-HAREFIELD">—</div><div class="kpi-sub" id="at-HAREFIELD-sub">ausentes</div><div class="kpi-hint">ver detalle →</div></div>
-      <div class="kpi-card au-c4" onclick="atCardClick('OSOTRAS')"><div class="kpi-icon">🏢</div><div class="kpi-label">Otras OS / Prepagas</div><div class="kpi-val" id="at-OSOTRAS">—</div><div class="kpi-sub" id="at-OSOTRAS-sub">ausentes</div><div class="kpi-hint">ver detalle →</div></div>
-      <div class="kpi-card au-c5" onclick="atCardClick('PARTICULAR')"><div class="kpi-icon">🧾</div><div class="kpi-label">Particular</div><div class="kpi-val" id="at-PARTICULAR">—</div><div class="kpi-sub" id="at-PARTICULAR-sub">ausentes</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card at-c1" onclick="atCardClick('FINAMED')"><div class="kpi-icon">🏢</div><div class="kpi-label">FINAMED</div><div class="kpi-val" id="at-FINAMED">—</div><div class="kpi-sub" id="at-FINAMED-sub">ausentes</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card at-c2" onclick="atCardClick('PAMI')"><div class="kpi-icon">🏢</div><div class="kpi-label">PAMI (INSSJYP)</div><div class="kpi-val" id="at-PAMI">—</div><div class="kpi-sub" id="at-PAMI-sub">ausentes</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card at-c3" onclick="atCardClick('HAREFIELD')"><div class="kpi-icon">🏢</div><div class="kpi-label">Harefield</div><div class="kpi-val" id="at-HAREFIELD">—</div><div class="kpi-sub" id="at-HAREFIELD-sub">ausentes</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card at-c4" onclick="atCardClick('OSOTRAS')"><div class="kpi-icon">🏢</div><div class="kpi-label">Otras OS / Prepagas</div><div class="kpi-val" id="at-OSOTRAS">—</div><div class="kpi-sub" id="at-OSOTRAS-sub">ausentes</div><div class="kpi-hint">ver detalle →</div></div>
+      <div class="kpi-card at-c5" onclick="atCardClick('PARTICULAR')"><div class="kpi-icon">🧾</div><div class="kpi-label">Particular</div><div class="kpi-val" id="at-PARTICULAR">—</div><div class="kpi-sub" id="at-PARTICULAR-sub">ausentes</div><div class="kpi-hint">ver detalle →</div></div>
     </div>
 
     <div id="at-meta" style="color:var(--muted);font-size:11px;margin-top:2px"></div>
@@ -2886,7 +2934,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
 else { try{ auDrop.setup(); }catch(e){ console.warn('[auDrop] setup',e); } }
 
 /* ══════════════════════════════════════════════════════════════════════
-   AUSENTES · TODOS LOS TRÁMITES  (sector propio, gama roja, mismo estilo)
+   AUSENTES · TODOS LOS TRÁMITES  (sector propio, gama verde-agua)
    ----------------------------------------------------------------------
    Mismo motor que tiDrop/auDrop clonado por prototipo, con estado propio
    (prefijo de IDs 'at-', base IndexedDB 'lumen_at'). Cuenta TODOS los turnos
@@ -2907,7 +2955,7 @@ Object.assign(atDrop, {
   fileName:'', rawRows:[], dedupRows:[], byBucket:{}, byTurnos:{},
   detailKey:null, detailAll:[], detailLabel:'', detailTurnos:0, detailLineas:0, _detailN:null, _asegArr:[],
   LABEL:{ TOTAL:'Total ausentes', FINAMED:'FINAMED', PAMI:'PAMI (INSSJYP)', HAREFIELD:'Harefield', OSOTRAS:'Otras OS / Prepagas', PARTICULAR:'Particular' },
-  COLOR:{ TOTAL:'var(--red)', FINAMED:'#FB7185', PAMI:'#F97316', HAREFIELD:'#E11D48', OSOTRAS:'#FCA5A5', PARTICULAR:'#DC2626' },
+  COLOR:{ TOTAL:'#2DD4BF', FINAMED:'#22D3EE', PAMI:'#38BDF8', HAREFIELD:'#2DD4BF', OSOTRAS:'#99F6E4', PARTICULAR:'#0EA5E9' },
   /* Filtro por mes: this.mes = 'YYYY-MM' (o null = todos). Las tarjetas, el detalle y el
      Excel exportado salen del mes elegido; los chips de mes y la tabla por cuenta siguen
      viendo TODOS los ausentes (this._allAus) para poder cambiar de mes. */
