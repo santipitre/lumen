@@ -95,16 +95,22 @@ for p in HTMLS + JSS:
         if "integrity" not in ventana and "SRI[" not in ventana:
             err(f"[SRI] {rel(p)}: carga dinámica sin integrity -> {url}")
 
-# ── 2c: CSP básica en cada página (object-src, base-uri, form-action) ──────
+# ── 2c: CSP de cada página = la que calcula tools/csp.py ───────────────────
+# (object-src/base-uri/form-action incluidos). Si agregás una librería, un host o un iframe
+# y no regenerás, falla: corré  python tools/csp.py --apply
+sys.path.insert(0, str(RAIZ / "tools"))
+import csp as _csp
 for p in HTMLS:
     t = leer(p)
     m = re.search(r'http-equiv="Content-Security-Policy"\s+content="([^"]*)"', t, re.I)
     if not m:
-        err(f"[CSP] {rel(p)}: falta <meta http-equiv=\"Content-Security-Policy\"> (object-src/base-uri/form-action)")
+        err(f"[CSP] {rel(p)}: falta <meta http-equiv=\"Content-Security-Policy\">")
         continue
     for d in ("object-src 'none'", "base-uri 'self'", "form-action 'self'"):
         if d not in m.group(1):
             err(f"[CSP] {rel(p)}: la CSP no tiene {d}")
+    if m.group(1) != _csp.politica(p):
+        err(f"[CSP] {rel(p)}: la CSP no coincide con tools/csp.py -> corré: python tools/csp.py --apply")
 
 # ── 3: versionar.py --check ────────────────────────────────────────────────
 # En GitHub Actions se saltea: allá los .js/.css salen con fin de línea LF y en tu PC pueden tener CRLF,
