@@ -520,7 +520,7 @@
     }
     #au-detail-overlay .ti-detail-body .ti-mult { background:rgba(251,113,133,.14); color:#FB7185; border-color:rgba(251,113,133,.32); }
     .ti-detail-foot { padding:10px 20px; border-top:1px solid var(--border); font-size:11px; color:var(--muted); }
-    /* ── Recuadro destacado: Tomografías realizadas INSSJYP ── */
+    /* ── Recuadro destacado: Tomografías realizadas INSSJYP · INT ── */
     .tc-hero {
       display:flex; align-items:center; gap:26px; width:100%; box-sizing:border-box; text-align:left;
       margin:2px 0 18px; padding:18px 26px; cursor:pointer; color:inherit; font-family:inherit;
@@ -1166,7 +1166,7 @@
         <div class="tc-hero-num" id="tc-hero-num">—</div>
       </div>
       <div class="tc-hero-main">
-        <div class="tc-hero-label">Tomografías realizadas · INSSJYP</div>
+        <div class="tc-hero-label">Tomografías realizadas · INSSJYP · INT</div>
         <div class="tc-hero-sub" id="tc-hero-sub">Cargá el Excel para ver el número</div>
         <div class="tc-hero-go">Ver detalle del mes ›</div>
       </div>
@@ -1689,13 +1689,13 @@
 
 </div><!-- /main -->
 
-<!-- ══════ MODAL DETALLE: Tomografías INSSJYP ══════ -->
+<!-- ══════ MODAL DETALLE: Tomografías INSSJYP · INT ══════ -->
 <div id="tc-detail-overlay" onclick="if(event.target===this) tcClose()">
   <div class="ti-detail-box" style="width:min(820px,96vw)">
     <div class="ti-detail-head">
       <div class="ti-detail-bar"></div>
       <div>
-        <div class="ti-detail-title">Tomografías realizadas · INSSJYP</div>
+        <div class="ti-detail-title">Tomografías realizadas · INSSJYP · INT</div>
         <div class="ti-detail-count" id="tc-detail-count"></div>
       </div>
       <div class="ti-detail-actions">
@@ -3479,16 +3479,16 @@ function resetFilters() {
 function render(data) {
   calcKPIs(data);        // cards de arriba (Sin Derivantes / Coseguros / Sin Nº Ref, etc.) — se quedan
   calcSummaryBar(data);  // barra resumen de arriba — se queda
-  calcTcHero(data);      // recuadro Tomografías INSSJYP
+  calcTcHero(data);      // recuadro Tomografías INSSJYP · INT
   // Secciones removidas (Resumen / Derivantes / Detalle / Errores por Operador / Comparativo):
   // sus render* ya no se llaman porque su DOM fue eliminado.
   renderTITab(data);   // sector Trámites Incompletos: detalle por aseguradora desde el Excel (Opción A)
 }
 
 /* ══════════════════════════════════
-   TOMOGRAFÍAS REALIZADAS · INSSJYP
+   TOMOGRAFÍAS REALIZADAS · INSSJYP · INT
    Cuenta PRESTACIONES (líneas), no turnos. Criterio de línea:
-   Estado REA + Aseguradora INSSJYP + Servicio TOMOGRAFÍA (cualquier Tipo Turno: AMB, INT, URG),
+   Estado REA + Tipo Turno INT + Aseguradora INSSJYP + Servicio TOMOGRAFÍA,
    sin materiales/contraste/set de bomba/coseguro (misma exclusión que
    "Prácticas Realizadas"). Respeta los filtros de fecha/aseguradora/equipo.
 ══════════════════════════════════ */
@@ -3502,6 +3502,7 @@ function tcLineas(data) {
   const out = [];
   (data || []).forEach(r => {
     if (_safe(r['Estado']).toUpperCase() !== 'REA') return;
+    if (_safe(r['Tipo Turno']).toUpperCase() !== 'INT') return;
     if (!_safe(r['Aseguradora']).toUpperCase().includes('INSSJYP')) return;
     if (_safe(r['Servicio']).toUpperCase().indexOf('TOMOGRAF') !== 0) return;
     const prest = _safe(r['Prestación'] || r['Prestacion']);
@@ -3567,14 +3568,14 @@ function tcFilter(q) {
   document.getElementById('tc-detail-count').textContent =
     _tcView.length.toLocaleString() + (base.length !== _tcView.length ? ' de ' + base.length.toLocaleString() : '') + ' prestaciones' + (_tcMes ? ' · ' + _tcMesTxt(_tcMes) : '');
   document.getElementById('tc-detail-foot').textContent =
-    'Estado REA · Aseguradora INSSJYP · Servicio TOMOGRAFÍA · todos los tipos de turno · sin materiales, contraste, set de bomba ni coseguro. "x N" = el turno tiene N prestaciones.';
+    'Estado REA · Tipo Turno INT · Aseguradora INSSJYP · Servicio TOMOGRAFÍA · sin materiales, contraste, set de bomba ni coseguro. "x N" = el turno tiene N prestaciones.';
 }
 function tcExport() {
   if (typeof XLSX === 'undefined') { alert('No se pudo exportar: falta la librería de Excel.'); return; }
   const aoa = [['Fecha', 'N° Turno', 'Prestación']].concat(_tcView.map(x => [_tcFecha(x.ds), x.turno, x.prest]));
   const ws = XLSX.utils.aoa_to_sheet(aoa), wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'TC INSSJYP');
-  XLSX.writeFile(wb, 'LUMEN_TC_INSSJYP.xlsx');
+  XLSX.utils.book_append_sheet(wb, ws, 'TC INSSJYP INT');
+  XLSX.writeFile(wb, 'LUMEN_TC_INSSJYP_INT.xlsx');
 }
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { const ov = document.getElementById('tc-detail-overlay'); if (ov && ov.classList.contains('open')) { e.stopPropagation(); tcClose(); } }
