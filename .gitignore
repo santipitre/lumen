@@ -38,3 +38,7 @@ CLAUDE.local.md
 _test/
 
 docs/cronogramas/boceto-*.html
+
+# no versionar
+fuesmen-finamed/
+_to_delete/
