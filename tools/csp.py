@@ -61,6 +61,9 @@ def _scripts_locales(html):
 def contenido_pagina(p):
     """HTML + .js locales que carga (un nivel), en minúsculas."""
     html = _texto(p)
+    # La propia <meta> de CSP no cuenta como evidencia: si no, un host que ya está en la política
+    # se "confirma" a sí mismo para siempre (pasó con generativelanguage.googleapis.com, 27/11/2026).
+    html = META_RE.sub("", html)
     partes = [html]
     for s in _scripts_locales(html):
         f = (p.parent / s).resolve()
