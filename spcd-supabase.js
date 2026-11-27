@@ -155,3 +155,93 @@ async function sbRpc(fn, args) {
     console.warn('[spcd-supabase] No se pudo inicializar sbAuth:', e);
   }
 })();
+
+
+/* ============================================================
+   Registro de errores del navegador (M7)
+   ------------------------------------------------------------
+   Manda a la RPC `log_error_cliente` los errores de JavaScript y
+   las promesas sin atrapar. Sólo con sesión iniciada (la RPC no
+   admite anon). Nunca rompe la página: todo va dentro de try/catch.
+   Antes de enviar saca de URLs los parámetros (?...) y el fragmento
+   (#...), y tapa tokens tipo JWT. El servidor además tapa mails y
+   números largos, y limita la cantidad por usuario.
+   ============================================================ */
+(function initClientErrorLogger() {
+  if (typeof window === 'undefined' || window.__lumenErrLog) return;
+  window.__lumenErrLog = true;
+
+  var MAX_POR_CARGA = 10;   // tope de envíos por carga de página
+  var ESPERA_MS = 2000;     // separación mínima entre envíos
+  var vistos = {};
+  var enviados = 0;
+  var ultimoEnvio = 0;
+
+  function limpiar(s, n) {
+    if (s === undefined || s === null) return '';
+    s = String(s);
+    s = s.replace(/https?:\/\/[^\s)'"]+/g, function (u) { return u.split(/[?#]/)[0]; });
+    s = s.replace(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g, '[token]');
+    return s.slice(0, n);
+  }
+
+  function ignorable(msg, archivo) {
+    if (!msg) return true;
+    if (/^Script error\.?$/i.test(msg)) return true;            // error de otro origen, sin datos útiles
+    if (/ResizeObserver loop/i.test(msg)) return true;          // ruido conocido del navegador
+    if (archivo && /^(chrome|moz|safari)-extension:/i.test(archivo)) return true;
+    return false;
+  }
+
+  function enviar(origen, mensaje, detalle, archivo) {
+    try {
+      if (!window.sbAuth || !window.sbAuth.rpc || !window.sbAuth.auth) return;
+      if (enviados >= MAX_POR_CARGA) return;
+      var msg = limpiar(mensaje, 300);
+      if (ignorable(msg, archivo)) return;
+      var clave = origen + '|' + msg;
+      if (vistos[clave]) return;
+      var ahora = Date.now();
+      if (ahora - ultimoEnvio < ESPERA_MS) return;
+      vistos[clave] = 1;
+      enviados++;
+      ultimoEnvio = ahora;
+
+      var pagina = (location.pathname.split('/').pop() || 'index.html');
+      var meta = document.querySelector('meta[name="lumen-ver"]');
+      var version = meta ? meta.getAttribute('content') : '';
+      var args = {
+        p_pagina: pagina,
+        p_version: version || '',
+        p_origen: origen,
+        p_mensaje: msg,
+        p_detalle: limpiar(detalle, 2000),
+        p_ua: limpiar(navigator.userAgent, 200)
+      };
+
+      window.sbAuth.auth.getSession().then(function (r) {
+        if (!r || !r.data || !r.data.session) return null;   // sin sesión no se manda (anon no puede)
+        return window.sbAuth.rpc('log_error_cliente', args);
+      }).catch(function () { /* nunca propagar */ });
+    } catch (e) { /* nunca romper la página */ }
+  }
+
+  window.addEventListener('error', function (ev) {
+    try {
+      var det = (ev && ev.error && ev.error.stack) ? ev.error.stack
+        : ((ev && ev.filename) ? (ev.filename + ':' + ev.lineno + ':' + ev.colno) : '');
+      enviar('error', ev && ev.message, det, ev && ev.filename);
+    } catch (e) { /* nada */ }
+  });
+
+  window.addEventListener('unhandledrejection', function (ev) {
+    try {
+      var r = ev && ev.reason;
+      var msg = (r && r.message) ? r.message : (typeof r === 'string' ? r : 'Promesa rechazada');
+      enviar('promesa', msg, (r && r.stack) ? r.stack : '', '');
+    } catch (e) { /* nada */ }
+  });
+
+  // Uso manual desde cualquier módulo: lumenLogError('mensaje', 'detalle opcional')
+  window.lumenLogError = function (mensaje, detalle) { enviar('manual', mensaje, detalle || '', ''); };
+})();
