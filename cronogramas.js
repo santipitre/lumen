@@ -2660,7 +2660,7 @@ function tcInterp(refs){
 function cargarXlsx(cb, fallo_){
   if(window.XLSX) return cb();
   const sc = document.createElement('script');
-  sc.src = 'xlsx.min.js';
+  sc.integrity = 'sha384-mnBT8sXCZGqGzeFvFdidh/dFZnwVtEn9eh9KkYSQXfJtUOzVku17NZodCX362Jw+'; sc.crossOrigin = 'anonymous'; sc.src = 'vendor/xlsx.core.min.js';
   sc.onload = cb; sc.onerror = fallo_;
   document.head.appendChild(sc);
 }

@@ -180,7 +180,7 @@ async function sbInsert(t,d){const r=await fetch(`${SUPABASE_URL}/rest/v1/${t}`,
 async function sbRpc(fn,args){const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:'POST',headers:await getSBHeaders(),body:JSON.stringify(args)});
   if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.message||'RPC '+r.status)} return r.json();}
 </script>
-<script src="xlsx.min.js?v=82d32e9e"></script>
+<script src="vendor/xlsx.core.min.js?v=197255b0" integrity="sha384-mnBT8sXCZGqGzeFvFdidh/dFZnwVtEn9eh9KkYSQXfJtUOzVku17NZodCX362Jw+"></script>
 <script src="caja-utils.js?v=e4b6de9a"></script>
 <script src="caja-datos.js?v=5a8d89f8"></script>
 <script src="caja-importar.js?v=969ee155"></script>

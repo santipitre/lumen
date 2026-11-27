@@ -17,6 +17,7 @@ var OCRLANG = 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/spa/4.0.0_best_in
 var SRI = {};
 SRI[PDFJS + 'pdf.min.js'] = 'sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e';
 SRI[OCRJS] = 'sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F';
+SRI['vendor/xlsx.core.min.js'] = 'sha384-mnBT8sXCZGqGzeFvFdidh/dFZnwVtEn9eh9KkYSQXfJtUOzVku17NZodCX362Jw+';
 var STOP = /^(horario|turno|referencia|licencias?|franco|cantidad|guardias?|observaciones?|firma)\b/;
 
 function trim(s){ return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
@@ -220,7 +221,7 @@ function cargarScript(url){
     document.head.appendChild(s);
   });
 }
-function asegurarXLSX(){ return root.XLSX ? Promise.resolve() : cargarScript('xlsx.min.js'); }
+function asegurarXLSX(){ return root.XLSX ? Promise.resolve() : cargarScript('vendor/xlsx.core.min.js'); }
 function asegurarPDFJS(){
   if(root.pdfjsLib) return Promise.resolve();
   return cargarScript(PDFJS + 'pdf.min.js').then(function(){ root.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.js'; });
