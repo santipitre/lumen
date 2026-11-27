@@ -35,7 +35,14 @@ if sys.platform == "win32":
     import os; os.system("")
 
 def hash_de(p):
-    return hashlib.sha256(p.read_bytes()).hexdigest()[:8]
+    # El sello se calcula sobre el contenido con saltos de línea LF, no sobre los bytes del disco.
+    # Git guarda LF; en Windows el checkout puede dejar CRLF (core.autocrlf). Con los bytes crudos,
+    # el mismo archivo daba un hash en Windows y otro en Linux/CI. Normalizando, da el mismo en los dos.
+    # vendor/ queda con los bytes exactos: .gitattributes lo marca -text y git no lo toca.
+    crudo = p.read_bytes()
+    if "vendor" not in p.parts:
+        crudo = crudo.replace(b"\r\n", b"\n")
+    return hashlib.sha256(crudo).hexdigest()[:8]
 
 total_cambios = 0
 total_faltantes = 0
