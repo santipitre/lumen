@@ -109,6 +109,8 @@ for p in HTMLS:
     for d in ("object-src 'none'", "base-uri 'self'", "form-action 'self'"):
         if d not in m.group(1):
             err(f"[CSP] {rel(p)}: la CSP no tiene {d}")
+    if _csp.GUARD not in t:
+        err(f"[frame] {rel(p)}: falta el guard anti-iframe junto a la CSP -> corré: python tools/csp.py --apply")
     if m.group(1) != _csp.politica(p):
         err(f"[CSP] {rel(p)}: la CSP no coincide con tools/csp.py -> corré: python tools/csp.py --apply")
 

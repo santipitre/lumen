@@ -105,6 +105,15 @@ def politica(p):
 
 META_RE = re.compile(r'<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]*)"\s*/?>', re.I)
 
+# Anti-clickjacking. GitHub Pages no permite la cabecera frame-ancestors y la <meta> no la admite, así que
+# se oculta la página si la enmarca un origen ajeno (o un iframe con sandbox sin allow-same-origin):
+# leer top.location.href lanza SecurityError y el <style> queda ocultando todo. Si no está enmarcada, o la
+# enmarca el mismo origen (Lumen embebe sus propias páginas, p. ej. el Cronograma), se quita el <style>.
+# Es defensa en profundidad; la solución real es la cabecera, que exige otro hosting (ver ROADMAP, M2).
+GUARD = ('<style id="lumen-antiframe">html{display:none!important}</style>'
+         '<script>try{if(top!==self){void top.location.href}document.getElementById("lumen-antiframe").remove()}catch(e){}</script>')
+GUARD_RE = re.compile(r'<style id="lumen-antiframe">.*?</script>', re.S)
+
 def paginas():
     try:
         out = subprocess.run(["git", "ls-files"], cwd=RAIZ, capture_output=True, text=True, check=True).stdout.split("\n")
@@ -126,17 +135,18 @@ def main(argv):
     difieren = []
     for p in paginas():
         want, have = politica(p), meta_actual(p)
-        if have == want: continue
+        if have == want and (META_RE.search(_texto(p)).group(0) + GUARD) in _texto(p): continue
         difieren.append(p)
         if aplicar:
             t = _texto(p)
             nuevo = '<meta http-equiv="Content-Security-Policy" content="%s"/>' % want
+            t = GUARD_RE.sub("", t)                       # el guard se vuelve a poner siempre junto a la <meta>
             if have is None:
                 if t.count("<head>") != 1: print("  ! %s: sin <head> único, no se pudo" % p.name); continue
-                t = t.replace("<head>", "<head>\n" + nuevo, 1)
+                t = t.replace("<head>", "<head>\n" + nuevo + GUARD, 1)
             else:
                 assert len(META_RE.findall(t)) == 1, p.name
-                t = META_RE.sub(lambda m: nuevo, t, count=1)
+                t = META_RE.sub(lambda m: nuevo + GUARD, t, count=1)
             with open(p, "w", encoding="utf-8", newline="") as f: f.write(t)
     for p in difieren:
         print(("  actualizado " if aplicar else "  DIFIERE ") + p.relative_to(RAIZ).as_posix())
