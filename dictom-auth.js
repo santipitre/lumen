@@ -5,7 +5,7 @@
    Reusa el proyecto Supabase de Lumen.
 
    Dependencias en INFORMES_IA.html:
-     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+     <script src="vendor/supabase.js"></script>
      <script src="dictom-auth.js"></script>
 
    API pública expuesta en window.DictomAuth:

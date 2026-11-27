@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https://erjdncsnomwymjiaslpx.supabase.co wss://erjdncsnomwymjiaslpx.supabase.co; worker-src 'self' blob:; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https://erjdncsnomwymjiaslpx.supabase.co wss://erjdncsnomwymjiaslpx.supabase.co; worker-src 'self' blob:; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
   <title>Lumen by SPITRELLA</title>
 
@@ -1251,8 +1251,8 @@
 <script src="spcd-utils.js?v=2026-05-19-v1"></script>
 <!-- Supabase SDK ANTES de spcd-supabase.js para inicializar sbAuth (Fase 2.C Etapa 3) -->
 <script src="spcd-google.js?v=af8cb573"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/dist/umd/supabase.js" integrity="sha384-A97u3Qnt9GZHURO9YJZRe7VQgGUeFzcv6I1oIGnUTxQrCxnpQMwR0/G8F2zt9abZ" crossorigin="anonymous"></script>
-<script src="spcd-supabase.js?v=caf94307"></script>
+<script src="vendor/supabase.js?v=8816af04" integrity="sha384-A97u3Qnt9GZHURO9YJZRe7VQgGUeFzcv6I1oIGnUTxQrCxnpQMwR0/G8F2zt9abZ" crossorigin="anonymous"></script>
+<script src="spcd-supabase.js?v=03ee9f60"></script>
 <script>
 /* -- STORAGE (IndexedDB) -- */
 /* SPCD_DB, SPCD_STORE, openDB, dbLoad, dbSave viven ahora en spcd-utils.js */
@@ -2222,7 +2222,7 @@ if (document.getElementById('screen-inicio').classList.contains('active')) showS
 })();
 
 </script>
-<script src="chatbot.js?v=a6832384"></script>
+<script src="chatbot.js?v=6ea9047b"></script>
 <script src="spcd-sesion-barra.js?v=5025c14c"></script>
 <script>
 /* -- HISTORIAL DE PANTALLAS (06/11/2026) --

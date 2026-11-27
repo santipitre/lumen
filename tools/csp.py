@@ -75,7 +75,10 @@ def politica(p):
     c = contenido_pagina(p)
     eval_ = "ajax/libs/exceljs/" in c            # ExcelJS 4.3.0 (cdnjs)
     ocr = "tesseract" in c                        # OCR: wasm + datos de idioma
-    script = ["'self'", "'unsafe-inline'", JSD, CDNJS]
+    # Solo se habilita un CDN si la página (o sus .js locales) lo nombra. Desde el 27/11/2026 las
+    # librerías viven en vendor/ (ver vendor/VENDOR.md); queda jsDelivr sólo donde se usa de verdad (OCR).
+    usa_jsd, usa_cdnjs = "cdn.jsdelivr.net" in c, "cdnjs.cloudflare.com" in c
+    script = ["'self'", "'unsafe-inline'"] + ([JSD] if usa_jsd else []) + ([CDNJS] if usa_cdnjs else [])
     if eval_: script.append("'unsafe-eval'")
     if ocr: script.append("'wasm-unsafe-eval'")
     connect = ["'self'", "https://" + SB, "wss://" + SB]
@@ -87,7 +90,7 @@ def politica(p):
     d = [
         ("default-src", ["'self'"]),
         ("script-src", script),
-        ("style-src", ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", CDNJS]),
+        ("style-src", ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"] + ([CDNJS] if usa_cdnjs else [])),
         ("font-src", ["'self'", "https://fonts.gstatic.com", "data:"]),
         ("img-src", img),
         ("media-src", ["'self'", "blob:", "data:"]),

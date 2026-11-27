@@ -48,7 +48,7 @@ def archivos(ext):
         lista = [RAIZ / f for f in out if f.endswith(ext)]
     except Exception:
         lista = [p for p in RAIZ.rglob("*" + ext) if ".git" not in p.parts and "node_modules" not in p.parts]
-    return sorted(p for p in lista if p.exists() and "_test" not in p.parts and not p.name.startswith("_") and not p.name.endswith(".min.js"))
+    return sorted(p for p in lista if p.exists() and "_test" not in p.parts and "vendor" not in p.parts and not p.name.startswith("_") and not p.name.endswith(".min.js"))
 
 def leer(p):
     return p.read_text(encoding="utf-8", errors="replace")

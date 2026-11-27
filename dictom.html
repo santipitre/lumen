@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="robots" content="noindex, nofollow">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https://erjdncsnomwymjiaslpx.supabase.co wss://erjdncsnomwymjiaslpx.supabase.co https://generativelanguage.googleapis.com https://api.anthropic.com https://api.openai.com; worker-src 'self' blob:; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https://erjdncsnomwymjiaslpx.supabase.co wss://erjdncsnomwymjiaslpx.supabase.co https://generativelanguage.googleapis.com https://api.anthropic.com https://api.openai.com; worker-src 'self' blob:; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>DICTOM by SPITRELLA — Dictado radiológico inteligente</title>
 <meta name="description" content="Dictom transforma tu dictado en informes radiológicos completos en formato ACR. Entrenado con corpus institucional real. Una solución de SPITRELLA." />
@@ -19,13 +19,13 @@
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2026051701" />
 <!-- Tailwind: CSS estatico (dictom-tailwind.css, cargado al final del head). Regenerar: tools/tailwind/LEEME.txt -->
 <!-- Generación de DOCX (Word) y PDF en el browser, sin backend -->
-<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js" integrity="sha384-4xaIisuLEy2lo2HkB2C4rEf7v8jbTb2kuogX6TkuEt9feTWKBSFSOzsqNNbV+sKh" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js" integrity="sha384-PlRSzpewlarQuj5alIadXwjNUX+2eNMKwr0f07ShWYLy8B6TjEbm7ZlcN/ScSbwy" crossorigin="anonymous"></script>
+<script src="vendor/docx.umd.js?v=02d568d2" integrity="sha384-4xaIisuLEy2lo2HkB2C4rEf7v8jbTb2kuogX6TkuEt9feTWKBSFSOzsqNNbV+sKh" crossorigin="anonymous"></script>
+<script src="vendor/jspdf.umd.min.js?v=98ccf17a" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
+<script src="vendor/FileSaver.min.js?v=c68874cb" integrity="sha384-PlRSzpewlarQuj5alIadXwjNUX+2eNMKwr0f07ShWYLy8B6TjEbm7ZlcN/ScSbwy" crossorigin="anonymous"></script>
 <!-- Dictom Auth: login + licencias (Supabase compartido con Lumen) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/dist/umd/supabase.js" integrity="sha384-A97u3Qnt9GZHURO9YJZRe7VQgGUeFzcv6I1oIGnUTxQrCxnpQMwR0/G8F2zt9abZ" crossorigin="anonymous"></script>
-<script src="spcd-supabase.js?v=caf94307"></script>
-<script src="dictom-auth.js?v=5fd5a24d" defer></script>
+<script src="vendor/supabase.js?v=8816af04" integrity="sha384-A97u3Qnt9GZHURO9YJZRe7VQgGUeFzcv6I1oIGnUTxQrCxnpQMwR0/G8F2zt9abZ" crossorigin="anonymous"></script>
+<script src="spcd-supabase.js?v=03ee9f60"></script>
+<script src="dictom-auth.js?v=ffb88d64" defer></script>
 <style>
   :root {
     /* Paleta Dictom by Pyralis */

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="robots" content="noindex, nofollow">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https://erjdncsnomwymjiaslpx.supabase.co wss://erjdncsnomwymjiaslpx.supabase.co; worker-src 'self' blob:; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https://erjdncsnomwymjiaslpx.supabase.co wss://erjdncsnomwymjiaslpx.supabase.co; worker-src 'self' blob:; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Conciliación PAMI · LUMEN</title>
 <meta name="lumen-zafiro" content="oscuro"/>
@@ -423,8 +423,8 @@
 <!-- Escritor de Excel con estilos (encabezados, colores, filtros). NO reemplaza al lector. -->
 <script src="vendor/xlsx-js-style.min.js?v=af16b32b" integrity="sha384-TKzdYxq/t9UpLrJcIQu2hpfQg+oSoJVDkhWcS4zuzQmzQTBx5gSMhINXD2uGv0jw" crossorigin="anonymous"></script>
 <script>window.XLSXStyle = window.XLSX; window.XLSX = window.__XLSX_READ; /* restaurar lector original */</script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/dist/umd/supabase.js" integrity="sha384-A97u3Qnt9GZHURO9YJZRe7VQgGUeFzcv6I1oIGnUTxQrCxnpQMwR0/G8F2zt9abZ" crossorigin="anonymous"></script>
-<script src="spcd-supabase.js?v=caf94307"></script>
+<script src="vendor/supabase.js?v=8816af04" integrity="sha384-A97u3Qnt9GZHURO9YJZRe7VQgGUeFzcv6I1oIGnUTxQrCxnpQMwR0/G8F2zt9abZ" crossorigin="anonymous"></script>
+<script src="spcd-supabase.js?v=03ee9f60"></script>
 <script src="conciliacion-engine.js?v=4bef573d"></script>
 <script>
 /* ── URLs de los sistemas (para "Abrir en…", Fase 3 autocompleta) ── */
@@ -1243,6 +1243,6 @@ document.getElementById('in-backup').addEventListener('change',e=>{ if(e.target.
 })();
 </script>
 <script src="lumen-neuro.js?v=481a17c2" data-auto></script>
-<script src="chatbot.js?v=a6832384"></script>
+<script src="chatbot.js?v=6ea9047b"></script>
 </body>
 </html>

@@ -1452,7 +1452,7 @@
     return new Promise((resolve, reject) => {
       const s = document.createElement('script');
       s.integrity = 'sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz'; s.crossOrigin = 'anonymous';
-      s.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+      s.src = 'vendor/exceljs.min.js?v=7e49da68';
       s.onload  = () => resolve(window.ExcelJS);
       s.onerror = () => reject(new Error('No se pudo cargar librería Excel'));
       document.head.appendChild(s);

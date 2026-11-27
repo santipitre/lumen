@@ -12,10 +12,10 @@
 
    AUTH (Fase 2.C Etapa 3 · 2026-05-15):
      Para `signInWithOtp` y el callback del magic link se usa el
-     SDK oficial de Supabase (cargado desde CDN). Se inicializa
+     SDK oficial de Supabase (cargado desde vendor/). Se inicializa
      bajo `window.sbAuth` solo si el SDK ya está disponible.
 
-         <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+         <script src="vendor/supabase.js"></script>
          <script src="spcd-supabase.js"></script>
 
    Cómo incluir:
