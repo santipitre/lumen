@@ -111,8 +111,21 @@ for p in HTMLS:
             err(f"[CSP] {rel(p)}: la CSP no tiene {d}")
     if _csp.GUARD not in t:
         err(f"[frame] {rel(p)}: falta el guard anti-iframe junto a la CSP -> corré: python tools/csp.py --apply")
+    if _csp.es_estricta(p):
+        # trinquete M1: una página estricta no puede volver a tener handlers inline ni URLs javascript:
+        for x in _csp.pendientes_inline(p):
+            err(f"[CSP-estricta] {rel(p)}: {x}")
+        if "'unsafe-inline'" in re.search(r"script-src([^;]*)", m.group(1)).group(1):
+            err(f"[CSP-estricta] {rel(p)}: es ESTRICTA pero su script-src todavía lleva 'unsafe-inline'")
     if m.group(1) != _csp.politica(p):
-        err(f"[CSP] {rel(p)}: la CSP no coincide con tools/csp.py -> corré: python tools/csp.py --apply")
+        err(f"[CSP] {rel(p)}: la CSP no coincide con tools/csp.py (si cambió un <script> inline cambia su hash) -> corré: python tools/csp.py --apply")
+
+# ── 2d: handlers extraídos (tools/extraer_handlers.py) ─────────────────────
+# lumen-h-<página>.js es GENERADO: no se edita a mano y tiene que coincidir con el data-lh del HTML.
+import extraer_handlers as _eh
+for p in HTMLS:
+    for e in _eh.verificar_pagina(p):
+        err(f"[handlers] {e}")
 
 # ── 3: versionar.py --check ────────────────────────────────────────────────
 # En GitHub Actions se saltea: allá los .js/.css salen con fin de línea LF y en tu PC pueden tener CRLF,

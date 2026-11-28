@@ -15,7 +15,7 @@
 </script>
   <meta charset="UTF-8"/>
 <meta name="robots" content="noindex, nofollow">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https://erjdncsnomwymjiaslpx.supabase.co wss://erjdncsnomwymjiaslpx.supabase.co; worker-src 'self' blob:; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/><style id="lumen-antiframe">html{display:none!important}</style><script>try{if(top!==self){void top.location.href}document.getElementById("lumen-antiframe").remove()}catch(e){}</script>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Bpesu8Rg58PkXi/OcaTZ0fnClUZ/fhHNV8PMvssN7Jk=' 'sha256-zMjNQg1xqmMkRWRKnLWXvpMU6+Bu6tz76teearzSBDw=' 'sha256-I04x7gSgNg4rhL0tVcZhdWwCw2Thy/t/Dg76wz72uMI=' 'sha256-opKKHEr5MPs3COno4WcjxTkHlvnauEM2HwZp5W/kVPw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https://erjdncsnomwymjiaslpx.supabase.co wss://erjdncsnomwymjiaslpx.supabase.co; worker-src 'self' blob:; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/><style id="lumen-antiframe">html{display:none!important}</style><script>try{if(top!==self){void top.location.href}document.getElementById("lumen-antiframe").remove()}catch(e){}</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
   <title>Médico · Lumen by SPITRELLA</title>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -48,8 +48,8 @@
   </div>
   <div class="topbar-right">
     <div class="sede-chip" id="top-sede">—</div>
-    <button class="btn-back-top" onclick="spcdVolverAtras('app.html?screen=roles')" style="cursor:pointer; font-family:inherit;">← Atrás</button>
-    <button class="btn-back-top" id="btn-cerrar-sesion" type="button" onclick="spcdCerrarSesion()" style="cursor:pointer; font-family:inherit;">Cerrar sesión</button>
+    <button class="btn-back-top" style="cursor:pointer; font-family:inherit;" data-lh="1">← Atrás</button>
+    <button class="btn-back-top" id="btn-cerrar-sesion" type="button" style="cursor:pointer; font-family:inherit;" data-lh="2">Cerrar sesión</button>
     <style>
 /* Celular: la barra superior ya desbordaba (el botón «Atrás» quedaba fuera de la pantalla); se ocultan las etiquetas para que «Cerrar sesión» se vea. */
 @media (max-width: 640px) { .topbar .topbar-crumbs, .topbar .sede-chip, .topbar .user-chip, .topbar .topbar-sep { display: none !important; } }
@@ -138,37 +138,36 @@ async function spcdCerrarSesion() {
       <span class="filter-label">Prestación</span>
       <select id="f-prest" class="filter-select"><option value="">Todas</option></select>
     </div>
-    <button class="btn-apply" onclick="applyFilters()">Aplicar</button>
-    <button class="btn-reset"  onclick="resetFilters()">Limpiar</button>
+    <button class="btn-apply" data-lh="3">Aplicar</button>
+    <button class="btn-reset" data-lh="4">Limpiar</button>
   </div>
 
   <!-- KPIs -->
   <div class="kpi-grid fade-in" id="kpi-vista">
-    <div class="kpi-card green" onclick="openRealizadosPage()">
+    <div class="kpi-card green" data-lh="5">
       <div class="kpi-icon">✅</div>
       <div class="kpi-label">Informes Realizados</div>
       <div class="kpi-val" id="kpi-realizados">—</div>
       <div class="kpi-sub" id="kpi-real-sub">con informe registrado</div>
       <div class="kpi-hint">ver detalle →</div>
     </div>
-    <div class="kpi-card red" onclick="openModal('pendientes')">
+    <div class="kpi-card red" data-lh="6">
       <div class="kpi-icon">📋</div>
       <div class="kpi-label">Informes Pendientes</div>
       <div class="kpi-val" id="kpi-pendientes">—</div>
       <div class="kpi-sub" id="kpi-pend-sub">sin informe cargado</div>
       <div class="kpi-hint">ver detalle →</div>
     </div>
-    <div class="kpi-card amber" onclick="openTiempoPage()">
+    <div class="kpi-card amber" data-lh="7">
       <div class="kpi-icon">⏱</div>
       <div class="kpi-label">Demora mediana (días)</div>
       <div class="kpi-val" id="kpi-tiempo">—</div>
       <div class="kpi-sub" id="kpi-tiempo-sub">días desde realización</div>
       <div class="nota-demora" id="kpi-tiempo-nota"></div>
-      <div class="kpi-hint" id="kpi-inconsistentes-link" style="display:none"
-           onclick="event.stopPropagation();openModal('inconsistentes')">⚠ ver inconsistentes →</div>
+      <div class="kpi-hint" id="kpi-inconsistentes-link" style="display:none" data-lh="8">⚠ ver inconsistentes →</div>
       <div class="kpi-hint">ver detalle →</div>
     </div>
-    <div class="kpi-card purple" onclick="openModal('medicos')">
+    <div class="kpi-card purple" data-lh="9">
       <div class="kpi-icon">👨‍⚕️</div>
       <div class="kpi-label">Médicos Informantes</div>
       <div class="kpi-val" id="kpi-medicos">—</div>
@@ -182,12 +181,12 @@ async function spcdCerrarSesion() {
 
   <!-- TABS -->
   <div class="tabs">
-    <button class="tab-btn" id="tab-btn-semaforo" onclick="switchTab('tab-semaforo',this)">Semáforo</button>
-    <button class="tab-btn active" id="tab-btn-resumen" onclick="switchTab('tab-resumen',this)">Resumen</button>
-    <button class="tab-btn"        onclick="switchTab('tab-pendientes',this)">Pendientes</button>
-    <button class="tab-btn" id="tab-btn-medicos" onclick="switchTab('tab-medicos',this)">Médicos</button>
-    <button class="tab-btn" id="tab-btn-prestaciones" onclick="switchTab('tab-prestaciones',this)">Prestaciones</button>
-    <button class="tab-btn" id="tab-btn-demora" onclick="switchTab('tab-demora',this)">Demora</button>
+    <button class="tab-btn" id="tab-btn-semaforo" data-lh="10" data-tab="tab-semaforo">Semáforo</button>
+    <button class="tab-btn active" id="tab-btn-resumen" data-lh="11" data-tab="tab-resumen">Resumen</button>
+    <button class="tab-btn" data-lh="12" data-tab="tab-pendientes">Pendientes</button>
+    <button class="tab-btn" id="tab-btn-medicos" data-lh="13" data-tab="tab-medicos">Médicos</button>
+    <button class="tab-btn" id="tab-btn-prestaciones" data-lh="14" data-tab="tab-prestaciones">Prestaciones</button>
+    <button class="tab-btn" id="tab-btn-demora" data-lh="15" data-tab="tab-demora">Demora</button>
   </div>
 
   <!-- TAB: SEMÁFORO (FR5.1, fase 4) -->
@@ -235,7 +234,7 @@ async function spcdCerrarSesion() {
         <div class="table-header-title">Estudios Sin Informe</div>
         <div class="filter-group">
           <span class="filter-label">Modalidad</span>
-          <select id="f-pend-modalidad" class="filter-select" onchange="renderTabPendientes(filtradoBacklog)">
+          <select id="f-pend-modalidad" class="filter-select" data-lh="16">
             <option value="">Todas</option>
             <option value="RAYOS X">RAYOS X</option>
             <option value="ECOGRAFÍA / DOPPLER">ECOGRAFÍA / DOPPLER</option>
@@ -247,7 +246,7 @@ async function spcdCerrarSesion() {
         </div>
         <div class="filter-group">
           <span class="filter-label">Semáforo</span>
-          <select id="f-pend-semaforo" class="filter-select" onchange="renderTabPendientes(filtradoBacklog)">
+          <select id="f-pend-semaforo" class="filter-select" data-lh="17">
             <option value="">Todos</option>
             <option value="rojo">Rojo</option>
             <option value="amarillo">Amarillo</option>
@@ -281,7 +280,7 @@ async function spcdCerrarSesion() {
   <!-- TAB: MÉDICOS -->
   <div class="tab-pane" id="tab-medicos">
     <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
-      <button class="btn-export" onclick="exportMedicosExcel(false)">⬇ Exportar Excel</button>
+      <button class="btn-export" data-lh="18">⬇ Exportar Excel</button>
     </div>
     <div id="medicos-aviso-pend"></div>
     <div class="nota-demora" id="medicos-nota"></div>
@@ -293,7 +292,7 @@ async function spcdCerrarSesion() {
   <!-- TAB: PRESTACIONES (C9, fase 5; export C16, fase 6: el botón va FUERA de #prestaciones-vista, que renderProtegido pisa) -->
   <div class="tab-pane" id="tab-prestaciones">
     <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
-      <button class="btn-export" id="btn-export-prestaciones" onclick="exportPrestacionesExcel(false)">⬇ Exportar Excel</button>
+      <button class="btn-export" id="btn-export-prestaciones" data-lh="19">⬇ Exportar Excel</button>
     </div>
     <div id="prestaciones-vista">
       <div class="empty-state"><div class="e-icon">🩻</div><div class="e-text">Cargá un Excel para ver</div></div>
@@ -303,13 +302,13 @@ async function spcdCerrarSesion() {
   <!-- TAB: DEMORA (fase 5): mapa de calor (C7) y tendencia semanal (C14), cada uno en su propio panel -->
   <div class="tab-pane" id="tab-demora">
     <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
-      <button class="btn-export" id="btn-export-mapa-calor" onclick="exportMapaCalorExcel(false)">⬇ Exportar mapa de calor</button>
+      <button class="btn-export" id="btn-export-mapa-calor" data-lh="20">⬇ Exportar mapa de calor</button>
     </div>
     <div id="mapa-calor-vista">
       <div class="empty-state"><div class="e-icon">🔥</div><div class="e-text">Cargá un Excel para ver</div></div>
     </div>
     <div style="display:flex; justify-content:flex-end; margin:10px 0;">
-      <button class="btn-export" id="btn-export-tendencia" onclick="exportTendenciaExcel(false)">⬇ Exportar tendencia</button>
+      <button class="btn-export" id="btn-export-tendencia" data-lh="21">⬇ Exportar tendencia</button>
     </div>
     <div id="tendencia-vista">
       <div class="empty-state"><div class="e-icon">📈</div><div class="e-text">Cargá un Excel para ver</div></div>
@@ -327,7 +326,7 @@ async function spcdCerrarSesion() {
         <div class="real-subtitle" id="real-subtitle">Estudios con informe (I/F) por Médico Informante</div>
         <div class="nota-demora" id="real-nota"></div>
       </div>
-      <button class="btn-back-real" onclick="closeRealizadosPage()">← Volver</button>
+      <button class="btn-back-real" data-lh="22">← Volver</button>
     </div>
 
     <div class="real-summary">
@@ -352,8 +351,8 @@ async function spcdCerrarSesion() {
     <div class="real-table-wrap">
       <div class="real-table-header">
         <div class="real-table-title">Detalle por Médico Informante</div>
-        <button class="btn-export" onclick="exportRealizadosExcel(false)">⬇ Exportar Excel</button>
-        <button class="btn-export" style="margin-left:6px;" onclick="exportRealizadosExcel(true)" title="Descargar y compartir por email/WhatsApp">📤 Compartir</button>
+        <button class="btn-export" data-lh="23" data-export="realizados">⬇ Exportar Excel</button>
+        <button class="btn-export" style="margin-left:6px;" title="Descargar y compartir por email/WhatsApp" data-lh="24" data-export="realizados">📤 Compartir</button>
       </div>
       <div style="overflow-x:auto; max-height:65vh; overflow-y:auto;">
         <table class="real-table">
@@ -379,7 +378,7 @@ async function spcdCerrarSesion() {
         <div class="real-subtitle" id="tiempo-subtitle">Demora mediana de informe por modalidad</div>
         <div class="nota-demora" id="tiempo-nota"></div>
       </div>
-      <button class="btn-back-real" onclick="closeTiempoPage()">← Volver</button>
+      <button class="btn-back-real" data-lh="25">← Volver</button>
     </div>
 
     <div class="real-summary">
@@ -404,8 +403,8 @@ async function spcdCerrarSesion() {
     <div class="real-table-wrap">
       <div class="real-table-header">
         <div class="real-table-title">Detalle por modalidad</div>
-        <button class="btn-export" onclick="exportTiempoExcel(false)">⬇ Exportar Excel</button>
-        <button class="btn-export" style="margin-left:6px;" onclick="exportTiempoExcel(true)" title="Descargar y compartir por email/WhatsApp">📤 Compartir</button>
+        <button class="btn-export" data-lh="26">⬇ Exportar Excel</button>
+        <button class="btn-export" style="margin-left:6px;" title="Descargar y compartir por email/WhatsApp" data-lh="27">📤 Compartir</button>
       </div>
       <div style="overflow-x:auto; max-height:65vh; overflow-y:auto;">
         <table class="real-table">
@@ -423,7 +422,7 @@ async function spcdCerrarSesion() {
 </div>
 
 <!-- MODAL -->
-<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+<div class="modal-overlay" id="modal-overlay" data-lh="28">
   <div class="modal-drawer">
     <div class="modal-head">
       <div class="modal-bar" id="modal-bar"></div>
@@ -431,12 +430,12 @@ async function spcdCerrarSesion() {
         <div class="modal-head-title" id="modal-title">Detalle</div>
         <div class="modal-head-count" id="modal-count"></div>
       </div>
-      <button class="modal-close" onclick="closeModal()">✕</button>
+      <button class="modal-close" data-lh="29">✕</button>
     </div>
     <div class="modal-toolbar">
-      <input class="modal-search" id="modal-search" type="text" placeholder="🔍  Buscar por paciente, médico, prestación…" oninput="filterModal(this.value)"/>
+      <input class="modal-search" id="modal-search" type="text" placeholder="🔍  Buscar por paciente, médico, prestación…" data-lh="30"/>
       <div class="export-wrap" id="modal-export">
-        <button class="btn-export" onclick="handleExportClick()">⬇ Exportar Excel</button>
+        <button class="btn-export" data-lh="31">⬇ Exportar Excel</button>
         <div class="export-menu" id="export-menu"></div>
       </div>
     </div>
@@ -454,6 +453,7 @@ async function spcdCerrarSesion() {
   </div>
 </div>
 
+<script src="lumen-h-medico.js?v=86f51110"></script>
 <script src="vendor/xlsx.full.min.js?v=cc015130" integrity="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT" crossorigin="anonymous"></script>
 <script src="vendor/exceljs.min.js?v=7e49da68" integrity="sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz" crossorigin="anonymous"></script>
 <script src="vendor/chart.umd.min.js?v=e9b0f875" integrity="sha384-DhxhYObIMeMNGyAG7iK11OHzBIKyEIeRL0ad1iFPAOwZB8iirUlTT0O/WJJUk8+o" crossorigin="anonymous"></script>
@@ -463,7 +463,7 @@ async function spcdCerrarSesion() {
 <script src="vendor/supabase.js?v=8816af04" integrity="sha384-A97u3Qnt9GZHURO9YJZRe7VQgGUeFzcv6I1oIGnUTxQrCxnpQMwR0/G8F2zt9abZ" crossorigin="anonymous"></script>
 <script src="spcd-supabase.js?v=03ee9f60"></script>
 
-<script src="medico.js?v=563beb0e"></script>
+<script src="medico.js?v=c92033a7"></script>
 <script src="medico-metricas.js?v=d31573db"></script>
 <!-- Toast de notificaciones (para showToast de spcd-utils.js) -->
 <div class="toast" id="toast"></div>
@@ -479,9 +479,8 @@ async function spcdCerrarSesion() {
 (function () {
   if (!window.SpcdHistorial || typeof switchTab !== 'function') return;
   var orig = switchTab;
-  var ids = Array.prototype.map.call(document.querySelectorAll('.tab-btn[onclick*="switchTab"]'), function (b) {
-    var m = /switchTab\('([^']+)'/.exec(b.getAttribute('onclick')); return m ? m[1] : null; }).filter(Boolean);
-  function boton(id) { return document.querySelector('.tab-btn[onclick*="\'' + id + '\'"]'); }
+  var ids = Array.prototype.map.call(document.querySelectorAll('.tab-btn[data-tab]'), function (b) { return b.getAttribute('data-tab'); });
+  function boton(id) { return document.querySelector('.tab-btn[data-tab="' + id + '"]'); }
   window.switchTab = switchTab = function (id, btn) { try { return orig.apply(this, arguments); } finally { SpcdHistorial.cambio(id); } };
   SpcdHistorial.pestanas({
     validas: ids,

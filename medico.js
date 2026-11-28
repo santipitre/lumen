@@ -51,13 +51,13 @@ function aplicarPermisosRanking() {
   if (kpiMed) {
     const card = kpiMed.closest('.kpi-card');
     if (card) {
-      card.removeAttribute('onclick'); card.style.cursor = 'default';
+      card.removeAttribute('data-lh'); card.style.cursor = 'default';   // data-lh: M1, el handler inline pasó a lumen-h-medico.js; sin el id el binder no lo ejecuta
       const hint = card.querySelector('.kpi-hint'); if (hint) hint.style.display = 'none';
     }
     kpiMed.innerHTML = KPI_MEDICOS_CANDADO;
   }
   // C5 (fase 5): el export de Tiempo ya no tiene nombres; sólo el de Realizados queda bajo permiso.
-  document.querySelectorAll('button[onclick^="exportRealizadosExcel"]')
+  document.querySelectorAll('button[data-export="realizados"]')
     .forEach(b => { b.disabled = true; b.title = AVISO_RANKING; });
 }
 
@@ -711,9 +711,15 @@ const cmpTexto = (x, y) => (x < y ? -1 : x > y ? 1 : 0);
 function renderRankTiempos() {
   const container = document.getElementById('rank-tiempos');
   container.innerHTML = !puedeVerRankingMedicos() ? ''
-    : `<button class="rank-acceso" onclick="switchTab('tab-medicos', document.getElementById('tab-btn-medicos'))">`
+    : `<button class="rank-acceso" data-m-act="ir-medicos">`
       + `Ver demora por médico, por modalidad →</button>`;
 }
+
+// Acceso de Resumen a la vista Médicos: botón armado con innerHTML (data-m-act), sin onclick inline.
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-m-act="ir-medicos"]');
+  if (b) switchTab('tab-medicos', document.getElementById('tab-btn-medicos'));
+});
 
 /* ═══════════════════════════════════
    PENDIENTES (FR5.2, fase 4): bandas de semaforo(), orden por días de demora
@@ -1918,10 +1924,10 @@ function handleExportClick() {
     if (menu.classList.contains('open')) { menu.classList.remove('open'); return; }
     menu.innerHTML =
       '<div class="em-row">' +
-        '<button class="em-part em-dl" onclick="exportExcel(\'all\', false);closeExportMenu()">' +
+        '<button class="em-part em-dl" data-m-act="export" data-m-arg="all">' +
           '<span class="em-ic">⬇</span><span class="em-label">Descargar Excel</span>' +
         '</button>' +
-        '<button class="em-part em-sh" title="Descargar y abrir diálogo de compartir" onclick="exportExcel(\'all\', true);closeExportMenu()">📤</button>' +
+        '<button class="em-part em-sh" title="Descargar y abrir diálogo de compartir" data-m-act="export-sh" data-m-arg="all">📤</button>' +
       '</div>';
     menu.classList.add('open');
     return;
@@ -1933,20 +1939,20 @@ function handleExportClick() {
   // Construir menú con grupos
   const dataRows = deduplicarPorTurno(modalFiltered);
   let html = '<div class="em-row em-all">' +
-    '<button class="em-part em-dl" onclick="exportExcel(\'all\', false);closeExportMenu()">' +
+    '<button class="em-part em-dl" data-m-act="export" data-m-arg="all">' +
       '<span class="em-ic">⬇</span><span class="em-label">EXPORTAR TODO</span><span class="em-count">' + dataRows.length + ' reg.</span>' +
     '</button>' +
-    '<button class="em-part em-sh" title="Descargar y compartir" onclick="exportExcel(\'all\', true);closeExportMenu()">📤</button>' +
+    '<button class="em-part em-sh" title="Descargar y compartir" data-m-act="export-sh" data-m-arg="all">📤</button>' +
   '</div>';
 
   EQUIPO_GROUPS.forEach((g, idx) => {
     const cnt = dataRows.filter(r => modalidad(r) === g.label).length;
     if (cnt > 0) {
       html += '<div class="em-row">' +
-        '<button class="em-part em-dl" onclick="exportExcel('+idx+', false);closeExportMenu()">' +
+        '<button class="em-part em-dl" data-m-act="export" data-m-arg="'+idx+'">' +
           '<span class="em-label">' + g.label + '</span><span class="em-count">' + cnt + ' reg.</span>' +
         '</button>' +
-        '<button class="em-part em-sh" title="Descargar y compartir" onclick="exportExcel('+idx+', true);closeExportMenu()">📤</button>' +
+        '<button class="em-part em-sh" title="Descargar y compartir" data-m-act="export-sh" data-m-arg="'+idx+'">📤</button>' +
       '</div>';
     }
   });
@@ -1955,10 +1961,10 @@ function handleExportClick() {
   const otherCnt = dataRows.filter(r => modalidad(r) === 'OTROS').length;
   if (otherCnt > 0) {
     html += '<div class="em-row">' +
-      '<button class="em-part em-dl" onclick="exportExcel(\'otros\', false);closeExportMenu()">' +
+      '<button class="em-part em-dl" data-m-act="export" data-m-arg="otros">' +
         '<span class="em-label">OTROS</span><span class="em-count">' + otherCnt + ' reg.</span>' +
       '</button>' +
-      '<button class="em-part em-sh" title="Descargar y compartir" onclick="exportExcel(\'otros\', true);closeExportMenu()">📤</button>' +
+      '<button class="em-part em-sh" title="Descargar y compartir" data-m-act="export-sh" data-m-arg="otros">📤</button>' +
     '</div>';
   }
 
@@ -1969,6 +1975,19 @@ function handleExportClick() {
 function closeExportMenu() {
   document.getElementById('export-menu').classList.remove('open');
 }
+// Los botones del menú se arman con innerHTML: sin onclick inline (CSP sin 'unsafe-inline', M1). Un solo listener en el menú;
+// corre en la misma fase que el onclick de antes (antes del listener de document que cierra al hacer click fuera).
+(function () {
+  const menu = document.getElementById('export-menu');
+  if (!menu) return;
+  menu.addEventListener('click', e => {
+    const b = e.target.closest('[data-m-act]');
+    if (!b || !menu.contains(b)) return;
+    const a = b.getAttribute('data-m-arg');
+    exportExcel(/^\d+$/.test(a) ? Number(a) : a, b.getAttribute('data-m-act') === 'export-sh');
+    closeExportMenu();
+  });
+})();
 // Cerrar menú al hacer click fuera
 document.addEventListener('click', e => {
   const wrap = document.querySelector('.export-wrap');
